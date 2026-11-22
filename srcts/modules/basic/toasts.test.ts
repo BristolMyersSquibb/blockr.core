@@ -1,11 +1,12 @@
 // The toasts of core's basic frontend, followed from notifications that the
-// test sets, as CoreApi's would hold them, with the browser's timers faked.
+// test sets, as CoreApi's would hold them. React Aria's queue holds them,
+// and its region, which the page tests draw, times them (./index.test.tsx).
 
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 import type { Board, PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
 import { holding } from "../../testing/notifications.ts";
-import { concerned, createToasts, FADES_FOR, isReload, SHOWN_FOR, sourcePackage } from "./toasts.ts";
+import { concerned, createToasts, isReload, SHOWN_FOR, sourcePackage } from "./toasts.ts";
 import type { Toasts } from "./toasts.ts";
 
 // A notification that a plugin of core's raised, of the severity given.
@@ -19,8 +20,16 @@ function raised(id: string, severity: Notification["severity"], about?: Notifica
   };
 }
 
-// The ids of the notifications whose toasts show, each marked where it fades.
-const ids = (toasts: Toasts): string[] => toasts.list().map((toast) => `${toast.notification.id}${toast.fading ? " fading" : ""}`);
+// The ids of the notifications whose toasts show, top to bottom, as the
+// region lays out the queue, whose latest toast comes first.
+const ids = (toasts: Toasts): string[] => toasts.queue.visibleToasts.map((toast) => toast.content.id).reverse();
+
+// Closes the toast of the notification, as the user or its five seconds do.
+function close(toasts: Toasts, id: string): void {
+  const toast = toasts.queue.visibleToasts.find((shown) => shown.content.id === id);
+  if (toast === undefined) throw new Error(`Found no toast of ${id}.`);
+  toasts.queue.close(toast.key);
+}
 
 // The toasts of the notifications, where the frontend shows the plugins for
 // which `sectioned` holds in a section of their own, and no other.
@@ -34,13 +43,8 @@ function toastsFromNotifications(
   return toasts;
 }
 
-beforeEach(() => {
-  vi.useFakeTimers();
-});
-
 afterEach(() => {
   for (const toasts of made.splice(0)) toasts.stop();
-  vi.useRealTimers();
 });
 
 describe("the toasts", () => {
@@ -49,85 +53,32 @@ describe("the toasts", () => {
     const toasts = toastsFromNotifications(given.notifications, (plugin) => plugin === "blockr.core-edit_board_plugin");
 
     expect(ids(toasts)).toEqual(["a", "c"]);
-    const shown = toasts.list();
+    const [shown] = toasts.queue.visibleToasts;
     given.set([
       ...given.notifications.get(),
       raised("d", "message", { plugin: "blockr.core-file_storage_plugin" }),
       raised("e", "error", { plugin: "blockr.core-edit_board_plugin" }),
     ]);
     expect(ids(toasts)).toEqual(["a", "c", "d"]);
-    expect(toasts.list()[0]).toBe(shown[0]);
+    expect(toasts.queue.visibleToasts[1]).toBe(shown);
   });
 
-  test("call their subscribers as the notifications change, and keep the same list until a toast comes, goes or starts to fade", () => {
-    const given = holding([raised("a", "error")]);
-    const toasts = toastsFromNotifications(given.notifications);
-    const heard = vi.fn();
-    const off = toasts.subscribe(heard);
-    const before = toasts.list();
+  test("give a message's toast five seconds, and none to a warning's or an error's, which stay until the user closes them", () => {
+    const toasts = toastsFromNotifications(holding([raised("m", "message"), raised("w", "warning"), raised("e", "error")]).notifications);
 
-    given.set([...given.notifications.get(), raised("b", "error", { block: "b" })]);
-    expect(toasts.list()).toBe(before);
-    given.set([raised("a", "error"), raised("c", "message")]);
-    expect(toasts.list()).not.toBe(before);
-    expect(heard).toHaveBeenCalledTimes(2);
-    off();
-    given.set([]);
-    expect(heard).toHaveBeenCalledTimes(2);
-  });
-
-  test("fade for a message after five seconds and then go, while a warning's and an error's stay until the user closes them", () => {
-    const given = holding([raised("m", "message"), raised("w", "warning"), raised("e", "error")]);
-    const toasts = toastsFromNotifications(given.notifications);
-
-    vi.advanceTimersByTime(SHOWN_FOR - 1);
-    expect(ids(toasts)).toEqual(["m", "w", "e"]);
-    vi.advanceTimersByTime(1);
-    expect(ids(toasts)).toEqual(["m fading", "w", "e"]);
-    vi.advanceTimersByTime(FADES_FOR);
-    expect(ids(toasts)).toEqual(["w", "e"]);
-
-    vi.advanceTimersByTime(60_000);
-    expect(ids(toasts)).toEqual(["w", "e"]);
-    toasts.close("e");
-    expect(ids(toasts)).toEqual(["w"]);
-  });
-
-  test("keep a message's toast while the pointer rests on it or the focus is in it, and start its five seconds again once neither does", () => {
-    const given = holding([raised("m", "message")]);
-    const toasts = toastsFromNotifications(given.notifications);
-
-    vi.advanceTimersByTime(SHOWN_FOR - 1000);
-    toasts.keep("m", "pointer");
-    toasts.keep("m", "focus");
-    vi.advanceTimersByTime(60_000);
-    expect(ids(toasts)).toEqual(["m"]);
-    toasts.release("m", "pointer");
-    vi.advanceTimersByTime(60_000);
-    expect(ids(toasts)).toEqual(["m"]);
-
-    toasts.release("m", "focus");
-    vi.advanceTimersByTime(SHOWN_FOR - 1);
-    expect(ids(toasts)).toEqual(["m"]);
-    vi.advanceTimersByTime(1);
-    expect(ids(toasts)).toEqual(["m fading"]);
-
-    // The pointer that comes to rest on a fading toast keeps it.
-    toasts.keep("m", "pointer");
-    expect(ids(toasts)).toEqual(["m"]);
-    vi.advanceTimersByTime(60_000);
-    expect(ids(toasts)).toEqual(["m"]);
-    toasts.release("m", "pointer");
-    vi.advanceTimersByTime(SHOWN_FOR + FADES_FOR);
-    expect(ids(toasts)).toEqual([]);
+    expect(toasts.queue.visibleToasts.map((toast) => [toast.content.id, toast.timeout])).toEqual([
+      ["e", undefined],
+      ["w", undefined],
+      ["m", SHOWN_FOR],
+    ]);
   });
 
   test("go as soon as core withdraws their notifications, and do not come back while a notification holds once they faded or the user closed them", () => {
     const given = holding([raised("m", "message"), raised("w", "warning"), raised("e", "error")]);
     const toasts = toastsFromNotifications(given.notifications);
 
-    toasts.close("w");
-    vi.advanceTimersByTime(SHOWN_FOR + FADES_FOR);
+    close(toasts, "w");
+    close(toasts, "m");
     expect(ids(toasts)).toEqual(["e"]);
     // Core holds the same notifications in a new array.
     given.set([...given.notifications.get()]);
@@ -141,36 +92,14 @@ describe("the toasts", () => {
     expect(ids(toasts)).toEqual(["m", "e"]);
   });
 
-  test("show inside the element of the dialog that opened last, and back in the page once every dialog closes", () => {
-    const toasts = toastsFromNotifications(holding([raised("e", "error")]).notifications);
-    const heard = vi.fn();
-    toasts.subscribe(heard);
-    const first = document.createElement("div");
-    const second = document.createElement("div");
-
-    expect(toasts.shownIn()).toBeNull();
-    const closeFirst = toasts.showIn(first);
-    const closeSecond = toasts.showIn(second);
-    expect(toasts.shownIn()).toBe(second);
-    closeSecond();
-    closeSecond();
-    expect(toasts.shownIn()).toBe(first);
-    closeFirst();
-    expect(toasts.shownIn()).toBeNull();
-    expect(heard).toHaveBeenCalledTimes(4);
-  });
-
-  test("stop following the notifications, and stop their timers, once stopped", () => {
+  test("stop following the notifications once stopped", () => {
     const given = holding([raised("m", "message")]);
     const toasts = toastsFromNotifications(given.notifications);
-    toasts.keep("m", "pointer");
 
     toasts.stop();
     expect(given.listening()).toBe(0);
-    toasts.release("m", "pointer");
-    vi.advanceTimersByTime(60_000);
+    given.set([raised("e", "error")]);
     expect(ids(toasts)).toEqual(["m"]);
-    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

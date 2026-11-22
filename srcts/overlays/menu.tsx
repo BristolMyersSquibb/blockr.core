@@ -1,11 +1,15 @@
-// The menu of core's React SDK: React Aria's MenuTrigger, Menu, MenuItem and
-// MenuSection (https://react-aria.adobe.com/Menu), in core's theme, after the
-// Menu of React Aria's Tailwind starter kit
+// The menu of core's React SDK: React Aria's MenuTrigger, Menu, MenuItem,
+// MenuSection and SubmenuTrigger (https://react-aria.adobe.com/Menu), in
+// core's theme, after the Menu of React Aria's Tailwind starter kit
 // (https://github.com/adobe/react-spectrum/blob/react-aria-components%401.22.1/starters/tailwind/src/Menu.tsx).
 // Each takes the props of its part of React Aria, and the trigger the
 // starter kit's `placement` too.
 // The trigger holds the button that opens the menu, the SDK's Button, and
 // the menu, which it opens in the SDK's Popover beside the button.
+// The submenu's trigger holds an item of a menu and the menu that opens from
+// it, in the SDK's Popover beside the item's row, as the pointer rests on the
+// item, as the user presses it, or on the arrow key that points away from the
+// menu. The item shows a chevron at its right.
 // React Aria closes the menu as the user picks an item, on Escape and on a
 // press outside it, and moves the focus through its items by the arrow keys.
 // An item shows a tick where the menu picks, and the item is picked.
@@ -26,6 +30,7 @@ import {
   MenuItem as AriaMenuItem,
   MenuSection as AriaMenuSection,
   MenuTrigger as AriaMenuTrigger,
+  SubmenuTrigger as AriaSubmenuTrigger,
 } from "../aria/index.ts";
 import type {
   MenuItemProps,
@@ -33,8 +38,9 @@ import type {
   MenuSectionProps as AriaMenuSectionProps,
   MenuTriggerProps as AriaMenuTriggerProps,
   PopoverProps,
+  SubmenuTriggerProps,
 } from "../aria/index.ts";
-import { Tick } from "../inputs/index.ts";
+import { ChevronRight, Tick } from "../inputs/index.ts";
 import { Popover } from "./popover.tsx";
 
 export interface MenuTriggerProps extends AriaMenuTriggerProps {
@@ -53,6 +59,19 @@ export function MenuTrigger({ placement, children, ...props }: MenuTriggerProps)
   );
 }
 
+export function SubmenuTrigger({ children, ...props }: SubmenuTriggerProps): ReactElement {
+  // React Aria's SubmenuTrigger takes its item and its menu as elements.
+  const [trigger, menu] = Children.toArray(children) as [ReactElement, ReactElement];
+  return (
+    <AriaSubmenuTrigger {...props}>
+      {trigger}
+      <Popover offset={-2} crossOffset={-4} className="bc:min-w-44">
+        {menu}
+      </Popover>
+    </AriaSubmenuTrigger>
+  );
+}
+
 export function Menu<T extends object>({ className, ...props }: MenuProps<T>): ReactElement {
   return <AriaMenu {...props} className={composeRenderProps(className, (given) => `${MENU} ${given ?? ""}`)} />;
 }
@@ -61,12 +80,13 @@ export function MenuItem(props: MenuItemProps): ReactElement {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : undefined);
   return (
     <AriaMenuItem {...props} textValue={textValue} className={composeRenderProps(props.className, (given) => `${ITEM} ${given ?? ""}`)}>
-      {composeRenderProps(props.children, (children, { selectionMode, isSelected }) => (
+      {composeRenderProps(props.children, (children, { selectionMode, isSelected, hasSubmenu }) => (
         <>
           {selectionMode === "none" ? null : (
             <span className="bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent">{isSelected ? <Tick /> : null}</span>
           )}
           <span className={CONTENT}>{children}</span>
+          {hasSubmenu ? <ChevronRight size={14} /> : null}
         </>
       ))}
     </AriaMenuItem>

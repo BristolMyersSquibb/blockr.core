@@ -104,12 +104,13 @@ serve(new_board())
 1. Under Blocks, in the Edit board plugin, the user types "dataset" in Block class, picks the dataset block, types `a` as its ID and clicks Add block.
    The block's card appears, and the user picks `BOD` in its Dataset dropdown.
 2. The user adds a second dataset block in the same way, with the ID `b`, and picks `ChickWeight` in its card.
-3. In the card of block `a`, the user opens the menu behind ⋯ and picks Add block after.
+3. In the card of block `a`, the user opens the menu behind ⋯ and picks Append block, which lists the block classes that take data.
+   A click on one would add its block at once, under an ID drawn at random, so the user opens the form instead, through Show all options, the icon at the top right of the list.
    In the form, the user picks the merge block as the class, keeps `x` as the input that block `a` feeds, types `c` as the ID and clicks Add block.
    The merge block appears with a link from block `a` into its input `x`.
 
-```{r, echo = FALSE, fig.alt = "The form of Add block after, opened from the card of block a. It holds the block class, merge block, the input of the new merge block, x, the ID, c, and an empty name."}
-knitr::include_graphics("screenshots/add-block-after.png")
+```{r, echo = FALSE, fig.alt = "The form of Append block, opened from the card of block a. It holds the block class, merge block, the input of the new merge block, x, the ID, c, and an empty name."}
+knitr::include_graphics("screenshots/append-block.png")
 ```
 
 4. Under Links, the user picks block `b` in From and block `c` in To, and clicks Add link.

@@ -232,12 +232,13 @@ describe("the blocks", () => {
     expect(board().blocks.petals).toMatchObject({ registry_id: "blockr.core-scatter_block", name: "Petal plot" });
     expect(Object.values(board().links).filter((l) => l.to === "petals")).toEqual([]);
     expect(notes).toEqual([]);
-    // The form starts again for the next block.
+    // The form, the advanced action of core's Add block, which core renders
+    // again, starts afresh for the next block.
     expect([labelled(add(), "Block class").value, labelled(add(), "ID").value, labelled(add(), "Name").value]).toEqual(["", "", ""]);
     expect(row(section(el, "Blocks"), "Petal plot").textContent).toContain("petals");
   });
 
-  test("get an ID that the command mints and the name of their class where the user leaves the fields empty", async () => {
+  test("get an ID that core mints and the name of their class where the user leaves the fields empty", async () => {
     const { el, board } = await mounted();
     const add = form(section(el, "Blocks"), "Add block");
 
@@ -833,19 +834,43 @@ describe("each edit", () => {
   test("that the store refuses from a form that adds to the board, the plugin says why below the form's buttons, as the form stays as the user filled it in", async () => {
     const { el, core, board } = await refusing();
     const before = board();
-    const addBlock = (): HTMLFormElement => form(section(el, "Blocks"), "Add block");
     const stacks = section(el, "Stacks");
 
-    await chosen(addBlock(), "Block class", "dataset", "dataset block");
-    await click(button(addBlock(), "Add block"));
-    expect(refusals(addBlock())).toEqual([["Could not add the block.", expect.stringMatching(/^The board lock refuses to add block "[a-z_]+"\.$/)]]);
-    expect(labelled(addBlock(), "Block class").value).toBe("dataset block");
+    // The board lock leaves core no board action that adds a block, so the
+    // plugin mounts no block picker.
+    expect(section(el, "Blocks").querySelector('form[aria-label="Add block"]')).toBeNull();
 
     await click(button(form(stacks, "Add stack"), "Add stack"));
     expect(refusals(form(stacks, "Add stack"))).toEqual([["Could not add the stack.", expect.stringMatching(/^The board lock refuses to add stack "[a-z_]+"\.$/)]]);
 
     expect(board()).toEqual(before);
     expect(held(core)).toEqual([]);
+  });
+
+  test("that the command registry refuses from the block picker, the picker says why below its button, as it stays as the user filled it in", async () => {
+    // A class whose new block starts with a state that its schema refuses.
+    const head = HELLO.block_registry["blockr.core-head_block"];
+    if (head === undefined) throw new Error("The fixture's registry holds no head block.");
+    const hello: HelloReply = {
+      ...HELLO,
+      block_registry: {
+        ...HELLO.block_registry,
+        "blockr.test-broken_block": { ...head, id: "blockr.test-broken_block", name: "broken block", state: { ...head.state, n: "ten" } },
+      },
+    };
+    const { el, core, board, notes } = await mounted({ hello });
+    const before = board();
+    const add = (): HTMLFormElement => form(section(el, "Blocks"), "Add block");
+
+    await chosen(add(), "Block class", "broken", "broken block");
+    await click(button(add(), "Add block"));
+    expect(refusals(add())).toEqual([["Could not add the block.", expect.stringMatching(/^The state of the new block fails its schema at \/n/) as string]]);
+    expect(find(add(), '[role="alert"]').previousElementSibling?.contains(button(add(), "Add block"))).toBe(true);
+    expect(labelled(add(), "Block class").value).toBe("broken block");
+
+    expect(board()).toBe(before);
+    expect(held(core)).toEqual([]);
+    expect(notes).toEqual([]);
   });
 
   test("that the store refuses from the form that changes a row of a table, the plugin says why below the table, naming the row, as the form stays as the user filled it in", async () => {
@@ -887,8 +912,16 @@ describe("under the board lock", () => {
     const { el } = await mounted({ hello: locked });
 
     expect([...el.querySelectorAll("section")].map((s) => s.getAttribute("aria-label"))).toEqual(["Links", "Stacks"]);
-    // Each search keeps the button that clears it.
-    expect(el.querySelectorAll('form, select, button:not([aria-label="Clear search"])')).toHaveLength(0);
+    // The only buttons are those of the sections' headers, which collapse a
+    // section and edit nothing, and the button of each search that clears
+    // it.
+    expect(el.querySelectorAll("form, select")).toHaveLength(0);
+    expect(
+      [...el.querySelectorAll('button:not([aria-label="Clear search"])')].map((button) => [button.parentElement?.tagName, button.textContent]),
+    ).toEqual([
+      ["H3", "Links7"],
+      ["H3", "Stacks1"],
+    ]);
     expect([...el.querySelectorAll("input")].map((input) => input.type)).toEqual(["search", "search"]);
     expect(rows(el, "Links")).toHaveLength(7);
     expect(texts(row(section(el, "Links"), "Iris → Head"), "td")).toEqual(["Irisa", "Headb", "data"]);

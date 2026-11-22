@@ -4,4 +4,4 @@ export interface Search<T> {
     readonly onOpenChange: (isOpen: boolean, trigger?: string) => void;
     readonly renderEmptyState: () => string;
 }
-export declare function useSearch<T>(all: readonly T[], texts: (item: T) => readonly string[], none?: string): Search<T>;
+export declare function useSearch<T>(all: readonly T[], texts: (item: T) => readonly string[], none?: string, start?: string): Search<T>;

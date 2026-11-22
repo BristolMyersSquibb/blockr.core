@@ -8,15 +8,15 @@
 import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { HELLO, stubCore } from "../../stubs/index.ts";
-import type { StubCoreOptions } from "../../stubs/index.ts";
+import type { StubAdvanced, StubCoreOptions, StubMenu } from "../../stubs/index.ts";
 import type { HelloReply, Request } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
 import { find, picking, press, texts, toggleButton, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
 import { logged } from "../../testing/logged.ts";
-import { inert, itemDescribed, menuGroup, menuItem, menuItems, openDialog, openMenu } from "../../testing/overlays.ts";
-import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked, selectButton } from "../../testing/select.ts";
+import { inert, itemDescribed, menuItem, menuItems, openDialog, openMenu, tipOnFocus } from "../../testing/overlays.ts";
+import { labelled, optionFromLabel } from "../../testing/select.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
 import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
@@ -59,6 +59,11 @@ interface Drawn {
   stop: () => void;
   // The blocks whose outputs core asked R for, in order.
   asked: () => string[];
+  // The menu of board actions that is open, which core runs and the CoreApi
+  // for tests does not draw, and the advanced action that core's dialog
+  // shows.
+  menu: () => StubMenu | undefined;
+  advanced: () => StubAdvanced | undefined;
 }
 
 // What stops each page that a test drew, which runs as the test ends, so that
@@ -83,6 +88,8 @@ async function drawn(options: StubCoreOptions = {}): Promise<Drawn> {
     settled,
     stop: stubbed.stop,
     asked: () => stubbed.sent.flatMap((request: Request) => (request.kind === "output" ? [request.block] : [])),
+    menu: () => stubbed.menu(),
+    advanced: () => stubbed.advanced(),
   };
 }
 
@@ -179,10 +186,25 @@ async function click(el: HTMLElement): Promise<void> {
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 }
 
-// Picks an action from the menu of the card of the block of the name given.
-async function menu(el: HTMLElement, name: string, action: string): Promise<void> {
-  await click(find(card(el, name), `button[aria-label="Actions of ${name}"]`));
-  await click(menuItem(openMenu(`Actions of ${name}`), action));
+// Opens the menu of the card of the block of the name given, through its
+// button, and returns the menu of board actions that core opened, which the
+// CoreApi for tests drives.
+async function menu(drawn: Drawn, name: string): Promise<StubMenu> {
+  await click(find(card(drawn.el, name), `button[aria-label="Actions of ${name}"]`));
+  const opened = drawn.menu();
+  if (opened === undefined) throw new Error(`The card "${name}" opened no menu.`);
+  return opened;
+}
+
+// The labels of the rows that the menu shows.
+const labels = (menu: StubMenu): string[] => menu.level()?.rows.map((row) => row.label) ?? [];
+
+// Does what the user does in a menu of board actions, and lets what it set
+// off run, such as the batch of a row.
+async function inMenu(fn: () => Promise<void> | void): Promise<void> {
+  await act(async () => {
+    await fn();
+  });
 }
 
 // The dialog that is open, which React Aria draws at the end of the page's
@@ -196,10 +218,17 @@ function toolbar(el: HTMLElement): HTMLElement {
   return find(el, '[role="toolbar"]');
 }
 
-// The toasts that the page shows, inside the dialog that is open or not.
-const toastsIn = (el: ParentNode): HTMLElement[] => [
-  ...el.querySelectorAll<HTMLElement>('section[aria-label="Notifications"] > [data-severity]'),
-];
+// The toasts that the page of the element shows, top to bottom, in the
+// region of the SDK's toasts at the end of the page's body, which holds the
+// latest first and lays it out lowest.
+function toastsIn(el: ParentNode): HTMLElement[] {
+  const doc = el instanceof Document ? el : (el.ownerDocument ?? document);
+  return [...doc.querySelectorAll<HTMLElement>('[role="region"] [role="alertdialog"][data-severity]')].reverse();
+}
+
+// The role of what a toast says, which a screen reader reads out: "status"
+// or "alert".
+const said = (toast: HTMLElement): string | null => find(toast, '[aria-atomic="true"]').getAttribute("role");
 
 // The severity, the first line and the message of each toast that the page
 // shows, in order.
@@ -228,7 +257,8 @@ function section(el: HTMLElement, name: string): HTMLElement {
 }
 
 // The button of a section's title, which holds the plugin's name and
-// collapses and expands the section.
+// collapses and expands the section, or that of a stack's group, which holds
+// the stack's name.
 const titled = (section: HTMLElement): HTMLButtonElement => find(section, "h3 > button", HTMLButtonElement);
 
 // The element of a section that holds its plugin's UI, which the section's
@@ -245,6 +275,15 @@ function bodyOf(section: HTMLElement): HTMLElement {
 function isOpen(section: HTMLElement): boolean {
   const open = titled(section).getAttribute("aria-expanded") === "true";
   expect(bodyOf(section).hidden).toBe(!open);
+  return open;
+}
+
+// Whether the group of a stack is open, as the button of its name says, which
+// the test checks against whether the group shows the cards of its blocks.
+function groupOpen(group: HTMLElement): boolean {
+  const open = titled(group).getAttribute("aria-expanded") === "true";
+  expect(bodyOf(group).hidden).toBe(!open);
+  expect([...group.querySelectorAll("article")].every((card) => card.closest("[hidden]") === null)).toBe(open);
   return open;
 }
 
@@ -302,20 +341,19 @@ describe("the page", () => {
   test("collapses a stack as the user clicks its name, which hides the cards of its blocks and leaves them mounted", async () => {
     const { el, core, settled } = await drawn();
     const stack = find(el, 'section[aria-label="Input"]');
-    const group = find(stack, "details", HTMLDetailsElement);
-    expect(group.open).toBe(true);
+    expect(groupOpen(stack)).toBe(true);
 
-    await click(find(stack, "summary"));
+    await click(titled(stack));
     await act(() => core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
     await settled();
     expect(core.store.board().name).toBe("Sepals");
     // It stays collapsed as the board changes, and its blocks' UIs stay.
-    expect(group.open).toBe(false);
+    expect(groupOpen(stack)).toBe(false);
     expect(texts(stack, "article h3")).toEqual(["Iris", "Head"]);
     expect(card(el, "Head").textContent).toContain("UI of b");
 
-    await click(find(stack, "summary"));
-    expect(group.open).toBe(true);
+    await click(titled(stack));
+    expect(groupOpen(stack)).toBe(true);
   });
 
   test("demands every block, so that R evaluates each, and mounts each block's UI and output", async () => {
@@ -493,192 +531,82 @@ describe("a card", () => {
     expect(colours("Merge")).toEqual({ dot: ["bc:bg-status-waiting"], word: ["bc:text-text-muted"] });
   });
 
-  test("renames and removes its block from its menu, through core's commands", async () => {
-    const { el, board } = await drawn();
+  test("opens its block's menu of board actions, which core draws, from its button, so that every board action on the block shows, those of packages too", async () => {
+    const page = await drawn();
+    const opening = vi.spyOn(page.core.boardActions, "menu");
 
-    await menu(el, "Head", "Rename");
-    const field = find(card(el, "Head"), 'input[aria-label="Block name"]', HTMLInputElement);
-    await step(() => {
-      type(field, "First rows");
-      press(field, "Enter");
-    });
+    const head = await menu(page, "Head");
+    const actions = find(card(page.el, "Head"), 'button[aria-label="Actions of Head"]');
+    expect(opening).toHaveBeenCalledWith({ block: "b" }, { el: actions, anchor: actions.getBoundingClientRect() });
+    expect(actions.getAttribute("aria-haspopup")).toBe("menu");
+    // Links feed every input of the head block, so it offers no Prepend block.
+    expect(labels(head)).toEqual(["Append block", "Rename", "Copy block ID", "Remove block"]);
+    head.escape();
+    // The bind block is variadic, so it takes one more link.
+    expect(labels(await menu(page, "Bind"))).toEqual(["Append block", "Prepend block", "Rename", "Copy block ID", "Remove block"]);
+  });
+
+  test("renames and removes its block through its menu, each in one step of the user", async () => {
+    const page = await drawn();
+    const { el, board } = page;
+
+    const renaming = await menu(page, "Head");
+    await inMenu(() => renaming.pick("Rename"));
+    renaming.type("First rows", "Name");
+    await inMenu(() => renaming.pick("Name"));
     expect(board().blocks.b?.name).toBe("First rows");
     expect(find(card(el, "First rows"), "h3").textContent).toBe("First rows");
 
-    await menu(el, "Scatter", "Remove");
+    const removing = await menu(page, "Scatter");
+    await inMenu(() => removing.pick("Remove block"));
     expect(Object.keys(board().blocks)).not.toContain("f");
     expect(el.querySelector('article[aria-label="Scatter"]')).toBeNull();
   });
 
-  test("adds a block after its block once the user submits the form, which takes its block's result, picking the input where the new block has several", async () => {
-    const { el, board, settled } = await drawn();
+  test("appends and prepends a block through its menu, by a row of the board action's quick action or through the block picker, which core shows in its dialog, each in one step of the user", async () => {
+    const page = await drawn();
+    const { el, core, board, settled } = page;
+    const opened = board();
 
-    await menu(el, "Head", "Add block after");
-    expect(find(dialog(), "h2").textContent).toBe('Add block after "Head"');
-    const classes = labelled(dialog(), "Block class");
-    expect(document.activeElement).toBe(classes);
-    // A block added after another needs an input.
-    await step(() => {
-      classes.click();
-    });
-    // The select draws its list in a portal of its own, outside the dialog,
-    // which React Aria leaves within reach while the rest of the page is
-    // inert.
-    const list = listFromField(classes);
-    expect(list?.closest('[role="dialog"]')).toBeNull();
-    expect(list === null ? true : inert(list)).toBe(false);
-    expect(inert(find(el, '[role="toolbar"]'))).toBe(true);
-    expect(optionLabels(classes)).not.toContain("input: dataset block");
-    await step(() => {
-      optionFromLabel(classes, "subset block").click();
-    });
-    expect(added(board())).toEqual([]);
-    await click(button(dialog(), "Add block"));
+    // A row of Append block's quick action appends a block of its class,
+    // which takes the block's result.
+    const appending = await menu(page, "Head");
+    await inMenu(() => appending.pick("Append block"));
+    await inMenu(() => appending.pick("subset block"));
     await settled();
-
     const [subset] = added(board());
     expect(subset?.[1].registry_id).toBe("blockr.core-subset_block");
     expect(Object.values(board().links)).toContainEqual({ from: "b", to: subset?.[0], input: "data" });
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
-
-    await menu(el, "Iris", "Add block after");
-    await chosen(dialog(), "Block class", "merge", "merge block");
-    await picked(selectButton(dialog(), "Input of the new merge block"), step, "y");
+    expect(card(el, "Subset").textContent).toContain(`UI of ${subset?.[0] ?? ""}`);
     await step(() => {
-      type(labelled(dialog(), "ID"), "joined");
+      core.store.undo();
     });
-    await click(button(dialog(), "Add block"));
-    expect(board().blocks.joined?.registry_id).toBe("blockr.core-merge_block");
-    expect(Object.values(board().links)).toContainEqual({ from: "a", to: "joined", input: "y" });
+    expect(board()).toEqual(opened);
 
-    // A variadic block takes the link under the name that the user gives.
-    await menu(el, "Iris", "Add block after");
-    await chosen(dialog(), "Block class", "rbind", "rbind block");
+    // The open icon of Prepend block's quick action opens the picker, which
+    // core shows in its dialog, since the frontend gives no place of its own.
+    const prepending = await menu(page, "Bind");
+    await inMenu(() => prepending.pick("Prepend block"));
+    prepending.type("data");
     await step(() => {
-      type(labelled(dialog(), "Input name of the new rbind block"), "first");
-      type(labelled(dialog(), "ID"), "bound");
+      void prepending.openAdvanced();
     });
-    await click(button(dialog(), "Add block"));
-    expect(Object.values(board().links)).toContainEqual({ from: "a", to: "bound", input: "first" });
-  });
-
-  test("adds a block before its block, into a free input, and offers it only where an input is free", async () => {
-    const { el, board } = await drawn();
-
-    // Every input of the merge block takes a link already.
-    await click(find(card(el, "Merge"), 'button[aria-label="Actions of Merge"]'));
-    expect(menuItem(openMenu("Actions of Merge"), "Add block before").getAttribute("aria-disabled")).toBe("true");
-    // React Aria hears the key where the focus is, in the menu.
+    const shown = page.advanced();
+    expect(shown).toMatchObject({ title: "Prepend block", target: { block: "e" } });
+    const form = shown?.el ?? document.body;
+    expect(labelled(form, "Block class").value).toBe("data");
+    await chosen(form, "Block class", "dataset", "dataset block");
     await step(() => {
-      press(focused(), "Escape");
+      type(labelled(form, 'Input name of "Bind"'), "extra");
+      type(labelled(form, "ID"), "more");
     });
-    expect(document.querySelector('[role="menu"]')).toBeNull();
-
-    // The bind block is variadic, so it takes another link, under a name that
-    // the user may give, which none of its links may give already.
-    await menu(el, "Bind", "Add block before");
-    await chosen(dialog(), "Block class", "dataset", "dataset block");
-    await click(button(dialog(), "Add block"));
-    const [first] = added(board());
-    expect(first?.[1].registry_id).toBe("blockr.core-dataset_block");
-    expect(Object.values(board().links)).toContainEqual({ from: first?.[0], to: "e", input: "" });
-
-    await menu(el, "Bind", "Add block before");
-    await chosen(dialog(), "Block class", "dataset", "dataset block");
-    await step(() => {
-      type(labelled(dialog(), 'Input name of "Bind"'), "extra");
-      type(labelled(dialog(), "ID"), "more");
-    });
-    await click(button(dialog(), "Add block"));
+    await click(button(form, "Add block"));
     expect(Object.values(board().links)).toContainEqual({ from: "more", to: "e", input: "extra" });
-  });
-
-  test("adds a block after or before its block with its link in one step, which one undo takes back, minting the block's id where the user leaves it empty", async () => {
-    const { el, core, board } = await drawn({ blockrOptions: { rand_id: "letters_8" } });
-    const opened = board();
-
-    await menu(el, "Head", "Add block after");
-    await chosen(dialog(), "Block class", "subset", "subset block");
-    await click(button(dialog(), "Add block"));
-    const [after] = added(board());
-    expect(after?.[0]).toMatch(/^[a-z]{8}$/);
-    expect(Object.values(board().links)).toContainEqual({ from: "b", to: after?.[0], input: "data" });
+    expect(page.advanced()).toBeUndefined();
     await step(() => {
       core.store.undo();
     });
     expect(board()).toEqual(opened);
-
-    await menu(el, "Bind", "Add block before");
-    await chosen(dialog(), "Block class", "dataset", "dataset block");
-    await click(button(dialog(), "Add block"));
-    const [before] = added(board());
-    expect(before?.[0]).toMatch(/^[a-z]{8}$/);
-    expect(Object.values(board().links)).toContainEqual({ from: before?.[0], to: "e", input: "" });
-    await step(() => {
-      core.store.undo();
-    });
-    expect(board()).toEqual(opened);
-  });
-});
-
-describe("a card's block before", () => {
-  test("takes the link into the input the user picks, where several of its block's inputs are free", async () => {
-    const { el, core, board } = await drawn();
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "ac" }));
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
-
-    await menu(el, "Merge", "Add block before");
-    const input = selectButton(dialog(), 'Input of "Merge"');
-    expect(await listed(input, step)).toEqual(["x", "y"]);
-    await picked(input, step, "y");
-    await chosen(dialog(), "Block class", "dataset", "dataset block");
-    await click(button(dialog(), "Add block"));
-
-    const [first] = added(board());
-    expect(Object.values(board().links)).toContainEqual({ from: first?.[0], to: "c", input: "y" });
-  });
-
-  test("takes the link into the one input of its block that no link feeds, without asking which", async () => {
-    const { el, core, board } = await drawn();
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
-
-    // The head block has one input, which no link feeds now.
-    await menu(el, "Head", "Add block before");
-    // The block class is the one thing to pick.
-    expect(dialog().querySelectorAll('[role="combobox"]')).toHaveLength(1);
-    await chosen(dialog(), "Block class", "dataset", "dataset block");
-    await step(() => {
-      type(labelled(dialog(), "ID"), "first");
-    });
-    expect(button(dialog(), "Add block").disabled).toBe(false);
-    await click(button(dialog(), "Add block"));
-    expect(Object.values(board().links)).toContainEqual({ from: "first", to: "b", input: "data" });
-
-    // A link feeds the merge block's x, so the new link goes into its y.
-    await menu(el, "Merge", "Add block before");
-    // The block class is the one thing to pick.
-    expect(dialog().querySelectorAll('[role="combobox"]')).toHaveLength(1);
-    await chosen(dialog(), "Block class", "dataset", "dataset block");
-    await step(() => {
-      type(labelled(dialog(), "ID"), "second");
-    });
-    expect(button(dialog(), "Add block").disabled).toBe(false);
-    await click(button(dialog(), "Add block"));
-    expect(Object.values(board().links)).toContainEqual({ from: "second", to: "c", input: "y" });
-  });
-
-  test("says why it adds none where another edit feeds the block's last free input meanwhile", async () => {
-    const { el, core, board } = await drawn();
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
-
-    await menu(el, "Merge", "Add block before");
-    await chosen(dialog(), "Block class", "dataset", "dataset block");
-    await act(() => core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" }));
-
-    expect(dialog().textContent).toContain('Every input of "Merge" takes a link already.');
-    expect(button(dialog(), "Add block").disabled).toBe(true);
-    expect(added(board())).toEqual([]);
   });
 });
 
@@ -687,25 +615,11 @@ describe("what floats over the board", () => {
   // dark theme, those of its hover and of a dialog's backdrop aside.
   const backgrounds = (el: Element | null): string[] => (el?.className ?? "").split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
 
-  test("is drawn on the background that core's theme gives it: a card's menu, the dialogs and the list of a select", async () => {
+  test("is drawn on the background that core's theme gives it: the dialog of the board options", async () => {
     const { el, settled } = await drawn();
 
-    // The menu draws on the background of the SDK's popover that holds it,
-    // and a dialog on that of the SDK's modal that holds it.
-    await click(find(card(el, "Head"), 'button[aria-label="Actions of Head"]'));
-    expect(backgrounds(openMenu("Actions of Head").closest("[data-trigger]"))).toEqual(["bc:bg-bg-raised"]);
-
-    await click(menuItem(openMenu("Actions of Head"), "Add block after"));
-    expect(backgrounds(dialog().parentElement)).toEqual(["bc:bg-bg-raised"]);
-    const classes = labelled(dialog(), "Block class");
-    await step(() => {
-      classes.click();
-    });
-    const list = listFromField(classes)?.parentElement ?? null;
-    expect(list).not.toBeNull();
-    expect(list === null ? [] : backgrounds(list)).toEqual(["bc:bg-bg-raised"]);
-    await click(button(dialog(), "Close"));
-
+    // The dialog draws on the background of the SDK's modal that holds it.
+    // Core draws a card's menu and the dialog of an advanced action itself.
     await click(button(el, "Options"));
     await settled();
     expect(find(dialog(), "h2").textContent).toBe("Board options");
@@ -851,7 +765,10 @@ function storagePlugin(controls: (args: { core: CoreApi; plugin: PluginClassId }
 }
 
 // The text of each part of the toolbar, in order.
-const parts = (el: HTMLElement): string[] => [...toolbar(el).children].map((part) => part.textContent.trim());
+// The text of each part of the toolbar, but for the separators between its
+// groups.
+const parts = (el: HTMLElement): string[] =>
+  [...toolbar(el).children].filter((part) => part.getAttribute("role") !== "separator").map((part) => part.textContent.trim());
 
 // The runs of storage buttons, by their ids, and what records the run of one.
 function running() {
@@ -866,7 +783,7 @@ function running() {
 }
 
 describe("the storage controls", () => {
-  test("show at the end of the toolbar in the plugin's order, each kind in its own look", async () => {
+  test("show at the end of the toolbar in the plugin's order, after a separator, each kind in its own look", async () => {
     const { ran } = running();
     const storage = storagePlugin(() => [
       { kind: "status", id: "user", text: "NS", tooltip: "Signed in as Nina" },
@@ -874,27 +791,52 @@ describe("the storage controls", () => {
       { kind: "menu", id: "versions", label: "Versions", items: [] },
       { kind: "status", id: "saved", text: "Saved" },
       { kind: "button", id: "share", label: "Share", disabled: true, run: ran("share") },
+      { kind: "button", id: "lock", label: "Lock", tooltip: "Locked by Ann", disabled: true, run: ran("lock") },
     ]);
     const { el } = await drawn(storage.options);
 
-    expect(parts(el)).toEqual(["Options", "Undo", "Redo", "NS", "Save", "Versions▾", "Saved", "Share"]);
-    // A button looks like the toolbar's own, and is greyed out while it is
-    // disabled.
+    // The toolbar's three groups, the board options, undo and redo, and the
+    // storage controls, each come after a separator but the first.
+    expect([...toolbar(el).children].map((part) => (part.getAttribute("role") === "separator" ? "|" : part.textContent.trim()))).toEqual([
+      "Options",
+      "|",
+      "Undo",
+      "Redo",
+      "|",
+      "NS",
+      "Save",
+      "Versions▾",
+      "Saved",
+      "Share",
+      "Lock",
+      "Locked by Ann",
+    ]);
+    // A button looks like the toolbar's own, names its shortcut, and shows
+    // its tooltip as the keyboard's focus moves to it.
     const save = button(toolbar(el), "Save");
     expect(save.className).toBe(button(toolbar(el), "Options").className);
-    expect(save.title).toBe("Save to Connect");
     expect(save.getAttribute("aria-keyshortcuts")).toBe("Control+S Meta+S");
+    expect(await tipOnFocus(save)).toBe("Save to Connect");
+    expect(save.getAttribute("aria-describedby")).toBe(find(document, '[role="tooltip"]').id);
+    // A disabled button is greyed out, and shows its tooltip as text after
+    // it, which describes it.
     expect(button(toolbar(el), "Share").disabled).toBe(true);
-    // A menu is a button that opens it, and a status is text.
+    const lock = button(toolbar(el), "Lock");
+    expect(lock.disabled).toBe(true);
+    expect(document.getElementById(lock.getAttribute("aria-describedby") ?? "")?.textContent).toBe("Locked by Ann");
+    // A menu is a button that opens it, and a status is text, which shows
+    // its tooltip as the focus moves to it.
     expect(find(toolbar(el), "button[aria-haspopup]").getAttribute("aria-expanded")).toBe("false");
-    const statuses = [...toolbar(el).querySelectorAll('[role="status"]')];
-    expect(statuses.map((status) => [status.tagName, status.textContent, status.getAttribute("title")])).toEqual([
-      ["SPAN", "NS", "Signed in as Nina"],
-      ["SPAN", "Saved", null],
+    const statuses = [...toolbar(el).querySelectorAll<HTMLElement>('[role="status"]')];
+    expect(statuses.map((status) => [status.tagName, status.textContent])).toEqual([
+      ["SPAN", "NS"],
+      ["SPAN", "Saved"],
     ]);
+    expect(await tipOnFocus(find(statuses[0] ?? el, '[role="button"]'))).toBe("Signed in as Nina");
+    expect(statuses[1]?.querySelector('[role="button"]')).toBeNull();
   });
 
-  test("open a menu of what it holds, a menu inside it as a group under its label, each item with its tooltip below it and its shortcut at its right, and close it as one of its buttons runs", async () => {
+  test("open a menu of what it holds, a menu inside it beside its row, each item with its tooltip below it and its shortcut at its right, and close it as one of its buttons runs", async () => {
     const { runs, ran } = running();
     const storage = storagePlugin(() => [
       {
@@ -923,18 +865,22 @@ describe("the storage controls", () => {
     // A status is an item that the user cannot pick. An item's tooltip shows
     // as its description, and a button's shortcut at its right, as the page
     // names it off a Mac, and React Aria names both to assistive technology.
-    expect(menuItems(shown)).toEqual(["Restore", "Version 3", "Version 1"]);
+    // A menu inside it is an item, which opens it beside its row.
+    expect(menuItems(shown)).toEqual(["Restore", "Version 3", "Older"]);
     expect(menuItem(shown, "Version 3").getAttribute("aria-disabled")).toBe("true");
     expect(itemDescribed(menuItem(shown, "Version 3"))).toEqual(["Saved at noon"]);
     expect(find(menuItem(shown, "Restore"), "kbd").textContent).toBe("Ctrl+Shift+K");
     expect(itemDescribed(menuItem(shown, "Restore"))).toEqual(["Ctrl+Shift+K"]);
-    const older = menuGroup(shown, "Older");
+    expect(menuItem(shown, "Older").getAttribute("aria-haspopup")).toBe("menu");
+    await click(menuItem(shown, "Older"));
+    const older = openMenu("Older");
     expect(menuItems(older)).toEqual(["Version 1"]);
     expect(itemDescribed(menuItem(older, "Version 1"))).toEqual(["Saved in May"]);
 
     await click(menuItem(older, "Version 1"));
     expect(runs).toEqual(["v1"]);
     expect(list()).toBeNull();
+    expect(document.querySelector('[role="menu"]')).toBeNull();
 
     // It closes on Escape too, which React Aria hears where the focus is, in
     // the menu.
@@ -1087,7 +1033,7 @@ describe("the storage controls", () => {
       });
       const warning = find(toolbar(page.el), '[role="alert"]');
       expect(warning.textContent).toBe("Storage failed");
-      expect(warning.title).toBe("The storage controls failed: No session.");
+      expect(await tipOnFocus(find(warning, '[role="button"]'))).toBe("The storage controls failed: No session.");
       expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Storage failed"]);
       // It draws again with the same failure, which the page has heard of.
       await act(() => page.core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
@@ -1196,7 +1142,7 @@ describe("a plugin", () => {
     ]);
     const list = find(edit, 'ul[aria-label="Conditions"]');
     expect(list.previousElementSibling?.contains(titled(edit))).toBe(true);
-    expect(list.nextElementSibling).toBe(bodyOf(edit));
+    expect(list.parentElement?.nextElementSibling).toBe(bodyOf(edit));
 
     // A collapsed section keeps its pills, which still open their messages
     // and leave the section collapsed.
@@ -1276,10 +1222,13 @@ describe("which block has focus", () => {
 describe("what is on screen", () => {
   test("is the blocks whose cards and the plugins whose sections show in the viewport, as the page lays them out", async () => {
     // The page lays out the card of Head and the UI of the Edit board plugin
-    // in view, and nothing else, which the browser has yet to report.
+    // in view, and nothing else, which the browser has yet to report. The
+    // UI's element is the one that the panel of the plugin's section holds.
     viewing();
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
-      const shown = this.matches('article[aria-label="Head"]') || this.parentElement?.matches('section[aria-label="Edit board"]') === true;
+      const shown =
+        this.matches('article[aria-label="Head"]') ||
+        this.parentElement?.matches('section[aria-label="Edit board"] [role="group"][aria-labelledby]') === true;
       const [width, height] = shown ? [400, 100] : [0, 0];
       return { top: 0, bottom: height, left: 0, right: width, width, height, x: 0, y: 0, toJSON: () => ({}) };
     });
@@ -1336,18 +1285,17 @@ describe("showing a block or a plugin", () => {
       scrolled.push(this);
     });
     const stack = find(el, 'section[aria-label="Input"]');
-    const group = find(stack, "details", HTMLDetailsElement);
-    await click(find(stack, "summary"));
+    await click(titled(stack));
     const edit = section(el, "Edit board");
     await click(titled(edit));
-    expect([group.open, isOpen(edit)]).toEqual([false, false]);
+    expect([groupOpen(stack), isOpen(edit)]).toEqual([false, false]);
     const actions = find(card(el, "Merge"), 'button[aria-label="Actions of Merge"]');
     await step(() => {
       actions.focus();
     });
 
     await act(() => core.show({ block: "b" }));
-    expect(group.open).toBe(true);
+    expect(groupOpen(stack)).toBe(true);
     expect(scrolled).toEqual([card(el, "Head")]);
     expect(core.focus.get()).toBe("b");
     expect(document.activeElement).toBe(actions);
@@ -1399,7 +1347,7 @@ describe("what the user learns", () => {
         ].join("\n"),
       ],
     ]);
-    expect(toastsIn(page.el)[0]?.getAttribute("role")).toBe("alert");
+    expect(said(toastsIn(page.el)[0] ?? page.el)).toBe("alert");
 
     // A board that opens later starts core and the frontend again, which shows
     // only the toast of what that board dropped.
@@ -1440,8 +1388,8 @@ describe("what the user learns", () => {
       ["warning", 'Plugin "File storage" · blockr.core', "The token expires soon."],
       ["message", "Board · blockr.core", "Shown on the board."],
     ]);
-    expect(toast(el, "Saved to Connect.").getAttribute("role")).toBe("status");
-    expect(toast(el, "The token expires soon.").getAttribute("role")).toBe("alert");
+    expect(said(toast(el, "Saved to Connect."))).toBe("status");
+    expect(said(toast(el, "The token expires soon."))).toBe("alert");
     const head = card(el, "Head");
     expect(pills(head)).toEqual(["error", "1 warning"]);
     expect(banners(head)).toEqual([["error", "Not shared."]]);
@@ -1457,27 +1405,33 @@ describe("what the user learns", () => {
     expect(core.notifications.get().some((n) => n.message === "Saved to Connect.")).toBe(true);
   });
 
-  test("shows its toasts inside the dialog that is open, the rest of the page being inert, and in the page once the dialog closes", async () => {
+  test("leaves its toasts within reach while a dialog is open, outside the dialog, though the rest of the page is inert", async () => {
     const { el, core, settled } = await drawn();
     await step(() => {
       core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared." });
     });
-    expect(toastsIn(el).map((t) => t.closest('[role="dialog"]'))).toEqual([null]);
 
     await click(button(el, "Options"));
     await settled();
     await step(() => {
       core.notifications.notify(FILE_STORAGE, { severity: "warning", code: "token_expiring", message: "The token expires soon." });
     });
-    // The toasts come after what the dialog holds.
-    expect(toasts(dialog()).map(([, , message]) => message)).toEqual(["Not shared.", "The token expires soon."]);
-    expect(dialog().lastElementChild?.contains(toast(dialog(), "Not shared."))).toBe(true);
-    await click(find(toast(dialog(), "Not shared."), 'button[aria-label="Close"]'));
+    // The toasts stay in their region, outside the dialog, which the modal
+    // leaves out of what it makes inert.
+    expect(toasts(el).map(([, , message]) => message)).toEqual(["Not shared.", "The token expires soon."]);
+    expect(toastsIn(el).map((t) => [t.closest('[role="dialog"]'), inert(t)])).toEqual([
+      [null, false],
+      [null, false],
+    ]);
+    expect(inert(find(el, "h1"))).toBe(true);
+    // The user closes a toast, and the dialog stays open.
+    await click(find(toast(el, "Not shared."), 'button[aria-label="Close"]'));
+    expect(toasts(el).map(([, , message]) => message)).toEqual(["The token expires soon."]);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
 
     await click(button(dialog(), "Close"));
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(toasts(el).map(([, , message]) => message)).toEqual(["The token expires soon."]);
-    expect(toastsIn(el).map((t) => t.closest('[role="dialog"]'))).toEqual([null]);
   });
 
   test("is why the store or the command registry refused an edit, an error of the code board_edit_failed that core raises about the board, whatever block the edit names, which shows again as the same refusal comes again", async () => {
@@ -1519,7 +1473,7 @@ describe("what the user learns", () => {
     expect(pills(card(el, "Head"))).toEqual([]);
   });
 
-  test("fades from a message's toast after five seconds, but not while the pointer rests on it or the keyboard's focus is in it", async () => {
+  test("fades from a message's toast after five seconds, but not while the pointer rests on the toasts or the keyboard's focus is in them", async () => {
     const { el, core } = await drawn();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {
@@ -1527,25 +1481,32 @@ describe("what the user learns", () => {
         core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved." });
         core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared." });
       });
+      // The message's toast fades in its last moments, and the error's does
+      // not fade.
+      expect(toastsIn(el).map((t) => t.className.includes("bc:toast-fade"))).toEqual([true, false]);
+
+      // The pointer rests on the error's toast, which keeps the message's
+      // toast too, as does the focus in the message's toast.
       const saved = toast(el, "Saved.");
+      const shared = toast(el, "Not shared.");
       await step(() => {
-        saved.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+        shared.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
         vi.advanceTimersByTime(60_000);
       });
       await step(() => {
         find(saved, 'button[aria-label="Close"]').focus();
-        saved.dispatchEvent(new PointerEvent("pointerout", { bubbles: true }));
+        shared.dispatchEvent(new PointerEvent("pointerout", { bubbles: true, pointerType: "mouse" }));
         vi.advanceTimersByTime(60_000);
       });
       expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved.", "Not shared."]);
 
       await step(() => {
         find(saved, 'button[aria-label="Close"]').blur();
-        vi.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(4000);
       });
-      expect(toast(el, "Saved.").className).toContain("bc:opacity-0");
+      expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved.", "Not shared."]);
       await step(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
       expect(toasts(el).map(([, , message]) => message)).toEqual(["Not shared."]);
     } finally {
@@ -1553,7 +1514,7 @@ describe("what the user learns", () => {
     }
   });
 
-  test("fades from a message's toast that moves out of a dialog as it closes, though the pointer rested on it there", async () => {
+  test("fades from a message's toast while a dialog is open", async () => {
     const { el, core, settled } = await drawn();
     await click(button(el, "Options"));
     await settled();
@@ -1562,21 +1523,12 @@ describe("what the user learns", () => {
       await step(() => {
         core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved." });
       });
-      await step(() => {
-        toast(dialog(), "Saved.").dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
-        vi.advanceTimersByTime(60_000);
-      });
-      expect(toasts(dialog()).map(([, , message]) => message)).toEqual(["Saved."]);
-
-      await step(() => {
-        button(dialog(), "Close").click();
-      });
-      expect(document.querySelector('[role="dialog"]')).toBeNull();
       expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved."]);
       await step(() => {
-        vi.advanceTimersByTime(5300);
+        vi.advanceTimersByTime(5000);
       });
       expect(toasts(el)).toEqual([]);
+      expect(document.querySelector('[role="dialog"]')).not.toBeNull();
     } finally {
       vi.useRealTimers();
     }
@@ -1691,15 +1643,17 @@ function lockedHello(lock: HelloReply["lock"]): HelloReply {
 describe("a locked board", () => {
   test("draws no control for what the board lock fixes, and the UI only of the blocks it leaves open", async () => {
     const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: pluginUi().ui };
-    const { el } = await drawn(withClasses([notes], plugin(notes, "To do"), lockedHello({ board: true, load: true })));
+    const page = await drawn(withClasses([notes], plugin(notes, "To do"), lockedHello({ board: true, load: true })));
+    const { el } = page;
 
     // The board options, the history, saving and the plugins stay, since no
     // lock fixes them, and the load lock takes opening another board.
     expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save"]);
     expect(sections(el).map((shown) => titled(shown).textContent)).toEqual(["Edit board", "To do"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).toBeNull();
-    // No card has a menu.
-    expect(el.querySelectorAll("article button")).toHaveLength(0);
+    // A card's menu offers only Copy block ID, which no lock fixes.
+    expect(texts(el, "article button").every((text) => text === "⋯")).toBe(true);
+    expect(labels(await menu(page, "Head"))).toEqual(["Copy block ID"]);
 
     expect(card(el, "Head").textContent).toContain("UI of b");
     expect(card(el, "Iris").textContent).not.toContain("UI of a");
