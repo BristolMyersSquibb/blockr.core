@@ -18,8 +18,7 @@
     "react-dom/client",
     "react",
     "react/jsx-runtime",
-    "@blockr/core/react",
-    "./vendor-02042ca6.js"
+    "@blockr/core/react"
   ],
   "blockr-core-controls.js": [
     "react",
@@ -68,8 +67,7 @@
     "react-dom/client",
     "react",
     "react/jsx-runtime",
-    "@blockr/core/react",
-    "./vendor-02042ca6.js"
+    "@blockr/core/react"
   ],
   "filebrowser-block.js": [
     "react",

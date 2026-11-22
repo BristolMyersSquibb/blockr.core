@@ -1,8 +1,8 @@
 // The page that core's basic frontend draws: the toolbar, the board's blocks,
 // each stack as a group of its blocks' cards, which the user collapses, the
-// plugins that it shows, and the toasts (./toasts.ts). One dialog at a time
-// shows over the page: the picker that a card's menu opens, or the board
-// options.
+// plugins that it shows, and the toasts (./toasts.ts). The dialog of the board
+// options shows over the page, and core's dialog shows the advanced actions
+// that a card's menu opens, such as the block picker.
 // The page follows the board through the store, so a removed block's card
 // goes because the board changed.
 // Adding a block on its own and editing links and stacks are the Edit board
@@ -11,16 +11,12 @@
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { MARKS, SeverityIcon } from "../../card/index.ts";
-import { freeInputs } from "../../commands/index.ts";
-import { BlockPicker } from "../../picker/index.ts";
-import type { AddMode } from "../../picker/index.ts";
 import { Button, Text, Toast, ToastContent, ToastRegion, useBoard } from "../../react/index.ts";
 import type { QueuedToast } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Notification } from "../../types/core-api.ts";
 import { classes } from "../../ui/index.ts";
-import { own } from "../../util/index.ts";
 import { BlockCard, StackGroup } from "./card.tsx";
 import { FrontEndContext, useFrontEnd } from "./context.ts";
 import type { FrontEnd } from "./context.ts";
@@ -29,9 +25,6 @@ import { OptionsDialog } from "./options.tsx";
 import { Plugins } from "./plugins.tsx";
 import { concerned, isReload, sourcePackage } from "./toasts.ts";
 import { Toolbar } from "./toolbar.tsx";
-import { Dialog } from "./ui.tsx";
-
-type Shown = { readonly kind: "add"; readonly mode: AddMode } | { readonly kind: "options" };
 
 export function BasicBoard({ front }: { front: FrontEnd }): ReactElement {
   return (
@@ -45,26 +38,15 @@ function Page(): ReactElement {
   const { core } = useFrontEnd();
   const board = useBoard(core);
   const items = useMemo(() => layoutItems(board), [board]);
-  const [dialog, setDialog] = useState<Shown | null>(null);
-  const add = useCallback((mode: AddMode) => {
-    setDialog({ kind: "add", mode });
-  }, []);
+  const [options, setOptions] = useState(false);
   const close = useCallback(() => {
-    setDialog(null);
+    setOptions(false);
   }, []);
 
   const card = (id: BlockId): ReactElement | null => {
     const block = board.blocks[id];
     if (block === undefined) return null;
-    return (
-      <BlockCard
-        key={`block-${id}`}
-        id={id}
-        block={block}
-        prependable={(freeInputs(board, core.blockRegistry(), id)?.length ?? 0) > 0}
-        add={add}
-      />
-    );
+    return <BlockCard key={`block-${id}`} id={id} block={block} />;
   };
 
   return (
@@ -72,7 +54,7 @@ function Page(): ReactElement {
       <Toolbar
         board={board}
         showOptions={() => {
-          setDialog({ kind: "options" });
+          setOptions(true);
         }}
       />
       {/* The plugins come before the board, so that a narrow page shows them
@@ -94,24 +76,9 @@ function Page(): ReactElement {
           })}
         </div>
       </div>
-      {dialog?.kind === "add" ? <AddBlockDialog mode={dialog.mode} onClose={close} /> : null}
-      {dialog?.kind === "options" ? <OptionsDialog onClose={close} /> : null}
+      {options ? <OptionsDialog onClose={close} /> : null}
       <Toasts />
     </div>
-  );
-}
-
-// The form that a card's menu opens, which adds a block before or after the
-// card's block, and closes once the block is on the board.
-function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void }): ReactElement {
-  const front = useFrontEnd();
-  const board = useBoard(front.core);
-  const target = mode.kind === "add" ? undefined : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
-  const title = target === undefined ? "Add block" : `Add block ${mode.kind} "${target.name}"`;
-  return (
-    <Dialog title={title} onClose={onClose}>
-      <BlockPicker core={front.core} mode={mode} onAdded={onClose} autofocus />
-    </Dialog>
   );
 }
 

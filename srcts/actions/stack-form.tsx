@@ -46,7 +46,7 @@ import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { blockItem, blockRow, blockTexts, classes, drawForm, Refusal, useEdits, useSearch } from "../ui/index.ts";
-import type { BlockItem } from "../ui/index.ts";
+import type { BlockItem, Done } from "../ui/index.ts";
 import { own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall, Target } from "./actions.ts";
@@ -73,8 +73,6 @@ export function suggestedName(stacks: readonly Stack[]): string {
   while (names.has(`Stack ${String(n)}`)) n++;
   return `Stack ${String(n)}`;
 }
-
-type Done = Parameters<AdvancedModule["render"]>[0]["done"];
 
 // Create stack's advanced action.
 export const createStackForm: AdvancedModule = {
@@ -209,7 +207,7 @@ function StackForm({
     setBusy(true);
     // Once the batch has run, core ends the form, or renders it afresh in a
     // plugin's room, so that only a refusal leaves it as the user filled it in.
-    await edits.attempt(title, (opts) => done(calls, opts));
+    await edits.run(title, calls, done);
     setBusy(false);
   }
 

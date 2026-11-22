@@ -853,6 +853,26 @@
   The call `core.boardActions.mountAdvanced(el, id, target, picked)` renders an advanced action in a plugin's own room, where `done()` runs the batch and core renders the advanced action again.
   Where a board object that the target names leaves the board, core ends the advanced action, as a `done()` without a batch does.
   The `advanced()` of `stubCore()` gives the advanced action that core's dialog shows, and `StubMenu` gains `openAdvanced()`, which clicks an open icon (#744).
+* Core registers its four board actions that add a block: Add block on the board, Append block and Prepend block on a block, and Insert block on a link.
+  Prepend block applies only to a block with an input that no link feeds, and under the board lock none of the four applies.
+  The quick action of each holds a filter and a row for each block class, under the heading of its category, with the class's icon and its package.
+  Those of Append block and Insert block list only the classes that have an input.
+  Picking a row adds a block of the class in one step, with an ID that `core.mintId()` mints, the class's name and a link.
+  Append block links the block into the new block's first input, and Prepend block links the new block into the block's first input that no link feeds.
+  Insert block puts the new block on the link.
+  A new link carries the result of the block that the link comes from into the new block's first input, and the link then comes from the new block, keeping its ID, its input and its place among the links.
+  A link into a variadic block goes in without a name.
+  The advanced action of each is the block picker, which gains a fourth mode, on a link.
+  Opened from the open icon of a quick action, the picker starts its search from the text in the filter and takes the keyboard's focus there.
+  It mints the ID that the user leaves empty, runs nothing before the user submits it, and hands its batch to `done()`.
+  Where the store refuses the batch, the picker says why below its button, wherever it shows.
+  The Edit board plugin mounts the advanced action of Add block in its section of blocks through `mountAdvanced()`, in place of drawing the picker itself.
+  The menu of a card of core's basic frontend is core's menu of the block, which the card opens through `core.boardActions.menu()`, in place of its own list of Rename, Add block before, Add block after and Remove.
+  So it offers every board action on a block, those of packages too, and says Append block and Prepend block, as the menus of the dock and of the DAG do.
+  Core shows the picker that the card's menu opens in core's dialog, and under the board lock the card's menu offers Copy block ID (#745).
+* Loading `@blockr/core/stubs` makes every document of `happy-dom` an instance of the window's `Document`, as in a browser.
+  React Aria finds the focus within an element only where the root of the element is such an instance.
+  So in a test, a popover or a dialog of the SDK that a pointer press opens no longer takes the focus from one of its elements that took the focus first, such as a search field with `autoFocus` (#818).
 * Core registers four more board actions, which create and edit a link or a stack.
   Create link applies to a block that a new link can join to another, and to the board where it holds such a block.
   On a block, its quick action lists the blocks that the block can send to and those that it can take from, by their names and IDs, and then asks for the input, where the block that the link goes into has several free ones.

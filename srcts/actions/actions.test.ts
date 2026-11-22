@@ -18,16 +18,17 @@ import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { QuickLevel } from "./quick.ts";
 
-// Core's board actions on a block of the fixture's board, which come first in
-// every menu of one, and those on the board.
+// Core's board actions on the blocks b and c, whose inputs links feed, which
+// come first in every menu of one, and on the board.
 const ON_BLOCK = [
+  "blockr.core-append_block_action",
   "blockr.core-add_link_action",
   "blockr.core-add_stack_action",
   "blockr.core-rename_action",
   "blockr.core-copy_block_id_action",
   "blockr.core-remove_block_action",
 ];
-const ON_BOARD = ["blockr.core-add_link_action", "blockr.core-add_stack_action"];
+const ON_BOARD = ["blockr.core-add_block_action", "blockr.core-add_link_action", "blockr.core-add_stack_action"];
 
 // The element that the user triggers from, which a trigger() needs.
 const el = document.body;
@@ -244,7 +245,12 @@ describe("on()", () => {
 
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, picky.id]);
     expect(ids(s.core.boardActions.on({ block: "c" }))).toEqual(ON_BLOCK);
-    expect(ids(s.core.boardActions.on({ link: "ab" }))).toEqual(["blockr.core-edit_link_action", "blockr.core-remove_link_action", open.id]);
+    expect(ids(s.core.boardActions.on({ link: "ab" }))).toEqual([
+      "blockr.core-insert_block_action",
+      "blockr.core-edit_link_action",
+      "blockr.core-remove_link_action",
+      open.id,
+    ]);
     expect(ids(s.core.boardActions.on({ selection: [{ block: "b" }] }))).toEqual([
       "blockr.core-add_stack_action",
       "blockr.core-remove_selected_action",
@@ -329,6 +335,7 @@ describe("menu()", () => {
       back: false,
       loading: false,
       rows: [
+        { kind: "item", label: "Append block", icon: expect.stringContaining("<svg") as string, category: "add" },
         { kind: "item", label: "Create link", icon: expect.stringContaining("<svg") as string, category: "add" },
         { kind: "item", label: "Create stack", icon: expect.stringContaining("<svg") as string, category: "add" },
         { kind: "item", label: "Rename", category: "edit" },
@@ -339,7 +346,7 @@ describe("menu()", () => {
     });
     expect(s.menu()).toBe(menu);
     expect(() => menu.pick("Nowhere")).toThrow(
-      'The menu shows no item or text row "Nowhere". It shows "Create link", "Create stack", "Rename", "Copy block ID", "Add to document" and "Remove block".',
+      'The menu shows no item or text row "Nowhere". It shows "Append block", "Create link", "Create stack", "Rename", "Copy block ID", "Add to document" and "Remove block".',
     );
     menu.escape();
     expect(menu.closed()).toBe(true);

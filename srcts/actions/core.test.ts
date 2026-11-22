@@ -2,8 +2,9 @@
 // for tests: which targets they apply to, under the board lock too, Rename
 // through its quick action, Copy block ID with the clipboard API, the
 // document's copy command and neither, and those that remove a block, a link,
-// a stack and what a selection holds. Those that create and edit a link or a
-// stack have tests of their own (./links.test.tsx, ./stacks.test.tsx).
+// a stack and what a selection holds. Those that add a block, and those that
+// create and edit a link or a stack, have tests of their own (./add.test.tsx,
+// ./links.test.tsx, ./stacks.test.tsx).
 
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { HELLO, stubCore } from "../stubs/index.ts";
@@ -11,6 +12,10 @@ import { held, notificationCode } from "../testing/notifications.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { BoardAction, Target } from "./actions.ts";
 
+const ADD = "blockr.core-add_block_action";
+const APPEND = "blockr.core-append_block_action";
+const PREPEND = "blockr.core-prepend_block_action";
+const INSERT = "blockr.core-insert_block_action";
 const CREATE_LINK = "blockr.core-add_link_action";
 const CREATE_STACK = "blockr.core-add_stack_action";
 const RENAME = "blockr.core-rename_action";
@@ -63,11 +68,28 @@ function refusingClipboard(): void {
 }
 
 describe("core's board actions", () => {
-  test("are Create link, Create stack, Rename, Copy block ID and Remove block on a block, Edit link and Remove link on a link, Rename, Edit stack and Remove stack on a stack, Create stack and Remove on a selection, and Create link and Create stack on the board, in the order of their table", async () => {
+  test("are Add block, Create link and Create stack on the board, Append block, Prepend block, Create link, Create stack, Rename, Copy block ID and Remove block on a block, Insert block, Edit link and Remove link on a link, Rename, Edit stack and Remove stack on a stack, and Create stack and Remove on a selection, in the order of their table", async () => {
     const s = await stubCore();
     const on = (target: Target) => s.core.boardActions.on(target);
 
+    expect(rows(on({ board: true }))).toEqual([
+      [ADD, "Add block", "add"],
+      [CREATE_LINK, "Create link", "add"],
+      [CREATE_STACK, "Create stack", "add"],
+    ]);
+    // Links feed every input of the head block b, and none feeds the bind
+    // block e, which is variadic.
     expect(rows(on({ block: "b" }))).toEqual([
+      [APPEND, "Append block", "add"],
+      [CREATE_LINK, "Create link", "add"],
+      [CREATE_STACK, "Create stack", "add"],
+      [RENAME, "Rename", "edit"],
+      [COPY, "Copy block ID", "clipboard"],
+      [REMOVE_BLOCK, "Remove block", "remove"],
+    ]);
+    expect(rows(on({ block: "e" }))).toEqual([
+      [APPEND, "Append block", "add"],
+      [PREPEND, "Prepend block", "add"],
       [CREATE_LINK, "Create link", "add"],
       [CREATE_STACK, "Create stack", "add"],
       [RENAME, "Rename", "edit"],
@@ -75,6 +97,7 @@ describe("core's board actions", () => {
       [REMOVE_BLOCK, "Remove block", "remove"],
     ]);
     expect(rows(on({ link: "ab" }))).toEqual([
+      [INSERT, "Insert block", "add"],
       [EDIT_LINK, "Edit link", "edit"],
       [REMOVE_LINK, "Remove link", "remove"],
     ]);
@@ -87,10 +110,6 @@ describe("core's board actions", () => {
       [CREATE_STACK, "Create stack", "add"],
       [REMOVE_SELECTED, "Remove", "remove"],
     ]);
-    expect(rows(on({ board: true }))).toEqual([
-      [CREATE_LINK, "Create link", "add"],
-      [CREATE_STACK, "Create stack", "add"],
-    ]);
     expect(on({ option: "n_rows" })).toEqual([]);
     expect(on({ plugin: "blockr.core-edit_board_plugin" })).toEqual([]);
 
@@ -99,12 +118,12 @@ describe("core's board actions", () => {
     expect(copy?.detail?.(s.core.store.board(), { block: "b" })).toBe("b");
     // Those that add carry the plus, those that remove the bin, and the
     // others no icon.
-    const icons = (target: Target) => on(target).map(({ icon }) => (icon === undefined ? "none" : icon.includes('d="M8 3v10M3 8h10"') ? "plus" : "bin"));
-    expect(icons({ block: "b" })).toEqual(["plus", "plus", "none", "none", "bin"]);
-    expect(icons({ link: "ab" })).toEqual(["none", "bin"]);
+    const icons = (target: Target) => on(target).map(({ icon }) => (icon === undefined ? "none" : icon.includes("M8 3v10M3 8h10") ? "plus" : "bin"));
+    expect(icons({ board: true })).toEqual(["plus", "plus", "plus"]);
+    expect(icons({ block: "e" })).toEqual(["plus", "plus", "plus", "plus", "none", "none", "bin"]);
+    expect(icons({ link: "ab" })).toEqual(["plus", "none", "bin"]);
     expect(icons({ stack: "s1" })).toEqual(["none", "none", "bin"]);
     expect(icons({ selection: [{ block: "b" }] })).toEqual(["plus", "bin"]);
-    expect(icons({ board: true })).toEqual(["plus", "plus"]);
     s.stop();
   });
 

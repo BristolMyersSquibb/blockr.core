@@ -1,38 +1,49 @@
-// The form that adds a block of a class from the block registry, through
-// core's commands. Core's Edit board plugin shows it in its add mode, and the
-// menu of a card of core's basic frontend opens it in its other two modes, so
-// that both add a block the same way.
+// The block picker: the form that adds a block of a class from the block
+// registry. It is the advanced action of core's four board actions that add a
+// block: Add block, Append block, Prepend block and Insert block
+// (../actions/add.tsx,
+// https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions).
+// So every place that shows one of them adds a block the same way, the Edit
+// board plugin among them, which mounts the advanced action of Add block.
 // The user fills in the form, and the block goes onto the board only as the
 // user submits it, with these fields:
 // - The block's class, which a select picks among the block registry's
 //   entries, by their names, descriptions, keywords and registry ids, grouped
-//   by category.
+//   by category. Where the user opened the picker from a quick action, the
+//   search starts from the text in the quick action's filter.
 // - The input that the new link feeds, where the mode adds one (below).
 // - The new block's id and its name, which the user may leave empty. Then the
-//   id is minted, and the name taken from the block's class.
-// Each of the three modes adds the block in one step:
-// - On its own, with add_block, which mints the id.
+//   form mints the id through CoreApi, and the command takes the name from the
+//   block's class.
+// Each of the four modes adds the block in one step:
+// - On its own, with add_block.
 // - After a block, taking that block's result, with a batch of add_block and
 //   add_link from that block to the new one. The new block's class needs an
 //   input for that.
 // - Before a block, feeding an input of that block that no link feeds, with a
 //   batch of add_block and add_link from the new block to that block.
-// Added after or before a block, the new block comes with a link:
+// - On a link, between the two blocks that it joins, with a batch of
+//   add_block, add_link from the block that the link comes from to the new
+//   block, and change_link, which has the link come from the new block. So
+//   the link keeps its id, its input and its place among the links. The new
+//   block's class needs an input for that too.
+// Added after or before a block, or on a link, the new block comes with a
+// link:
 // - Where the link could go into one of several inputs, the user picks the
 //   input, since the input that a link feeds changes what a block computes,
 //   as the left and the right table of a merge.
 // - Where it goes into a variadic block, the user may name the input, as
 //   `b2` in `rbind(a, b2 = b)`, or leave it empty for a positional one.
 // - A batch hands no value from one command to the next, and add_link names
-//   the new block. So where the user leaves the id empty, the form mints it
-//   through CoreApi.
+//   the new block. So the form fixes the block's id before it hands on the
+//   batch, as every board action of core's that adds an object does.
 // The form checks the id and the input's name as the user leaves each field
 // and as they submit, before the commands do, so that the user learns what to
-// change next to the field. What the command registry or the store refuses
-// all the same, the form of the Edit board plugin says below its button,
-// until the user submits it again. In a dialog of core's basic frontend, the
-// form leaves the refusal to core, which raises it as a notification, since
-// the frontend draws every notification.
+// change next to the field. It hands the batch to its `done`, which runs it as
+// one step of the user, as the done() of an advanced action does. What the
+// command registry or the store refuses all the same, the form says below its
+// button, until the user submits it again, and it takes the notifications of
+// the refusal, so that core raises none.
 
 import { useMemo, useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
@@ -40,44 +51,45 @@ import { flushSync } from "react-dom";
 import { defaultBlockName, freeInputs } from "../commands/index.ts";
 import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField, useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
-import type { BlockId, Board } from "../types/board.ts";
+import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { classes, identifier, Refusal, useEdits, useSearch } from "../ui/index.ts";
+import type { Done } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 
-// Where the new block goes.
+// Where the new block goes: on its own, after a block, before a block, or on
+// a link.
 export type AddMode =
   | { readonly kind: "add" }
   | { readonly kind: "after"; readonly from: BlockId }
-  | { readonly kind: "before"; readonly to: BlockId };
+  | { readonly kind: "before"; readonly to: BlockId }
+  | { readonly kind: "on"; readonly link: LinkId };
 
 export interface PickerProps {
-  // Through which the form runs its edits, as edits of the user, and mints the
-  // id of a block that it adds with a link.
+  // Through which the form reads the board and the block registry, and mints
+  // the id of the block that it adds.
   readonly core: Pick<CoreApi, "store" | "blockRegistry" | "commands" | "mintId">;
   readonly mode: AddMode;
-  // Called once the block is on the board, as where a dialog that shows the
-  // form closes.
-  readonly onAdded?: () => void;
-  // Whether a dialog that shows the form puts the focus on its first field as
-  // it opens.
+  // Runs the batch that adds the block as one step of the user, as the done()
+  // of an advanced action does, and rejects with the refusal, whose
+  // notifications the notifier takes.
+  readonly done: Done;
+  // The text that the search of block classes starts from, such as the one
+  // that the user typed into the filter of a quick action.
+  readonly filter?: string;
+  // Whether the form puts the keyboard's focus in its search of block classes
+  // as it shows.
   readonly autofocus?: boolean;
-  // Whether the form says why the command registry or the store refused the
-  // block, below its button, as the form of the Edit board plugin does. The
-  // form then takes the notification of the refusal, so that core raises
-  // none. Otherwise core raises it, as for the form in a dialog of core's
-  // basic frontend.
-  readonly showsRefusal?: boolean;
 }
 
 type Errors = Partial<Record<"registry" | "id" | "input", string>>;
 
-export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = false }: PickerProps): ReactElement {
+export function BlockPicker({ core, mode, done, filter = "", autofocus = false }: PickerProps): ReactElement | null {
   const board = useBoard(core);
   const registry = core.blockRegistry();
-  const edits = useEdits(core, showsRefusal);
+  const edits = useEdits(core);
   const [picked, setPicked] = useState<string | undefined>(undefined);
   const [input, setInput] = useState<string | undefined>(undefined);
   const [inputName, setInputName] = useState("");
@@ -86,20 +98,23 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
 
-  // A block added after another takes its result, so its class has an input.
-  const entries = useMemo(
-    () => Object.values(registry).filter((entry) => mode.kind !== "after" || entry.inputs.length > 0),
-    [registry, mode.kind],
-  );
-  const options = useMemo(() => entries.map(classItem).sort(byGroupAndName), [entries]);
+  // A block added after another or on a link takes a block's result, so its
+  // class has an input.
+  const takes = mode.kind === "after" || mode.kind === "on";
+  const options = useMemo(() => blockClasses(Object.values(registry).filter((entry) => !takes || entry.inputs.length > 0)), [registry, takes]);
   const search = useSearch(
     options,
     (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
     "No block class to pick.",
+    filter,
   );
   const entry = picked === undefined ? undefined : own(registry, picked);
   const link = linkChoice(mode, board, registry, entry);
   const chosen = link.kind === "pick" ? (input !== undefined && link.inputs.includes(input) ? input : link.inputs[0]) : undefined;
+  // The link that the new block goes on, which the board holds until core
+  // ends the advanced action as the link leaves the board.
+  const on = mode.kind === "on" ? own(board.links, mode.link) : undefined;
+  if (mode.kind === "on" && on === undefined) return null;
 
   function check(): Errors {
     return {
@@ -131,18 +146,11 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
       ...(link.kind === "name" ? filled("input", inputName) : {}),
     };
     setBusy(true);
-    const title = "Could not add the block.";
-    const ran =
-      mode.kind === "add" ? await edits.run(title, "blockr.core-add_block", args) : await edits.run(title, addAndLink(core, mode, args, into));
+    // Once the batch has run, core ends the advanced action, and renders it
+    // again where it shows in a plugin's room, so that the form starts afresh
+    // for the next block.
+    await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into), done);
     setBusy(false);
-    if (!ran) return;
-    setPicked(undefined);
-    setInput(undefined);
-    setInputName("");
-    setId("");
-    setName("");
-    setErrors({});
-    onAdded?.();
   }
 
   return (
@@ -156,6 +164,7 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
       <ComboBox
         label="Block class"
         autoFocus={autofocus}
+        defaultInputValue={filter}
         {...search}
         items={byCategory(search.items)}
         value={picked ?? null}
@@ -165,10 +174,10 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
         description={entry?.description === "" ? undefined : entry?.description}
         onChange={(key) => {
           setPicked(key === null ? undefined : String(key));
-          // After a block, the inputs to pick among are those of the class
-          // picked, while before a block they are that block's, whatever the
-          // class.
-          if (mode.kind === "after") setInput(undefined);
+          // After a block or on a link, the inputs to pick among are those of
+          // the class picked, while before a block they are that block's,
+          // whatever the class.
+          if (takes) setInput(undefined);
           setErrors((now) => without(now, "registry"));
         }}
       >
@@ -258,10 +267,12 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
 // - "name": an optional name, where the input is variadic, which the variadic
 //   block's other links take in `taken`.
 // - "none": nothing, where the mode adds no link, where the user has not
-//   picked the class of a block added after another yet, or where the link
-//   has one input to go into, which the command then finds.
+//   picked the class of a block added after another or on a link yet, or
+//   where the link has one input to go into, which the command then finds.
 // - "no_free_inputs": nothing, before a block whose inputs all take a link
 //   already. The form shows `why` instead, and adds no block.
+// After a block and on a link alike, the link goes into an input of the new
+// block, of which no link feeds any.
 type LinkChoice =
   | { readonly kind: "pick"; readonly label: string; readonly inputs: readonly string[] }
   | { readonly kind: "name"; readonly label: string; readonly taken: readonly string[] }
@@ -282,29 +293,42 @@ function linkChoice(
     if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
     return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
   }
-  if (mode.kind === "after" && entry !== undefined) {
+  if ((mode.kind === "after" || mode.kind === "on") && entry !== undefined) {
     if (entry.inputs.includes("...")) return { kind: "name", label: `Input name of the new ${entry.name}`, taken: [] };
     if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
   }
   return { kind: "none" };
 }
 
-// The batch that adds a block after or before the block of the mode and links
-// the two, in one step: add_block, then add_link, into the input that `into`
-// gives, where it gives one. The batch fixes the new block's id first, since
-// add_link names the block. It mints the id where `args` gives none.
-function addAndLink(
+// The batch that adds the block of the mode in one step: add_block, and for a
+// block after or before another or on a link, add_link, into the input that
+// `into` gives, where it gives one, and on a link change_link too. The batch
+// fixes the new block's id first, since add_link and change_link name the
+// block, and mints it where `args` gives none. The link `on` is the one that
+// the mode names, as the board holds it. Where the board no longer holds it,
+// the batch is empty, so that done() only ends the advanced action.
+function pickedBatch(
   core: Pick<CoreApi, "store" | "mintId">,
-  mode: Exclude<AddMode, { readonly kind: "add" }>,
+  mode: AddMode,
+  on: Link | undefined,
   args: Readonly<Record<string, Json>>,
   into: Readonly<Record<string, Json>>,
 ): { readonly id: string; readonly args: Json }[] {
   const block = typeof args.id === "string" ? args.id : core.mintId((id) => Object.hasOwn(core.store.board().blocks, id));
-  const ends = mode.kind === "after" ? { from: mode.from, to: block } : { from: block, to: mode.to };
-  return [
-    { id: "blockr.core-add_block", args: { ...args, id: block } },
-    { id: "blockr.core-add_link", args: { ...ends, ...into } },
-  ];
+  const add = { id: "blockr.core-add_block", args: { ...args, id: block } };
+  const linked = (from: BlockId, to: BlockId) => ({ id: "blockr.core-add_link", args: { from, to, ...into } });
+  switch (mode.kind) {
+    case "add":
+      return [add];
+    case "after":
+      return [add, linked(mode.from, block)];
+    case "before":
+      return [add, linked(block, mode.to)];
+    case "on":
+      return on === undefined
+        ? []
+        : [add, linked(on.from, block), { id: "blockr.core-change_link", args: { id: mode.link, from: block } }];
+  }
 }
 
 // The names that the links into a variadic block give its inputs.
@@ -330,16 +354,23 @@ export function isVariadic(free: readonly string[]): boolean {
   return free.length === 1 && free[0] === "";
 }
 
-// A block class as the select offers it: by its name, with its description
-// and its package, under its category, and found by those, by its keywords
-// and by its registry id too.
-interface ClassItem {
+// A block class as the select and the quick actions that add a block offer
+// it: by its name, with its description, its icon and its package, under its
+// category, and found by those, by its keywords and by its registry id too.
+export interface ClassItem {
   readonly id: string;
   readonly name: string;
   readonly description: string;
+  readonly icon: string;
   readonly pkg: string | null;
   readonly category: string;
   readonly keywords: readonly string[];
+}
+
+// The block classes of the entries, in the order in which the picker and the
+// quick actions that add a block list them (byGroupAndName(), below).
+export function blockClasses(entries: readonly RegistryEntry[]): ClassItem[] {
+  return entries.map(classItem).sort(byGroupAndName);
 }
 
 function classItem(entry: RegistryEntry): ClassItem {
@@ -347,6 +378,7 @@ function classItem(entry: RegistryEntry): ClassItem {
     id: entry.id,
     name: entry.name,
     description: entry.description,
+    icon: entry.icon,
     pkg: packageFromId(entry.id),
     category: entry.category === "" ? UNCATEGORIZED : entry.category,
     keywords: entry.keywords,

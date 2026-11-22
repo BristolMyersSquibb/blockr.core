@@ -55,7 +55,7 @@ import {
   useEdits,
   useSearch,
 } from "../ui/index.ts";
-import type { BlockItem } from "../ui/index.ts";
+import type { BlockItem, Done } from "../ui/index.ts";
 import { isObject, own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
@@ -71,8 +71,6 @@ interface Start {
   readonly to?: BlockId;
   readonly input?: string;
 }
-
-type Done = Parameters<AdvancedModule["render"]>[0]["done"];
 
 // Create link's advanced action.
 export const createLinkForm: AdvancedModule = {
@@ -219,7 +217,7 @@ function LinkForm({
     setBusy(true);
     // Once the batch has run, core ends the form, or renders it afresh in a
     // plugin's room, so that only a refusal leaves it as the user filled it in.
-    await edits.attempt(title, (opts) => done(calls, opts));
+    await edits.run(title, calls, done);
     setBusy(false);
   }
 

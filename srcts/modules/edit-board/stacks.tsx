@@ -22,13 +22,12 @@ import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { blockName, classes, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
 import type { Edits } from "../../ui/index.ts";
-import { Advanced, offers, Part, RowAdvanced, Section, table, useRowEditing } from "./board.tsx";
+import { Advanced, BOARD, offers, Part, RowAdvanced, Section, table, useRowEditing } from "./board.tsx";
 
 // Core's board actions whose advanced actions the section mounts, by their
 // ids, as any plugin names them.
 const CREATE_STACK = "blockr.core-add_stack_action";
 const EDIT_STACK = "blockr.core-edit_stack_action";
-const BOARD = { board: true } as const;
 
 export function StacksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
   const stacks = Object.entries(board.stacks);

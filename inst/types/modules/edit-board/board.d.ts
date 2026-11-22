@@ -25,6 +25,9 @@ export declare function useRowEditing(): {
     close: () => void;
     button: RefObject<HTMLButtonElement | null>;
 };
+export declare const BOARD: {
+    readonly board: true;
+};
 export declare function offers(core: CoreApi, id: string, target: Target): boolean;
 export declare function Advanced({ core, id, target }: {
     core: CoreApi;

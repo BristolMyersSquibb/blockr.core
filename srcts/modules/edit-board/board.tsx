@@ -5,10 +5,10 @@
 // holds, with the controls that change and remove each. A table shows a page
 // of rows at a time, which a search narrows, so that it stays usable on a
 // board of many blocks.
-// The forms that add a link and a stack, and those that change one in its
-// row, are the advanced actions of core's board actions Create link, Create
-// stack, Edit link and Edit stack, which the plugin mounts through
-// mountAdvanced(), so that the plugin and the menus share them
+// The forms that add a block, a link and a stack, and those that change a link
+// or a stack in its row, are the advanced actions of core's board actions Add
+// block, Create link, Create stack, Edit link and Edit stack, which the plugin
+// mounts through mountAdvanced(), so that the plugin and the menus share them
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
 // It mounts a form that adds only where core.boardActions.on() offers its
 // board action on the board.
@@ -117,6 +117,9 @@ export function useRowEditing(): {
   }, []);
   return { editing, open, close, button };
 }
+
+// The board, as the target of a board action that acts on it.
+export const BOARD = { board: true } as const;
 
 // Whether a menu of the target offers the board action, as on() gives it.
 export function offers(core: CoreApi, id: string, target: Target): boolean {

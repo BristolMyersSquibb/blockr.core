@@ -168,7 +168,7 @@ export interface BoardActions {
 // The board actions of an open board, with core's own, whose notifications,
 // as of a copy that the browser refuses, core raises through the `raise` of
 // `parts`, and which read the preflights of the command registry and the
-// block registry through it.
+// board's block registry through it, as Add block lists its classes.
 export function createBoardActions(parts: CoreParts): BoardActions {
   let registered: readonly BoardAction[] = coreBoardActions(parts);
   // The plugin class that lists each board action that a class lists, by the

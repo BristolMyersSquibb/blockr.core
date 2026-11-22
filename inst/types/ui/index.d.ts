@@ -1,7 +1,7 @@
 export { blockItem, blockName, blockRow, blockTexts, classInputs, isVariadicBlock } from "./blocks.tsx";
 export type { BlockItem } from "./blocks.tsx";
 export { runCommand, useEdits } from "./edits.ts";
-export type { Edits, Refused } from "./edits.ts";
+export type { Done, Edits, Refused } from "./edits.ts";
 export { useHistory } from "./hooks.ts";
 export { useSearch } from "./search.ts";
 export type { Search } from "./search.ts";

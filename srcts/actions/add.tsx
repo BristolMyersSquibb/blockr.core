@@ -1,0 +1,236 @@
+// Core's four board actions that add a block, from the table of Core's board
+// actions
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions),
+// in its order, each of the category "add":
+// - Add block, `blockr.core-add_block_action`, on the board, adds a block on
+//   its own, with add_block.
+// - Append block, `blockr.core-append_block_action`, on a block, adds a block
+//   that takes the block's result, with add_block and add_link.
+// - Prepend block, `blockr.core-prepend_block_action`, on a block with an
+//   input that no link feeds, adds a block that feeds that input, with
+//   add_block and add_link.
+// - Insert block, `blockr.core-insert_block_action`, on a link, adds a block
+//   between the two blocks that the link joins, with add_block, add_link and
+//   change_link. The link then comes from the new block, and keeps its id,
+//   its input and its place among the links.
+// Their ids keep the names of the dock's actions that they replace.
+//
+// The quick action of each is a level with a filter, and a row for each block
+// class that the board action can add, under the heading of its category, with
+// the class's icon and its package, as the add menu of blockr.ui's design
+// system lists them
+// (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1199-L1207).
+// Append block and Insert block list the classes that have an input, since the
+// new block takes a block's result. Picking a row adds a block of the class
+// with an id that core.mintId() mints and the class's name, and its link
+// through the first free input. That is the new block's first input after a
+// block or on a link, and before a block the block's first input that no link
+// feeds. Into a variadic block, the link goes without a name. The batch runs
+// as one step of the user.
+// The advanced action of each is the block picker (../picker), which holds the
+// new block's class, its id, its name and the input that its link feeds:
+// on its own for Add block, after the block for Append block, before it for
+// Prepend block, and on the link for Insert block.
+// Opened from the quick action, the picker starts its search from the text in
+// the level's filter, and takes the keyboard's focus there. It runs nothing
+// before the user submits it, mints the id that the user leaves empty, and
+// hands its batch to done().
+// A plugin may show the advanced action of Add block in its room, as the Edit
+// board plugin does. There core renders the picker again once it has added a
+// block. Where the keyboard's focus was in the picker as the user added the
+// block, the new picker takes the focus, so that it is ready for the next one.
+//
+// Each carries a plus as its icon, in the shape of blockr.ui's `plus`
+// (./icons.ts).
+// Each fails its offers() in these cases:
+// - The board lock is on, since the store refuses what the board action runs.
+// - The board does not hold what the board action acts on.
+// - Its quick action would hold no row, as where the block registry holds no
+//   class that it can add, or for Prepend block, where links feed every input
+//   of the block.
+// A row that the user picks once the board no longer holds the board action's
+// target runs nothing.
+
+import { freeInputs } from "../commands/index.ts";
+import { blockClasses, BlockPicker } from "../picker/index.ts";
+import type { AddMode } from "../picker/index.ts";
+import type { BlockId, Board, RegistryId } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
+import type { RegistryEntry } from "../types/registry.ts";
+import { drawForm } from "../ui/index.ts";
+import { own } from "../util/index.ts";
+import type { BoardAction, CommandCall, Target } from "./actions.ts";
+import type { AdvancedModule } from "./advanced.ts";
+import { PLUS } from "./icons.ts";
+import type { QuickLevel } from "./quick.ts";
+import { heldBlock } from "./targets.ts";
+
+// The block registry's entries by registry id, as the store holds them for the
+// open board.
+type Registry = () => Readonly<Record<RegistryId, RegistryEntry>>;
+
+// Core's board actions that add a block, in the order of their table, which
+// read the block registry through `registry`.
+export function addingBoardActions(registry: Registry): BoardAction[] {
+  // Whether the block registry holds a class that a board action can add,
+  // one with an input where `taking` is true.
+  const adds = (taking: boolean): boolean => Object.values(registry()).some((entry) => !taking || hasInput(entry));
+  return [
+    {
+      id: "blockr.core-add_block_action",
+      label: "Add block",
+      icon: PLUS,
+      on: ["board"],
+      category: "add",
+      offers: (_board, _target, lock) => !lock.board && adds(false),
+      quick: (_board, _target, core) => classLevel(core, false, (entry, block) => [addBlockCall(entry, block)]),
+      advanced: pickerModule(() => ({ kind: "add" })),
+    },
+    {
+      id: "blockr.core-append_block_action",
+      label: "Append block",
+      icon: PLUS,
+      on: ["block"],
+      category: "add",
+      offers: (board, target, lock) => !lock.board && heldBlock(board, target) !== undefined && adds(true),
+      quick: (_board, target, core) =>
+        classLevel(core, true, (entry, block, board) => {
+          const from = heldBlock(board, target);
+          return from === undefined ? [] : [addBlockCall(entry, block), addLinkCall(from, block, newBlockInput(entry))];
+        }),
+      advanced: pickerModule((target) => ("block" in target ? { kind: "after", from: target.block } : undefined)),
+    },
+    {
+      id: "blockr.core-prepend_block_action",
+      label: "Prepend block",
+      icon: PLUS,
+      on: ["block"],
+      category: "add",
+      offers: (board, target, lock) =>
+        !lock.board && freeInputOf(board, registry(), target) !== undefined && adds(false),
+      quick: (_board, target, core) =>
+        classLevel(core, false, (entry, block, board) => {
+          const to = heldBlock(board, target);
+          return to === undefined ? [] : [addBlockCall(entry, block), addLinkCall(block, to, freeInputOf(board, core.blockRegistry(), target))];
+        }),
+      advanced: pickerModule((target) => ("block" in target ? { kind: "before", to: target.block } : undefined)),
+    },
+    {
+      id: "blockr.core-insert_block_action",
+      label: "Insert block",
+      icon: PLUS,
+      on: ["link"],
+      category: "add",
+      offers: (board, target, lock) => !lock.board && "link" in target && Object.hasOwn(board.links, target.link) && adds(true),
+      quick: (_board, target, core) =>
+        classLevel(core, true, (entry, block, board) => {
+          const id = "link" in target ? target.link : undefined;
+          const link = id === undefined ? undefined : own(board.links, id);
+          return id === undefined || link === undefined
+            ? []
+            : [
+                addBlockCall(entry, block),
+                addLinkCall(link.from, block, newBlockInput(entry)),
+                { id: "blockr.core-change_link", args: { id, from: block } },
+              ];
+        }),
+      advanced: pickerModule((target) => ("link" in target ? { kind: "on", link: target.link } : undefined)),
+    },
+  ];
+}
+
+// Whether a block class has an input, which a block that takes another's
+// result needs.
+function hasInput(entry: RegistryEntry): boolean {
+  return entry.inputs.length > 0;
+}
+
+// The level of a quick action that adds a block: a filter, and a row for each
+// block class of the block registry, only those with an input where `taking`
+// is true. Picking a row mints the new block's id and runs the batch that
+// `batch` returns for the class, the id and the board as it is then.
+function classLevel(
+  core: CoreApi,
+  taking: boolean,
+  batch: (entry: RegistryEntry, block: BlockId, board: Board) => readonly CommandCall[],
+): QuickLevel {
+  const registry = core.blockRegistry();
+  const entries = Object.values(registry).filter((entry) => !taking || hasInput(entry));
+  return {
+    filter: true,
+    rows: blockClasses(entries).map((item) => ({
+      kind: "item",
+      label: item.name,
+      heading: item.category,
+      ...(item.icon === "" ? {} : { icon: item.icon }),
+      ...(item.pkg === null ? {} : { detail: item.pkg }),
+      pick() {
+        const entry = own(registry, item.id);
+        const board = core.store.board();
+        if (entry === undefined) return [];
+        return batch(entry, core.mintId((id) => Object.hasOwn(board.blocks, id)), board);
+      },
+    })),
+  };
+}
+
+// The command that adds a block of the class under the id given, which takes
+// the class's name.
+function addBlockCall(entry: RegistryEntry, block: BlockId): CommandCall {
+  return { id: "blockr.core-add_block", args: { registry_id: entry.id, id: block } };
+}
+
+// The command that links two blocks, into the input given, which is empty for
+// a variadic block. Without one, the command finds the input, and refuses
+// where none is free.
+function addLinkCall(from: BlockId, to: BlockId, input: string | undefined): CommandCall {
+  return { id: "blockr.core-add_link", args: { from, to, ...(input === undefined ? {} : { input }) } };
+}
+
+// The first input of a new block of the class, which takes the link that the
+// block comes with: empty for a variadic class, whose link goes in without a
+// name.
+function newBlockInput(entry: RegistryEntry): string | undefined {
+  return entry.inputs.includes("...") ? "" : entry.inputs[0];
+}
+
+// The first input of the block that the target names that no link feeds,
+// which a block that Prepend block adds feeds. It is "" for a variadic block,
+// whose link goes in without a name, and undefined where the board does not
+// hold the block, or where links feed every input of the block.
+function freeInputOf(board: Board, registry: Readonly<Record<RegistryId, RegistryEntry>>, target: Target): string | undefined {
+  const block = heldBlock(board, target);
+  return block === undefined ? undefined : freeInputs(board, registry, block)?.[0];
+}
+
+// The block picker as the advanced action of a board action, in the mode that
+// `mode` gives for the target. It renders nothing for a target that gives no
+// mode, which core hands it for no board action of this file.
+function pickerModule(mode: (target: Target) => AddMode | undefined): AdvancedModule {
+  // The elements in which a picker added a block while the keyboard's focus
+  // was in it, so that the picker that core renders there next takes the
+  // focus.
+  const focused = new WeakSet<HTMLElement>();
+  return {
+    render({ el, core, target, filter, done }) {
+      const at = mode(target);
+      if (at === undefined) return () => undefined;
+      const autofocus = filter !== undefined || focused.delete(el);
+      return drawForm(
+        el,
+        <BlockPicker
+          core={core}
+          mode={at}
+          {...(filter === undefined ? {} : { filter })}
+          autofocus={autofocus}
+          done={(calls, opts) => {
+            if (el.contains(el.ownerDocument.activeElement)) focused.add(el);
+            return done(calls, opts).finally(() => {
+              focused.delete(el);
+            });
+          }}
+        />,
+      );
+    },
+  };
+}

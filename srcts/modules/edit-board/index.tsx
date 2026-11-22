@@ -6,12 +6,12 @@
 // it places any plugin whose class has a `ui`, where core mounts it with
 // mountPlugin().
 // It adds, renames and removes the board's blocks, and adds, changes and
-// removes its links and stacks. Its forms of a link and of a stack are the
-// advanced actions of core's board actions Create link, Create stack, Edit
-// link and Edit stack, which it mounts through mountAdvanced(), so that the
-// menus offer the same forms. Each edit runs core's commands as one step of
-// the user, as the user submits a form or clicks a row's button, so that undo
-// takes back each one, and the plugin keeps nothing staged.
+// removes its links and stacks. Its forms are the advanced actions of core's
+// board actions Add block, whose form is the block picker, Create link, Create
+// stack, Edit link and Edit stack, which it mounts through mountAdvanced(), so
+// that the menus offer the same forms. Each edit runs core's commands as one
+// step of the user, as the user submits a form or clicks a row's button, so
+// that undo takes back each one, and the plugin keeps nothing staged.
 // Where the store or the command registry refuses an edit, the plugin says why
 // close to the control that made it, until the user's next edit there: below
 // a form, and below a table for an edit from the buttons of its rows. It takes

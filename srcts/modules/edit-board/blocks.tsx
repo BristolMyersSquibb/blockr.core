@@ -1,29 +1,34 @@
 // The Edit board plugin's section of blocks:
-// - A form that adds a block of a class from the block registry, under the ID
-//   and the name that the user gives, with add_block, once the user submits
-//   it.
+// - The advanced action of core's board action Add block on the board, the
+//   block picker, which adds a block of a class from the block registry,
+//   under the ID and the name that the user gives, once the user submits it.
+//   The plugin mounts it through mountAdvanced(), so that the plugin and the
+//   menus share it, and only where core.boardActions.on() offers Add block on
+//   the board
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#what-it-shows).
+//   Core renders it again once it has added a block, ready for the next.
 // - A table of the board's blocks, with each block's name, ID and class, which
 //   a search narrows and which shows a page of rows at a time. The name of
 //   each block renames it in place with rename_block, and a button removes it
 //   with remove_block, which removes its links and its place in its stack too.
-// Where the store or the command registry refuses an edit, the form says why
+// Where the store or the command registry refuses an edit, the picker says why
 // below its button. Where it refuses to rename or remove a block, the table
 // says so below itself, naming the block, until the user's next edit in the
 // table. The name of a block that the user renames takes its column's width.
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { BlockPicker } from "../../picker/index.ts";
-import type { AddMode } from "../../picker/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { Block, BlockId, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { classes, NameField, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
 import type { Edits } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
-import { Part, Section, table } from "./board.tsx";
+import { Advanced, BOARD, offers, Part, Section, table } from "./board.tsx";
 
-const ADD: AddMode = { kind: "add" };
+// Core's board action whose advanced action the section mounts, by its id, as
+// any plugin names it.
+const ADD_BLOCK = "blockr.core-add_block_action";
 
 export function BlocksSection({ core, board }: { core: CoreApi; board: Board }): ReactElement {
   const registry = core.blockRegistry();
@@ -36,9 +41,11 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
 
   return (
     <Section title="Blocks" count={count}>
-      <Part title="Add a block">
-        <BlockPicker core={core} mode={ADD} showsRefusal />
-      </Part>
+      {offers(core, ADD_BLOCK, BOARD) ? (
+        <Part title="Add a block">
+          <Advanced core={core} id={ADD_BLOCK} target={BOARD} />
+        </Part>
+      ) : null}
       <Part title="Blocks on the board">
         {count === 0 ? (
           <p className={styles.hint}>The board holds no blocks yet.</p>

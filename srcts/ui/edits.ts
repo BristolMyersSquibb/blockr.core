@@ -15,6 +15,10 @@
 //   board, and below a table for an edit in its rows, as The Edit board plugin
 //   has it
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
+//   The block picker, the advanced action of core's board actions that add a
+//   block, runs its edit through useEdits() as well, and hands it to its
+//   done(), which runs it as one step of the user and ends the advanced action
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
 
 import { useMemo, useState } from "react";
 import type { CoreApi } from "../types/core-api.ts";
@@ -26,6 +30,11 @@ interface Listed {
   readonly id: string;
   readonly args?: Json;
 }
+
+// What runs the list of an edit in place of the command registry, as the
+// done() of an advanced action does: as one step of the user, rejecting with
+// the refusal, whose notifications the notifier takes.
+export type Done = (list: readonly Listed[], opts: { notifier(): void }) => Promise<void>;
 
 // Runs the command with the args, or the commands of the list in order, as an
 // edit of the user, through CoreApi, and resolves whether it ran.
@@ -47,17 +56,14 @@ export interface Edits {
   // holds until the next edit that run() makes, or until clear().
   readonly refusal: Refused | null;
   // Runs the command with the args, or the commands of the list in order, as
-  // runCommand() does, and resolves whether it ran.
+  // runCommand() does, and resolves whether it ran. A list runs through
+  // `done` where it is given.
   // The title is the sentence that names the edit, such as `Could not remove
   // the block "Head".`, which heads the reasons where the edit is refused.
   // The reasons name the board's objects by their ids, which a table may not
   // show.
   run(title: string, id: string, args?: Json): Promise<boolean>;
-  run(title: string, list: readonly Listed[]): Promise<boolean>;
-  // Runs what `start` starts with the options that it hands it, such as the
-  // done() of an advanced action, which runs a batch and takes a notifier in
-  // its options as run() does, and resolves whether it ran.
-  attempt(title: string, start: (opts: { readonly notifier?: () => void }) => Promise<unknown>): Promise<boolean>;
+  run(title: string, list: readonly Listed[], done?: Done): Promise<boolean>;
   // Takes the refusal down where the user's next edit there does not reach
   // run(): where a form's own checks stop it, or where the user opens the
   // form that changes a row of the table.
@@ -74,23 +80,19 @@ export interface Refused {
 // The edits of one control, which run() runs with a notifier that takes the
 // notification of a refusal, so that core raises none, since the control
 // shows why itself.
-// Where `shows` is false, run() passes no notifier, so that core raises the
-// notification, and `refusal` stays null, as for a control that leaves the
-// refusal to core, such as the form for a block in a dialog of core's basic
-// frontend.
-export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
+export function useEdits(core: Pick<CoreApi, "commands">): Edits {
   const [refusal, setRefusal] = useState<Refused | null>(null);
   return useMemo(() => {
     const opts = { notifier: () => undefined };
-    function attempt(title: string, start: (opts: { readonly notifier?: () => void }) => Promise<unknown>): Promise<boolean> {
-      if (!shows) {
-        return start({}).then(
-          () => true,
-          () => false,
-        );
-      }
+    function run(title: string, target: string | readonly Listed[], given?: Json | Done): Promise<boolean> {
       setRefusal(null);
-      return start(opts).then(
+      const running =
+        typeof target === "string"
+          ? core.commands.run(target, given as Json | undefined, "user", opts)
+          : typeof given === "function"
+            ? given(target, opts)
+            : core.commands.run(target, "user", opts);
+      return running.then(
         () => true,
         (error: unknown) => {
           setRefusal({ title, reasons: reasons(error) });
@@ -98,20 +100,14 @@ export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
         },
       );
     }
-    function run(title: string, target: string | readonly Listed[], args?: Json): Promise<boolean> {
-      return attempt(title, (given) =>
-        typeof target === "string" ? core.commands.run(target, args, "user", given) : core.commands.run(target, "user", given),
-      );
-    }
     return {
       refusal,
       run,
-      attempt,
       clear: () => {
         setRefusal(null);
       },
     };
-  }, [core, shows, refusal]);
+  }, [core, refusal]);
 }
 
 // Each reason why the command registry or the store refused an edit: the

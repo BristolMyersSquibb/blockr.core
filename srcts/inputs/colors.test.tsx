@@ -27,15 +27,24 @@ import {
 
 type Fill = Readonly<{ fill: string }>;
 
+// What unmounts each component that a test drew, which runs as the test ends.
+const drawn: (() => void)[] = [];
+
 afterEach(() => {
+  act(() => {
+    for (const unmount of drawn.splice(0)) unmount();
+  });
   document.body.replaceChildren();
 });
 
-// Draws the component on the page.
+// Draws the component on the page, until the test ends.
 function draw(node: ReactElement): HTMLElement {
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
+  drawn.push(() => {
+    root.unmount();
+  });
   act(() => {
     root.render(node);
   });

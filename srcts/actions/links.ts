@@ -44,6 +44,7 @@ import { PLUS } from "./icons.ts";
 import { createLinkForm, editLinkForm } from "./link-form.tsx";
 import { levelItem } from "./quick.ts";
 import type { QuickLevel, QuickRow } from "./quick.ts";
+import { heldBlock } from "./targets.ts";
 
 const CREATE_LINK = "blockr.core-add_link_action";
 const EDIT_LINK = "blockr.core-edit_link_action";
@@ -63,12 +64,12 @@ export function createLinkAction(parts: CoreParts): BoardAction {
       if (lock.board) return false;
       const joining = joiningOn(board, parts);
       if ("board" in target) return [...joining.takers].some((to) => fedBy(joining, to, true).length > 0);
-      const block = blockOf(target);
-      return block !== undefined && Object.hasOwn(board.blocks, block) && (feeds(joining, block, true).length > 0 || fedBy(joining, block, true).length > 0);
+      const block = heldBlock(board, target);
+      return block !== undefined && (feeds(joining, block, true).length > 0 || fedBy(joining, block, true).length > 0);
     },
     quick(board, target, core) {
-      const block = blockOf(target);
-      if (block === undefined || !Object.hasOwn(board.blocks, block)) return undefined;
+      const block = heldBlock(board, target);
+      if (block === undefined) return undefined;
       const joining = joiningOn(board, parts);
       const rows = [
         ...feeds(joining, block).map(
@@ -248,12 +249,6 @@ function renameRow(board: Board, id: LinkId, link: Link): QuickRow {
 function quickBlock(board: Board, registry: BlockRegistry, block: BlockId): { kind: "item"; label: string; detail: string; icon?: string } {
   const icon = own(registry, own(board.blocks, block)?.registry_id ?? "")?.icon;
   return { kind: "item", label: blockName(board, block), detail: block, ...(icon === undefined || icon === "" ? {} : { icon }) };
-}
-
-// The block that the target names, for a board action on blocks, which core
-// hands no other target of a block.
-function blockOf(target: Target): BlockId | undefined {
-  return "block" in target ? target.block : undefined;
 }
 
 // The link that the target names, with its ID, where the board holds it.

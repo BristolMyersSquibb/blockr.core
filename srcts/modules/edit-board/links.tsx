@@ -24,13 +24,12 @@ import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../../types/core-api.ts";
 import { blockName, classes, isVariadicBlock, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
 import type { Edits } from "../../ui/index.ts";
-import { Advanced, offers, Part, RowAdvanced, Section, table, useRowEditing } from "./board.tsx";
+import { Advanced, BOARD, offers, Part, RowAdvanced, Section, table, useRowEditing } from "./board.tsx";
 
 // Core's board actions whose advanced actions the section mounts, by their
 // ids, as any plugin names them.
 const CREATE_LINK = "blockr.core-add_link_action";
 const EDIT_LINK = "blockr.core-edit_link_action";
-const BOARD = { board: true } as const;
 
 export function LinksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
   const links = Object.entries(board.links);

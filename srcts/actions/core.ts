@@ -1,10 +1,14 @@
 // Core's board actions, from the table of Core's board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions),
-// in its order: Create link, Create stack, Rename, Edit link, Edit stack, Copy
-// block ID, Remove block, Remove link, Remove stack, and Remove on a
-// selection. Their ids are under blockr.core and keep the names of the dock's
-// actions, as blockr.core-remove_block_action, but for Rename and Copy block
-// ID, which are new.
+// in its order: Add block, Append block, Prepend block and Insert block,
+// Create link, Create stack, Rename, Edit link, Edit stack, Copy block ID,
+// Remove block, Remove link, Remove stack, and Remove on a selection. Their
+// ids are under blockr.core and keep the names of the dock's actions, as
+// blockr.core-remove_block_action, but for Rename and Copy block ID, which are
+// new.
+// - Add block, Append block, Prepend block and Insert block add a block
+//   through a pick in their quick actions, or through the block picker, their
+//   advanced action (./add.tsx).
 // - Create link and Edit link add and change a link, and Create stack and Edit
 //   stack a stack, through their quick actions and their advanced actions,
 //   the forms of a link and of a stack (./links.ts, ./stacks.ts).
@@ -20,9 +24,10 @@
 // - Remove on a selection removes every block, link and stack of the
 //   selection in one step, and leaves out what else the selection holds.
 // Copy block ID and those that remove act at once, through their run(). Those
-// that add carry a plus as their icon, in the shape of blockr.ui's `plus`,
-// and those that remove the bin of a row that destroys something, in the
-// shape of blockr.ui's `trash`, since blockr.ui builds on blockr.core
+// that add carry a plus as their icon, in the shape of blockr.ui's `plus`
+// (./icons.ts), and those that remove the bin of a row that destroys
+// something, in the shape of blockr.ui's `trash`, since blockr.ui builds on
+// blockr.core
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/trash.svg).
 // Under the board lock, every one but Copy block ID fails its offers(), since
 // the store refuses what they run
@@ -32,19 +37,22 @@
 // menu offers a board action that leads nowhere.
 
 import type { Commands } from "../commands/index.ts";
-import type { BlockId, Board } from "../types/board.ts";
+import type { Board } from "../types/board.ts";
 import type { BlockRegistry } from "../types/core-api.ts";
 import { coreNotification, own } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
+import { addingBoardActions } from "./add.tsx";
 import { copyText } from "./clipboard.ts";
 import { createLinkAction, editLinkAction } from "./links.ts";
 import { createStackAction, editStackAction } from "./stacks.ts";
+import { blockOf, heldBlock } from "./targets.ts";
 
 // What core's board actions read beyond what their functions get: what raises
-// their notifications, the preflights of the command registry and the block
-// registry, through which Create link's offers() tells which blocks a new link
-// can join, since offers() gets no CoreApi.
+// their notifications, the preflights of the command registry, and the block
+// registry of the open board, as Add block lists its classes, and as Create
+// link's offers() tells which blocks a new link can join, since offers() gets
+// no CoreApi.
 export interface CoreParts {
   readonly raise: Raise;
   readonly preflight: Commands["preflight"];
@@ -55,6 +63,7 @@ export interface CoreParts {
 export function coreBoardActions(parts: CoreParts): BoardAction[] {
   const { raise } = parts;
   return [
+    ...addingBoardActions(parts.blockRegistry),
     createLinkAction(parts),
     createStackAction(),
     {
@@ -157,18 +166,6 @@ function named(board: Board, target: Target): { id: string; name: string; comman
     return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: "blockr.core-rename_stack" };
   }
   return undefined;
-}
-
-// The block that the target names, for a board action on blocks alone, which
-// core hands no other target.
-function blockOf(target: Target): BlockId | undefined {
-  return "block" in target ? target.block : undefined;
-}
-
-// The block that the target names, where the board holds it.
-function heldBlock(board: Board, target: Target): BlockId | undefined {
-  const block = blockOf(target);
-  return block !== undefined && Object.hasOwn(board.blocks, block) ? block : undefined;
 }
 
 // The batch that removes a block, a link or a stack by its id with the command
