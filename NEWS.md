@@ -834,6 +834,9 @@
   The call `core.boardActions.mountAdvanced(el, id, target, picked)` renders an advanced action in a plugin's own room, where `done()` runs the batch and core renders the advanced action again.
   Where a board object that the target names leaves the board, core ends the advanced action, as a `done()` without a batch does.
   The `advanced()` of `stubCore()` gives the advanced action that core's dialog shows, and `StubMenu` gains `openAdvanced()`, which clicks an open icon (#744).
+* Loading `@blockr/core/stubs` makes every document of `happy-dom` an instance of the window's `Document`, as in a browser.
+  React Aria finds the focus within an element only where the root of the element is such an instance.
+  So in a test, a popover or a dialog of the SDK that a pointer press opens no longer takes the focus from one of its elements that took the focus first, such as a search field with `autoFocus` (#818).
 
 # blockr.core 0.1.4
 
