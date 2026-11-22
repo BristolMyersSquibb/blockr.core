@@ -2,16 +2,12 @@
 // blockr.core-controls, which a module that builds nothing reaches through
 // host.module(), and which the page's import map names `@blockr/core/controls`.
 
-import { afterEach, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import { stubBlockHost } from "../stubs/index.ts";
 import { find, type } from "../testing/inputs.ts";
 import { mountOnPage, unmount } from "../testing/modules.ts";
 import type { BlockModule } from "../types/hosts.ts";
 import * as offered from "./index.ts";
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 test("gives the controls to a module that builds nothing, through host.module()", async () => {
   const host = stubBlockHost(

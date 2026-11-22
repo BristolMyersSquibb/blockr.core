@@ -23,7 +23,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  document.body.replaceChildren();
 });
 
 test("shows the separator and the quoting characters, and submits each as the user pauses typing", async () => {

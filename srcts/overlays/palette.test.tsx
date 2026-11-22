@@ -19,7 +19,6 @@ afterEach(() => {
   act(() => {
     for (const unmount of drawn.splice(0)) unmount();
   });
-  document.body.replaceChildren();
 });
 
 const commands = [

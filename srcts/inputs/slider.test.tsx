@@ -9,7 +9,7 @@
 import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { useValue } from "../react/index.ts";
 import { stubBlockHost } from "../stubs/index.ts";
 import type { StubBlockHost } from "../stubs/index.ts";
@@ -25,10 +25,6 @@ type Range = Readonly<{ size?: number; span?: readonly number[] }>;
 function host(state: Range, ...submits: Range[]): StubBlockHost<Range> {
   return stubBlockHost<Range>({ states: [state, ...submits], requests: [] }, { state });
 }
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 // Draws the component on the page, and unmounts it.
 async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () => Promise<void> }> {

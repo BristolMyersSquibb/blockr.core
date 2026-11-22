@@ -3,17 +3,13 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { Key, SortDescriptor } from "../aria/index.ts";
 import { useDragAndDrop } from "../dnd/index.ts";
 import { draw, step } from "../testing/react.ts";
 import { rowCheckbox, rowOf, rowTexts } from "../testing/rows.ts";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./index.ts";
 import type { TableProps } from "./index.ts";
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 interface Animal {
   readonly id: string;

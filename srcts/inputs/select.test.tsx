@@ -7,7 +7,7 @@
 import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { useValue } from "../react/index.ts";
 import { stubBlockHost } from "../stubs/index.ts";
 import type { StubBlockHost } from "../stubs/index.ts";
@@ -34,10 +34,6 @@ type Basket = Readonly<{ fruit?: string; fruits?: readonly string[] }>;
 function host(state: Basket, ...submits: Basket[]): StubBlockHost<Basket> {
   return stubBlockHost<Basket>({ states: [state, ...submits], requests: [] }, { state });
 }
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 // Draws the component on the page, and unmounts it.
 async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () => Promise<void> }> {

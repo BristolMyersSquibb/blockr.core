@@ -5,7 +5,7 @@
 // keyboard's focus as the menu closes.
 
 import { act } from "react";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { find, press, type } from "../testing/inputs.ts";
 import { logged } from "../testing/logged.ts";
 import { openMenu as shownMenu } from "../testing/overlays.ts";
@@ -125,10 +125,6 @@ function description(el: HTMLElement): string {
 function dialog(): HTMLElement {
   return find(document, '[role="dialog"]');
 }
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 describe("core's menu", () => {
   test("draws the menu of a target at the anchor, each row with its icon, label and detail, with a divider between two categories, and the rows that remove in the danger colour under the pointer", async () => {

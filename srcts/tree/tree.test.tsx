@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { Key } from "../aria/index.ts";
 import { useDragAndDrop } from "../dnd/index.ts";
 import { pressAndRelease } from "../testing/inputs.ts";
@@ -22,10 +22,6 @@ import {
 } from "./index.ts";
 import type { NavigationTreeProps } from "./index.ts";
 import type { TreeProps } from "../aria/index.ts";
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 // A tree of a view and a folder that holds two more.
 function Views(props: Omit<TreeProps<object>, "children">): ReactElement {

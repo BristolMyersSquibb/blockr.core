@@ -40,7 +40,6 @@ beforeEach(() => {
 afterEach(() => {
   abort.abort();
   vi.useRealTimers();
-  document.body.replaceChildren();
 });
 
 function drawn(state: Form = form({})) {

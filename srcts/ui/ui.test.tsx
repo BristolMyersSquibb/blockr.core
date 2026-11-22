@@ -13,7 +13,6 @@ const unmounts: (() => void)[] = [];
 
 afterEach(() => {
   for (const unmount of unmounts.splice(0)) unmount();
-  document.body.replaceChildren();
 });
 
 // Draws the element in an element on the page, as React does on the page.

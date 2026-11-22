@@ -31,7 +31,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  document.body.replaceChildren();
 });
 
 // Draws the component on the page, and unmounts it.

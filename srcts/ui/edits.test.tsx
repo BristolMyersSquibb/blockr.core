@@ -21,7 +21,6 @@ const stops: (() => void)[] = [];
 
 afterEach(() => {
   for (const stop of stops.splice(0)) stop();
-  document.body.replaceChildren();
 });
 
 // A control with a button for each edit, which removes blocks, and the banner

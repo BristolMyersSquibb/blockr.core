@@ -4,13 +4,9 @@
 
 import { createRef } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import { step } from "../testing/react.ts";
 import { Button } from "./index.ts";
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 test("gives its element to the ref given, until it unmounts", async () => {
   const ref = createRef<HTMLButtonElement>();

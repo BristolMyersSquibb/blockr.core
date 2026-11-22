@@ -1,14 +1,10 @@
 // The static block's UI, mounted on the stub of its host
 // with the fixture that the block's R tests write.
 
-import { afterEach, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import { stubBlockHost } from "../../stubs/index.ts";
 import { blockFixture, mountOnPage, unmount } from "../../testing/modules.ts";
 import * as ui from "./index.ts";
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 test("draws nothing, asks nothing and submits nothing", async () => {
   const host = stubBlockHost(blockFixture("data-static", "static_block"));

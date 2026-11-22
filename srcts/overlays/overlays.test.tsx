@@ -41,7 +41,6 @@ afterEach(() => {
     for (const unmount of drawn.splice(0)) unmount();
   });
   vi.useRealTimers();
-  document.body.replaceChildren();
 });
 
 // Draws the component on the page, until the test ends.

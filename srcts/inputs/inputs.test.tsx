@@ -44,7 +44,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  document.body.replaceChildren();
 });
 
 // Draws the component on the page, draws it again with other props, and

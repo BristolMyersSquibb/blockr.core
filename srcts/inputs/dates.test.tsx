@@ -27,7 +27,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  document.body.replaceChildren();
 });
 
 // The UI of a block, which binds its one state arg, `on`, to an input.

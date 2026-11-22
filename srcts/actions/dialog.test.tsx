@@ -67,7 +67,6 @@ afterEach(async () => {
   await step(() => {
     for (const hide of hides.splice(0)) hide();
   });
-  document.body.replaceChildren();
 });
 
 describe("core's dialog", () => {

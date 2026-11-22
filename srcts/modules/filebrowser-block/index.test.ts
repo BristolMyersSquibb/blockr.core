@@ -25,7 +25,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  document.body.replaceChildren();
 });
 
 // The breadcrumbs of the directory in the bar above the list, each with its

@@ -38,7 +38,6 @@ const stops: (() => void)[] = [];
 
 afterEach(() => {
   for (const stop of stops.splice(0)) stop();
-  document.body.replaceChildren();
 });
 
 // The plugin's UI on the board of the fixture hello, or of the reply given,

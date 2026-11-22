@@ -36,7 +36,6 @@ function behindPage(colour: string): void {
 }
 
 afterEach(() => {
-  document.body.replaceChildren();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
