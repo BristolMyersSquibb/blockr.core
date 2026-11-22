@@ -57,6 +57,13 @@ if (typeof navigator !== "undefined" && navigator.userAgent.includes("HappyDOM")
     }
   };
 }
+if (typeof document !== "undefined") {
+  const view = document.defaultView;
+  if (view !== null && !(document instanceof view.Document)) {
+    const own2 = Object.getPrototypeOf(view.Document);
+    Object.defineProperty(view.Document, Symbol.hasInstance, { value: (value2) => value2 instanceof own2 });
+  }
+}
 
 // srcts/util/util.ts
 function own(record, key2) {

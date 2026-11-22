@@ -30,6 +30,22 @@
 //   640 by 400 pixels (../stubs/core.ts).
 //   A test that checks what is in view gives an IntersectionObserver of its
 //   own.
+// - In happy-dom, the page's document is no instance of the window's
+//   Document.
+//   The window's Document is a class that extends happy-dom's own Document.
+//   The page's document is an instance of happy-dom's own Document, but not
+//   of the window's.
+//   React Aria finds the focus within an element only where the root of the
+//   element is an instance of the window's Document.
+//   So in happy-dom, a popover or a dialog of the SDK takes the focus as a
+//   pointer press opens it.
+//   It does so even where one of its elements, such as a search field with
+//   autoFocus, has taken the focus already.
+//   This part makes every document of happy-dom pass as an instance of the
+//   window's Document.
+//   This is happy-dom's bug #1781
+//   (https://github.com/capricorn86/happy-dom/issues/1781), and this part
+//   goes once a release of happy-dom fixes it.
 // Outside happy-dom, none of them changes what the DOM does.
 
 for (const name of ["clientWidth", "clientHeight"]) {
@@ -96,4 +112,12 @@ if (typeof navigator !== "undefined" && navigator.userAgent.includes("HappyDOM")
       return [];
     }
   };
+}
+
+if (typeof document !== "undefined") {
+  const view = document.defaultView;
+  if (view !== null && !(document instanceof view.Document)) {
+    const own = Object.getPrototypeOf(view.Document) as typeof Document;
+    Object.defineProperty(view.Document, Symbol.hasInstance, { value: (value: unknown) => value instanceof own });
+  }
 }

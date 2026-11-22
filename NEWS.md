@@ -870,6 +870,9 @@
   The menu of a card of core's basic frontend is core's menu of the block, which the card opens through `core.boardActions.menu()`, in place of its own list of Rename, Add block before, Add block after and Remove.
   So it offers every board action on a block, those of packages too, and says Append block and Prepend block, as the menus of the dock and of the DAG do.
   Core shows the picker that the card's menu opens in core's dialog, and under the board lock the card's menu offers Copy block ID (#745).
+* Loading `@blockr/core/stubs` makes every document of `happy-dom` an instance of the window's `Document`, as in a browser.
+  React Aria finds the focus within an element only where the root of the element is such an instance.
+  So in a test, a popover or a dialog of the SDK that a pointer press opens no longer takes the focus from one of its elements that took the focus first, such as a search field with `autoFocus` (#818).
 
 # blockr.core 0.1.4
 
