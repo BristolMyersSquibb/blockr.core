@@ -1,7 +1,8 @@
 // Core's menu, as React draws it on the page: the menu of a target with the
 // icons, the details and the categories of its rows, the levels that it
 // shows in place of each other, a text row, the filter, a multi, a level that
-// loads or failed, and the keyboard's focus as the menu closes.
+// loads or failed, the open icons of a level and of an item, and the
+// keyboard's focus as the menu closes.
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
@@ -11,6 +12,7 @@ import { openMenu as shownMenu } from "../testing/overlays.ts";
 import { step } from "../testing/react.ts";
 import type { Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 import type { BoardAction, CommandCall } from "./actions.ts";
 import { showMenu } from "./menu.tsx";
 import { openMenu } from "./quick.ts";
@@ -32,7 +34,8 @@ const item = (label: string, more: Partial<Extract<QuickRow, { kind: "item" }>> 
 
 // Core's menu, drawn at a point beside a button that the user triggered from,
 // which has the keyboard's focus as the menu opens, with parts that record each
-// batch that it runs, a board action's run's too, and unmount the menu as it
+// batch that it runs, a board action's run's too, and each advanced action that
+// it opens, with what the open icon handed it, and unmount the menu as it
 // closes.
 async function drawn(start: MenuStart) {
   const trigger = document.createElement("button");
@@ -40,6 +43,7 @@ async function drawn(start: MenuStart) {
   document.body.append(trigger);
   trigger.focus();
   const ran: [readonly CommandCall[], string][] = [];
+  const advanced: [string, { readonly picked?: Json; readonly filter?: string }][] = [];
   let hide: () => void = () => undefined;
   let menu: OpenMenu | undefined;
   await step(() => {
@@ -58,6 +62,10 @@ async function drawn(start: MenuStart) {
         const batch = await by.run?.({} as Board, { block: "a" }, {} as CoreApi);
         if (batch !== undefined) ran.push([batch, by.id]);
       },
+      advanced(by, opened) {
+        advanced.push([by.id, opened]);
+        return Promise.resolve();
+      },
       failed: () => undefined,
       closed() {
         hide();
@@ -67,7 +75,7 @@ async function drawn(start: MenuStart) {
   });
   await settle();
   if (menu === undefined) throw new Error("The menu did not open.");
-  return { menu, trigger, ran };
+  return { menu, trigger, ran, advanced };
 }
 
 // Waits for what React Aria scheduled, such as moving the focus.
@@ -82,10 +90,10 @@ async function click(el: HTMLElement): Promise<void> {
   await settle();
 }
 
-async function key(el: Element | null, name: string): Promise<void> {
+async function key(el: Element | null, name: string, init: KeyboardEventInit = {}): Promise<void> {
   if (!(el instanceof HTMLElement)) throw new Error(`Found no element to press ${name} in.`);
   await step(() => {
-    press(el, name);
+    press(el, name, init);
   });
   await settle();
 }
@@ -104,6 +112,12 @@ function row(menu: ParentNode, name: string): HTMLElement {
   );
   if (found === undefined) throw new Error(`Found no row ${name}.`);
   return found;
+}
+
+// What assistive technology reads as the row's description.
+function description(el: HTMLElement): string {
+  const ids = el.getAttribute("aria-describedby")?.split(" ") ?? [];
+  return ids.map((id) => document.getElementById(id)?.textContent ?? "").join(" ");
 }
 
 // The dialog that holds the menu, which React Aria draws at the end of the
@@ -308,5 +322,75 @@ describe("core's menu", () => {
     await key(document.activeElement, "Escape");
     expect(names(shownMenu("Board actions"))).toEqual(["Columns"]);
     expect(menu.closed()).toBe(false);
+  });
+
+  test("draws the open icon of a level at the end of its title's line, named Show all options, and of an item at its end, each with its name and key in its tooltip, which assistive technology hears, and which open the advanced action without picking the item", async () => {
+    const adds = action("Append block", {
+      advanced: { render: () => undefined },
+      quick: () => ({
+        title: "Append",
+        filter: true,
+        picked: { input: "data" },
+        rows: [item("Head", { advanced: { class: "head" } }), item("Filter")],
+      }),
+    });
+    const tip = "Show all options (Ctrl+Enter)";
+    const keys = "Control+Enter Meta+Enter";
+
+    const level = await drawn({ action: adds });
+    const open = find(dialog(), 'button[aria-label="Show all options"]');
+    expect(open.closest("div")?.querySelector("p")?.textContent).toBe("Append");
+    expect(open.querySelector("svg")).not.toBeNull();
+    expect([open.title, open.getAttribute("aria-keyshortcuts")]).toEqual([tip, keys]);
+    expect(find(dialog(), "input[data-filter]").getAttribute("aria-keyshortcuts")).toBe(keys);
+    const menu = shownMenu("Append");
+    const head = row(menu, "Head");
+    expect(head.querySelector("[data-open-row] svg")).not.toBeNull();
+    expect(head.querySelector<HTMLElement>("[data-open-row]")?.title).toBe(tip);
+    expect([head.getAttribute("aria-label"), description(head)]).toEqual(["Head", tip]);
+    expect(row(menu, "Filter").querySelector("[data-open-row]")).toBeNull();
+    expect(description(row(menu, "Filter"))).toBe("");
+    await step(() => {
+      type(find(dialog(), "input[data-filter]", HTMLInputElement), "He");
+    });
+    await click(open);
+    expect(level.advanced).toEqual([[adds.id, { picked: { input: "data" }, filter: "He" }]]);
+    expect(level.menu.closed()).toBe(true);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    document.body.replaceChildren();
+
+    const onItem = await drawn({ action: adds });
+    const icon = row(shownMenu("Append"), "Head").querySelector<HTMLElement>("[data-open-row]");
+    if (icon === null) throw new Error("Found no open icon on the row Head.");
+    await click(icon);
+    expect(onItem.advanced).toEqual([[adds.id, { picked: { class: "head" }, filter: "" }]]);
+    expect(onItem.ran).toEqual([]);
+  });
+
+  test("draws no open icon where the board action has no advanced action", async () => {
+    await drawn({ action: action("Rename", { quick: () => ({ title: "Rename", rows: [item("Head", { advanced: { class: "head" } })] }) }) });
+
+    expect(dialog().querySelector('button[aria-label="Show all options"]')).toBeNull();
+    expect(dialog().querySelector("[data-open-row]")).toBeNull();
+  });
+
+  test("opens the advanced action on Mod+Enter, with the item's advanced from a row that shows the open icon, and with the level's picked otherwise", async () => {
+    const adds = action("Append block", {
+      advanced: { render: () => undefined },
+      quick: () => ({ filter: true, picked: { input: "data" }, rows: [item("Head", { advanced: { class: "head" } }), item("Filter")] }),
+    });
+
+    const fromRow = await drawn({ action: adds });
+    const filter = find(dialog(), "input[data-filter]", HTMLInputElement);
+    await key(filter, "ArrowDown");
+    await key(filter, "Enter", { ctrlKey: true });
+    expect(fromRow.advanced).toEqual([[adds.id, { picked: { class: "head" }, filter: "" }]]);
+    expect(fromRow.ran).toEqual([]);
+    document.body.replaceChildren();
+
+    const fromLevel = await drawn({ action: adds });
+    await key(find(dialog(), "input[data-filter]", HTMLInputElement), "Enter", { metaKey: true });
+    expect(fromLevel.advanced).toEqual([[adds.id, { picked: { input: "data" }, filter: "" }]]);
+    expect(fromLevel.ran).toEqual([]);
   });
 });

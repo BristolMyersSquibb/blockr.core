@@ -691,8 +691,10 @@
 * Core's React SDK offers a text field, `TextField`, and a number field, `NumberField`, which core's own UIs, frontends, the UIs of plugins and those of blocks all draw with: [React Aria's `TextField`](https://react-aria.adobe.com/TextField) and [`NumberField`](https://react-aria.adobe.com/NumberField), in core's theme, after those of React Aria's Tailwind starter kit, in place of `TextInput` and `NumberInput`, which are gone.
   Each takes the props of its part of React Aria, and the `label`, `description`, `errorMessage` and `placeholder` that the starter kit adds.
   The `TextField` holds a text area where its `lines` is above 1, since React Aria has no prop for text on several lines.
-  Given `bound`, each hands what the user types to the binding, which submits it once the user pauses, and at once on Enter or as the user leaves the field, as `TextInput` and `NumberInput` did.
-  A bound `NumberField` submits only a number in its range and on its step, which the head block and the board option `n_rows` set to 1, and it submits a step of its buttons or of the arrow keys at once.
+  Given `bound`, the `TextField` hands what the user types to the binding, which submits it once the user pauses, and at once on Enter or as the user leaves the field, as `TextInput` did.
+  A bound `NumberField` submits a number as the user presses Enter, leaves the field or steps the number by its buttons or the arrow keys, but not as the user pauses, unlike `NumberInput`, since a number passes through wrong ones as the user types, as 15 on the way to 150.
+  So it drops a number that the user has not ended as its module unmounts.
+  It submits only a number in its range and on its step, which the head block and the board option `n_rows` set to 1.
   It keeps a number outside them as the user typed it, through React Aria's `commitBehavior` `"validate"`, and marks the number with the message of the browser's own number input, in place of messages of core's own.
   While it is `outdated`, it takes no `maxValue`, as `NumberInput` took no `max`.
   The `text()` and `number()` of `controls()` take React Aria's names, such as `minValue` in place of `min`, and the handle that `number()` returns has `setMaxValue()` in place of `setMax()`.
@@ -706,7 +708,7 @@
   The select draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
   The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
-  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801).
+  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801, #810).
 * Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
   A board action changes the board only through commands, and runs each batch as one undo step of the user.
   Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
@@ -836,6 +838,21 @@
   The picker's popover holds the palette's colors as swatches below the starter kit's parts.
   The stacks' table draws each stack's color as a `ColorSwatch`, which a screen reader names by its color.
   Compressed with `gzip`, core's vendor file grows from 295 KB to 318 KB (#759).
+* A board action's `advanced` is its advanced action, which holds every option of the board action in a place with enough room.
+  It is a module of the new type `AdvancedModule`, whose `render()` gets the element, `CoreApi`, the target, a signal and `done()`.
+  Its `done()` runs a batch as one step of the user, with the caller's `extend`, and ends the advanced action, or with no batch only ends it.
+  Where the store refuses the batch, `done()` rejects with the refusal and the advanced action stays open, and the `notifier` of `done()` takes the notifications.
+  Core opens a board action's advanced action from its row in a menu, where the board action has no quick action or its `quick` gives no level for the target, and from `trigger()` on such a board action.
+  It opens one from the open icon too: a button named "Show all options" at the top right of every level of the quick action, or an icon at the end of an item that gives `advanced`.
+  Ctrl or Cmd with Enter does the same from the keyboard, as each icon's tooltip says.
+  The icon hands the advanced action the level's `picked` or the item's `advanced`, and the text in the level's filter.
+  Core shows the advanced action in the `advanced` that the caller of `menu()` or `trigger()` gives, or else in the frontend's place, or else in core's dialog, a modal dialog at least 420 pixels wide.
+  The frontend's place is the new `advanced` member of a frontend's module.
+  It gets the board action's ID, a title, the target, a `mount()` and a `close()`.
+  It returns the function that core calls with the deltas of the batch once `done()` ends the advanced action.
+  The call `core.boardActions.mountAdvanced(el, id, target, picked)` renders an advanced action in a plugin's own room, where `done()` runs the batch and core renders the advanced action again.
+  Where a board object that the target names leaves the board, core ends the advanced action, as a `done()` without a batch does.
+  The `advanced()` of `stubCore()` gives the advanced action that core's dialog shows, and `StubMenu` gains `openAdvanced()`, which clicks an open icon (#744).
 
 # blockr.core 0.1.4
 

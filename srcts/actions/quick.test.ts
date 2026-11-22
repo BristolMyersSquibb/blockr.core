@@ -1,13 +1,15 @@
 // The rules of a quick action, on the logic that runs every menu of board
 // actions and draws nothing, which core tests once here: the menu of a target
 // and its rows, the levels that picks open, Escape, the ticks of a multi, a
-// text row's refusal, the filter, promises that load or reject, and the faults
-// of a board action's functions.
+// text row's refusal, the filter, promises that load or reject, the faults
+// of a board action's functions, and the advanced actions that a menu opens,
+// at once or through an open icon.
 
 import { describe, expect, test } from "vitest";
 import { logged } from "../testing/logged.ts";
 import type { Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 import type { BoardAction, CommandCall } from "./actions.ts";
 import { inMenuOrder, openMenu } from "./quick.ts";
 import type { MenuParts, MenuStart, QuickLevel, QuickRow } from "./quick.ts";
@@ -33,14 +35,19 @@ function asking(level: QuickLevel | (() => ReturnType<NonNullable<BoardAction["q
   return action("asks", { quick: typeof level === "function" ? level : () => level });
 }
 
+// An advanced action that renders nothing.
+const ADVANCED = { render: () => undefined };
+
 // A menu with parts that record each batch that it runs, with the id of its
-// board action, each board action that they trigger, each failure that they
-// report, and each closing, with the promise of what closing ran. A batch of
-// `refused` rejects, and so does a board action triggered whose name says
-// that it fails.
+// board action, each board action that they trigger, each advanced action that
+// they open, with what it was handed, each failure that they report, and each
+// closing, with the promise of what closing ran. A batch of `refused` rejects,
+// and so does a board action triggered whose name says that it fails. An
+// advanced action ends once the test calls what `advanced` records with it.
 function opened(start: MenuStart, more: Partial<MenuParts> = {}) {
   const ran: [readonly CommandCall[], string][] = [];
   const triggered: string[] = [];
+  const advanced: { id: string; opened: { readonly picked?: Json; readonly filter?: string }; end: () => void }[] = [];
   const failures: [string, string][] = [];
   const closings: (Promise<void> | undefined)[] = [];
   const menu = openMenu(start, {
@@ -56,6 +63,11 @@ function opened(start: MenuStart, more: Partial<MenuParts> = {}) {
       triggered.push(by.id);
       return by.id.includes("fails") ? Promise.reject(new Error("The clipboard is refused.")) : Promise.resolve();
     },
+    advanced(by, given) {
+      return new Promise<void>((resolve) => {
+        advanced.push({ id: by.id, opened: given, end: resolve });
+      });
+    },
     failed(by, failure) {
       failures.push([by.id, failure.message]);
     },
@@ -64,7 +76,7 @@ function opened(start: MenuStart, more: Partial<MenuParts> = {}) {
     },
     ...more,
   });
-  return { menu, ran, triggered, failures, closings };
+  return { menu, ran, triggered, advanced, failures, closings };
 }
 
 // The labels of the rows that the menu shows.
@@ -452,24 +464,135 @@ describe("a quick action", () => {
     ]);
   });
 
-  test("shows that core does not open advanced actions yet, where quick gives no level for the target and where a board action has neither run nor quick", async () => {
+  test("shows a quick that gives no level for the target as a fault, which core logs, where the board action has no advanced action", async () => {
     const none = action("none", { quick: () => undefined });
     const later = action("later", { quick: () => Promise.resolve(undefined) });
-    const advanced = action("advanced");
-    const { menu } = opened({ actions: [none, later, advanced] });
+    const reported = logged();
+    const { menu } = opened({ actions: [none, later] });
 
     const shown: (string | undefined)[] = [];
-    for (const row of [0, 1, 2]) {
+    for (const row of [0, 1]) {
       await menu.pick(row);
       shown.push(menu.get().error);
       menu.escape();
     }
+    reported.restore();
 
-    expect(shown).toEqual([
-      'The board action "blockr.test-none_action" gives no quick action for the target, and core does not open advanced actions yet.',
-      'The board action "blockr.test-later_action" gives no quick action for the target, and core does not open advanced actions yet.',
-      'The board action "blockr.test-advanced_action" asks the user through its advanced action, which core does not open yet.',
+    const why = "It gave no level for the target, and the board action has no advanced action to open in its place.";
+    expect(shown).toEqual([why, why]);
+    expect(reported.errors().map((line) => line.message)).toEqual([
+      `The quick action of the board action "blockr.test-none_action" failed: ${why}`,
+      `The quick action of the board action "blockr.test-later_action" failed: ${why}`,
     ]);
+  });
+});
+
+describe("the advanced action that a menu opens", () => {
+  test("opens at once, with nothing handed, as the user picks the row of a board action with an advanced action alone, or one whose quick gives no level, and the menu closes first", async () => {
+    const alone = action("alone", { advanced: ADVANCED });
+    const none = action("none", { quick: () => undefined, advanced: ADVANCED });
+    const later = action("later", { quick: () => Promise.resolve(undefined), advanced: ADVANCED });
+
+    for (const each of [alone, none, later]) {
+      const { menu, advanced, closings } = opened({ actions: [each] });
+      const picked = menu.pick(0);
+      await settled();
+
+      expect(menu.closed()).toBe(true);
+      expect(advanced.map(({ id, opened: given }) => [id, given])).toEqual([[each.id, {}]]);
+      // What the menu ran as it closed, and the pick, settle once the
+      // advanced action ends.
+      let ended = false;
+      void closings[0]?.then(() => {
+        ended = true;
+      });
+      await settled();
+      expect(ended).toBe(false);
+      advanced[0]?.end();
+      await picked;
+      expect(ended).toBe(true);
+    }
+  });
+
+  test("opens at once where the quick action of a board action that the menu opens with gives no level, and the menu closes as it opens", () => {
+    const none = action("none", { quick: () => undefined, advanced: ADVANCED });
+    const { menu, advanced, closings } = opened({ action: none });
+
+    expect(menu.closed()).toBe(true);
+    expect(closings).toHaveLength(1);
+    expect(advanced.map(({ id }) => id)).toEqual([none.id]);
+  });
+
+  test("shows the open icon on every level of a quick action whose board action has an advanced action, and at the end of an item that gives advanced", async () => {
+    const next: QuickLevel = { title: "Input", rows: [item("x", () => rename("x"))] };
+    const both = action("both", {
+      advanced: ADVANCED,
+      quick: () => ({ filter: true, picked: { step: 1 }, rows: [item("Head", () => next, { advanced: { class: "head" } }), item("Sort", () => rename("Sort"))] }),
+    });
+    const quickOnly = action("quick", { quick: () => ({ rows: [item("Head", () => rename("Head"), { advanced: { class: "head" } })] }) });
+
+    const { menu } = opened({ action: both });
+    expect(menu.get()).toMatchObject({ advanced: true, rows: [{ label: "Head", advanced: true }, { label: "Sort" }] });
+    expect(menu.get().rows[1]).not.toHaveProperty("advanced");
+    await menu.pick(0);
+    expect(menu.get()).toMatchObject({ title: "Input", advanced: true, rows: [{ label: "x" }] });
+
+    // A board action without an advanced action shows no open icon, even on
+    // an item that gives advanced, and neither does the menu of a target.
+    const other = opened({ action: quickOnly });
+    expect(other.menu.get()).toMatchObject({ advanced: false, rows: [{ label: "Head" }] });
+    expect(other.menu.get().rows[0]).not.toHaveProperty("advanced");
+    expect(opened({ actions: [both] }).menu.get().advanced).toBe(false);
+  });
+
+  test("opens from the level's open icon with the level's picked and the filter's text, and from an item's with its advanced, closing the menu first", async () => {
+    const both = action("both", {
+      advanced: ADVANCED,
+      quick: () => ({ filter: true, picked: { step: 1 }, rows: [item("Head", () => rename("Head"), { advanced: { class: "head" } }), item("Sort", () => rename("Sort"))] }),
+    });
+    const plain = action("plain", { advanced: ADVANCED, quick: () => ({ rows: [item("Head", () => rename("Head"))] }) });
+
+    const level = opened({ action: both });
+    level.menu.type("Hea");
+    const fromLevel = level.menu.openAdvanced();
+    expect(level.menu.closed()).toBe(true);
+    expect(level.advanced.map(({ id, opened: given }) => [id, given])).toEqual([[both.id, { picked: { step: 1 }, filter: "Hea" }]]);
+    level.advanced[0]?.end();
+    await fromLevel;
+
+    const row = opened({ action: both });
+    void row.menu.openAdvanced(0);
+    expect(row.advanced.map(({ opened: given }) => given)).toEqual([{ picked: { class: "head" }, filter: "" }]);
+
+    // A level without a filter and without picked hands neither.
+    const bare = opened({ action: plain });
+    void bare.menu.openAdvanced();
+    expect(bare.advanced.map(({ opened: given }) => given)).toEqual([{}]);
+    expect(bare.ran).toEqual([]);
+  });
+
+  test("opens nothing from an item that shows no open icon, nor from a level that loads, and closes and opens nothing where the board action no longer applies", async () => {
+    const both = action("both", {
+      advanced: ADVANCED,
+      quick: () => ({ rows: [item("Head", () => rename("Head"), { advanced: { class: "head" } }), item("Sort", () => rename("Sort"))] }),
+    });
+    const slow = action("slow", { advanced: ADVANCED, quick: () => new Promise<QuickLevel>(() => undefined) });
+
+    const plain = opened({ action: both });
+    await plain.menu.openAdvanced(1);
+    await plain.menu.openAdvanced(7);
+    expect(plain.menu.closed()).toBe(false);
+    expect(plain.advanced).toEqual([]);
+
+    const loading = opened({ action: slow });
+    await loading.menu.openAdvanced();
+    expect(loading.menu.closed()).toBe(false);
+    expect(loading.advanced).toEqual([]);
+
+    const gone = opened({ action: both }, { applies: () => false });
+    await gone.menu.openAdvanced();
+    expect(gone.menu.closed()).toBe(true);
+    expect(gone.advanced).toEqual([]);
   });
 });
 

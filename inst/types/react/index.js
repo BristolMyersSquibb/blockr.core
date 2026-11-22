@@ -517,7 +517,6 @@ import {
   NavigationTreeItemContent,
   NavigationTreeSection,
   NumberField,
-  NumberFieldStateContext,
   OverlayArrow,
   parseColor,
   Popover,
@@ -2442,7 +2441,7 @@ function ListBoxItem2(props) {
 var LISTBOX2 = "bc:box-border bc:grid bc:min-w-0 bc:content-start bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-empty:px-2.5 bc:data-empty:py-2 bc:data-empty:italic bc:data-empty:text-text-muted";
 
 // srcts/inputs/numberfield.tsx
-import { useContext as useContext6, useEffect as useEffect2, useRef as useRef7, useState as useState8 } from "react";
+import { useState as useState8 } from "react";
 import { Fragment as Fragment12, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
@@ -2459,12 +2458,10 @@ function BoundNumber({
 }) {
   const held3 = typeof bound.value === "number" ? bound.value : NaN;
   const [kept, setKept] = useState8(null);
-  const [typed, setTyped] = useState8(NaN);
-  const [keystrokes, setKeystrokes] = useState8(0);
   const [seen, setSeen] = useState8(held3);
   if (!Object.is(seen, held3)) {
     setSeen(held3);
-    if (kept !== null && (!kept.typing || !Object.is(held3, typed))) setKept(null);
+    if (kept !== null && !kept.typing) setKept(null);
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
   return /* @__PURE__ */ jsxs17(Fragment12, { children: [
@@ -2477,13 +2474,10 @@ function BoundNumber({
         value: kept?.value ?? held3,
         onInput: (event) => {
           setKept((now) => now?.typing === true ? now : { value: now?.value ?? held3, typing: true });
-          setKeystrokes((n) => n + 1);
           onInput?.(event);
         },
         onChange: (value) => {
           if (!fits(value)) {
-            bound.type(void 0);
-            bound.flush();
             setKept(null);
           } else if (kept?.typing === true) {
             bound.type(value);
@@ -2500,32 +2494,11 @@ function BoundNumber({
         onBlur: (event) => {
           setKept((now) => now?.typing === true ? null : now);
           onBlur?.(event);
-        },
-        watch: /* @__PURE__ */ jsx24(
-          Watch,
-          {
-            keystrokes,
-            onType: (value) => {
-              setTyped(value);
-              bound.type(fits(value) ? value : void 0);
-            }
-          }
-        )
+        }
       }
     ),
     /* @__PURE__ */ jsx24(Refusal, { error: bound.error })
   ] });
-}
-function Watch({ keystrokes, onType }) {
-  const state = useContext6(NumberFieldStateContext);
-  const value = state?.numberValue ?? NaN;
-  const heard = useRef7(0);
-  useEffect2(() => {
-    if (keystrokes === heard.current) return;
-    heard.current = keystrokes;
-    onType(value);
-  }, [keystrokes, value, onType]);
-  return null;
 }
 function inRange(value, min, max, step) {
   if (Number.isNaN(value)) return false;
@@ -2535,7 +2508,7 @@ function inRange(value, min, max, step) {
   const steps = (value - (min ?? 0)) / step;
   return Math.abs(steps - Math.round(steps)) < 1e-9;
 }
-function Drawn5({ label, description, errorMessage: errorMessage2, placeholder, watch, className, onInput, ...props }) {
+function Drawn5({ label, description, errorMessage: errorMessage2, placeholder, className, onInput, ...props }) {
   return /* @__PURE__ */ jsxs17(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
     label === void 0 ? null : /* @__PURE__ */ jsx24(Label, { className: styles.label, children: label }),
     /* @__PURE__ */ jsxs17(Group, { className: FIELD3, children: [
@@ -2546,8 +2519,7 @@ function Drawn5({ label, description, errorMessage: errorMessage2, placeholder, 
       ] })
     ] }),
     /* @__PURE__ */ jsx24(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx24(FieldError, { className: styles.alert, children: errorMessage2 }),
-    watch
+    /* @__PURE__ */ jsx24(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 function Chevron2({ up }) {
@@ -2573,7 +2545,7 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/radio.tsx
-import { useRef as useRef8 } from "react";
+import { useRef as useRef7 } from "react";
 import { Fragment as Fragment13, jsx as jsx25, jsxs as jsxs18 } from "react/jsx-runtime";
 function RadioGroup2({ bound, outdated = false, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx25(DrawnGroup2, { ...props }) : /* @__PURE__ */ jsx25(BoundGroup2, { ...props, bound, outdated });
@@ -2616,7 +2588,7 @@ function DrawnGroup2({ label, description, errorMessage: errorMessage2, children
   ] });
 }
 function Radio({ children, description, className, ...props }) {
-  const ref = useRef8(null);
+  const ref = useRef7(null);
   useItem(props.value, ref);
   return /* @__PURE__ */ jsxs18(RadioField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
     /* @__PURE__ */ jsxs18(RadioButton, { className: composeRenderProps(className, (given) => `bc:group ${RADIO} ${given ?? ""}`), children: [
@@ -2681,7 +2653,7 @@ var FIELD4 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:j
 var INPUT3 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:[&::-webkit-search-cancel-button]:hidden";
 
 // srcts/inputs/select.tsx
-import { useContext as useContext7, useLayoutEffect as useLayoutEffect3, useMemo as useMemo3, useRef as useRef9, useState as useState9 } from "react";
+import { useContext as useContext6, useLayoutEffect as useLayoutEffect3, useMemo as useMemo3, useRef as useRef8, useState as useState9 } from "react";
 import { Fragment as Fragment15, jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
 function Select2(props) {
   const { bound, outdated = false, ordered = false, ...rest } = props;
@@ -2708,7 +2680,7 @@ function BoundSelect({
   const unknown = props.items === void 0 && typeof props.children === "function";
   const ids2 = unknown ? null : known2;
   const [picks, setPicks] = useState9(null);
-  const pending = useRef9(null);
+  const pending = useRef8(null);
   const shown = picks ?? values;
   const asIs = ids2 === null ? values : values.filter((value) => !ids2.includes(value));
   const marking = !outdated && ids2 !== null && asIs.length > 0;
@@ -2818,7 +2790,7 @@ function Drawn7({ label, description, errorMessage: errorMessage2, items, childr
   );
 }
 function Known({ onKnown }) {
-  const state = useContext7(SelectStateContext);
+  const state = useContext6(SelectStateContext);
   useLayoutEffect3(() => {
     if (state === null) return;
     const { collection } = state;
@@ -2837,7 +2809,7 @@ var LISTBOX3 = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-l
 var NOTE3 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/slider.tsx
-import { useContext as useContext8, useLayoutEffect as useLayoutEffect4, useRef as useRef10, useState as useState10 } from "react";
+import { useContext as useContext7, useLayoutEffect as useLayoutEffect4, useRef as useRef9, useState as useState10 } from "react";
 import { Fragment as Fragment16, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
 function Slider3({ bound, outdated = false, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx28(Drawn8, { ...props }) : /* @__PURE__ */ jsx28(BoundSlider, { ...props, bound, outdated });
@@ -2857,8 +2829,8 @@ function BoundSlider({
     setSeen(bound.value);
     setMoving(null);
   }
-  const shown = useRef10([]);
-  const start2 = useRef10(null);
+  const shown = useRef9([]);
+  const start2 = useRef9(null);
   const min = props.minValue ?? 0;
   const fits = (value2) => inRange(value2, min, props.maxValue ?? 100, props.step ?? 1);
   const lacked = moving === null ? held3.filter((value2) => !fits(value2)) : [];
@@ -2895,7 +2867,7 @@ function BoundSlider({
           onChangeEnd?.(next);
         },
         watch: /* @__PURE__ */ jsx28(
-          Watch2,
+          Watch,
           {
             onShown: (values) => {
               shown.current = values;
@@ -2908,8 +2880,8 @@ function BoundSlider({
     /* @__PURE__ */ jsx28(Refusal, { error: bound.error })
   ] });
 }
-function Watch2({ onShown }) {
-  const state = useContext8(SliderStateContext);
+function Watch({ onShown }) {
+  const state = useContext7(SliderStateContext);
   useLayoutEffect4(() => {
     if (state !== null && !state.values.some((_, i) => state.isThumbDragging(i))) onShown(state.values);
   });
@@ -2979,7 +2951,7 @@ var TRACK3 = "bc:box-border bc:flex bc:h-5 bc:w-9 bc:shrink-0 bc:items-center bc
 var HANDLE = "bc:size-4 bc:rounded-full bc:bg-text-muted bc:shadow-xs bc:transition-transform bc:group-data-selected:translate-x-full bc:group-data-selected:bg-text-on-accent";
 
 // srcts/inputs/tags.tsx
-import { createContext as createContext3, useContext as useContext9 } from "react";
+import { createContext as createContext3, useContext as useContext8 } from "react";
 import { Fragment as Fragment18, jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
 var colors = {
   gray: "bc:border-border-default bc:bg-bg-subtle bc:text-text-default",
@@ -3006,7 +2978,7 @@ function TagGroup2({
 }
 function Tag2({ children, color, className, ...props }) {
   const textValue = typeof children === "string" ? children : void 0;
-  const groupColor = useContext9(ColorContext);
+  const groupColor = useContext8(ColorContext);
   return /* @__PURE__ */ jsx30(
     Tag,
     {
@@ -3068,7 +3040,7 @@ function Drawn10({ label, description, errorMessage: errorMessage2, placeholder,
 }
 
 // srcts/inputs/toggle.tsx
-import { createContext as createContext4, useContext as useContext10, useId, useRef as useRef11 } from "react";
+import { createContext as createContext4, useContext as useContext9, useId, useRef as useRef10 } from "react";
 import { Fragment as Fragment20, jsx as jsx32, jsxs as jsxs25 } from "react/jsx-runtime";
 function ToggleButton2({ bound, onChange, ...props }) {
   if (bound === void 0) return /* @__PURE__ */ jsx32(DrawnButton, { ...props, onChange });
@@ -3089,8 +3061,8 @@ function ToggleButton2({ bound, onChange, ...props }) {
 }
 var InGroup = createContext4(false);
 function DrawnButton({ className, ...props }) {
-  const ref = useRef11(null);
-  const inGroup = useContext10(InGroup);
+  const ref = useRef10(null);
+  const inGroup = useContext9(InGroup);
   useItem(props.id === void 0 ? void 0 : String(props.id), ref);
   return /* @__PURE__ */ jsx32(
     ToggleButton,
@@ -3224,13 +3196,13 @@ var BREADCRUMBS = "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:items-center bc:g
 var BREADCRUMB = "bc:flex bc:items-center bc:gap-1";
 
 // srcts/layout/disclosure.tsx
-import { useContext as useContext11 } from "react";
+import { useContext as useContext10 } from "react";
 import { jsx as jsx36, jsxs as jsxs28 } from "react/jsx-runtime";
 function Disclosure2({ className, ...props }) {
   return /* @__PURE__ */ jsx36(Disclosure, { ...props, className: composeRenderProps(className, (given) => `${DISCLOSURE} ${given ?? ""}`) });
 }
 function DisclosureHeader({ children, level = 3, className }) {
-  const expanded = useContext11(DisclosureStateContext)?.isExpanded ?? false;
+  const expanded = useContext10(DisclosureStateContext)?.isExpanded ?? false;
   return /* @__PURE__ */ jsx36(Heading, { level, className: `${HEADING4} ${className ?? FACE}`, children: /* @__PURE__ */ jsxs28(Button, { slot: "trigger", className: TRIGGER2, children: [
     /* @__PURE__ */ jsx36(Marker, { expanded }),
     children
@@ -3496,7 +3468,7 @@ var ROW2 = "bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2
 var CELL2 = "bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 
 // srcts/tree/navigation-tree.tsx
-import { createContext as createContext5, useContext as useContext12 } from "react";
+import { createContext as createContext5, useContext as useContext11 } from "react";
 
 // srcts/tree/tree.tsx
 import { jsx as jsx44, jsxs as jsxs34 } from "react/jsx-runtime";
@@ -3562,8 +3534,8 @@ function NavigationTreeHeader2(props) {
   return /* @__PURE__ */ jsx45(NavigationTreeHeader, { ...props, className: "bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted" });
 }
 function NavigationTreeItemLink({ render, children, ...props }) {
-  const indicator = useContext12(IndicatorContext);
-  const given = useContext12(RenderLinkContext);
+  const indicator = useContext11(IndicatorContext);
+  const given = useContext11(RenderLinkContext);
   return /* @__PURE__ */ jsx45(Link, { render: render ?? given, ...props, className: LINK2, children: ({ isHovered }) => /* @__PURE__ */ jsxs35(Fragment25, { children: [
     /* @__PURE__ */ jsx45("span", { "aria-hidden": "true", "data-indicator": indicator ?? (isHovered ? "hover" : void 0), className: MARK }),
     children

@@ -312,7 +312,7 @@ describe("the controls of a block's UI given two functions in place of a key", (
     expect(join.value).toBe("Inner");
   });
 
-  test("submit typing once the user pauses, built from the state as it is then, so that an edit made in the meantime is kept", async () => {
+  test("submit typing once the user pauses, and a number on Enter, built from the state as it is then, so that an edit made in the meantime is kept", async () => {
     const { host, condition, from } = joinDrawn();
 
     type(condition, "a2");
@@ -320,8 +320,14 @@ describe("the controls of a block's UI given two functions in place of a key", (
     host.setState(joined({ conditions: ["a", "b", "c"] }));
     await vi.advanceTimersByTimeAsync(PAUSE);
     host.setState(joined({}));
-    type(from, "3");
+    await settled(() => {
+      type(from, "3");
+    });
     await vi.advanceTimersByTimeAsync(PAUSE);
+    expect(host.submitted).toHaveLength(1);
+    await settled(() => {
+      press(from, "Enter");
+    });
 
     expect(host.submitted).toEqual([joined({ conditions: ["a2", "b", "c"] }), joined({ range: [3, 9] })]);
   });
@@ -355,11 +361,16 @@ describe("the controls of a board option's UI", () => {
     document.body.append(ui.el);
     const input = labelled(ui.el, "Preview rows");
 
-    type(input, "0");
-    await vi.advanceTimersByTimeAsync(PAUSE);
+    await settled(() => {
+      type(input, "0");
+    });
     expect(input.getAttribute("aria-invalid")).toBe("true");
-    type(input, "50");
-    await vi.advanceTimersByTimeAsync(PAUSE);
+    await settled(() => {
+      type(input, "50");
+    });
+    await settled(() => {
+      press(input, "Enter");
+    });
     host.setValue(10);
 
     expect(host.submitted).toEqual([50]);
@@ -386,8 +397,12 @@ describe("the controls of a board option's UI", () => {
     const input = labelled(ui.el, "Preview rows");
     const shown = () => [input.value, input.getAttribute("aria-invalid")];
 
-    type(input, "50");
-    await vi.advanceTimersByTimeAsync(PAUSE);
+    await settled(() => {
+      type(input, "50");
+    });
+    await settled(() => {
+      press(input, "Enter");
+    });
     expect(shown()).toEqual(["50", null]);
     expect(host.submitted).toEqual([50]);
 

@@ -6,6 +6,7 @@
 // what the modules of packages raise.
 
 import type { Condition } from "../protocol/index.ts";
+import type { Board, PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreCode, Notification, Notifier, Raised, RRequest, SourceModule } from "../types/core-api.ts";
 import { isObject } from "./util.ts";
 
@@ -110,6 +111,17 @@ export function isBoardObject(value: unknown): value is BoardObject {
   if (keys.length !== 1 || kind === undefined || !(KINDS as readonly string[]).includes(kind)) return false;
   const id = value[kind];
   return typeof id === "string" && id !== "";
+}
+
+// Whether the board holds the board object: a block, a link or a stack that
+// it holds, a board option whose value it holds, and a plugin that the app
+// runs, as the plugins given name each by the id of its class.
+export function holdsObject(board: Board, object: BoardObject, plugins: Readonly<Record<PluginClassId, unknown>>): boolean {
+  if ("block" in object) return Object.hasOwn(board.blocks, object.block);
+  if ("link" in object) return Object.hasOwn(board.links, object.link);
+  if ("stack" in object) return Object.hasOwn(board.stacks, object.stack);
+  if ("option" in object) return Object.hasOwn(board.options, object.option);
+  return Object.hasOwn(plugins, object.plugin);
 }
 
 // A notification that a package's module gives, checked, since a module in

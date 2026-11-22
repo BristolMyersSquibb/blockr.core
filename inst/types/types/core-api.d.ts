@@ -18,13 +18,16 @@ export interface CoreApi {
             anchor: DOMRect;
             extend?(deltas: readonly Delta[]): readonly CommandCall[];
             notifier?(notifications: readonly Notification[], action: BoardAction): void;
+            advanced?: FrontendModule["advanced"];
         }): void;
         trigger(id: string, target: Target, opts: {
             el: HTMLElement;
             anchor?: DOMRect;
             extend?(deltas: readonly Delta[]): readonly CommandCall[];
             notifier?(notifications: readonly Notification[], action: BoardAction): void;
+            advanced?: FrontendModule["advanced"];
         }): Promise<void>;
+        mountAdvanced(el: HTMLElement, id: string, target: Target, picked?: Json): () => void;
     };
     readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
     blockRegistry(): BlockRegistry;
@@ -166,6 +169,13 @@ export interface FrontendModule {
         el: HTMLElement;
         core: CoreApi;
     }): void | Promise<void>;
+    advanced?(args: {
+        readonly id: string;
+        readonly title: string;
+        readonly target: Target;
+        readonly mount: (el: HTMLElement, target?: Target) => () => void;
+        readonly close: () => void;
+    }): (deltas?: readonly Delta[]) => void;
 }
 export interface OnScreen {
     get(): {

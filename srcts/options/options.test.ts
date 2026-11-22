@@ -13,7 +13,7 @@ import darkModeModule, * as darkModeExports from "../modules/dark-mode-option/in
 // eslint-disable-next-line no-restricted-imports
 import nRowsModule, * as nRowsExports from "../modules/n-rows-option/index.ts";
 import { stubOptionHost } from "../stubs/index.ts";
-import { toggleButton, toggles, type } from "../testing/inputs.ts";
+import { press, toggleButton, toggles, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
 import { labelled } from "../testing/select.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -181,7 +181,7 @@ describe("the UIs of core's board options", () => {
     return { el, host };
   }
 
-  test("n_rows is a number field under its label that submits a whole number of rows from one, once the user pauses", async () => {
+  test("n_rows is a number field under its label that submits a whole number of rows from one, on Enter rather than as the user pauses", async () => {
     vi.useFakeTimers();
     const { el, host } = await mounted("n_rows", nRows, 50);
     const input = labelled(el, "Preview rows");
@@ -190,15 +190,9 @@ describe("the UIs of core's board options", () => {
     await step(() => {
       type(input, "0");
     });
-    await step(() => {
-      vi.advanceTimersByTime(PAUSE);
-    });
     expect(input.getAttribute("aria-invalid")).toBe("true");
     await step(() => {
       type(input, "2.5");
-    });
-    await step(() => {
-      vi.advanceTimersByTime(PAUSE);
     });
     expect(input.getAttribute("aria-invalid")).toBe("true");
     await step(() => {
@@ -206,6 +200,10 @@ describe("the UIs of core's board options", () => {
     });
     await step(() => {
       vi.advanceTimersByTime(PAUSE);
+    });
+    expect(host.submitted).toEqual([]);
+    await step(() => {
+      press(input, "Enter");
     });
 
     expect(host.submitted).toEqual([25]);

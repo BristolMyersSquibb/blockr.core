@@ -4,6 +4,7 @@ import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
 import type { Raise, Refused } from "../util/index.ts";
+import type { AdvancedModule, Place, ShowDialog } from "./advanced.ts";
 import type { OpenMenu, QuickLevel } from "./quick.ts";
 export type Target = {
     readonly board: true;
@@ -24,6 +25,7 @@ export interface BoardAction {
     offers?(board: Board, target: Target, lock: Lock): boolean;
     run?(board: Board, target: Target, core: CoreApi): readonly CommandCall[] | undefined | Promise<readonly CommandCall[] | undefined>;
     quick?(board: Board, target: Target, core: CoreApi): QuickLevel | undefined | Promise<QuickLevel | undefined>;
+    readonly advanced?: AdvancedModule;
 }
 export interface BoardActions {
     register(plugin: PluginClassId, actions: readonly BoardAction[] | undefined): () => void;
@@ -37,12 +39,14 @@ export interface MenuPlace {
 }
 export type ShowMenu = (menu: OpenMenu, at: MenuPlace) => () => void;
 export interface BoardActionsParts {
-    readonly store: Pick<Store, "board" | "hasBoard">;
+    readonly store: Pick<Store, "board" | "hasBoard" | "subscribe">;
     readonly lock: Lock;
     readonly core: () => CoreApi;
     readonly refused: Refused;
     readonly raiseAgain: (notification: Omit<Notification, "id">, notifier?: Notifier) => void;
     readonly show: ShowMenu;
+    readonly frontend?: () => Place | undefined;
+    readonly dialog: ShowDialog;
     readonly signal?: AbortSignal;
 }
 export declare function boardActionsApi(actions: BoardActions, parts: BoardActionsParts): CoreApi["boardActions"];

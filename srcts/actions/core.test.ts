@@ -125,7 +125,13 @@ describe("Rename", () => {
 
     const menu = s.menu({ block: "b" });
     await menu.pick("Rename");
-    expect(menu.level()).toEqual({ label: "Rename", back: true, loading: false, rows: [{ kind: "text", label: "Name", value: "Head" }] });
+    expect(menu.level()).toEqual({
+      label: "Rename",
+      advanced: false,
+      back: true,
+      loading: false,
+      rows: [{ kind: "text", label: "Name", value: "Head" }],
+    });
     menu.type("  First rows  ", "Name");
     await menu.pick("Name");
 

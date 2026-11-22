@@ -72,16 +72,19 @@ test("takes a state it did not make, in the elements it drew", async () => {
   expect(host.submitted).toEqual([]);
 });
 
-test("submits a number once the user pauses typing, as one edit", async () => {
+test("submits nothing as the user pauses typing a number, since it passes through others on the way", async () => {
   const { host, n } = await mounted();
 
   await step(() => {
     type(n, "10");
   });
-  await wait(PAUSE - 1);
+  await wait(PAUSE);
   expect(host.submitted).toEqual([]);
+  expect(n.value).toBe("10");
 
-  await wait(1);
+  await step(() => {
+    press(n, "Enter");
+  });
   expect(host.submitted).toEqual([tenHead]);
   expect(host.state()).toEqual(tenHead);
 });
@@ -136,7 +139,9 @@ test("submits no number that the field does not take, and marks it and says why"
     type(n, "10");
   });
   expect(shownNow()).toEqual([null, null]);
-  await wait(PAUSE);
+  await step(() => {
+    press(n, "Enter");
+  });
   expect(host.submitted).toEqual([tenHead]);
 });
 
@@ -186,21 +191,22 @@ test("leaves the field the user is typing in as the state changes, and submits o
   });
   expect([n.value, direction()]).toEqual(["20", "Tail"]);
 
-  await wait(PAUSE);
+  await step(() => {
+    press(n, "Enter");
+  });
   expect(host.submitted).toEqual([twentyTail]);
 });
 
-test("submits an edit still pending as it unmounts", async () => {
+test("drops a number that the user typed but did not end, as it unmounts", async () => {
   const { host, view, n } = await mounted();
 
   await step(() => {
     type(n, "10");
   });
   unmount(view);
-  expect(host.submitted).toEqual([tenHead]);
-
   await wait(PAUSE);
-  expect(host.submitted).toHaveLength(1);
+
+  expect(host.submitted).toEqual([]);
 });
 
 test("asks for the rows of its input again once the input's revision changes", async () => {

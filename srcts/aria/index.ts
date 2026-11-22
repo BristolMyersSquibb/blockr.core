@@ -88,7 +88,6 @@ export {
   NavigationTreeItemContent,
   NavigationTreeSection,
   NumberField,
-  NumberFieldStateContext,
   OverlayArrow,
   parseColor,
   Popover,

@@ -29,6 +29,7 @@ const fixture: BlockFixture = {
     form({ n: 20, direction: "tail" }),
     form({ direction: "tail" }),
     form({ label: "yz" }),
+    form({ label: "yz", direction: "tail" }),
     form({ by: ["a"] }),
     form({ by: ["b", "a"] }),
     form({ by: ["c", "b"] }),
@@ -140,7 +141,25 @@ describe("the inputs of a block's UI", () => {
     expect([inputs.n.value, inputs.direction.value]).toEqual(["20", "Tail"]);
   });
 
-  test("submit what the user types once the user pauses, and keep it while the state changes", async () => {
+  test("submit what the user types into a text field once the user pauses, and keep it while the state changes", async () => {
+    const { host, inputs } = block();
+
+    act(() => {
+      type(inputs.label, "yz");
+    });
+    act(() => {
+      host.setState(form({ direction: "tail" }));
+    });
+    expect([inputs.label.value, inputs.direction.value]).toEqual(["yz", "Tail"]);
+
+    await wait(PAUSE - 1);
+    expect(host.submitted).toEqual([]);
+    await wait(1);
+    expect(host.submitted).toEqual([form({ label: "yz", direction: "tail" })]);
+    expect(inputs.label.value).toBe("yz");
+  });
+
+  test("submit a number that the user types on Enter, and nothing as the user pauses, and keep it while the state changes", async () => {
     const { host, inputs } = block();
 
     act(() => {
@@ -151,9 +170,11 @@ describe("the inputs of a block's UI", () => {
     });
     expect([inputs.n.value, inputs.direction.value]).toEqual(["20", "Tail"]);
 
-    await wait(PAUSE - 1);
+    await wait(PAUSE);
     expect(host.submitted).toEqual([]);
-    await wait(1);
+    act(() => {
+      press(inputs.n, "Enter");
+    });
     expect(host.submitted).toEqual([form({ n: 20, direction: "tail" })]);
     expect(inputs.n.value).toBe("20");
   });
@@ -248,16 +269,27 @@ describe("the inputs of a block's UI", () => {
     expect(chipLabels(inputs.by)).toEqual(["c", "b"]);
   });
 
-  test("submit typing still pending as the component unmounts", () => {
+  test("submit typing still pending in a text field as the component unmounts", () => {
     const { host, unmount, inputs } = block();
 
     act(() => {
       type(inputs.label, "yz");
-      type(inputs.n, "10");
     });
     unmount();
 
-    expect(host.submitted).toEqual([form({ label: "yz" }), form({ n: 10, label: "yz" })]);
+    expect(host.submitted).toEqual([form({ label: "yz" })]);
+  });
+
+  test("drop a number that the user typed but did not end, as the component unmounts", async () => {
+    const { host, unmount, inputs } = block();
+
+    act(() => {
+      type(inputs.n, "10");
+    });
+    unmount();
+    await wait(PAUSE);
+
+    expect(host.submitted).toEqual([]);
   });
 
   test("submit a number at once as the user steps it, by a button or an arrow key, and show the state again where the host refused it", async () => {
@@ -386,7 +418,7 @@ describe("an input bound with two functions", () => {
 });
 
 describe("a number field's text as the user types", () => {
-  test("stays as the user typed it after the binding submits it on a pause, and takes the field's format once the user leaves", async () => {
+  test("stays as the user typed it as the user pauses, and takes the field's format once the user leaves, which submits it", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el } = draw(<Rows host={host} />);
     const input = labelled(el, "Preview rows");
@@ -396,7 +428,7 @@ describe("a number field's text as the user types", () => {
       type(input, "1000");
     });
     await wait(PAUSE);
-    expect(host.submitted).toEqual([1000]);
+    expect(host.submitted).toEqual([]);
     expect(input.value).toBe("1000");
 
     act(() => {
@@ -406,7 +438,7 @@ describe("a number field's text as the user types", () => {
     expect(host.submitted).toEqual([1000]);
   });
 
-  test("gives way to a number that the host announces as the user types, other than the one the user typed", async () => {
+  test("stays as the user typed it as the host announces another number, and submits it as the user leaves, as the later edit", () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el } = draw(<Rows host={host} />);
     const input = labelled(el, "Preview rows");
@@ -415,18 +447,38 @@ describe("a number field's text as the user types", () => {
       input.focus();
       type(input, "40");
     });
-    await wait(PAUSE);
-    expect(host.submitted).toEqual([40]);
-    // The assistant sets another number while the user is still in the field.
+    // The assistant sets another number while the user is still typing.
     act(() => {
       host.setValue(30);
     });
-    expect(input.value).toBe("30");
+    expect(input.value).toBe("40");
+    expect(host.submitted).toEqual([]);
 
     act(() => {
       input.blur();
     });
     expect(host.submitted).toEqual([40]);
+    expect(input.value).toBe("40");
+  });
+
+  test("gives way to the number that the host announced as the user typed, where the user leaves with the number that the field showed", () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el } = draw(<Rows host={host} />);
+    const input = labelled(el, "Preview rows");
+
+    act(() => {
+      input.focus();
+      type(input, "25");
+    });
+    act(() => {
+      host.setValue(30);
+    });
+    expect(input.value).toBe("25");
+
+    act(() => {
+      input.blur();
+    });
+    expect(host.submitted).toEqual([]);
     expect(input.value).toBe("30");
   });
 });
@@ -477,7 +529,7 @@ function Mode({ host, items, outdated }: { host: OptionHost<string>; items?: rea
 }
 
 describe("the inputs of a board option's UI", () => {
-  test("bind the board option's value, a number of at least 1", async () => {
+  test("bind the board option's value, a number of at least 1", () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el } = draw(<Rows host={host} />);
     const input = labelled(el, "Preview rows");
@@ -486,11 +538,16 @@ describe("the inputs of a board option's UI", () => {
     act(() => {
       type(input, "0");
     });
-    await wait(PAUSE);
+    act(() => {
+      press(input, "Enter");
+    });
+    expect(input.value).toBe("25");
     act(() => {
       type(input, "50");
     });
-    await wait(PAUSE);
+    act(() => {
+      press(input, "Enter");
+    });
     act(() => {
       host.setValue(10);
     });
@@ -499,7 +556,7 @@ describe("the inputs of a board option's UI", () => {
     expect(input.value).toBe("10");
   });
 
-  test("submit a number above an outdated most, and mark none until it is current, but hold to the least", async () => {
+  test("submit a number above an outdated most, and mark none until it is current, but hold to the least", () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el, redraw } = draw(<Rows host={host} max={30} outdated />);
     const input = labelled(el, "Preview rows");
@@ -508,12 +565,18 @@ describe("the inputs of a board option's UI", () => {
     act(() => {
       type(input, "0");
     });
-    await wait(PAUSE);
     expect(shown()).toEqual(["0", "true"]);
+    act(() => {
+      press(input, "Enter");
+    });
+    expect(shown()).toEqual(["25", null]);
     act(() => {
       type(input, "50");
     });
-    await wait(PAUSE);
+    expect(shown()).toEqual(["50", null]);
+    act(() => {
+      press(input, "Enter");
+    });
     expect(shown()).toEqual(["50", null]);
     expect(host.submitted).toEqual([50]);
 
@@ -522,7 +585,7 @@ describe("the inputs of a board option's UI", () => {
     expect(host.submitted).toEqual([50]);
   });
 
-  test("say why a number does not fit while the user types it, in the words of the browser's own number input, and mark it", async () => {
+  test("say why a number does not fit while the user types it, in the words of the browser's own number input, and mark it", () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el } = draw(<Rows host={host} max={30} />);
     const input = labelled(el, "Preview rows");
@@ -542,7 +605,9 @@ describe("the inputs of a board option's UI", () => {
       [null, null],
     ]);
     expect(said("50", 30)).not.toBeNull();
-    await wait(PAUSE);
+    act(() => {
+      press(input, "Enter");
+    });
     expect(host.submitted).toEqual([20]);
   });
 
