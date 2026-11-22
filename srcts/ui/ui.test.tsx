@@ -4,17 +4,10 @@
 import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { find, texts, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import { Pager, TableSearch, useTableView } from "./index.ts";
-
-const unmounts: (() => void)[] = [];
-
-afterEach(() => {
-  for (const unmount of unmounts.splice(0)) unmount();
-  document.body.replaceChildren();
-});
 
 // Draws the element in an element on the page, as React does on the page.
 function drawn(ui: ReactElement): HTMLElement {
@@ -23,11 +16,6 @@ function drawn(ui: ReactElement): HTMLElement {
   const root = createRoot(el);
   act(() => {
     root.render(ui);
-  });
-  unmounts.push(() => {
-    act(() => {
-      root.unmount();
-    });
   });
   return el;
 }
@@ -87,11 +75,6 @@ describe("a table's search and pages", () => {
     const el = document.createElement("div");
     document.body.append(el);
     const root = createRoot(el);
-    unmounts.push(() => {
-      act(() => {
-        root.unmount();
-      });
-    });
     act(() => {
       root.render(<Rows rows={ROWS} />);
     });

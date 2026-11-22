@@ -5,7 +5,7 @@
 // that write what they draw.
 
 import { act } from "react";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import { READY } from "../stubs/index.ts";
@@ -191,10 +191,6 @@ async function click(button: HTMLButtonElement): Promise<void> {
     button.click();
   });
 }
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 describe("the card of a block that serve() serves alone", () => {
   test("draws the block's name, its UI and its output, and demands the block, once drawCard() returns", () => {

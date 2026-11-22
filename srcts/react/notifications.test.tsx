@@ -3,7 +3,7 @@
 
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 import { step } from "../testing/react.ts";
 import type { Notification, Severity } from "../types/core-api.ts";
 import { NotificationList } from "./index.ts";
@@ -26,13 +26,6 @@ beforeEach(() => {
   el = document.createElement("div");
   document.body.append(el);
   root = createRoot(el);
-});
-
-afterEach(async () => {
-  await step(() => {
-    root.unmount();
-  });
-  el.remove();
 });
 
 function items(): HTMLLIElement[] {

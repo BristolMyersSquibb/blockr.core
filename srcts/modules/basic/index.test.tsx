@@ -323,7 +323,6 @@ afterEach(() => {
   act(() => {
     for (const stop of stops.splice(0)) stop();
   });
-  document.body.replaceChildren();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

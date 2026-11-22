@@ -27,7 +27,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  document.body.replaceChildren();
 });
 
 // The UI of a block, which binds its one state arg, `on`, to an input.
@@ -430,9 +429,6 @@ test("a date picker without `bound` picks for its caller", async () => {
   });
   expect(picked).toEqual(["2026-11-03"]);
   expect(segments(el)).toEqual(["11", "3", "2026"]);
-  act(() => {
-    root.unmount();
-  });
 });
 
 describe("a date", () => {

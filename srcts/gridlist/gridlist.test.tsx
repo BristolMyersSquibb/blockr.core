@@ -4,17 +4,13 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { afterEach, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import type { Key } from "../aria/index.ts";
 import { useDragAndDrop } from "../dnd/index.ts";
 import { pressAndRelease } from "../testing/inputs.ts";
 import { draw, step } from "../testing/react.ts";
 import { rowCheckbox, rowOf, rowTexts } from "../testing/rows.ts";
 import { GridList, GridListHeader, GridListItem, GridListSection } from "./index.ts";
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 const fruits = [
   { id: "apple", name: "Apple" },

@@ -26,7 +26,6 @@ const stops: (() => void)[] = [];
 
 afterEach(() => {
   for (const stop of stops.splice(0)) act(stop);
-  document.body.replaceChildren();
 });
 
 // The advanced action of Edit inputs on the block given, which the user opens

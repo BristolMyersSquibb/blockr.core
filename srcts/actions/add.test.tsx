@@ -32,7 +32,6 @@ const stops: (() => void)[] = [];
 
 afterEach(() => {
   for (const stop of stops.splice(0)) stop();
-  document.body.replaceChildren();
 });
 
 // The CoreApi for tests on the board of the fixture hello, or with the options

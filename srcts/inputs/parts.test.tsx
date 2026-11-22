@@ -7,15 +7,11 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { drop, find, picking, texts, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import { labelled } from "../testing/select.ts";
 import { Autocomplete, Button, DropZone, FileTrigger, Form, ListBox, ListBoxItem, SearchField, Tag, TagGroup, Text, TextField, useFilter } from "./index.ts";
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
 
 // Draws the component on the page, and unmounts it.
 async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () => Promise<void> }> {

@@ -25,7 +25,6 @@ const stops: (() => void)[] = [];
 
 afterEach(() => {
   for (const stop of stops.splice(0)) act(stop);
-  document.body.replaceChildren();
 });
 
 async function stubbed(): Promise<StubCore> {
