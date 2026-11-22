@@ -890,6 +890,12 @@
   Where the store refuses the batch, the form says why below its button and keeps what the user gave.
   A row of the plugin's tables turns into the form that edits its link or its stack, with a Close button, which closes it, as Escape does, while Escape in a select whose list is open closes the list alone.
   The form stays open in the row once the user has saved it, and shows the link or the stack as the board holds it then (#746).
+* Core's board action Edit inputs, `blockr.core-edit_inputs_action`, edits the inputs of a block whose class has inputs.
+  It has an advanced action alone, which lists the block's inputs in their order, each with its source, as the dock's actions sidebar does.
+  On a block that is not variadic, each input of its class has a select of its source and a button that removes the source.
+  On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
+  The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
+  Each edit applies at once, as one step of the user, through `add_link`, `change_link`, `move_link` or `remove_link`, and the advanced action says below the inputs why the store refused one (#747).
 
 # blockr.core 0.1.4
 
