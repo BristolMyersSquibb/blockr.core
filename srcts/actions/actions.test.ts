@@ -18,13 +18,18 @@ import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { QuickLevel } from "./quick.ts";
 
-// Core's board actions on a block, which come first in every menu of one.
+// Core's board actions on the blocks b and c, whose inputs links feed, which
+// come first in every menu of one, and on the board.
 const ON_BLOCK = [
+  "blockr.core-append_block_action",
+  "blockr.core-add_link_action",
+  "blockr.core-add_stack_action",
   "blockr.core-rename_action",
   "blockr.core-edit_inputs_action",
   "blockr.core-copy_block_id_action",
   "blockr.core-remove_block_action",
 ];
+const ON_BOARD = ["blockr.core-add_block_action", "blockr.core-add_link_action", "blockr.core-add_stack_action"];
 
 // The element that the user triggers from, which a trigger() needs.
 const el = document.body;
@@ -77,8 +82,8 @@ describe("the board actions that core registers", () => {
     const s = await stubbed([listing("first", [one, two]), listing("second", [three])]);
 
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, one.id, two.id, three.id]);
-    expect(s.core.boardActions.on({ board: true })).toEqual([two]);
-    expect(s.core.boardActions.on({ board: true })[0]).toBe(two);
+    expect(ids(s.core.boardActions.on({ board: true }))).toEqual([...ON_BOARD, two.id]);
+    expect(s.core.boardActions.on({ board: true }).at(-1)).toBe(two);
 
     // Opening a board ends the board actions of the board before, and core
     // registers them again for the next.
@@ -131,7 +136,7 @@ describe("the board actions that core registers", () => {
     // Core registers neither the class, nor any of its board actions, nor its
     // commands.
     expect(Object.keys(s.core.plugins.appPlugins())).not.toContain(cls.id);
-    expect(s.core.boardActions.on({ board: true })).toEqual([]);
+    expect(ids(s.core.boardActions.on({ board: true }))).toEqual(ON_BOARD);
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual(ON_BLOCK);
     expect(Object.keys(s.core.commands.registered())).not.toContain("blockr.test-noop");
     s.stop();
@@ -151,7 +156,7 @@ describe("the board actions that core registers", () => {
     ]);
     expect(reported.errors()).toHaveLength(2);
     expect(Object.keys(s.core.plugins.appPlugins())).toContain(first.id);
-    expect(ids(s.core.boardActions.on({ board: true }))).toEqual(["blockr.test-taken_action"]);
+    expect(ids(s.core.boardActions.on({ board: true }))).toEqual([...ON_BOARD, "blockr.test-taken_action"]);
     s.stop();
   });
 
@@ -221,7 +226,8 @@ describe("the board actions that core registers", () => {
       'A command of the plugin class "blockr.test-clashing_plugin" is refused: The command "blockr.core-remove_block" is registered already.',
     ]);
     expect(Object.keys(s.core.plugins.appPlugins())).toContain(cls.id);
-    expect(s.core.boardActions.on({ board: true })).toEqual([kept]);
+    expect(ids(s.core.boardActions.on({ board: true }))).toEqual([...ON_BOARD, kept.id]);
+    expect(s.core.boardActions.on({ board: true }).at(-1)).toBe(kept);
     s.stop();
   });
 });
@@ -240,9 +246,18 @@ describe("on()", () => {
 
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, picky.id]);
     expect(ids(s.core.boardActions.on({ block: "c" }))).toEqual(ON_BLOCK);
-    expect(ids(s.core.boardActions.on({ link: "ab" }))).toEqual(["blockr.core-remove_link_action", open.id]);
-    expect(ids(s.core.boardActions.on({ selection: [{ block: "b" }] }))).toEqual(["blockr.core-remove_selected_action", picky.id]);
-    expect(s.core.boardActions.on({ board: true })).toEqual([]);
+    expect(ids(s.core.boardActions.on({ link: "ab" }))).toEqual([
+      "blockr.core-insert_block_action",
+      "blockr.core-edit_link_action",
+      "blockr.core-remove_link_action",
+      open.id,
+    ]);
+    expect(ids(s.core.boardActions.on({ selection: [{ block: "b" }] }))).toEqual([
+      "blockr.core-add_stack_action",
+      "blockr.core-remove_selected_action",
+      picky.id,
+    ]);
+    expect(ids(s.core.boardActions.on({ board: true }))).toEqual(ON_BOARD);
     expect(s.core.boardActions.on({ plugin: "blockr.core-edit_board_plugin" })).toEqual([]);
 
     // The board, a copy of the target and the app's locks.
@@ -321,6 +336,9 @@ describe("menu()", () => {
       back: false,
       loading: false,
       rows: [
+        { kind: "item", label: "Append block", icon: expect.stringContaining("<svg") as string, category: "add" },
+        { kind: "item", label: "Create link", icon: expect.stringContaining("<svg") as string, category: "add" },
+        { kind: "item", label: "Create stack", icon: expect.stringContaining("<svg") as string, category: "add" },
         { kind: "item", label: "Rename", category: "edit" },
         { kind: "item", label: "Edit inputs", category: "edit" },
         { kind: "item", label: "Copy block ID", detail: "b", category: "clipboard" },
@@ -330,7 +348,7 @@ describe("menu()", () => {
     });
     expect(s.menu()).toBe(menu);
     expect(() => menu.pick("Nowhere")).toThrow(
-      'The menu shows no item or text row "Nowhere". It shows "Rename", "Edit inputs", "Copy block ID", "Add to document" and "Remove block".',
+      'The menu shows no item or text row "Nowhere". It shows "Append block", "Create link", "Create stack", "Rename", "Edit inputs", "Copy block ID", "Add to document" and "Remove block".',
     );
     menu.escape();
     expect(menu.closed()).toBe(true);
@@ -344,11 +362,11 @@ describe("menu()", () => {
       (s.core.boardActions.menu as (...given: unknown[]) => void)(...args);
     };
 
-    s.core.boardActions.menu({ board: true }, at);
+    s.core.boardActions.menu({ option: "n_rows" }, at);
     expect(s.menu()).toBeUndefined();
     expect(() => {
-      s.menu({ board: true });
-    }).toThrow('No board action applies to the target {"board":true}, so that no menu opens.');
+      s.menu({ option: "n_rows" });
+    }).toThrow('No board action applies to the target {"option":"n_rows"}, so that no menu opens.');
 
     expect(() => {
       menu({ blok: "b" }, at);

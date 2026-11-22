@@ -1,68 +1,35 @@
 // The Edit board plugin's section of links:
-// - A form that adds a link with add_link, once the user submits it. It asks
-//   for no id, which the command mints.
+// - The form that adds a link, the advanced action of core's board action
+//   Create link on the board, which the plugin mounts where a menu of the
+//   board offers Create link, as where the board holds a block that a new
+//   link can join to another. Elsewhere the section says why it holds no
+//   form.
 // - A table of the board's links, with the block that each comes from, the
 //   block it goes to and the input it feeds, which a search narrows and which
-//   shows a page of rows at a time. A row's Edit button turns the row into a
-//   form that changes the link with change_link once the user saves it, and
-//   its Remove button removes the link with remove_link.
-//   For a link into a variadic block, the form takes the link's place among
-//   the block's links too. Another place moves the link with move_link,
-//   which keeps its id and its ends, once change_link has changed the rest.
-//   Undo takes back each command that changed the link as a step of its own.
-// Where the store or the command registry refuses an edit, the form that adds
-// a link says why below its buttons. Where it refuses an edit in the table, a
-// removal or the save of a row's form, the table says so below itself, naming
-// the link, until the user's next edit in the table.
-// The form and the edit offer only links that the store takes:
-// - As a link's target, a block with an input that no other link feeds, or a
-//   variadic block, which takes any number of links. A block without inputs
-//   takes none.
-// - Neither end where the link would close a cycle, such as a link from a
-//   block into a block upstream of it, nor a link from a block into itself.
-// - Where the target's inputs are fixed, one that no other link feeds, which
-//   the user picks where there are several. The edit offers every input of
-//   the block that the link goes to, since change_link swaps the inputs of
-//   the link and of the link that feeds the input picked. The form says so
-//   below the input.
-// - Where the target is variadic, a name for the input, which the user may
-//   give, as `b2` in `rbind(a, b2 = b)`, or leave empty for an input without
-//   a name. A name that another link into the block gives already does not
-//   do. Such a block takes its links in their order on the board, which the
-//   table shows as each link's place among the block's links.
+//   shows a page of rows at a time. For a link into a variadic block, the
+//   table shows the link's place among the block's links.
+//   A row's Edit button turns the row into the form that changes the link,
+//   the advanced action of Edit link on the link, which changes the link once
+//   the user saves it, until the user closes it. Its Remove button removes
+//   the link with remove_link.
+// Where the store or the command registry refuses a removal, the table says
+// so below itself, naming the link, until the user's next edit in the table.
+// The forms say why below themselves.
 // Under the board lock, it lists the links alone.
 
-import { useState } from "react";
-import type { ReactElement, SyntheticEvent } from "react";
-import { flushSync } from "react-dom";
-import { classInputs, freeInputs, linkFeeding } from "../../commands/index.ts";
+import type { ReactElement } from "react";
 import { createGraph } from "../../graph/index.ts";
-import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../../picker/index.ts";
-import { ComboBox, Form, Select, SelectItem, TextField } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
-import type { CoreApi } from "../../types/core-api.ts";
-import type { Json } from "../../types/json.ts";
-import type { RegistryEntry } from "../../types/registry.ts";
-import {
-  blockItem,
-  blockName,
-  blockRow,
-  blockTexts,
-  classes,
-  identifier,
-  Pager,
-  Refusal,
-  TableSearch,
-  useEdits,
-  useSearch,
-  useTableView,
-} from "../../ui/index.ts";
+import type { BlockRegistry, CoreApi } from "../../types/core-api.ts";
+import { blockName, classes, isVariadicBlock, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
 import type { Edits } from "../../ui/index.ts";
-import { own } from "../../util/index.ts";
-import { Part, Section, table, useRowEditing } from "./board.tsx";
+import { Advanced, BOARD, offers, Part, RowAdvanced, Section, table, useRowEditing } from "./board.tsx";
 
-type Registry = Readonly<Record<string, RegistryEntry>>;
+// Core's board actions whose advanced actions the section mounts, by their
+// ids, as any plugin names them.
+const CREATE_LINK = "blockr.core-add_link_action";
+const EDIT_LINK = "blockr.core-edit_link_action";
 
 export function LinksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
   const links = Object.entries(board.links);
@@ -78,7 +45,15 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
     <Section title="Links" count={links.length}>
       {locked ? null : (
         <Part title="Add a link">
-          <LinkForm core={core} board={board} submitLabel="Add link" />
+          {offers(core, CREATE_LINK, BOARD) ? (
+            <Advanced core={core} id={CREATE_LINK} target={BOARD} />
+          ) : (
+            <p className={styles.hint}>
+              {Object.keys(board.blocks).length < 2
+                ? "A link joins two blocks, so the board needs two blocks first."
+                : "No new link can join two blocks of the board."}
+            </p>
+          )}
         </Part>
       )}
       <Part title="Links on the board">
@@ -155,20 +130,7 @@ function LinkRow({
   const { editing, open, close, button } = useRowEditing();
   const label = `${blockName(board, link.from)} → ${blockName(board, link.to)}`;
   if (editing) {
-    return (
-      <tr aria-label={label} className={table.row}>
-        <td colSpan={4} className={`${table.cell} bc:py-2`}>
-          <LinkForm
-            core={core}
-            board={board}
-            editing={{ id, link }}
-            tableEdits={edits}
-            submitLabel="Save"
-            onDone={close}
-          />
-        </td>
-      </tr>
-    );
+    return <RowAdvanced core={core} id={EDIT_LINK} target={{ link: id }} label={label} columns={4} onDone={close} />;
   }
   return (
     <tr aria-label={label} className={table.row}>
@@ -237,295 +199,7 @@ function VariadicInput({ board, id, link }: { board: Board; id: LinkId; link: Li
   );
 }
 
-type Errors = Partial<Record<"from" | "to" | "input", string>>;
-
-// The form that adds a link, or that changes the link given, which offers
-// only links that the store takes (above). Where it changes a link into a
-// variadic block, it offers the link's place among the block's links as
-// well.
-// The form that adds a link says why the store or the command registry
-// refused it below its buttons. The form that changes a link runs its edits
-// through `tableEdits`, the edits of the table whose row it takes, and the
-// table says why below itself.
-function LinkForm({
-  core,
-  board,
-  editing,
-  tableEdits,
-  submitLabel,
-  onDone,
-}: {
-  core: CoreApi;
-  board: Board;
-  editing?: { readonly id: LinkId; readonly link: Link };
-  tableEdits?: Edits;
-  submitLabel: string;
-  onDone?: () => void;
-}): ReactElement {
-  const registry = core.blockRegistry();
-  const except = editing?.id;
-  const [from, setFrom] = useState<BlockId | undefined>(editing?.link.from);
-  const [to, setTo] = useState<BlockId | undefined>(editing?.link.to);
-  const [input, setInput] = useState<string | undefined>(editing?.link.input);
-  const [name, setName] = useState(editing !== undefined && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
-  // The place among the links into a variadic target that the user picks.
-  const [place, setPlace] = useState<number | undefined>(undefined);
-  const [errors, setErrors] = useState<Errors>({});
-  const [busy, setBusy] = useState(false);
-  const ownEdits = useEdits(core);
-  const edits = tableEdits ?? ownEdits;
-
-  // The blocks that the form offers, with the links of the board but the one
-  // that the form changes, which is about to move.
-  const others = withoutLink(board, except);
-  const graph = createGraph(others);
-  const held = (block: BlockId | undefined): block is BlockId => block !== undefined && own(board.blocks, block) !== undefined;
-  const source = held(from) ? from : undefined;
-  const target = held(to) ? to : undefined;
-  const upstream = source === undefined ? new Set<BlockId>() : graph.withUpstream([source]);
-  const downstream = target === undefined ? new Set<BlockId>() : graph.withDownstream([target]);
-
-  const fromOptions = Object.entries(board.blocks)
-    .filter(([id]) => !downstream.has(id))
-    .map(([id]) => blockItem(board, registry, id));
-  const toOptions = Object.entries(board.blocks)
-    .filter(([id]) => !upstream.has(id) && takesLink(others, registry, id))
-    .map(([id]) => blockItem(board, registry, id));
-  const fromSearch = useSearch(fromOptions, blockTexts);
-  const toSearch = useSearch(toOptions, blockTexts);
-
-  const free = target === undefined ? [] : (freeInputs(others, registry, target) ?? []);
-  const variadic = isVariadic(free);
-  // Where the form changes a link and keeps its block, every input of the
-  // block, and otherwise the free inputs.
-  const offered = !variadic && editing !== undefined && target === editing.link.to ? classInputs(board, registry, target) : free;
-  const chosen = variadic ? undefined : input !== undefined && offered.includes(input) ? input : free[0];
-  // What the form says below the input where another link feeds the one
-  // picked, so that saving swaps the inputs of the two links.
-  const hint = editing !== undefined && target === editing.link.to && chosen !== undefined ? swapHint(board, registry, editing, chosen) : undefined;
-  const taken = target === undefined ? [] : namesInto(board, target, except);
-  // Where the form changes a link into a variadic block, the block's other
-  // links and the place that the link falls in where nothing moves it, which
-  // the form offers until the user picks another.
-  const among = editing === undefined || target === undefined || !variadic ? undefined : placeAmong(board, editing.id, target);
-  const position = among === undefined ? undefined : place !== undefined && place <= among.others.length + 1 ? place : among.place;
-
-  function check(): Errors {
-    return {
-      ...(source === undefined ? { from: "Pick the block that the link comes from." } : {}),
-      ...(target === undefined ? { to: "Pick the block that the link goes to." } : {}),
-      ...(variadic ? optional("input", inputNameError(name, taken)) : {}),
-    };
-  }
-
-  async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const found = check();
-    flushSync(() => {
-      setErrors(found);
-      edits.clear();
-    });
-    if (Object.keys(found).length > 0 || source === undefined || target === undefined || busy) {
-      focusFirstInvalid(form);
-      return;
-    }
-    const linkInput = variadic ? name.trim() : chosen;
-    const args: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
-    setBusy(true);
-    // The sentence that names the edit, which names the link as its row did
-    // where the form changes one.
-    const title =
-      editing === undefined
-        ? "Could not add the link."
-        : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
-    let ran =
-      editing === undefined
-        ? await edits.run(title, "blockr.core-add_link", args)
-        : await edits.run(title, "blockr.core-change_link", { id: editing.id, ...args });
-    if (ran && editing !== undefined && among !== undefined && position !== undefined && position !== among.place) {
-      const before = placeAmong(core.store.board(), editing.id, target).others[position - 1];
-      ran = await edits.run(title, "blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) });
-    }
-    setBusy(false);
-    if (!ran) return;
-    if (editing === undefined) {
-      setTo(undefined);
-      setInput(undefined);
-      setName("");
-      setErrors({});
-    }
-    onDone?.();
-  }
-
-  return (
-    // React Aria's Form takes no handler of keys, so the box around it
-    // hears Escape, which closes the form of a row.
-    <div
-      className="bc:contents"
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && editing !== undefined && !event.defaultPrevented) onDone?.();
-      }}
-    >
-      <Form
-        aria-label={editing === undefined ? "Add link" : "Change link"}
-        validationBehavior="aria"
-        onSubmit={(event) => {
-          void submit(event);
-        }}
-      >
-        <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
-          <ComboBox
-            label="From"
-            {...fromSearch}
-            value={source ?? null}
-            placeholder="Search blocks"
-            isInvalid={errors.from !== undefined}
-            errorMessage={errors.from}
-            onChange={(key) => {
-              setFrom(key === null ? undefined : String(key));
-              setErrors((now) => without(now, "from"));
-            }}
-          >
-            {blockRow}
-          </ComboBox>
-          <ComboBox
-            label="To"
-            {...toSearch}
-            value={target ?? null}
-            placeholder="Search blocks"
-            isInvalid={errors.to !== undefined}
-            errorMessage={errors.to}
-            description={toOptions.length === 0 ? "No block takes a link from this block." : undefined}
-            onChange={(key) => {
-              setTo(key === null ? undefined : String(key));
-              setInput(undefined);
-              setPlace(undefined);
-              setErrors((now) => without(without(now, "to"), "input"));
-            }}
-          >
-            {blockRow}
-          </ComboBox>
-        </div>
-        {target === undefined ? null : variadic ? (
-          <div className={among === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>
-            <TextField
-              label="Input name"
-              value={name}
-              description={`Optional. The block "${blockName(board, target)}" takes any number of links, each by its name or, where it has none, by its position.`}
-              errorMessage={errors.input}
-              isInvalid={errors.input !== undefined}
-              autoComplete="off"
-              {...identifier}
-              onChange={(value) => {
-                setName(value);
-                setErrors((now) => without(now, "input"));
-              }}
-              onBlur={() => {
-                setErrors((now) => ({ ...now, ...optional("input", inputNameError(name, taken)) }));
-              }}
-            />
-            {among === undefined ? null : (
-              <Select
-                label="Position"
-                isRequired
-                items={Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) }))}
-                value={position === undefined ? null : String(position)}
-                isDisabled={among.others.length === 0}
-                onChange={(key) => {
-                  if (key !== null) setPlace(Number(key));
-                }}
-              >
-                {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
-              </Select>
-            )}
-          </div>
-        ) : (
-          <Select
-            label="Input"
-            isRequired
-            items={offered.map((id) => ({ id }))}
-            value={chosen ?? null}
-            isDisabled={offered.length < 2}
-            description={hint}
-            onChange={(key) => {
-              if (key !== null) setInput(String(key));
-            }}
-          >
-            {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
-          </Select>
-        )}
-        {editing === undefined && Object.keys(board.blocks).length < 2 ? (
-          <p className={styles.hint}>A link joins two blocks, so the board needs two blocks first.</p>
-        ) : null}
-        <div className="bc:flex bc:gap-2">
-          <button type="submit" className={classes.primary} disabled={busy}>
-            {submitLabel}
-          </button>
-          {editing === undefined ? null : (
-            <button
-              type="button"
-              className={classes.button}
-              onClick={() => {
-                onDone?.();
-              }}
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-        {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
-      </Form>
-    </div>
-  );
-}
-
-// Whether the block takes a link: a variadic block always, and another block
-// where one of its inputs is free. A block without inputs takes none.
-function takesLink(board: Pick<Board, "blocks" | "links">, registry: Registry, id: BlockId): boolean {
-  return (freeInputs(board, registry, id)?.length ?? 0) > 0;
-}
-
-// What the form that changes a link says where another link into the same
-// block feeds the input picked: which link that is, and the input that it
-// takes once the user saves. It is undefined where no other link feeds the
-// input.
-function swapHint(
-  board: Board,
-  registry: Registry,
-  editing: { readonly id: LinkId; readonly link: Link },
-  input: string,
-): string | undefined {
-  const other = linkFeeding(board, registry, editing.link.to, input, editing.id);
-  const from = other === undefined ? undefined : own(board.links, other)?.from;
-  if (from === undefined) return undefined;
-  return `The link from "${blockName(board, from)}" feeds "${input}". Saving gives that link "${editing.link.input}", so the two links swap their inputs.`;
-}
-
-function isVariadicBlock(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): boolean {
-  return classInputs(board, registry, id).includes("...");
-}
-
 // The board's variadic blocks.
-function variadicBlocks(board: Pick<Board, "blocks">, registry: Registry): ReadonlySet<BlockId> {
+function variadicBlocks(board: Pick<Board, "blocks">, registry: BlockRegistry): ReadonlySet<BlockId> {
   return new Set(Object.keys(board.blocks).filter((id) => isVariadicBlock(board, registry, id)));
-}
-
-// The links into block `to` but the link `id`, in their order on the board,
-// and the place, from 1, that the link takes among them where it goes to the
-// block and keeps its place on the board.
-function placeAmong(board: Pick<Board, "links">, id: LinkId, to: BlockId): { others: LinkId[]; place: number } {
-  const ids = Object.keys(board.links).filter((other) => other === id || own(board.links, other)?.to === to);
-  return { others: ids.filter((other) => other !== id), place: ids.indexOf(id) + 1 };
-}
-
-// The board without the link given, as one that a form is about to change.
-function withoutLink(board: Board, id: LinkId | undefined): Board {
-  if (id === undefined || !Object.hasOwn(board.links, id)) return board;
-  const links = Object.fromEntries(Object.entries(board.links).filter(([other]) => other !== id));
-  return { ...board, links };
-}
-
-function optional<K extends string>(key: K, error: string | undefined): Partial<Record<K, string>> {
-  return error === undefined ? {} : ({ [key]: error } as Partial<Record<K, string>>);
 }

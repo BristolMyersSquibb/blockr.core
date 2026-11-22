@@ -220,6 +220,8 @@ test_that("the user edits the stacks of a board", {
     "the stack abc of a, c and b"
   )
 
+  # The row's form stays open once saved, until the user closes it.
+  act(app, "click", "Close", selector = stacks)
   act(app, "click", "Remove the stack abc", selector = stacks)
   wait_for_board(app, function(board) !length(board$stacks), "no stack")
 
@@ -279,10 +281,14 @@ test_that("a block of a collapsed stack evaluates again as its data changes", {
   # So a block of a collapsed stack evaluates as any other block does.
   # The board server parked such a block.
   act(app, "toggle", "Stack")
-  expect_false(
+  expect_identical(
     app$get_js(
-      "document.querySelector('section[aria-label=\"Stack\"] details').open"
-    )
+      paste0(
+        "document.querySelector('section[aria-label=\"Stack\"] h3 > button')",
+        ".getAttribute('aria-expanded')"
+      )
+    ),
+    "false"
   )
 
   before <- app_revisions(app, "b")

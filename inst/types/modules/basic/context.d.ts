@@ -7,6 +7,7 @@ export interface FrontEnd {
     readonly toasts: Toasts;
     readonly inView: InView;
     readonly sections: Sections;
+    readonly groups: Sections;
 }
 export declare const FrontEndContext: import("react").Context<FrontEnd | null>;
 export declare function useFrontEnd(): FrontEnd;

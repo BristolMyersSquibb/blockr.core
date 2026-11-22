@@ -5,8 +5,8 @@
 // After each test, core forgets what it set up for the page's logging, so that
 // the next test starts as a page does, and the API records no spans, whatever a
 // test set up (./spans.ts).
-// It makes happy-dom measure and check numbers as the components of core's
-// React SDK need it to, as the stubs do for the tests of packages (./dom.ts).
+// It makes happy-dom do as a browser does where the components of core's
+// React SDK need it, as the stubs do for the tests of packages (./dom.ts).
 
 import "./dom.ts";
 import { afterEach, beforeEach } from "vitest";

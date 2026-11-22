@@ -25,7 +25,7 @@ const EDIT_INPUTS = "blockr.core-edit_inputs_action";
 const stops: (() => void)[] = [];
 
 afterEach(() => {
-  for (const stop of stops.splice(0)) stop();
+  for (const stop of stops.splice(0)) act(stop);
   document.body.replaceChildren();
 });
 

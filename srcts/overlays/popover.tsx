@@ -5,15 +5,25 @@
 // It takes the props of React Aria's Popover.
 // React Aria draws it in a portal at the end of the page's body, beside the
 // element that it hangs from, and above a modal that is open.
+// It stacks at the z-index of the overlays of core's theme, in place of the
+// one that React Aria writes on it (../runtime/index.css).
 // It draws on the background that core's theme gives what sits over the
 // board, bg-raised.
 
 import type { ReactElement } from "react";
 import { composeRenderProps, Popover as AriaPopover } from "../aria/index.ts";
 import type { PopoverProps } from "../aria/index.ts";
+import { overlayStyle } from "./stacking.ts";
 
-export function Popover({ className, offset = 4, ...props }: PopoverProps): ReactElement {
-  return <AriaPopover {...props} offset={offset} className={composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`)} />;
+export function Popover({ className, style, offset = 4, ...props }: PopoverProps): ReactElement {
+  return (
+    <AriaPopover
+      {...props}
+      offset={offset}
+      style={overlayStyle(style)}
+      className={composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`)}
+    />
+  );
 }
 
 const POPOVER =

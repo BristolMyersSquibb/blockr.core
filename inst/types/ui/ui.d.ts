@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { Refused } from "./edits.ts";
 export declare const classes: {
     readonly button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50";
@@ -17,6 +17,7 @@ export declare function NameField({ label, name, onSubmit, onDone, fill, }: {
     onDone: () => void;
     fill?: boolean;
 }): ReactElement;
+export declare function drawForm(el: HTMLElement, form: ReactNode): () => void;
 export declare const identifier: {
     readonly spellCheck: "false";
     readonly autoCapitalize: "none";

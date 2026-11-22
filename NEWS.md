@@ -796,6 +796,25 @@
   Under core's basic frontend, core thus asks only for the outputs of the cards in the browser's viewport, and under the dock only for those of the panels that the user sees.
   A card of core's basic frontend keeps the room of its output while the output waits, so that nothing on the page moves as it draws.
   Loading `@blockr/core/stubs` makes the `IntersectionObserver` of `happy-dom` report every element that it observes as in view, so that core's basic frontend counts every card on screen in a test (#802).
+* Core's React SDK offers the rest of the overlays and the layout of React Aria's Tailwind starter kit, in core's theme, after the starter kit's files.
+  The overlays are the tooltip, `Tooltip` and `TooltipTrigger`, with React Aria's `Focusable`, which makes an element that a UI draws itself the trigger, the dialog that asks, `AlertDialog`, the sheet, `Sheet`, the menu's `SubmenuTrigger`, and the toasts, `ToastQueue`, `ToastRegion`, `Toast` and `ToastContent`.
+  The layout is the disclosure, `Disclosure`, `DisclosureGroup`, `DisclosureHeader` and `DisclosurePanel`, the tabs, `Tabs`, `TabList`, `Tab` and `TabPanel`, the toolbar, `Toolbar` and `Separator`, the breadcrumbs, `Breadcrumbs` and `Breadcrumb`, the `Link`, the `Meter` and the `ProgressBar`.
+  Each takes the props of its part of React Aria, and those that the starter kit adds, such as a meter's `label`.
+  The `Button` takes the look `"destructive"` too, in the danger color, and `aria-keyshortcuts`, which React Aria's `Button` passes on to no element (#756).
+* Every overlay of core's React SDK, the list of the select included, stacks at the `z-index` of a new variable of core's theme, `--bc-z-index-overlay`, which is 1100 and which a frontend may set, and the toasts of the SDK one above.
+  So a modal opens above the dock's bar, its options sidebar and its toasts, and so does the list of a select in it.
+  The modal took a `z-index` of 50 until now, and a popover the 100000 that React Aria writes on it (#756).
+* Core's basic frontend draws with the new components of the SDK.
+  Its toolbar is a `Toolbar`, with a `Separator` between the board options, undo and redo, and the storage controls.
+  A storage menu inside another opens beside its row, where the menu showed it as a group of its items.
+  The tooltips of a storage control, of the warning that the storage controls failed, and of the button of the select that clears are tooltips of the SDK, which the keyboard reaches too, in place of `title` attributes.
+  A disabled storage button shows its tooltip as text after it, since React Aria shows no tooltip for a disabled control.
+  A chip of the select of several whose text it cuts off shows the text whole in a tooltip.
+  The groups of the stacks, the sections of the plugins and those of the Edit board plugin are disclosures, and the file browser block's directory is breadcrumbs (#756).
+* The toasts of core's basic frontend are those of the SDK.
+  A modal leaves them within reach, so they no longer move into a dialog that is open, and F6 moves the focus to them.
+  While the pointer rests on the toasts or the focus is in them, every message's toast waits, where only the toast under the pointer or the focus waited until now (#756).
+
 * Core's React SDK offers React Aria's dates and times in core's theme, after those of React Aria's Tailwind starter kit: the date field `DateField`, the time field `TimeField`, the date picker `DatePicker`, the date range picker `DateRangePicker`, the calendar `Calendar` and the range calendar `RangeCalendar`.
   Their parts of React Aria load with the others, in core's vendor file, which holds every part of React Aria that the SDK offers.
   Each takes the props of its part of React Aria, the fields and the pickers take the `label`, `description` and `errorMessage` that the starter kit adds, and an input takes `bound` too.
@@ -834,6 +853,43 @@
   The call `core.boardActions.mountAdvanced(el, id, target, picked)` renders an advanced action in a plugin's own room, where `done()` runs the batch and core renders the advanced action again.
   Where a board object that the target names leaves the board, core ends the advanced action, as a `done()` without a batch does.
   The `advanced()` of `stubCore()` gives the advanced action that core's dialog shows, and `StubMenu` gains `openAdvanced()`, which clicks an open icon (#744).
+* Core registers its four board actions that add a block: Add block on the board, Append block and Prepend block on a block, and Insert block on a link.
+  Prepend block applies only to a block with an input that no link feeds, and under the board lock none of the four applies.
+  The quick action of each holds a filter and a row for each block class, under the heading of its category, with the class's icon and its package.
+  Those of Append block and Insert block list only the classes that have an input.
+  Picking a row adds a block of the class in one step, with an ID that `core.mintId()` mints, the class's name and a link.
+  Append block links the block into the new block's first input, and Prepend block links the new block into the block's first input that no link feeds.
+  Insert block puts the new block on the link.
+  A new link carries the result of the block that the link comes from into the new block's first input, and the link then comes from the new block, keeping its ID, its input and its place among the links.
+  A link into a variadic block goes in without a name.
+  The advanced action of each is the block picker, which gains a fourth mode, on a link.
+  Opened from the open icon of a quick action, the picker starts its search from the text in the filter and takes the keyboard's focus there.
+  It mints the ID that the user leaves empty, runs nothing before the user submits it, and hands its batch to `done()`.
+  Where the store refuses the batch, the picker says why below its button, wherever it shows.
+  The Edit board plugin mounts the advanced action of Add block in its section of blocks through `mountAdvanced()`, in place of drawing the picker itself.
+  The menu of a card of core's basic frontend is core's menu of the block, which the card opens through `core.boardActions.menu()`, in place of its own list of Rename, Add block before, Add block after and Remove.
+  So it offers every board action on a block, those of packages too, and says Append block and Prepend block, as the menus of the dock and of the DAG do.
+  Core shows the picker that the card's menu opens in core's dialog, and under the board lock the card's menu offers Copy block ID (#745).
+* Loading `@blockr/core/stubs` makes every document of `happy-dom` an instance of the window's `Document`, as in a browser.
+  React Aria finds the focus within an element only where the root of the element is such an instance.
+  So in a test, a popover or a dialog of the SDK that a pointer press opens no longer takes the focus from one of its elements that took the focus first, such as a search field with `autoFocus` (#818).
+* Core registers four more board actions, which create and edit a link or a stack.
+  Create link applies to a block that a new link can join to another, and to the board where it holds such a block.
+  On a block, its quick action lists the blocks that the block can send to and those that it can take from, by their names and IDs, and then asks for the input, where the block that the link goes into has several free ones.
+  It lists only the links for which the preflight of `blockr.core-add_link` passes, and no menu offers it where none would be left.
+  On the board, its row opens its advanced action at once.
+  Edit link applies to a link, and its quick action offers Change source…, Move to input…, whose inputs that another link feeds swap the inputs of the two links, and, into a variadic block, Rename input….
+  Create stack applies to a block, to a selection that holds a block and to the board.
+  Its quick action lists the board's stacks that the blocks join, and New stack, which adds a stack of the blocks with a name and a color that no other stack has.
+  Edit stack applies to a stack, and its quick action gives the stack a color of the palette that no other stack has, or ticks the stack's blocks.
+  Under the board lock, all four fail their `offers`.
+  Their advanced actions are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
+  Each form runs nothing before the user submits it, and then hands its batch to `done()`, which runs it as one step of the user.
+  So saving a form that edits takes one step, where the plugin's forms took one for each command until now, as for renaming a stack and changing its blocks.
+  A form that adds mints the new link's or stack's ID with `core.mintId()`.
+  Where the store refuses the batch, the form says why below its button and keeps what the user gave.
+  A row of the plugin's tables turns into the form that edits its link or its stack, with a Close button, which closes it, as Escape does, while Escape in a select whose list is open closes the list alone.
+  The form stays open in the row once the user has saved it, and shows the link or the stack as the board holds it then (#746).
 * Core's board action Edit inputs, `blockr.core-edit_inputs_action`, edits the inputs of a block whose class has inputs.
   It has an advanced action alone, which lists the block's inputs in their order, each with its source, as the dock's actions sidebar does.
   On a block that is not variadic, each input of its class has a select of its source and a button that removes the source.

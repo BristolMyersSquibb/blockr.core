@@ -17,10 +17,10 @@
 // It draws on Tailwind CSS, whose theme variables a frontend sets to restyle
 // it, as it restyles core's menu.
 
-import { useLayoutEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { Mounted } from "../card/index.ts";
 import { Button } from "../inputs/index.ts";
 import { onAbort } from "../mount/index.ts";
 import { Dialog, Heading, Modal } from "../overlays/index.ts";
@@ -59,14 +59,12 @@ export const showDialog: ShowDialog = (args, at) => {
 };
 
 // The modal dialog, with the board action's label as its title, a Close
-// button, and the element in which core renders the advanced action.
+// button, and the element in which core renders the advanced action. Core
+// unmounts the advanced action once React has finished closing the dialog, so
+// that an advanced action written in React unmounts its own root before core
+// empties the element, as a card's module does.
 function CoreDialog({ args, onClose }: { args: PlaceArgs; onClose: () => void }): ReactElement {
-  const body = useRef<HTMLDivElement>(null);
   const { mount } = args;
-  useLayoutEffect(() => {
-    const el = body.current;
-    return el === null ? undefined : mount(el);
-  }, [mount]);
   return (
     <Modal
       isOpen
@@ -85,7 +83,7 @@ function CoreDialog({ args, onClose }: { args: PlaceArgs; onClose: () => void })
               Close
             </Button>
           </div>
-          <div ref={body} className="bc:min-w-0" />
+          <Mounted mount={mount} className="bc:min-w-0" />
         </div>
       </Dialog>
     </Modal>

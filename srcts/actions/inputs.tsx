@@ -52,16 +52,26 @@
 
 import { useState } from "react";
 import type { PointerEvent, ReactElement } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
-import { classInputs, linkFeeding } from "../commands/index.ts";
+import { linkFeeding } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { inputNameError, namesInto } from "../picker/index.ts";
 import { Button, ComboBox, GridList, GridListItem, TextField, useBoard, useDragAndDrop } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";
-import { blockItem, blockName, blockRow, blockTexts, identifier, Refusal, useEdits, useSearch } from "../ui/index.ts";
+import {
+  blockItem,
+  blockName,
+  blockRow,
+  blockTexts,
+  classInputs,
+  drawForm,
+  identifier,
+  isVariadicBlock,
+  Refusal,
+  useEdits,
+  useSearch,
+} from "../ui/index.ts";
 import type { BlockItem, Edits } from "../ui/index.ts";
 import { own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
@@ -71,13 +81,7 @@ import type { AdvancedModule } from "./advanced.ts";
 export const editInputs: AdvancedModule = {
   render({ el, core, target }) {
     if (!("block" in target)) return undefined;
-    const root = createRoot(el);
-    flushSync(() => {
-      root.render(<EditInputs core={core} block={target.block} />);
-    });
-    return () => {
-      root.unmount();
-    };
+    return drawForm(el, <EditInputs core={core} block={target.block} />);
   },
 };
 
@@ -101,7 +105,7 @@ function EditInputs({ core, block }: { core: CoreApi; block: BlockId }): ReactEl
   const registry = core.blockRegistry();
   const inputs = classInputs(board, registry, block);
   const parts: Parts = { edits, board, registry, block, sources: sourcesOf(board, registry, block) };
-  const variadic = inputs.includes("...");
+  const variadic = isVariadicBlock(board, registry, block);
   const name = blockName(board, block);
   return (
     <div className="bc:grid bc:gap-3 bc:font-sans bc:text-sm bc:text-text-default">

@@ -152,9 +152,11 @@ describe("core's menu", () => {
     expect(remove.classList.contains("bc:data-hovered:bg-bg-danger!")).toBe(true);
     expect(row(menu, "Rename").querySelector(".bc\\:group-data-focused\\:text-text-danger")).toBeNull();
     expect(row(menu, "Rename").classList.contains("bc:data-focused:bg-bg-danger!")).toBe(false);
-    // The popover hangs from the box of the anchor.
+    // The popover hangs from the box of the anchor, on the background of
+    // core's theme for what floats over the page.
     const anchor = [...document.querySelectorAll<HTMLElement>("div[aria-hidden=true]")].find((el) => el.style.position === "fixed");
     expect([anchor?.style.left, anchor?.style.top]).toEqual(["10px", "20px"]);
+    expect(menu.closest(".bc\\:bg-bg-raised")).not.toBeNull();
     // The focus moved into the menu, on its first row.
     expect(document.activeElement).toBe(row(menu, "Rename"));
     expect(trigger.isConnected).toBe(true);

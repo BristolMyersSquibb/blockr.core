@@ -75,5 +75,7 @@ export { Token, TokenField } from "./tokenfield.tsx";
 export type { TokenFieldProps } from "./tokenfield.tsx";
 export { Autocomplete, FileTrigger, Text, useFilter } from "../aria/index.ts";
 export type { Color, ColorSwatchPickerItemProps, ColorSwatchProps, ColorThumbProps } from "../aria/index.ts";
-// The tick of a pick, which the SDK's menus draw too.
-export { Tick } from "./icons.tsx";
+// The tick of a pick, which the SDK's menus draw too, and the chevron that
+// points right, which a menu's item draws before its submenu and a breadcrumb
+// before the next.
+export { ChevronRight, Tick } from "./icons.tsx";

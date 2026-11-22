@@ -1,10 +1,10 @@
-export { blockItem, blockName, blockRow, blockTexts } from "./blocks.tsx";
+export { blockItem, blockName, blockRow, blockTexts, classInputs, isVariadicBlock } from "./blocks.tsx";
 export type { BlockItem } from "./blocks.tsx";
 export { runCommand, useEdits } from "./edits.ts";
-export type { Edits, Refused } from "./edits.ts";
+export type { Done, Edits, Refused } from "./edits.ts";
 export { useHistory } from "./hooks.ts";
 export { useSearch } from "./search.ts";
 export type { Search } from "./search.ts";
 export { Pager, TableSearch, useTableView } from "./table.tsx";
 export type { TableView } from "./table.tsx";
-export { classes, identifier, NameField, Refusal } from "./ui.tsx";
+export { classes, drawForm, identifier, NameField, Refusal } from "./ui.tsx";

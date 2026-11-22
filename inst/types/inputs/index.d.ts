@@ -44,4 +44,4 @@ export { Token, TokenField } from "./tokenfield.tsx";
 export type { TokenFieldProps } from "./tokenfield.tsx";
 export { Autocomplete, FileTrigger, Text, useFilter } from "../aria/index.ts";
 export type { Color, ColorSwatchPickerItemProps, ColorSwatchProps, ColorThumbProps } from "../aria/index.ts";
-export { Tick } from "./icons.tsx";
+export { ChevronRight, Tick } from "./icons.tsx";
