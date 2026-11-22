@@ -538,6 +538,17 @@ export function freeInputs(
   return inputs.filter((input) => !fed.has(input));
 }
 
+// Whether block `to` takes a new link: a variadic block always, and another
+// block where one of its inputs is free. A block without inputs takes none,
+// and neither does one that the board or the block registry lacks.
+export function takesLink(
+  board: Pick<Board, "blocks" | "links">,
+  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  to: BlockId,
+): boolean {
+  return (freeInputs(board, registry, to)?.length ?? 0) > 0;
+}
+
 // The link into block `to` that feeds the input given, other than the link
 // `except`. By it, change_link finds the link to swap inputs with, and a
 // frontend the link that a change would swap with. It is undefined where no

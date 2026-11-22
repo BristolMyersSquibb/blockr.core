@@ -89,4 +89,5 @@ export interface MenuParts {
 }
 export declare function inMenuOrder(actions: readonly BoardAction[]): BoardAction[];
 export declare function openMenu(start: MenuStart, parts: MenuParts): OpenMenu;
+export declare function levelItem(label: string, level: QuickLevel): QuickRow;
 export declare function isBatch(value: unknown): value is readonly CommandCall[];

@@ -16,6 +16,8 @@
 // more than their names through useSearch(), and a pick of a few values with
 // its Select.
 
+export { blockItem, blockName, blockRow, blockTexts, classInputs, isVariadicBlock } from "./blocks.tsx";
+export type { BlockItem } from "./blocks.tsx";
 export { runCommand, useEdits } from "./edits.ts";
 export type { Done, Edits, Refused } from "./edits.ts";
 export { useHistory } from "./hooks.ts";
@@ -23,4 +25,4 @@ export { useSearch } from "./search.ts";
 export type { Search } from "./search.ts";
 export { Pager, TableSearch, useTableView } from "./table.tsx";
 export type { TableView } from "./table.tsx";
-export { classes, identifier, NameField, Refusal } from "./ui.tsx";
+export { classes, drawForm, identifier, NameField, Refusal } from "./ui.tsx";

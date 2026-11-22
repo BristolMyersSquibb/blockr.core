@@ -2,11 +2,16 @@
 // its links and its stacks, as What it shows has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#what-it-shows).
 // Each section holds a form that adds one, and a table of those that the board
-// holds, with the controls that change and remove each. The form that adds a
-// block is the advanced action of core's board action Add block, which the
-// plugin mounts through mountAdvanced() (./blocks.tsx). A table shows a page
+// holds, with the controls that change and remove each. A table shows a page
 // of rows at a time, which a search narrows, so that it stays usable on a
 // board of many blocks.
+// The forms that add a block, a link and a stack, and those that change a link
+// or a stack in its row, are the advanced actions of core's board actions Add
+// block, Create link, Create stack, Edit link and Edit stack, which the plugin
+// mounts through mountAdvanced(), so that the plugin and the menus share them
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
+// It mounts a form that adds only where core.boardActions.on() offers its
+// board action on the board.
 // Each section is a Disclosure of the SDK, which starts open and collapses by
 // its header, which counts what the board holds.
 // It draws nothing of a block's state, which the block's UI sets, nor the
@@ -16,19 +21,21 @@
 // Where the store or the command registry refuses an edit, the plugin says why
 // close to the control that made it, in a banner in the colour of an error,
 // under a sentence that names the edit, until the user's next edit there:
-// below the buttons of a form that adds to the board, and below a table for an
-// edit in its rows, from a row's buttons or from the form that changes the
-// row. Each edit takes the notification of its refusal, so that core raises
-// none (../../ui/edits.ts).
+// below the buttons of a form, and below a table for an edit from the buttons
+// of its rows. Each edit takes the notification of its refusal, so that core
+// raises none (../../ui/edits.ts).
 // Under the board lock, the store refuses every edit that the plugin makes,
 // so the plugin draws no control there, as it reads from core.lock.board. It
 // then lists only the board's links and stacks, since a frontend draws the
 // blocks on their cards.
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
+import type { Target } from "../../actions/index.ts";
+import { Mounted } from "../../card/index.ts";
 import { Disclosure, DisclosureHeader, DisclosurePanel, useBoard } from "../../react/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
+import { classes } from "../../ui/index.ts";
 import { BlocksSection } from "./blocks.tsx";
 import { LinksSection } from "./links.tsx";
 import { StacksSection } from "./stacks.tsx";
@@ -109,4 +116,84 @@ export function useRowEditing(): {
     setEditing(false);
   }, []);
   return { editing, open, close, button };
+}
+
+// The board, as the target of a board action that acts on it.
+export const BOARD = { board: true } as const;
+
+// Whether a menu of the target offers the board action, as on() gives it.
+export function offers(core: CoreApi, id: string, target: Target): boolean {
+  return core.boardActions.on(target).some((action) => action.id === id);
+}
+
+// The advanced action of a board action on the target, which the plugin
+// mounts in room of its own through mountAdvanced(), until the component goes
+// or its target changes. Core renders it again once its done() has run a
+// batch, so that a form that adds is ready for the next edit, and leaves the
+// element empty once the board no longer holds what the target names.
+export function Advanced({ core, id, target }: { core: CoreApi; id: string; target: Target }): ReactElement {
+  const key = JSON.stringify(target);
+  const mount = useCallback((el: HTMLElement) => core.boardActions.mountAdvanced(el, id, JSON.parse(key) as Target), [core, id, key]);
+  return <Mounted mount={mount} className="bc:min-w-0" />;
+}
+
+// The row of a table that shows the advanced action of a board action on the
+// row's object, in a cell across the row, as a row turns into the form of
+// Edit link, with a Close button below it, which closes it, as Escape does.
+// The form says itself why the store refused what it ran. The plugin mounts
+// the form through mountAdvanced(), where core renders it afresh once its
+// done() has run a batch, so the form stays open once the user has saved it,
+// and shows the row's object as the batch left it.
+export function RowAdvanced({
+  core,
+  id,
+  target,
+  label,
+  columns,
+  onDone,
+}: {
+  core: CoreApi;
+  id: string;
+  target: Target;
+  label: string;
+  columns: number;
+  onDone: () => void;
+}): ReactElement {
+  const box = useRef<HTMLDivElement>(null);
+  // The form is a module of its own, in a React root of its own, so the box
+  // hears its keys as the page does, once the form has let them through.
+  // Escape in a field whose list is open closes the list alone, which the box
+  // tells as the key comes down to the field, since the field closes its list
+  // before the key comes back up.
+  useEffect(() => {
+    const el = box.current;
+    if (el === null) return undefined;
+    let listOpen = false;
+    const down = (event: KeyboardEvent): void => {
+      listOpen = event.target instanceof Element && event.target.getAttribute("aria-expanded") === "true";
+    };
+    const heard = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && !event.defaultPrevented && !listOpen) onDone();
+    };
+    el.addEventListener("keydown", down, { capture: true });
+    el.addEventListener("keydown", heard);
+    return () => {
+      el.removeEventListener("keydown", down, { capture: true });
+      el.removeEventListener("keydown", heard);
+    };
+  }, [onDone]);
+  return (
+    <tr aria-label={label} className={table.row}>
+      <td colSpan={columns} className={`${table.cell} bc:py-2`}>
+        <div ref={box} className="bc:grid bc:gap-2">
+          <Advanced core={core} id={id} target={target} />
+          <div className="bc:flex bc:gap-2">
+            <button type="button" className={classes.button} onClick={onDone}>
+              Close
+            </button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
 }

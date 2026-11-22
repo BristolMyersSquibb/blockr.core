@@ -540,10 +540,18 @@ describe("a card", () => {
     expect(opening).toHaveBeenCalledWith({ block: "b" }, { el: actions, anchor: actions.getBoundingClientRect() });
     expect(actions.getAttribute("aria-haspopup")).toBe("menu");
     // Links feed every input of the head block, so it offers no Prepend block.
-    expect(labels(head)).toEqual(["Append block", "Rename", "Copy block ID", "Remove block"]);
+    expect(labels(head)).toEqual(["Append block", "Create link", "Create stack", "Rename", "Copy block ID", "Remove block"]);
     head.escape();
     // The bind block is variadic, so it takes one more link.
-    expect(labels(await menu(page, "Bind"))).toEqual(["Append block", "Prepend block", "Rename", "Copy block ID", "Remove block"]);
+    expect(labels(await menu(page, "Bind"))).toEqual([
+      "Append block",
+      "Prepend block",
+      "Create link",
+      "Create stack",
+      "Rename",
+      "Copy block ID",
+      "Remove block",
+    ]);
   });
 
   test("renames and removes its block through its menu, each in one step of the user", async () => {

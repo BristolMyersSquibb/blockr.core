@@ -40,9 +40,8 @@
 // block. Where the keyboard's focus was in the picker as the user added the
 // block, the new picker takes the focus, so that it is ready for the next one.
 //
-// Each carries a plus as its icon, in the shape of blockr.ui's `plus`, since
-// blockr.ui builds on blockr.core
-// (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/plus.svg).
+// Each carries a plus as its icon, in the shape of blockr.ui's `plus`
+// (./icons.ts).
 // Each fails its offers() in these cases:
 // - The board lock is on, since the store refuses what the board action runs.
 // - The board does not hold what the board action acts on.
@@ -52,17 +51,17 @@
 // A row that the user picks once the board no longer holds the board action's
 // target runs nothing.
 
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
 import { freeInputs } from "../commands/index.ts";
 import { blockClasses, BlockPicker } from "../picker/index.ts";
 import type { AddMode } from "../picker/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { drawForm } from "../ui/index.ts";
 import { own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { AdvancedModule } from "./advanced.ts";
+import { PLUS } from "./icons.ts";
 import type { QuickLevel } from "./quick.ts";
 import { heldBlock } from "./targets.ts";
 
@@ -217,31 +216,21 @@ function pickerModule(mode: (target: Target) => AddMode | undefined): AdvancedMo
       const at = mode(target);
       if (at === undefined) return () => undefined;
       const autofocus = filter !== undefined || focused.delete(el);
-      const root = createRoot(el);
-      flushSync(() => {
-        root.render(
-          <BlockPicker
-            core={core}
-            mode={at}
-            {...(filter === undefined ? {} : { filter })}
-            autofocus={autofocus}
-            done={(calls, opts) => {
-              if (el.contains(el.ownerDocument.activeElement)) focused.add(el);
-              return done(calls, opts).finally(() => {
-                focused.delete(el);
-              });
-            }}
-          />,
-        );
-      });
-      return () => {
-        root.unmount();
-      };
+      return drawForm(
+        el,
+        <BlockPicker
+          core={core}
+          mode={at}
+          {...(filter === undefined ? {} : { filter })}
+          autofocus={autofocus}
+          done={(calls, opts) => {
+            if (el.contains(el.ownerDocument.activeElement)) focused.add(el);
+            return done(calls, opts).finally(() => {
+              focused.delete(el);
+            });
+          }}
+        />,
+      );
     },
   };
 }
-
-// The plus of a row that adds something, in the shape of blockr.ui's `plus`,
-// in the colour of the text around it.
-const PLUS =
-  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>';
