@@ -6,72 +6,43 @@
 // and each plugin's section those about the plugin. So the toasts show those
 // about the board, a link, a stack, a board option, and a plugin without a
 // section, such as a storage plugin.
+// The toasts are those of core's React SDK, React Aria's, in a queue of the
+// opening (../../overlays/toast.tsx):
 // - The toasts sit in the window's bottom right corner, one above the other,
-//   in the order that their notifications came. The first line of each names
-//   what its notification concerns, with the package that its source names.
-// - A message's toast fades after five seconds, but not while the pointer
-//   rests on it or the keyboard's focus is in it. Its five seconds start again
-//   once neither is. A warning's or an error's toast stays until the user
-//   closes it.
+//   in the order that their notifications came, the latest lowest. The first
+//   line of each names what its notification concerns, with the package that
+//   its source names.
+// - A message's toast fades after five seconds, while a warning's or an
+//   error's toast stays until the user closes it. React Aria pauses the five
+//   seconds of every message's toast while the pointer rests on the toasts or
+//   the keyboard's focus is in them.
 // - A toast goes as soon as core withdraws its notification. A toast that
 //   faded or that the user closed does not come back while its notification
 //   holds. The frontend keeps the ids of those notifications for the opening,
 //   and forgets each id once core withdraws its notification.
 // - A dialog that the frontend opens, in the modal of core's React SDK, keeps
-//   the focus inside it and makes the rest of the page inert. So while a
-//   dialog is open, the toasts show inside it, where the user can still close
-//   them.
+//   the focus inside it and makes the rest of the page inert, but for the
+//   toasts, which React Aria leaves within reach. So while a dialog is open,
+//   the user can still close them, and F6 moves the focus to them.
 // - A message's toast is a status, and a warning's or an error's is an alert,
 //   which a screen reader reads out at once.
 
-import { useSyncExternalStore } from "react";
+import { ToastQueue } from "../../react/index.ts";
 import type { Board, PluginClassId } from "../../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../../types/core-api.ts";
 import { own } from "../../util/index.ts";
 
-// How long a message's toast shows before it fades, and how long it takes to
-// fade, in milliseconds.
+// How long a message's toast shows before it goes, in milliseconds, its fade
+// included.
 export const SHOWN_FOR = 5000;
-export const FADES_FOR = 300;
 
-export interface Toast {
-  readonly notification: Notification;
-  // Whether it is fading, once a message's five seconds are up.
-  readonly fading: boolean;
-}
-
-// The toasts of one opening, which components follow as React's
-// useSyncExternalStore follows a store, which takes `list`, `shownIn` and
-// `subscribe` as they are.
+// The toasts of one opening.
 export interface Toasts {
-  // The toasts that show, the same array until one comes, goes or starts to
-  // fade.
-  readonly list: () => readonly Toast[];
-  // The element inside the open dialog in which the toasts show, or null
-  // while no dialog is open.
-  readonly shownIn: () => HTMLElement | null;
-  readonly subscribe: (fn: () => void) => () => void;
-  // Shows the toasts in the element, inside a dialog that is open, until the
-  // function that it returns runs.
-  readonly showIn: (el: HTMLElement) => () => void;
-  // Hides the toast of the notification, as the user closes it.
-  readonly close: (id: string) => void;
-  // Keeps the toast of a message from fading, as the pointer rests on it or
-  // the keyboard's focus moves into it.
-  readonly keep: (id: string, by: "pointer" | "focus") => void;
-  // Lets the toast fade again, as the pointer or the focus leaves it. Once
-  // neither keeps it, its five seconds start again.
-  readonly release: (id: string, by: "pointer" | "focus") => void;
-  // Stops following the notifications, and stops every toast's timer.
+  // The queue of the toasts, which the SDK's ToastRegion draws, each holding
+  // its notification.
+  readonly queue: ToastQueue<Notification>;
+  // Stops following the notifications.
   readonly stop: () => void;
-}
-
-// A toast that shows, with the timer of a message's toast, which counts down
-// its five seconds or its fade, and what keeps it from fading.
-interface Shown {
-  toast: Toast;
-  timer: ReturnType<typeof setTimeout> | undefined;
-  readonly kept: Set<"pointer" | "focus">;
 }
 
 // The toasts of the notifications, but for those about a block and those
@@ -80,126 +51,48 @@ export function createToasts(
   notifications: Pick<CoreApi["notifications"], "get" | "subscribe">,
   sectioned: (plugin: PluginClassId) => boolean,
 ): Toasts {
-  // The toasts that show, by the ids of their notifications.
-  const shown = new Map<string, Shown>();
+  const queue = new ToastQueue<Notification>();
+  // The key of the toast of each notification that shows, by the
+  // notification's id.
+  const keys = new Map<string, string>();
   // The ids of the notifications whose toasts faded or that the user closed,
   // while the notifications hold.
   const gone = new Set<string>();
-  // The elements that the toasts show in, inside the dialogs that are open,
-  // the last opened last.
-  const inside: HTMLElement[] = [];
-  const listeners = new Set<() => void>();
-  let heard = notifications.get();
-  let list: readonly Toast[] = [];
-  let stopped = false;
 
-  function publish(): void {
-    const next = heard.flatMap((notification) => {
-      const toast = shown.get(notification.id)?.toast;
-      return toast === undefined ? [] : [toast];
-    });
-    if (next.length !== list.length || next.some((toast, i) => toast !== list[i])) list = next;
-    for (const fn of [...listeners]) fn();
-  }
-
-  // Starts the five seconds of a message's toast, unless something keeps it.
-  function countDown(id: string, toast: Shown): void {
-    if (stopped || toast.toast.notification.severity !== "message" || toast.kept.size > 0) return;
-    clearTimeout(toast.timer);
-    toast.timer = setTimeout(() => {
-      toast.toast = { ...toast.toast, fading: true };
-      toast.timer = setTimeout(() => {
-        hide(id);
-      }, FADES_FOR);
-      publish();
-    }, SHOWN_FOR);
-  }
-
-  // Hides the toast, which faded or which the user closed, while its
-  // notification holds.
-  function hide(id: string): void {
-    const toast = shown.get(id);
-    if (toast === undefined) return;
-    clearTimeout(toast.timer);
-    shown.delete(id);
-    gone.add(id);
-    publish();
-  }
-
-  function update(): void {
+  function update(heard: readonly Notification[]): void {
     const holding = new Set(heard.map((notification) => notification.id));
-    for (const [id, toast] of shown) {
+    for (const [id, key] of keys) {
       if (holding.has(id)) continue;
-      clearTimeout(toast.timer);
-      shown.delete(id);
+      keys.delete(id);
+      queue.close(key);
     }
     for (const id of gone) {
       if (!holding.has(id)) gone.delete(id);
     }
     for (const notification of heard) {
-      if (shownElsewhere(notification, sectioned) || gone.has(notification.id)) continue;
-      const toast = shown.get(notification.id);
-      if (toast === undefined) {
-        const added: Shown = { toast: { notification, fading: false }, timer: undefined, kept: new Set() };
-        shown.set(notification.id, added);
-        countDown(notification.id, added);
-      } else if (toast.toast.notification !== notification) {
-        toast.toast = { ...toast.toast, notification };
-      }
+      const { id } = notification;
+      if (shownElsewhere(notification, sectioned) || gone.has(id) || keys.has(id)) continue;
+      const key = queue.add(notification, {
+        timeout: notification.severity === "message" ? SHOWN_FOR : undefined,
+        // A toast that faded or that the user closed, rather than one whose
+        // notification core withdrew, which no longer has its key.
+        onClose: () => {
+          if (keys.get(id) !== key) return;
+          keys.delete(id);
+          gone.add(id);
+        },
+      });
+      keys.set(id, key);
     }
-    publish();
   }
 
-  const off = notifications.subscribe((all) => {
-    heard = all;
-    update();
-  });
-  update();
+  const off = notifications.subscribe(update);
+  update(notifications.get());
 
   return {
-    list: () => list,
-    shownIn: () => inside.at(-1) ?? null,
-    subscribe(fn) {
-      const wrapped = (): void => {
-        fn();
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    },
-    showIn(el) {
-      inside.push(el);
-      publish();
-      let back = false;
-      return () => {
-        if (back) return;
-        back = true;
-        const at = inside.lastIndexOf(el);
-        if (at >= 0) inside.splice(at, 1);
-        publish();
-      };
-    },
-    close: hide,
-    keep(id, by) {
-      const toast = shown.get(id);
-      if (toast === undefined) return;
-      toast.kept.add(by);
-      clearTimeout(toast.timer);
-      toast.timer = undefined;
-      if (!toast.toast.fading) return;
-      toast.toast = { ...toast.toast, fading: false };
-      publish();
-    },
-    release(id, by) {
-      const toast = shown.get(id);
-      if (toast?.kept.delete(by) !== true) return;
-      countDown(id, toast);
-    },
+    queue,
     stop() {
-      stopped = true;
       off();
-      for (const toast of shown.values()) clearTimeout(toast.timer);
     },
   };
 }
@@ -211,18 +104,6 @@ function shownElsewhere(notification: Notification, sectioned: (plugin: PluginCl
   const { about } = notification;
   if (about === undefined) return false;
   return "block" in about || ("plugin" in about && sectioned(about.plugin));
-}
-
-// The toasts, which a component follows as React's useSyncExternalStore
-// follows a store.
-export function useToasts(toasts: Toasts): readonly Toast[] {
-  return useSyncExternalStore(toasts.subscribe, toasts.list);
-}
-
-// The element inside the open dialog in which the toasts show, or null while
-// no dialog is open.
-export function useShownIn(toasts: Toasts): HTMLElement | null {
-  return useSyncExternalStore(toasts.subscribe, toasts.shownIn);
 }
 
 // What the first line of a toast names: the board object that its

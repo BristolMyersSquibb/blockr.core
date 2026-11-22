@@ -615,9 +615,25 @@ The SDK holds these:
 - The parts that take no `bound`: the tags `TagGroup` and `Tag`, the list box `ListBox` with `ListBoxItem`, the field of tokens `TokenField` with `Token`, the form `Form`, and the drop zone `DropZone`, which are React Aria's in core's theme.
   React Aria's `FileTrigger`, which picks a file from the button it holds, and its `Autocomplete` and `useFilter()`, with which a `SearchField` narrows a `ListBox` or a `Menu`, draw nothing of their own, and a module composes them with the others.
   A file reaches R through a request of the block class that receives it, as the upload block's does.
-- The layout of a UI: `Stack`, which puts the inputs one below the other, and `Field`, a label that holds an input of the module's own.
-- The buttons `Button` and `FieldButton`, a button inside a field, and the overlays: `Modal`, `Dialog`, `DialogTrigger` and `Heading`, `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with `Keyboard` for an item's shortcut, `Popover`, and `CommandPalette`, a menu that a search field narrows, in a modal, which are React Aria's in core's theme.
+- The layout of a UI: `Stack`, which puts the inputs one below the other, `Field`, a label that holds an input of the module's own, and React Aria's, in core's theme:
+  - The disclosure, whose header shows and hides its panel: `Disclosure`, `DisclosureGroup`, `DisclosureHeader` and `DisclosurePanel`.
+  - The tabs: `Tabs`, `TabList`, `Tab` and `TabPanel`.
+  - The toolbar, `Toolbar`, with `Separator` between its groups.
+  - The breadcrumbs, `Breadcrumbs` and `Breadcrumb`, and the link, `Link`.
+  - The meter, `Meter`, and the progress bar, `ProgressBar`.
+- The buttons: `Button`, in the look that its `variant` names, `"primary"`, `"secondary"`, `"destructive"` or `"quiet"`, and `FieldButton`, a button inside a field.
+  The `Button` takes `aria-keyshortcuts` too, which names its shortcut to assistive technology.
+- The overlays, which are React Aria's in core's theme:
+  - The modal and its dialogs: `Modal`, `Dialog`, `DialogTrigger` and `Heading`, the dialog that asks, `AlertDialog`, and the sheet, `Sheet`.
+  - The menu: `MenuTrigger`, `Menu`, `MenuItem`, `MenuSection` and `SubmenuTrigger`, with `Keyboard` for an item's shortcut.
+  - The popover, `Popover`, and `CommandPalette`, a menu that a search field narrows, in a modal.
+  - The tooltip: `Tooltip` and `TooltipTrigger`, with `Focusable`, which makes an element of the module's own the trigger.
+  - The toasts: `ToastQueue`, `ToastRegion`, `Toast` and `ToastContent`.
+
   React Aria draws each overlay in a portal at the end of the page's body, and opens a menu or a dialog of a trigger from its `Button`.
+  The overlays stack at the `z-index` that the variable `--bc-z-index-overlay` of core's theme gives them, and the toasts one above them, so a module gives no element of its own a higher one.
+  The trigger of a tooltip takes the focus, so that the keyboard reaches the tooltip too.
+  React Aria shows no tooltip for a disabled control, so a module says why a control is disabled in another way, such as in a line of text beside it.
 - The dates and times: the date field `DateField`, the time field `TimeField`, the pickers `DatePicker` and `DateRangePicker`, and the calendars `Calendar` and `RangeCalendar`, which are React Aria's in core's theme.
   Each takes the props of its part of React Aria, and the fields and the pickers take the `label`, `description` and `errorMessage` of React Aria's Tailwind starter kit.
   A bound date is a string, as `"2026-11-19"`, which R reads with `as.Date()`.

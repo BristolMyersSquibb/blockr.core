@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-48cbe59f.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-02042ca6.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -312,7 +312,7 @@ function readShortcut(text) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-48cbe59f.js";
+import { Validator } from "./vendor-02042ca6.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -3849,10 +3849,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-48cbe59f.js";
+import { computed as computed3, signal as signal4 } from "./vendor-02042ca6.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-48cbe59f.js";
+import { signal as signal3 } from "./vendor-02042ca6.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -5955,7 +5955,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-48cbe59f.js";
+import { computed as computed2, signal as signal2 } from "./vendor-02042ca6.js";
 function createRegistrations(migration = () => void 0) {
   const classes = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -8472,7 +8472,7 @@ var WIDTH = "bc:min-w-[min(420px,100%)]";
 import { useEffect, useRef as useRef2, useSyncExternalStore } from "react";
 import { flushSync as flushSync2 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
-import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "./vendor-48cbe59f.js";
+import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "./vendor-02042ca6.js";
 import { TextField } from "@blockr/core/react";
 import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
 import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";

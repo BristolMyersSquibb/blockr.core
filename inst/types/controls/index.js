@@ -1,5 +1,5 @@
 // srcts/controls/controls.tsx
-import { Fragment as Fragment20, useLayoutEffect as useLayoutEffect4, useRef as useRef10 } from "react";
+import { Fragment as Fragment21, useLayoutEffect as useLayoutEffect4, useRef as useRef10 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
@@ -223,6 +223,8 @@ function strings(value) {
 // srcts/aria/index.ts
 import {
   Autocomplete,
+  Breadcrumb,
+  Breadcrumbs,
   Button,
   Calendar,
   CalendarCell,
@@ -257,10 +259,15 @@ import {
   DateSegment,
   Dialog,
   DialogTrigger,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureStateContext,
   DropIndicator,
   DropZone,
   FieldError,
   FileTrigger,
+  Focusable,
   Form,
   GridList,
   GridListHeader,
@@ -281,6 +288,7 @@ import {
   MenuItem,
   MenuSection,
   MenuTrigger,
+  Meter,
   Modal,
   ModalOverlay,
   NavigationTree,
@@ -289,8 +297,10 @@ import {
   NavigationTreeItemContent,
   NavigationTreeSection,
   NumberField,
+  OverlayArrow,
   parseColor,
   Popover,
+  ProgressBar,
   RadioButton,
   RadioField,
   RadioGroup,
@@ -298,20 +308,30 @@ import {
   Row,
   SearchField,
   Select,
+  SelectionIndicator,
   SelectStateContext,
   SelectValue,
   Separator,
+  Sheet,
+  SheetBackdrop,
+  SheetContent,
+  SheetOverlay,
   Slider,
   SliderFill,
   SliderOutput,
   SliderStateContext,
   SliderThumb,
   SliderTrack,
+  SubmenuTrigger,
   SwitchButton,
   SwitchField,
+  Tab,
   Table,
   TableBody,
   TableHeader,
+  TabList,
+  TabPanel,
+  Tabs,
   Tag,
   TagGroup,
   TagList,
@@ -321,12 +341,21 @@ import {
   TimeField,
   ToggleButton,
   ToggleButtonGroup,
+  ToggleButtonGroupContext,
   Token,
   TokenField,
   TokenInput,
+  Toolbar,
+  Tooltip,
+  TooltipTrigger,
+  TooltipTriggerStateContext,
   Tree,
   TreeItem,
   TreeItemContent,
+  UNSTABLE_Toast,
+  UNSTABLE_ToastContent,
+  UNSTABLE_ToastQueue,
+  UNSTABLE_ToastRegion,
   useDragAndDrop,
   useFilter,
   useLocale,
@@ -351,13 +380,21 @@ var styles = {
 var buttons = {
   primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
   secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
   quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
 };
 
 // srcts/inputs/button.tsx
 import { jsx } from "react/jsx-runtime";
-function Button2({ variant = "primary", className, ...props }) {
-  return /* @__PURE__ */ jsx(Button, { ...props, className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`) });
+function Button2({ variant = "primary", className, "aria-keyshortcuts": shortcuts, ...props }) {
+  return /* @__PURE__ */ jsx(
+    Button,
+    {
+      ...props,
+      render: shortcuts === void 0 || props.render !== void 0 ? props.render : (dom) => /* @__PURE__ */ jsx("button", { ...dom, "aria-keyshortcuts": shortcuts }),
+      className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`)
+    }
+  );
 }
 function FieldButton({ className, ...props }) {
   return /* @__PURE__ */ jsx(Button, { ...props, className: composeRenderProps(className, (given) => `${FIELD_BUTTON} ${given ?? ""}`) });
@@ -528,39 +565,71 @@ import { useContext as useContext3 } from "react";
 import { Fragment as Fragment4, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 
 // srcts/overlays/dialog.tsx
-import { jsx as jsx8 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 
 // srcts/overlays/menu.tsx
 import { Children } from "react";
+
+// srcts/overlays/stacking.ts
+var OVERLAY_Z_INDEX = "var(--bc-z-index-overlay)";
+function overlayStyle(style) {
+  return composeRenderProps(style, (given) => ({ ...given, zIndex: OVERLAY_Z_INDEX }));
+}
 
 // srcts/overlays/popover.tsx
 import { jsx as jsx9 } from "react/jsx-runtime";
 
 // srcts/overlays/menu.tsx
-import { Fragment as Fragment5, jsx as jsx10, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
 
 // srcts/overlays/palette.tsx
-import { jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
+import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
+
+// srcts/overlays/sheet.tsx
+import { jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
+
+// srcts/overlays/toast.tsx
+import { jsx as jsx13 } from "react/jsx-runtime";
+
+// srcts/overlays/tooltip.tsx
+import { jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
+function Tooltip2({ children, className, style, offset = 8, ...props }) {
+  return /* @__PURE__ */ jsxs11(
+    Tooltip,
+    {
+      ...props,
+      offset,
+      style: overlayStyle(style),
+      className: composeRenderProps(className, (given) => `${TOOLTIP} ${given ?? ""}`),
+      children: [
+        /* @__PURE__ */ jsx14(OverlayArrow, { children: /* @__PURE__ */ jsx14("svg", { width: 8, height: 8, viewBox: "0 0 8 8", className: ARROW, "aria-hidden": "true", children: /* @__PURE__ */ jsx14("path", { d: "M0 0 L4 4 L8 0" }) }) }),
+        children
+      ]
+    }
+  );
+}
+var TOOLTIP = "bc:group bc:box-border bc:max-w-xs bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-gray-900 bc:shadow-md bc:outline-none bc:will-change-transform bc:dark:text-gray-100";
+var ARROW = "bc:block bc:fill-bg-raised bc:stroke-border-default bc:forced-colors:fill-[Canvas] bc:forced-colors:stroke-[ButtonBorder] bc:group-data-[placement=bottom]:rotate-180 bc:group-data-[placement=left]:-rotate-90 bc:group-data-[placement=right]:rotate-90";
 
 // srcts/inputs/colorswatches.tsx
 import { useContext as useContext4 } from "react";
-import { Fragment as Fragment6, jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // srcts/inputs/colorpicker.tsx
-import { Fragment as Fragment7, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // srcts/inputs/combobox.tsx
-import { useContext as useContext5, useRef as useRef4, useState as useState6 } from "react";
-import { Fragment as Fragment8, jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
+import { useContext as useContext5, useEffect, useEffectEvent, useRef as useRef4, useState as useState6 } from "react";
+import { Fragment as Fragment9, jsx as jsx17, jsxs as jsxs14 } from "react/jsx-runtime";
 function ComboBox2(props) {
   const { bound, ordered = false, ...rest } = props;
-  if (bound === void 0) return /* @__PURE__ */ jsx14(Drawn, { ...rest });
-  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx14(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx14(BoundOne, { ...rest, bound });
+  if (bound === void 0) return /* @__PURE__ */ jsx17(Drawn, { ...rest });
+  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx17(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx17(BoundOne, { ...rest, bound });
 }
 function BoundOne({ bound, outdated = false, ...props }) {
   const current = typeof bound.value === "string" ? bound.value : null;
-  return /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsxs14(Fragment9, { children: [
+    /* @__PURE__ */ jsx17(
       Drawn,
       {
         ...props,
@@ -576,7 +645,7 @@ function BoundOne({ bound, outdated = false, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx14(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx17(Refusal, { error: bound.error })
   ] });
 }
 function BoundSeveral({
@@ -595,8 +664,8 @@ function BoundSeveral({
     if (value === null) return;
     void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
   };
-  return /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsxs14(Fragment9, { children: [
+    /* @__PURE__ */ jsx17(
       Drawn,
       {
         ...props,
@@ -628,7 +697,7 @@ function BoundSeveral({
         }
       }
     ),
-    /* @__PURE__ */ jsx14(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx17(Refusal, { error: bound.error })
   ] });
 }
 function known(props) {
@@ -662,7 +731,7 @@ function Drawn({
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
   const empty = none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const value = useSameValue(props.value);
-  return /* @__PURE__ */ jsxs11(
+  return /* @__PURE__ */ jsxs14(
     ComboBox,
     {
       ...props,
@@ -671,8 +740,8 @@ function Drawn({
       allowsEmptyCollection,
       className: composeRenderProps(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx14(Label, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsx14(
+        label === void 0 ? null : /* @__PURE__ */ jsx17(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsx17(
           Field,
           {
             placeholder,
@@ -685,10 +754,10 @@ function Drawn({
             label
           }
         ),
-        /* @__PURE__ */ jsx14(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-        /* @__PURE__ */ jsx14(FieldError, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx14(Lacking, { multiple, marking }),
-        /* @__PURE__ */ jsx14(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx14(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx14(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx14("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx17(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+        /* @__PURE__ */ jsx17(FieldError, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx17(Lacking, { multiple, marking }),
+        /* @__PURE__ */ jsx17(Popover, { offset: 4, className: LIST, style: { zIndex: OVERLAY_Z_INDEX }, children: /* @__PURE__ */ jsx17(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx17(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx17("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
       ]
     }
   );
@@ -723,20 +792,20 @@ function Field({
   };
   const chips = keys.map((key) => ({ key, text: known2.get(key) ?? String(key), gone: marking && !known2.has(key) }));
   const picks = label === void 0 ? "Picks" : `Picks of ${label}`;
-  return /* @__PURE__ */ jsxs11(Group, { isInvalid: invalid, className: FIELD, children: [
-    /* @__PURE__ */ jsxs11("div", { className: VALUES, children: [
+  return /* @__PURE__ */ jsxs14(Group, { isInvalid: invalid, className: FIELD, children: [
+    /* @__PURE__ */ jsxs14("div", { className: VALUES, children: [
       keys.length === 0 ? null : isDisabled ? (
         // The chips of a disabled select take no focus, as its text field
         // takes none.
         // React Aria's TagGroup keeps a tab stop on its list even where
         // every tag is disabled, so a disabled select draws its chips as
         // a plain list.
-        /* @__PURE__ */ jsx14("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx14("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx14("span", { className: "bc:truncate", children: text }) }, key)) })
-      ) : /* @__PURE__ */ jsx14(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx14(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsxs11(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-        /* @__PURE__ */ jsx14("span", { className: "bc:truncate", children: text }),
-        editable ? /* @__PURE__ */ jsx14(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx14(Cross, {}) }) : null
-      ] }, key)) }) }),
-      /* @__PURE__ */ jsx14(
+        /* @__PURE__ */ jsx17("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx17(PlainChip, { text, gone }, key)) })
+      ) : /* @__PURE__ */ jsx17(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx17(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx17(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: ({ isFocusVisible }) => /* @__PURE__ */ jsxs14(Fragment9, { children: [
+        /* @__PURE__ */ jsx17(ChipText, { text, focused: isFocusVisible }),
+        editable ? /* @__PURE__ */ jsx17(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx17(Cross, {}) }) : null
+      ] }) }, key)) }) }),
+      /* @__PURE__ */ jsx17(
         Input,
         {
           value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item ?? (one === null ? "" : String(one)),
@@ -759,23 +828,68 @@ function Field({
       // leaves alone, rather than take it for the button that opens the
       // list. It is outside the order of Tab, and keeps the focus in the
       // text field, as a press in the list does.
-      // React Aria's Button takes no title, so the cross carries it.
-      /* @__PURE__ */ jsx14(
-        FieldButton,
-        {
-          slot: null,
-          excludeFromTabOrder: true,
-          preventFocusOnPress: true,
-          "aria-label": label === void 0 ? "Clear" : `Clear ${label}`,
-          onPress: () => {
-            if (onClear !== void 0) onClear();
-            else state?.setValue(multiple ? [] : null);
-          },
-          children: /* @__PURE__ */ jsx14("span", { title: multiple ? "Clear every pick" : "Clear the pick", className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx14(Cross, {}) })
-        }
-      )
+      // It is the trigger of its tooltip, as a button of React Aria is.
+      /* @__PURE__ */ jsxs14(TooltipTrigger, { children: [
+        /* @__PURE__ */ jsx17(
+          FieldButton,
+          {
+            slot: null,
+            excludeFromTabOrder: true,
+            preventFocusOnPress: true,
+            "aria-label": label === void 0 ? "Clear" : `Clear ${label}`,
+            onPress: () => {
+              if (onClear !== void 0) onClear();
+              else state?.setValue(multiple ? [] : null);
+            },
+            children: /* @__PURE__ */ jsx17(Cross, {})
+          }
+        ),
+        /* @__PURE__ */ jsx17(Tooltip2, { children: multiple ? "Clear every pick" : "Clear the pick" })
+      ] })
     ) : null,
-    /* @__PURE__ */ jsx14(Button, { className: OPENER, children: /* @__PURE__ */ jsx14(Chevron, {}) })
+    /* @__PURE__ */ jsx17(Button, { className: OPENER, children: /* @__PURE__ */ jsx17(Chevron, {}) })
+  ] });
+}
+function PlainChip({ text, gone }) {
+  return /* @__PURE__ */ jsx17("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx17(ChipText, { text, focused: false }) });
+}
+function ChipText({ text, focused }) {
+  return /* @__PURE__ */ jsx17(TooltipTrigger, { children: /* @__PURE__ */ jsx17(CutText, { text, focused }) });
+}
+function CutText({ text, focused }) {
+  const tip = useContext5(TooltipTriggerStateContext);
+  const ref = useRef4(null);
+  const [pointed, setPointed] = useState6(false);
+  const shown = useRef4({ pointed: false, focused: false });
+  const follow2 = useEffectEvent((now) => {
+    const before = shown.current;
+    shown.current = now;
+    const el = ref.current;
+    const cut = el !== null && el.scrollWidth > el.clientWidth;
+    if (tip === null) return;
+    if (cut && now.focused) tip.open(true);
+    else if (cut && now.pointed) tip.open();
+    else if (before.pointed || before.focused) tip.close(before.focused);
+  });
+  useEffect(() => {
+    follow2({ pointed, focused });
+  }, [pointed, focused]);
+  return /* @__PURE__ */ jsxs14(Fragment9, { children: [
+    /* @__PURE__ */ jsx17(
+      "span",
+      {
+        ref,
+        className: "bc:truncate",
+        onPointerEnter: (event) => {
+          if (event.pointerType !== "touch") setPointed(true);
+        },
+        onPointerLeave: () => {
+          setPointed(false);
+        },
+        children: text
+      }
+    ),
+    /* @__PURE__ */ jsx17(Tooltip2, { triggerRef: ref, children: text })
   ] });
 }
 function usePicks(multiple) {
@@ -789,13 +903,13 @@ function usePicks(multiple) {
 }
 function Lacking({ multiple, marking }) {
   const { lacked } = usePicks(multiple);
-  return marking ? /* @__PURE__ */ jsx14(NotAvailable, { values: lacked.map(String) }) : null;
+  return marking ? /* @__PURE__ */ jsx17(NotAvailable, { values: lacked.map(String) }) : null;
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
-  return /* @__PURE__ */ jsx14(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    selectionMode === "multiple" ? /* @__PURE__ */ jsx14("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx14(Tick, {}) : null }) : null,
-    /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsx17(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs14(Fragment9, { children: [
+    selectionMode === "multiple" ? /* @__PURE__ */ jsx17("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx17(Tick, {}) : null }) : null,
+    /* @__PURE__ */ jsx17(
       "span",
       {
         className: `bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2 bc:truncate ${selectionMode === "single" && isSelected ? "bc:font-semibold" : ""}`,
@@ -817,27 +931,27 @@ var ROW = "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center b
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/datefield.tsx
-import { Fragment as Fragment9, jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
+import { Fragment as Fragment10, jsx as jsx18, jsxs as jsxs15 } from "react/jsx-runtime";
 
 // srcts/inputs/datepicker.tsx
 import { useRef as useRef5 } from "react";
-import { Fragment as Fragment10, jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
+import { Fragment as Fragment11, jsx as jsx19, jsxs as jsxs16 } from "react/jsx-runtime";
 
 // srcts/inputs/dropzone.tsx
-import { jsx as jsx17 } from "react/jsx-runtime";
+import { jsx as jsx20 } from "react/jsx-runtime";
 
 // srcts/inputs/form.tsx
-import { jsx as jsx18 } from "react/jsx-runtime";
+import { jsx as jsx21 } from "react/jsx-runtime";
 
 // srcts/inputs/listbox.tsx
-import { jsx as jsx19 } from "react/jsx-runtime";
+import { jsx as jsx22 } from "react/jsx-runtime";
 
 // srcts/inputs/numberfield.tsx
 import { useState as useState7 } from "react";
-import { Fragment as Fragment11, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
+import { Fragment as Fragment12, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
-  return bound === void 0 ? /* @__PURE__ */ jsx20(Drawn2, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx20(BoundNumber, { ...props, maxValue: largest, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx23(Drawn2, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx23(BoundNumber, { ...props, maxValue: largest, bound });
 }
 function BoundNumber({
   bound,
@@ -856,8 +970,8 @@ function BoundNumber({
     if (kept !== null && !kept.typing) setKept(null);
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
-  return /* @__PURE__ */ jsxs14(Fragment11, { children: [
-    /* @__PURE__ */ jsx20(
+  return /* @__PURE__ */ jsxs17(Fragment12, { children: [
+    /* @__PURE__ */ jsx23(
       Drawn2,
       {
         ...props,
@@ -889,7 +1003,7 @@ function BoundNumber({
         }
       }
     ),
-    /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx23(Refusal, { error: bound.error })
   ] });
 }
 function inRange(value, min, max, step) {
@@ -901,21 +1015,21 @@ function inRange(value, min, max, step) {
   return Math.abs(steps - Math.round(steps)) < 1e-9;
 }
 function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, className, onInput, ...props }) {
-  return /* @__PURE__ */ jsxs14(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx20(Label, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs14(Group, { className: FIELD2, children: [
-      /* @__PURE__ */ jsx20(Input, { placeholder, onInput, className: INPUT2 }),
-      /* @__PURE__ */ jsxs14("div", { className: STEPPERS, children: [
-        /* @__PURE__ */ jsx20(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx20(Chevron2, { up: true }) }),
-        /* @__PURE__ */ jsx20(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx20(Chevron2, { up: false }) })
+  return /* @__PURE__ */ jsxs17(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx23(Label, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs17(Group, { className: FIELD2, children: [
+      /* @__PURE__ */ jsx23(Input, { placeholder, onInput, className: INPUT2 }),
+      /* @__PURE__ */ jsxs17("div", { className: STEPPERS, children: [
+        /* @__PURE__ */ jsx23(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx23(Chevron2, { up: true }) }),
+        /* @__PURE__ */ jsx23(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx23(Chevron2, { up: false }) })
       ] })
     ] }),
-    /* @__PURE__ */ jsx20(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx20(FieldError, { className: styles.alert, children: errorMessage2 })
+    /* @__PURE__ */ jsx23(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx23(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 function Chevron2({ up }) {
-  return /* @__PURE__ */ jsx20(
+  return /* @__PURE__ */ jsx23(
     "svg",
     {
       width: "10",
@@ -927,7 +1041,7 @@ function Chevron2({ up }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx20("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
+      children: /* @__PURE__ */ jsx23("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
     }
   );
 }
@@ -938,37 +1052,37 @@ var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-ce
 
 // srcts/inputs/radio.tsx
 import { useRef as useRef6 } from "react";
-import { Fragment as Fragment12, jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
+import { Fragment as Fragment13, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
 // srcts/inputs/searchfield.tsx
-import { Fragment as Fragment13, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
+import { Fragment as Fragment14, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
 
 // srcts/inputs/select.tsx
 import { useContext as useContext6, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef7, useState as useState8 } from "react";
-import { Fragment as Fragment14, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+import { Fragment as Fragment15, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
 
 // srcts/inputs/slider.tsx
 import { useContext as useContext7, useLayoutEffect as useLayoutEffect3, useRef as useRef8, useState as useState9 } from "react";
-import { Fragment as Fragment15, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { Fragment as Fragment16, jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
 
 // srcts/inputs/switch.tsx
-import { Fragment as Fragment16, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+import { Fragment as Fragment17, jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
 
 // srcts/inputs/tags.tsx
 import { createContext as createContext3, useContext as useContext8 } from "react";
-import { Fragment as Fragment17, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
+import { Fragment as Fragment18, jsx as jsx29, jsxs as jsxs23 } from "react/jsx-runtime";
 var ColorContext = createContext3("gray");
 
 // srcts/inputs/textfield.tsx
-import { Fragment as Fragment18, jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
+import { Fragment as Fragment19, jsx as jsx30, jsxs as jsxs24 } from "react/jsx-runtime";
 function TextField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx27(Drawn3, { ...props }) : /* @__PURE__ */ jsx27(BoundText, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx30(Drawn3, { ...props }) : /* @__PURE__ */ jsx30(BoundText, { ...props, bound });
 }
 function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
   const [text, typed] = useTyped(bound);
   const lines = props.lines ?? 1;
-  return /* @__PURE__ */ jsxs21(Fragment18, { children: [
-    /* @__PURE__ */ jsx27(
+  return /* @__PURE__ */ jsxs24(Fragment19, { children: [
+    /* @__PURE__ */ jsx30(
       Drawn3,
       {
         ...props,
@@ -991,28 +1105,28 @@ function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx27(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx30(Refusal, { error: bound.error })
   ] });
 }
 function Drawn3({ label, description, errorMessage: errorMessage2, placeholder, lines = 1, className, ...props }) {
-  return /* @__PURE__ */ jsxs21(TextField, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx27(Label, { className: styles.label, children: label }),
-    lines > 1 ? /* @__PURE__ */ jsx27(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx27(Input, { placeholder, className: styles.box }),
-    /* @__PURE__ */ jsx27(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx27(FieldError, { className: styles.alert, children: errorMessage2 })
+  return /* @__PURE__ */ jsxs24(TextField, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx30(Label, { className: styles.label, children: label }),
+    lines > 1 ? /* @__PURE__ */ jsx30(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx30(Input, { placeholder, className: styles.box }),
+    /* @__PURE__ */ jsx30(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx30(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 
 // srcts/inputs/toggle.tsx
 import { createContext as createContext4, useContext as useContext9, useId, useRef as useRef9 } from "react";
-import { Fragment as Fragment19, jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
+import { Fragment as Fragment20, jsx as jsx31, jsxs as jsxs25 } from "react/jsx-runtime";
 var InGroup = createContext4(false);
 
 // srcts/inputs/tokenfield.tsx
-import { jsx as jsx29, jsxs as jsxs23 } from "react/jsx-runtime";
+import { jsx as jsx32, jsxs as jsxs26 } from "react/jsx-runtime";
 
 // srcts/controls/controls.tsx
-import { Fragment as Fragment21, jsx as jsx30, jsxs as jsxs24 } from "react/jsx-runtime";
+import { Fragment as Fragment22, jsx as jsx33, jsxs as jsxs27 } from "react/jsx-runtime";
 function controls(host, signal) {
   const el = document.createElement("div");
   el.className = styles.stack;
@@ -1024,12 +1138,12 @@ function controls(host, signal) {
   let ended = false;
   const redraw = () => {
     if (ended) return;
-    const drawn = entries.map((entry) => /* @__PURE__ */ jsx30(Fragment20, { children: entry.draw() }, entry.id));
+    const drawn = entries.map((entry) => /* @__PURE__ */ jsx33(Fragment21, { children: entry.draw() }, entry.id));
     flushSync(() => {
       root.render(
-        /* @__PURE__ */ jsxs24(Fragment21, { children: [
+        /* @__PURE__ */ jsxs27(Fragment22, { children: [
           drawn,
-          error === null ? null : /* @__PURE__ */ jsx30("p", { role: "alert", className: styles.alert, children: error })
+          error === null ? null : /* @__PURE__ */ jsx33("p", { role: "alert", className: styles.alert, children: error })
         ] })
       );
     });
@@ -1039,7 +1153,7 @@ function controls(host, signal) {
     redraw();
   }
   function add(node) {
-    put(() => /* @__PURE__ */ jsx30(Slot, { node }));
+    put(() => /* @__PURE__ */ jsx33(Slot, { node }));
   }
   function bindTo(target, show, options) {
     const binding = typeof target === "string" ? bind(host, target, show, options) : bind(host, target.read, target.change, show, options);
@@ -1105,13 +1219,13 @@ function controls(host, signal) {
   }
   function text(key, next, last) {
     const [target, options] = after(key, next, last);
-    input(target, (bound) => /* @__PURE__ */ jsx30(TextField2, { bound, spellCheck: "false", ...options }));
+    input(target, (bound) => /* @__PURE__ */ jsx33(TextField2, { bound, spellCheck: "false", ...options }));
   }
   function number(key, next, last) {
     const [target, options] = after(key, next, last);
     let maxValue = options.maxValue;
     let outdated = false;
-    input(target, (bound) => /* @__PURE__ */ jsx30(NumberField2, { bound, ...options, maxValue, outdated }));
+    input(target, (bound) => /* @__PURE__ */ jsx33(NumberField2, { bound, ...options, maxValue, outdated }));
     return {
       setMaxValue(next2) {
         maxValue = next2;
@@ -1127,7 +1241,7 @@ function controls(host, signal) {
     const [target, options] = after(key, next, last);
     let items = options.items;
     let outdated = false;
-    input(target, (bound) => /* @__PURE__ */ jsx30(
+    input(target, (bound) => /* @__PURE__ */ jsx33(
       ComboBox2,
       {
         bound,
@@ -1139,7 +1253,7 @@ function controls(host, signal) {
         isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,
-        children: (item) => /* @__PURE__ */ jsx30(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
+        children: (item) => /* @__PURE__ */ jsx33(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
       }
     ));
     return {
@@ -1155,7 +1269,7 @@ function controls(host, signal) {
   }
   function checkbox(key, next, last) {
     const [target, options] = after(key, next, last);
-    input(target, (bound) => /* @__PURE__ */ jsx30(Checkbox, { bound, children: options.label }));
+    input(target, (bound) => /* @__PURE__ */ jsx33(Checkbox, { bound, children: options.label }));
   }
   function cleanup() {
     if (ended) return;
@@ -1175,7 +1289,7 @@ function Slot({ node }) {
   useLayoutEffect4(() => {
     ref.current?.replaceChildren(node);
   }, [node]);
-  return /* @__PURE__ */ jsx30("div", { ref, className: "bc:contents" });
+  return /* @__PURE__ */ jsx33("div", { ref, className: "bc:contents" });
 }
 export {
   PAUSE,

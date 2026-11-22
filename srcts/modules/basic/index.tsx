@@ -62,7 +62,7 @@ function render({ el, core }: { el: HTMLElement; core: CoreApi; plugin: PluginCl
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
   const toasts = createToasts(core.notifications, (plugin) => hasSection(core, plugin));
-  const front: FrontEnd = { core, toasts, inView: shown, sections: createSections() };
+  const front: FrontEnd = { core, toasts, inView: shown, sections: createSections(), groups: createSections() };
   const root = createRoot(el);
   flushSync(() => {
     root.render(<BasicBoard front={front} />);
@@ -84,17 +84,17 @@ function show({ object, el }: { object: Watched; el: HTMLElement }): void {
   const front = drawn.get(el);
   const target = front?.inView.element(object);
   if (front === undefined || target === undefined) return;
-  // A collapsed section of the plugin opens, as does every collapsed group
-  // that holds the block's card, which the browser lays out before it
+  // A collapsed section of the plugin opens, as does the collapsed group of
+  // the stack that holds the block, which the browser lays out before it
   // scrolls.
-  if ("plugin" in object) {
-    flushSync(() => {
+  flushSync(() => {
+    if ("plugin" in object) {
       front.sections.collapse(object.plugin, false);
-    });
-  }
-  for (let node = target.parentElement; node !== null && node !== el; node = node.parentElement) {
-    if (node.localName === "details" && !node.hasAttribute("open")) node.setAttribute("open", "");
-  }
+      return;
+    }
+    const stack = Object.entries(front.core.store.board().stacks).find(([, held]) => held.blocks.includes(object.block));
+    if (stack !== undefined) front.groups.collapse(stack[0], false);
+  });
   // A plugin's section scrolls into view whole, with its name, and a block's
   // card alone, rather than the group of its stack.
   const into = "plugin" in object ? (target.closest("section") ?? target) : target;
