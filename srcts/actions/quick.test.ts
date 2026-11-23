@@ -209,6 +209,33 @@ describe("a quick action", () => {
     expect(other.ran).toEqual([[rename("Now"), asks.id]]);
   });
 
+  test("shows whether an item is checked, where it says so, runs its pick as for any item, and takes a level whose checked is no boolean for no level", async () => {
+    const layout = asking({
+      rows: [
+        item("Lay out again", () => rename("Again")),
+        item("Left to right", () => rename("Left to right"), { heading: "Direction", checked: true }),
+        item("Top to bottom", () => rename("Top to bottom"), { heading: "Direction", checked: false }),
+      ],
+    });
+
+    const first = opened({ action: layout });
+    expect(first.menu.get().rows).toEqual([
+      { kind: "item", label: "Lay out again" },
+      { kind: "item", label: "Left to right", heading: "Direction", checked: true },
+      { kind: "item", label: "Top to bottom", heading: "Direction", checked: false },
+    ]);
+    await first.menu.pick(1);
+    expect(first.ran).toEqual([[rename("Left to right"), layout.id]]);
+
+    const reported = logged();
+    const wrong = opened({
+      action: asking(() => ({ rows: [{ kind: "item", label: "Snap to grid", checked: "on", pick: () => [] }] }) as unknown as QuickLevel),
+    });
+    reported.restore();
+    expect(wrong.menu.get().error).toBe('It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.');
+    expect(reported.errors()).toHaveLength(1);
+  });
+
   test("rejects a pick with the refusal of its batch, once the menu has closed", async () => {
     const asks = asking({ rows: [item("refused", () => [{ id: "refused" }])] });
     const { menu, closings } = opened({ action: asks });
