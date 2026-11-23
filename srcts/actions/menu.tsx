@@ -17,6 +17,23 @@
 // - The rows that remove in the theme's danger colour, on its danger
 //   background, under the pointer and as the keyboard's row, and plain at
 //   rest, as the design system draws a row that destroys something.
+// - An item that gives `checked` with a tick in a slot at its start, which
+//   shows while `checked` is true, as the choices of a multi show theirs.
+//   The tick does not go at the row's end, where the design system marks the
+//   current pick and a toggle that is on
+//   (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1096-L1112),
+//   since the open icon of an item that gives `advanced` is there.
+// Assistive technology hears an item that gives `checked` as a checkbox of
+// the menu, checked or not, as in blockr.ui's own menu
+// (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/js/blockr-ui.js#L1112-L1117).
+// React Aria's menu makes an item a checkbox only in a section that picks
+// several.
+// So the items that give `checked` sit in sections of their own, and each
+// such section picks its items whose `checked` is true.
+// Where this splits the items under one heading, the heading shows over the
+// first of their sections.
+// Picking such an item runs its pick, as for any item.
+// What its section picks changes only with `checked`.
 // A level shows its title at its top, its filter below the title, its text
 // rows below the filter, and then its items and multis, those under a
 // heading in a group under it, and each multi as a group of its choices, which
@@ -235,7 +252,14 @@ function Level({
               ))}
             </MenuSection>
           ) : (
-            <MenuSection key={`items-${String(group.items[0]?.i ?? g)}`} id={`items-${String(group.items[0]?.i ?? g)}`} title={group.heading}>
+            <MenuSection
+              key={`items-${String(group.items[0]?.i ?? g)}`}
+              id={`items-${String(group.items[0]?.i ?? g)}`}
+              title={group.continues ? undefined : group.heading}
+              {...(group.checks
+                ? { selectionMode: "multiple", selectedKeys: group.items.filter(({ row }) => row.checked === true).map(({ i }) => itemKey(i)) }
+                : {})}
+            >
               {group.items.map(({ row, i }) => (
                 <Item
                   key={i}
@@ -332,9 +356,19 @@ type ItemRow = Extract<ShownRow, { kind: "item" }>;
 type MultiRow = Extract<ShownRow, { kind: "multi" }>;
 
 // The rows that the menu lists, in groups: the items under one heading and of
-// one category that follow each other, and each multi on its own.
+// one category that follow each other, and each multi on its own. The items
+// that give `checked` form groups of their own, which `checks` marks. Where
+// the items under one heading form several groups, `continues` marks each
+// group after the first, which shows the heading no more.
 type Group =
-  | { readonly kind: "items"; readonly heading?: string; readonly category?: string; readonly items: { row: ItemRow; i: number }[] }
+  | {
+      readonly kind: "items";
+      readonly heading?: string;
+      readonly category?: string;
+      readonly checks: boolean;
+      readonly continues: boolean;
+      readonly items: { row: ItemRow; i: number }[];
+    }
   | { readonly kind: "multi"; readonly category?: undefined; readonly row: MultiRow; readonly i: number };
 
 function groups(listed: readonly { row: ShownRow; i: number }[]): Group[] {
@@ -346,13 +380,17 @@ function groups(listed: readonly { row: ShownRow; i: number }[]): Group[] {
       continue;
     }
     const last = all.at(-1);
-    if (last?.kind === "items" && last.heading === row.heading && last.category === row.category) {
+    const checks = row.checked !== undefined;
+    const under = last?.kind === "items" && last.heading === row.heading && last.category === row.category;
+    if (under && last.checks === checks) {
       last.items.push({ row, i });
     } else {
       all.push({
         kind: "items",
         ...(row.heading === undefined ? {} : { heading: row.heading }),
         ...(row.category === undefined ? {} : { category: row.category }),
+        checks,
+        continues: under,
         items: [{ row, i }],
       });
     }
@@ -367,7 +405,8 @@ function groups(listed: readonly { row: ShownRow; i: number }[]): Group[] {
 // not picked. The open icon carries the item's index, by which Mod+Enter on
 // the item finds it, and the tooltip, which assistive technology reads as the
 // item's description. The item's name is given, so that it holds no more
-// than its label and its detail.
+// than its label and its detail. In a section that picks, as for an item
+// that gives `checked`, the SDK's item draws its tick in a slot at its start.
 function Item({
   row,
   index,
@@ -385,6 +424,7 @@ function Item({
   const removes = row.category === "remove";
   return (
     <MenuItem
+      id={itemKey(index)}
       textValue={label}
       aria-label={detail === undefined ? label : `${label}, ${detail}`}
       onAction={onPick}
@@ -407,28 +447,37 @@ function Item({
         )}
         <span className="bc:min-w-0 bc:truncate">{label}</span>
       </span>
-      {detail === undefined ? null : <span className="bc:text-xs bc:text-text-muted">{detail}</span>}
+      {/* The detail and the open icon share one span, which the SDK's item puts
+          in the column at its right, on the label's line. The open icon is
+          taller than the line. The span's negative margins keep the row as
+          tall as one without the icon. They sit on the span, not on the icon,
+          since the SDK's grid hides what overflows each of its children. */}
+      {detail === undefined && row.advanced !== true ? null : (
+        <span className="bc:-my-1 bc:flex bc:items-center bc:gap-2">
+          {detail === undefined ? null : <span className="bc:min-w-0 bc:truncate bc:text-xs bc:text-text-muted">{detail}</span>}
+          {row.advanced === true ? (
+            <span
+              aria-hidden="true"
+              data-open-row={index}
+              title={tip}
+              className={OPEN}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen();
+              }}
+            >
+              <OpenIcon />
+            </span>
+          ) : null}
+        </span>
+      )}
       {row.advanced === true ? (
-        <>
-          <span
-            aria-hidden="true"
-            data-open-row={index}
-            title={tip}
-            className={`${OPEN} bc:-my-1`}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpen();
-            }}
-          >
-            <OpenIcon />
-          </span>
-          <Text slot="description" className="bc:sr-only">
-            {tip}
-          </Text>
-        </>
+        <Text slot="description" className="bc:sr-only">
+          {tip}
+        </Text>
       ) : null}
     </MenuItem>
   );
@@ -461,7 +510,7 @@ function OpenIcon(): ReactElement {
 function openRow(target: EventTarget | null): number | undefined {
   if (!(target instanceof Element)) return undefined;
   const active = isFilter(target) ? target.getAttribute("aria-activedescendant") : null;
-  const item = active === null ? target.closest('[role="menuitem"]') : target.ownerDocument.getElementById(active);
+  const item = active === null ? target.closest('[role="menuitem"], [role="menuitemcheckbox"]') : target.ownerDocument.getElementById(active);
   const marked = item?.querySelector("[data-open-row]")?.getAttribute("data-open-row");
   return marked === undefined || marked === null ? undefined : Number(marked);
 }
@@ -497,6 +546,12 @@ function TextRow({
       }}
     />
   );
+}
+
+// The keys of an item and of a choice of a multi in React Aria's menu, by
+// the index of their row in the level's rows.
+function itemKey(row: number): string {
+  return String(row);
 }
 
 function choiceKey(row: number, choice: string): string {

@@ -22,7 +22,7 @@ import type { Changed, Inverse, Target } from "./commit.ts";
 import { isDeltas } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
-import { expand } from "./expand.ts";
+import { afterStep, expand } from "./expand.ts";
 import { fixes, lockFailures } from "./lock.ts";
 import { pluginClassFromPath } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
@@ -67,6 +67,11 @@ export interface Store {
   // it hears, since an inverse holds only what a delta changed.
   // Given `{ undo: false }`, the store sets `undo: false` on every delta of
   // the step, and announces each delta with it.
+  // Once the last delta is in, the store calls the afterStep of each plugin's
+  // class that has one. It applies what they return as one more delta of the
+  // step, which it announces last, with the step's origin. That delta takes
+  // `undo: false` where the step's own deltas take no undo step. So what
+  // afterStep returns never makes an undo step of a step that takes none.
   // Under the board lock, it refuses every delta but one that changes the
   // state of a block that the board lock leaves open, a board option's value
   // or what sits inside a plugin's state, which the plugin locks itself
@@ -80,12 +85,15 @@ export interface Store {
     origin?: Origin,
     opts?: { readonly undo?: false; notifier?(notifications: readonly Notification[]): void },
   ): boolean;
-  // The board that apply() would leave, given the same deltas: it expands and
+  // The board that the deltas leave as apply() applies them: it expands and
   // checks them as apply() does, or throws the StoreError that apply() would
-  // throw, but commits nothing, announces nothing and keeps no undo step.
-  // So it may run while the store applies or announces a change.
-  // The command registry plans each command of a list on the board that a
-  // dry run of the deltas of the commands before it gives (../commands).
+  // throw for them, but commits nothing, announces nothing and keeps no undo
+  // step. So it may run while the store applies or announces a change.
+  // It calls no plugin class's afterStep, which apply() calls once the last
+  // delta is in. The command registry plans each command of a batch on the
+  // board that a dry run of the deltas of the commands before it gives
+  // (../commands). That is the board between the deltas of the step, where
+  // no afterStep has run yet.
   dryRun(delta: Delta | readonly Delta[]): Board;
   // Opens the opening board that R sent with its reply to `hello`, or a JSON
   // board given as its text, with the block registry of the last such reply,
@@ -106,6 +114,19 @@ export interface Store {
   // before an opening, so that core checks a board this way before it stops the
   // core on the page for it.
   check(text: string): Promise<Dropped[]>;
+  // The board that opening a JSON board given as its text would give, and
+  // what opening it would drop, as the DAG's Paste reads a copied board.
+  // It opens the text as check() does, and holds nothing.
+  // The board it resolves with is migrated by the versions that the text
+  // records, and lacks what opening would drop.
+  // It rejects with the StoreError that would refuse the board, having
+  // changed nothing.
+  // Unlike check(), it reads a text under the load lock as well.
+  // The load lock fixes only which board the app shows, and reading a board
+  // replaces none.
+  // So the DAG pastes in an app with the load lock alone, whose board a user
+  // may still edit.
+  read(text: string): Promise<{ board: Board; dropped: Dropped[] }>;
   // The board as a JSON board, as a file holds it.
   // It records the version of each package that the board's content comes
   // from, as the reply to `hello` gives it: the package of the class of each
@@ -145,6 +166,10 @@ export interface Store {
   // Each is a new edit on the board as it is: it applies over what another
   // origin has changed since, the last writer winning, and does nothing where
   // what the step changed is gone.
+  // Each is a step of its own, which ends as a step of apply() does: the
+  // store calls the afterStep of each plugin's class, and applies what they
+  // return as one more delta of the undo or the redo. The other list keeps
+  // the inverse of that delta with the rest.
   // Each throws a StoreError, having changed nothing, where the board it would
   // make fails a check, such as a fixed input that takes two links. Through
   // `CoreApi`, core tells the user why, or hands that notification to the
@@ -187,9 +212,9 @@ export interface StoreOptions {
   // nothing changes or follows the board before.
   readonly signal?: AbortSignal;
   // A block class's one migration of its state, by its registry id, which the
-  // store reads as it opens or checks a board, and which core takes from the
-  // class's UI module before then (../core/migrations.ts). A class without one
-  // keeps the state that a board holds.
+  // store reads as it opens, checks or reads a board, and which core takes from
+  // the class's UI module before then (../core/migrations.ts). A class without
+  // one keeps the state that a board holds.
   readonly migration?: (registryId: RegistryId) => Migration | undefined;
 }
 
@@ -295,35 +320,41 @@ export function createStore(options: StoreOptions = {}): Store {
   // values.
   // A delta with `undo: false` leaves none either. The board lock reads its
   // inverse all the same.
+  // Given `afterStep`, it then calls the afterStep of each plugin's class,
+  // once the last delta is in, where a delta changed the board (./expand.ts).
+  // It applies what they return as one more delta of the step, which it
+  // expands and checks as any other.
+  // That delta leaves an inverse only where the step's own deltas leave one.
+  // So undo takes back its patches with the step, and a step that takes no
+  // undo step takes none for them either.
   function run(
     start: Board,
     deltas: readonly Delta[],
-    how: { fit?: boolean; places?: readonly Inverse["places"][] },
+    how: { fit?: boolean; places?: readonly Inverse["places"][]; afterStep?: boolean },
     refused: string,
   ): { applied: Applied[]; inverses: Inverse[] } {
     const applied: Applied[] = [];
     const inverses: Inverse[] = [];
     let current = start;
 
-    for (const [i, given] of deltas.entries()) {
-      const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
+    // Expands, commits and checks the delta, which `given` becomes once
+    // fitted, on the board that the delta before it left. Each failure that
+    // it throws starts with `prefix`.
+    function applyOne(given: Delta, delta: Delta, places: Inverse["places"] | undefined, prefix: string): void {
       const fail = (failures: readonly string[]) =>
         new StoreError(refused, failures.map((failure) => prefix + failure));
-
-      const delta = how.fit === true ? fit(given, current) : given;
-      if (how.fit === true && isEmpty(delta)) continue;
 
       const expanded = expand(delta, current, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
 
-      const committed = commit(current, expanded, how.places?.[i]);
+      const committed = commit(current, expanded, places);
       if ("failures" in committed) throw fail(committed.failures);
       if (hello?.lock.board === true) {
         const locked = lockFailures(current, committed.inverse.delta);
         if (locked.length > 0) throw fail(locked);
       }
       const inverse = isEmpty(committed.inverse.delta) ? undefined : committed.inverse;
-      if (inverse === undefined && committed.changed.options.size === 0) continue;
+      if (inverse === undefined && committed.changed.options.size === 0) return;
 
       const failures = check(
         committed.board,
@@ -336,6 +367,21 @@ export function createStore(options: StoreOptions = {}): Store {
       applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
       if (inverse !== undefined && given.undo !== false) inverses.unshift(inverse);
       current = committed.board;
+    }
+
+    for (const [i, given] of deltas.entries()) {
+      const delta = how.fit === true ? fit(given, current) : given;
+      if (how.fit === true && isEmpty(delta)) continue;
+      applyOne(given, delta, how.places?.[i], deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "");
+    }
+
+    if (how.afterStep === true && applied.length > 0) {
+      const after = afterStep(current, start, registrations);
+      if (after !== undefined && "failures" in after) throw new StoreError(refused, after.failures);
+      if (after !== undefined) {
+        const delta: Delta = inverses.length > 0 ? after : { ...after, undo: false };
+        applyOne(delta, delta, undefined, "What afterStep returned: ");
+      }
     }
 
     return { applied, inverses };
@@ -391,13 +437,17 @@ export function createStore(options: StoreOptions = {}): Store {
 
   // Runs the deltas as one step on the board the store holds, once the edit
   // ids that they name are those of that board, or throws what rejected them.
-  // It commits nothing, so that apply() and dryRun() both build on it.
-  function runOnBoard(deltas: readonly Delta[]): { start: Board; applied: Applied[]; inverses: Inverse[] } {
+  // It commits nothing, so that apply() and dryRun() both build on it, and it
+  // calls the afterStep of each plugin's class where `how` says so.
+  function runOnBoard(
+    deltas: readonly Delta[],
+    how: { afterStep: boolean },
+  ): { start: Board; applied: Applied[]; inverses: Inverse[] } {
     const refused = "The store rejected the delta";
     const start = current(refused);
     const failures = named(deltas);
     if (failures.length > 0) throw new StoreError(refused, failures);
-    return { start, ...run(start, deltas, {}, refused) };
+    return { start, ...run(start, deltas, how, refused) };
   }
 
   function apply(
@@ -412,7 +462,7 @@ export function createStore(options: StoreOptions = {}): Store {
 
     busy = true;
     try {
-      const { start, applied, inverses } = runOnBoard(deltas);
+      const { start, applied, inverses } = runOnBoard(deltas, { afterStep: true });
       if (applied.length === 0) return false;
       number(applied, applied.at(-1)?.board ?? start);
       const undoStep = inverses.length > 0;
@@ -439,7 +489,7 @@ export function createStore(options: StoreOptions = {}): Store {
     const was = busy;
     busy = true;
     try {
-      const { start, applied } = runOnBoard(deltas);
+      const { start, applied } = runOnBoard(deltas, { afterStep: false });
       return applied.at(-1)?.board ?? start;
     } finally {
       busy = was;
@@ -468,7 +518,7 @@ export function createStore(options: StoreOptions = {}): Store {
       const { applied, inverses } = run(
         start,
         step.inverses.map(({ delta }) => delta),
-        { fit: true, places: step.inverses.map(({ places }) => places) },
+        { fit: true, places: step.inverses.map(({ places }) => places), afterStep: true },
         refused,
       );
       number(applied, applied.at(-1)?.board ?? start);
@@ -500,15 +550,21 @@ export function createStore(options: StoreOptions = {}): Store {
       packages.value = given.packages;
       return { json: checkJsonBoard(given.board), reply: given };
     }
-    if (hello === undefined) {
-      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
-    }
-    if (hello.lock.load) {
+    const reply = lastHello();
+    if (reply.lock.load) {
       throw new StoreError(refusedOpen, [
         "The load lock fixes the app to its opening board, so the store opens no other board.",
       ]);
     }
-    return { json: checkJsonBoard(parse(given)), reply: hello };
+    return { json: checkJsonBoard(parse(given)), reply };
+  }
+
+  // The last reply to `hello`, with which the store opens a JSON board's text.
+  function lastHello(): HelloReply {
+    if (hello === undefined) {
+      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
+    }
+    return hello;
   }
 
   // The board that a JSON board opens to, as openJsonBoard() migrates it and
@@ -564,6 +620,16 @@ export function createStore(options: StoreOptions = {}): Store {
       stillOpen();
       const { json, reply } = prepareOpen(text);
       return build(json, reply).dropped;
+    });
+  }
+
+  // Opens the text as checkText() does, without holding it, but under the
+  // load lock as well, and resolves with the board and what it dropped.
+  function readText(text: string): Promise<{ board: Board; dropped: Dropped[] }> {
+    return settled(() => {
+      stillOpen();
+      const reply = lastHello();
+      return build(checkJsonBoard(parse(text)), reply);
     });
   }
 
@@ -651,6 +717,7 @@ export function createStore(options: StoreOptions = {}): Store {
     dryRun,
     open,
     check: checkText,
+    read: readText,
     undo: (origin) => {
       revert(true, origin);
     },

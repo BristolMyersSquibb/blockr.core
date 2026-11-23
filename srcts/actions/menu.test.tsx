@@ -1,8 +1,8 @@
 // Core's menu, as React draws it on the page: the menu of a target with the
 // icons, the details and the categories of its rows, the levels that it
-// shows in place of each other, a text row, the filter, a multi, a level that
-// loads or failed, the open icons of a level and of an item, and the
-// keyboard's focus as the menu closes.
+// shows in place of each other, a text row, the filter, a multi, the tick of
+// an item that gives checked, a level that loads or failed, the open icons of
+// a level and of an item, and the keyboard's focus as the menu closes.
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
@@ -299,6 +299,56 @@ describe("core's menu", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  test("draws a tick in a slot at the start of an item that gives checked, while checked is true, which assistive technology hears as a checkbox of the menu, checked or not, and runs the item's pick on a click and on Enter", async () => {
+    const layout = action("Layout", {
+      quick: () => ({
+        rows: [
+          item("Lay out again"),
+          item("Left to right", { heading: "Direction", checked: true }),
+          item("Top to bottom", { heading: "Direction", checked: false }),
+          item("Snap to grid", { heading: "Grid", detail: "20 px", checked: true }),
+          item("Grid size…", { heading: "Grid" }),
+        ],
+      }),
+    });
+    const NAMES = ["Lay out again", "Left to right", "Top to bottom", "Snap to grid, 20 px", "Grid size…"];
+
+    const clicked = await drawn({ action: layout });
+    const menu = shownMenu("Layout");
+    expect(names(menu)).toEqual(NAMES);
+    const rows = NAMES.map((name) => row(menu, name));
+    expect(rows.map((each) => [each.getAttribute("role"), each.getAttribute("aria-checked")])).toEqual([
+      ["menuitem", null],
+      ["menuitemcheckbox", "true"],
+      ["menuitemcheckbox", "false"],
+      ["menuitemcheckbox", "true"],
+      ["menuitem", null],
+    ]);
+    // Each item that gives checked keeps a slot at its start, which holds the
+    // tick while checked is true, and the other items keep none.
+    const slots = rows.map((each) => {
+      const first = each.firstElementChild;
+      if (first?.classList.contains("bc:size-3.5") !== true) return "none";
+      return first.querySelector("svg") === null ? "empty" : "tick";
+    });
+    expect(slots).toEqual(["none", "tick", "empty", "tick", "none"]);
+    expect(row(menu, "Snap to grid, 20 px").textContent).toBe("Snap to grid20 px");
+    // Each heading shows once, over all of its items.
+    expect([...menu.querySelectorAll("header")].map((header) => header.textContent)).toEqual(["Direction", "Grid"]);
+    await click(row(menu, "Top to bottom"));
+    expect(clicked.ran).toEqual([[rename("Top to bottom"), layout.id]]);
+    document.body.replaceChildren();
+
+    const entered = await drawn({ action: layout });
+    const checked = row(shownMenu("Layout"), "Left to right");
+    await step(() => {
+      checked.focus();
+    });
+    await key(checked, "Enter");
+    expect(entered.ran).toEqual([[rename("Left to right"), layout.id]]);
+    expect(entered.menu.closed()).toBe(true);
+  });
+
   test("says that a level loads, shows the message of a promise that rejects, and hears Escape in both", async () => {
     let fail: (error: Error) => void = () => undefined;
     const slow = action("Columns", { quick: () => new Promise<QuickLevel>((_resolve, reject) => (fail = reject)) });
@@ -365,6 +415,47 @@ describe("core's menu", () => {
     expect(onItem.ran).toEqual([]);
   });
 
+  test("draws the detail and the open icon of an item in one span after its label, which the SDK's item holds on the label's line", async () => {
+    await drawn({
+      action: action("Append block", {
+        advanced: { render: () => undefined },
+        quick: () => ({
+          title: "Append",
+          rows: [
+            item("Head", { detail: "first rows", advanced: { class: "head" } }),
+            item("Filter", { advanced: { class: "filter" } }),
+            item("Tail", { detail: "last rows" }),
+            item("Arrange"),
+          ],
+        }),
+      }),
+    });
+
+    // The SDK's item lays out a grid of two columns: the label's, and one at
+    // its right. A third child of the grid would go to a second line. Each
+    // child gives its text and whether it holds the open icon. The
+    // description that only assistive technology reads takes no place.
+    const menu = shownMenu("Append");
+    const cells = (name: string): [string, boolean][] =>
+      [...row(menu, name).querySelectorAll(".bc\\:grid > :not([slot=description])")].map((cell) => [
+        cell.textContent,
+        cell.querySelector("[data-open-row]") !== null,
+      ]);
+    expect(cells("Head, first rows")).toEqual([
+      ["Head", false],
+      ["first rows", true],
+    ]);
+    expect(cells("Filter")).toEqual([
+      ["Filter", false],
+      ["", true],
+    ]);
+    expect(cells("Tail, last rows")).toEqual([
+      ["Tail", false],
+      ["last rows", false],
+    ]);
+    expect(cells("Arrange")).toEqual([["Arrange", false]]);
+  });
+
   test("draws no open icon where the board action has no advanced action", async () => {
     await drawn({ action: action("Rename", { quick: () => ({ title: "Rename", rows: [item("Head", { advanced: { class: "head" } })] }) }) });
 
@@ -390,5 +481,18 @@ describe("core's menu", () => {
     await key(find(dialog(), "input[data-filter]", HTMLInputElement), "Enter", { metaKey: true });
     expect(fromLevel.advanced).toEqual([[adds.id, { picked: { input: "data" }, filter: "" }]]);
     expect(fromLevel.ran).toEqual([]);
+    document.body.replaceChildren();
+
+    // A row that gives checked, with the focus, rather than the filter.
+    const spacing = action("Spacing", {
+      advanced: { render: () => undefined },
+      quick: () => ({ picked: { spacing: "normal" }, rows: [item("Wide", { checked: true, advanced: { spacing: "wide" } })] }),
+    });
+    const fromChecked = await drawn({ action: spacing });
+    const wide = row(shownMenu("Spacing"), "Wide");
+    expect(document.activeElement).toBe(wide);
+    await key(wide, "Enter", { ctrlKey: true });
+    expect(fromChecked.advanced).toEqual([[spacing.id, { picked: { spacing: "wide" } }]]);
+    expect(fromChecked.ran).toEqual([]);
   });
 });

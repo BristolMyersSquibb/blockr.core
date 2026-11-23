@@ -1,7 +1,8 @@
 // Core's Edit board plugin on the CoreApi for tests: the board of the fixture
 // hello, whose app runs the plugin, with R played from the protocol's
 // fixtures, the plugin's UI mounted as a frontend places it, and the user
-// acting on it.
+// acting on it. The menus that the plugin opens are core's, which the test
+// drives as a user would, picking their rows by their labels.
 // The fixture's board holds the blocks a, Iris, a dataset block; b, Head; c,
 // Merge, with the inputs x and y; d, Wide sepals; e, Bind, a variadic block;
 // and f, Scatter. Its links are ab, ac (x), bc (y), ad, be, de and keen_finch
@@ -9,16 +10,22 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
+import type { BoardAction } from "../../actions/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
+import type { PluginClass } from "../../store/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
-import type { StubCoreOptions } from "../../stubs/index.ts";
+import type { StubCoreOptions, StubMenu } from "../../stubs/index.ts";
 import { chipLabels, labelled, listed, listFromField, optionFromLabel, optionLabels, picked, selectButton, selectShows } from "../../testing/select.ts";
 import { find, press, texts, type } from "../../testing/inputs.ts";
 import { held } from "../../testing/notifications.ts";
 import { openDialog } from "../../testing/overlays.ts";
+import { listedModules } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
+import { rowCheckbox } from "../../testing/rows.ts";
+import { withPlugins } from "../../testing/store.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
+import { editTitle } from "./menus.tsx";
 import * as editBoard from "./index.tsx";
 
 // The class of the plugin, which the app of the fixture hello runs.
@@ -30,6 +37,8 @@ interface Mounted {
   readonly board: () => Board;
   // The notifications that the plugin raised, in order, while they hold.
   readonly notes: readonly Notification[];
+  // The menu that is open, as the plugin opened it, which the test drives.
+  readonly menu: () => StubMenu;
   // Ends the mount, as a frontend does.
   readonly end: () => void;
 }
@@ -60,14 +69,33 @@ async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
     end = stubbed.core.mountPlugin(el, EDIT);
     await stubbed.settled();
   });
-  return { el, core: stubbed.core, board: () => stubbed.core.store.board(), notes, end };
+  const menu = (): StubMenu => {
+    const open = stubbed.menu();
+    if (open === undefined) throw new Error("No menu is open.");
+    return open;
+  };
+  return { el, core: stubbed.core, board: () => stubbed.core.store.board(), notes, menu, end };
+}
+
+// A board action of blockr.test on the kinds of target given, labelled by its
+// name, which runs the batch that `run` returns.
+function action(name: string, on: BoardAction["on"], run: NonNullable<BoardAction["run"]>): BoardAction {
+  return { id: `blockr.test-${name.toLowerCase().replaceAll(" ", "_")}_action`, label: name, on, category: "test", run };
+}
+
+// The plugin on the board of the fixture hello, or of the reply given, whose
+// app runs a plugin of blockr.test too, whose class lists the board actions
+// given.
+async function withActions(actions: readonly BoardAction[], hello: HelloReply = HELLO): Promise<Mounted> {
+  const cls: PluginClass = { id: "blockr.test-doc_plugin", boardActions: actions };
+  return mounted({ hello: withPlugins({ [cls.id]: { name: "Document" } }, hello), modules: listedModules([cls]) });
 }
 
 // The plugin's UI over a store that refuses every edit: the board of the
 // fixture hello under the board lock. The plugin draws no control there, so
 // the test hands it a CoreApi that says the board is open, and draws every
 // control.
-async function refusing(): Promise<Omit<Mounted, "notes">> {
+async function refusing(): Promise<Omit<Mounted, "notes" | "menu">> {
   const el = document.createElement("div");
   document.body.append(el);
   const hello: HelloReply = { ...HELLO, lock: { board: true, load: false } };
@@ -91,6 +119,11 @@ function section(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): HTMLEle
   return find(el, `section[aria-label="${title}"]`);
 }
 
+// The bar of the selection, or null where the plugin draws none.
+function bar(el: HTMLElement): HTMLElement | null {
+  return el.querySelector('[role="region"][aria-label="Selection"]');
+}
+
 // The form of the name given, such as "Add block".
 function form(el: ParentNode, name: string): HTMLFormElement {
   return find(el, `form[aria-label="${name}"]`, HTMLFormElement);
@@ -103,14 +136,44 @@ function button(el: ParentNode, text: string): HTMLButtonElement {
   return found;
 }
 
-// The row of a table, by its name, such as "Iris → Head" for a link.
-function row(el: ParentNode, name: string): HTMLTableRowElement {
-  return find(el, `tr[aria-label="${name}"]`, HTMLTableRowElement);
+// The row of a table of the object with the id given, such as "ab" for the
+// link from Iris to Head.
+function row(el: ParentNode, id: string): HTMLElement {
+  return find(el, `[role="row"][data-key="${id}"]`);
 }
 
-// The names of the rows of the section's table, in order.
+// The ids of the objects of the section's table, in the order of its rows.
 function rows(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): string[] {
-  return [...section(el, title).querySelectorAll("tbody tr")].map((tr) => tr.getAttribute("aria-label") ?? "");
+  return [...section(el, title).querySelectorAll('[role="row"][data-key]')].map((tr) => tr.getAttribute("data-key") ?? "");
+}
+
+// The names of the blocks or the stacks of the section's table, in the order
+// of its rows, as the cell that names each row shows them.
+function names(el: HTMLElement, title: "Blocks" | "Stacks"): string[] {
+  return [...section(el, title).querySelectorAll('[role="row"][data-key] [role="rowheader"]')].map((cell) => cell.textContent);
+}
+
+// The text of each cell of a row that shows its object, after its checkbox
+// and before its "…".
+function cells(tr: HTMLElement): string[] {
+  return [...tr.querySelectorAll('[role="rowheader"], [role="gridcell"]')].slice(1).flatMap((cell) => (cell.textContent === "⋯" ? [] : [cell.textContent]));
+}
+
+// The ticked rows of the section's table, by the ids of their objects.
+function ticked(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): string[] {
+  return rows(el, title).filter((id) => rowCheckbox(row(section(el, title), id)).checked);
+}
+
+// Opens the menu of the object of a row by the "…" at the row's end, as the
+// user does, and returns the menu, which core opened.
+async function openMenu(m: Mounted, label: string): Promise<StubMenu> {
+  await click(button(m.el, label));
+  return m.menu();
+}
+
+// The labels of the rows that the menu shows.
+function menuLabels(menu: StubMenu): string[] {
+  return menu.level()?.rows.map(({ label }) => label) ?? [];
 }
 
 // What a banner of the plugin says of why the store or the command registry
@@ -126,10 +189,12 @@ function refusals(el: ParentNode): string[][] {
 }
 
 // What the plugin says below the section's table of why the store or the
-// command registry refused an edit that the user made in the table's rows.
+// command registry refused a board action that the menu of one of its rows
+// ran.
 function belowTable(el: HTMLElement): string[][] {
   const banners: string[][] = [];
-  for (let next = find(el, "table").nextElementSibling; next?.getAttribute("role") === "alert"; next = next.nextElementSibling) {
+  const box = find(el, '[role="grid"]').parentElement;
+  for (let next = box?.nextElementSibling; next?.getAttribute("role") === "alert"; next = next.nextElementSibling) {
     banners.push(said(next));
   }
   return banners;
@@ -156,6 +221,31 @@ async function acting(fn: () => void): Promise<void> {
 async function click(el: HTMLElement): Promise<void> {
   await acting(() => {
     el.click();
+  });
+}
+
+// A click on the element as a browser fires that of element.click(): a
+// PointerEvent without a pointer type, which React Aria takes for the click of
+// a screen reader, as on a row that it then ticks.
+async function clickAsBrowser(el: HTMLElement): Promise<void> {
+  await acting(() => {
+    el.dispatchEvent(new PointerEvent("click", { bubbles: true, cancelable: true, pointerType: "", detail: 0, button: 0 }));
+  });
+}
+
+// Picks the row of the menu with the label given, and lets what it set off
+// run, as the plugin drawing the board as the batch left it.
+async function pick(menu: StubMenu, label?: string): Promise<void> {
+  await act(() => menu.pick(label));
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+}
+
+// Clicks the open icon of the menu's level, which opens the board action's
+// advanced action where the plugin gives it room, and resolves once the
+// plugin has drawn it, while the advanced action runs on.
+async function openAdvanced(menu: StubMenu): Promise<void> {
+  await acting(() => {
+    void menu.openAdvanced();
   });
 }
 
@@ -234,7 +324,7 @@ describe("the blocks", () => {
     // The form, the advanced action of core's Add block, which core renders
     // again, starts afresh for the next block.
     expect([labelled(add(), "Block class").value, labelled(add(), "ID").value, labelled(add(), "Name").value]).toEqual(["", "", ""]);
-    expect(row(section(el, "Blocks"), "Petal plot").textContent).toContain("petals");
+    expect(cells(row(section(el, "Blocks"), "petals"))).toEqual(["Petal plot", "petals", "scatter plot block"]);
   });
 
   test("get an ID that core mints and the name of their class where the user leaves the fields empty", async () => {
@@ -289,32 +379,33 @@ describe("the blocks", () => {
       await act(() => core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: `h${String(i)}`, name: `Rows ${String(i)}` }));
     }
     const blocks = section(el, "Blocks");
-    expect(rows(el, "Blocks")).toEqual(["Iris", "Head", "Merge", "Wide sepals", "Bind", "Scatter", "Rows 1", "Rows 2", "Rows 3", "Rows 4"]);
+    expect(names(el, "Blocks")).toEqual(["Iris", "Head", "Merge", "Wide sepals", "Bind", "Scatter", "Rows 1", "Rows 2", "Rows 3", "Rows 4"]);
     expect(find(blocks, 'nav[aria-label="Pages of blocks"] span').textContent).toBe("Rows 1–10 of 14");
+    expect(cells(row(blocks, "b"))).toEqual(["Head", "b", "head/tail block"]);
 
     await click(button(blocks, "Next"));
-    expect(rows(el, "Blocks")).toEqual(["Rows 5", "Rows 6", "Rows 7", "Rows 8"]);
+    expect(names(el, "Blocks")).toEqual(["Rows 5", "Rows 6", "Rows 7", "Rows 8"]);
 
     // The search finds blocks by name, ID or class, from the first page.
     await step(() => {
       type(find(blocks, "search input", HTMLInputElement), "merge");
     });
-    expect(rows(el, "Blocks")).toEqual(["Merge"]);
+    expect(names(el, "Blocks")).toEqual(["Merge"]);
     await step(() => {
       type(find(blocks, "search input", HTMLInputElement), "h7");
     });
-    expect(rows(el, "Blocks")).toEqual(["Rows 7"]);
+    expect(names(el, "Blocks")).toEqual(["Rows 7"]);
     await step(() => {
       type(find(blocks, "search input", HTMLInputElement), "head/tail");
     });
-    expect(rows(el, "Blocks")).toEqual(["Head", "Rows 1", "Rows 2", "Rows 3", "Rows 4", "Rows 5", "Rows 6", "Rows 7", "Rows 8"]);
+    expect(names(el, "Blocks")).toEqual(["Head", "Rows 1", "Rows 2", "Rows 3", "Rows 4", "Rows 5", "Rows 6", "Rows 7", "Rows 8"]);
     expect(blocks.querySelector("nav")).toBeNull();
 
     // The button of the search clears it, and so does Escape, each back on
     // the first page.
     const search = find(blocks, "search input", HTMLInputElement);
     await click(find(blocks, 'search button[aria-label="Clear search"]'));
-    expect([search.value, rows(el, "Blocks")[0], rows(el, "Blocks").length]).toEqual(["", "Iris", 10]);
+    expect([search.value, names(el, "Blocks")[0], names(el, "Blocks").length]).toEqual(["", "Iris", 10]);
     await step(() => {
       type(search, "block");
     });
@@ -322,32 +413,90 @@ describe("the blocks", () => {
     await step(() => {
       press(search, "Escape");
     });
-    expect([search.value, rows(el, "Blocks")[0]]).toEqual(["", "Iris"]);
+    expect([search.value, names(el, "Blocks")[0]]).toEqual(["", "Iris"]);
   });
 
-  test("are renamed and removed, each with its links and its place in its stack", async () => {
-    const { el, board } = await mounted();
+  test("open the menu of their block from the … button at the end of each row, which offers what every menu of the block offers, another package's board actions among them", async () => {
+    const documented = action("Add to document", ["block"], (_board, target) => [
+      { id: "blockr.core-rename_block", args: { id: "block" in target ? target.block : "", name: "In the document" } },
+    ]);
+    const m = await withActions([documented]);
+    const blocks = section(m.el, "Blocks");
+
+    // The menu offers each board action that on() gives the block, in the
+    // order of core's menus, which end with those that remove.
+    const menu = await openMenu(m, "Actions of the block Head");
+    expect(menuLabels(menu).toSorted()).toEqual(
+      m.core.boardActions
+        .on({ block: "b" })
+        .map(({ label }) => label)
+        .toSorted(),
+    );
+    expect(menuLabels(menu)).toEqual([
+      "Append block",
+      "Create link",
+      "Create stack",
+      "Rename",
+      "Edit inputs",
+      "Copy block ID",
+      "Add to document",
+      "Remove block",
+    ]);
+    // A row of the menu runs its board action, which the row draws as the
+    // board holds the block then.
+    await pick(menu, "Add to document");
+    expect(m.board().blocks.b?.name).toBe("In the document");
+    expect(cells(row(blocks, "b"))[0]).toBe("In the document");
+    // A press on the "…" opens the menu without ticking the row.
+    expect(m.core.selection.get()).toEqual([]);
+  });
+
+  test("are renamed and removed through the menus of their rows, each with its links and its place in its stack", async () => {
+    const m = await mounted();
+    const { el, board } = m;
     const blocks = section(el, "Blocks");
 
-    await click(button(blocks, "Rename the block Head"));
-    // The field is as wide as the column of names, rather than spilling into
-    // the next. Its input stretches across the field.
-    const field = find(blocks, 'input[aria-label="Block name"]').parentElement;
-    expect(field?.className).toMatch(/(^| )bc:w-full( |$)/);
-    expect(field?.className).not.toContain("bc:min-w-40");
-    await step(() => {
-      const name = find(blocks, 'input[aria-label="Block name"]', HTMLInputElement);
-      type(name, "First rows");
-      press(name, "Enter");
-    });
+    const renaming = await openMenu(m, "Actions of the block Head");
+    await pick(renaming, "Rename");
+    renaming.type("First rows", "Name");
+    await pick(renaming, "Name");
     expect(board().blocks.b?.name).toBe("First rows");
-    expect(row(blocks, "First rows").textContent).toContain("head/tail block");
+    expect(cells(row(blocks, "b"))).toEqual(["First rows", "b", "head/tail block"]);
 
-    await click(button(blocks, "Remove the block First rows"));
+    await pick(await openMenu(m, "Actions of the block First rows"), "Remove block");
     expect(Object.keys(board().blocks)).not.toContain("b");
     expect(Object.values(board().links).filter((l) => l.from === "b" || l.to === "b")).toEqual([]);
     expect(board().stacks.s1?.blocks).toEqual(["a"]);
-    expect(rows(el, "Blocks")).not.toContain("First rows");
+    expect(rows(el, "Blocks")).not.toContain("b");
+  });
+
+  test("show in their row the advanced action that the row's menu opens, as the block picker of Append block, until its done() ends it, the focus then back on the row's … button", async () => {
+    const m = await mounted();
+    const { el, board } = m;
+    const blocks = section(el, "Blocks");
+
+    const menu = await openMenu(m, "Actions of the block Scatter");
+    await pick(menu, "Append block");
+    await openAdvanced(menu);
+    // The row turns into the picker, in a cell across the row, which keeps the
+    // row's checkbox.
+    const picker = form(row(blocks, "f"), "Add block");
+    expect(rowCheckbox(row(blocks, "f"))).toBeDefined();
+    expect(row(blocks, "f").querySelector('button[aria-label="Actions of the block Scatter"]')).toBeNull();
+    expect(find(row(blocks, "f"), 'td[colspan="4"]').contains(picker)).toBe(true);
+
+    await chosen(picker, "Block class", "head", "head/tail block");
+    await step(() => {
+      type(labelled(picker, "ID"), "rows");
+    });
+    await click(button(picker, "Add block"));
+    expect(board().blocks.rows).toMatchObject({ registry_id: "blockr.core-head_block" });
+    expect(Object.values(board().links)).toContainEqual({ from: "f", to: "rows", input: "data" });
+    // The picker's done() ended the advanced action, so the row shows its
+    // block again, with the focus on its "…".
+    expect(row(blocks, "f").querySelector("form")).toBeNull();
+    expect(cells(row(blocks, "f"))).toEqual(["Scatter", "f", "scatter plot block"]);
+    expect(document.activeElement).toBe(button(blocks, "Actions of the block Scatter"));
   });
 });
 
@@ -374,7 +523,7 @@ describe("the links", () => {
 
     // With Head's input free, Bind still may not feed it, since Head feeds
     // Bind, which would close a cycle.
-    await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
     await chosen(add(), "From", "Bind");
     expect(await targets()).toEqual([]);
     expect(note(labelled(add(), "To"))).toBe("No block takes a link from this block.");
@@ -432,38 +581,58 @@ describe("the links", () => {
     await click(button(add(), "Add link"));
     expect(Object.values(board().links)).toContainEqual({ from: "a", to: "e", input: "" });
 
-    const into = [...section(el, "Links").querySelectorAll("tbody tr")]
-      .filter((tr) => tr.getAttribute("aria-label")?.endsWith("→ Bind") === true)
-      .map((tr) => tr.querySelectorAll("td")[2]?.textContent);
+    const into = Object.entries(board().links)
+      .filter(([, link]) => link.to === "e")
+      .map(([id]) => cells(row(section(el, "Links"), id))[2]);
     expect(into).toEqual(["No namePosition 1", "No namePosition 2", "plottedPosition 3", "No namePosition 4"]);
   });
 
-  test("are changed in their row, through the form of Edit link, once the user applies the edit, and the row closes on Close or Escape, the focus back on the row's Edit button", async () => {
-    const { el, board } = await mounted();
-    const links = section(el, "Links");
+  test("open the menu of their link from the … button of each row, which offers Insert block, Edit link and Remove link, and remove the link", async () => {
+    const m = await mounted();
+    const links = section(m.el, "Links");
 
-    await click(button(links, "Edit the link from Iris to Merge"));
+    const menu = await openMenu(m, "Actions of the link from Iris to Merge");
+    expect(menuLabels(menu)).toEqual(["Insert block", "Edit link", "Remove link"]);
+    await pick(menu, "Remove link");
+    expect(Object.keys(m.board().links)).not.toContain("ac");
+    expect(rows(m.el, "Links")).not.toContain("ac");
+    expect(links.textContent).not.toContain("Iris → Merge");
+  });
+
+  test("are changed in their row, which turns into the form of Edit link that the row's menu opens, until the user applies the edit or closes the form by Close or Escape, the focus then back on the row's … button", async () => {
+    const m = await mounted();
+    const { el, board } = m;
+    const links = section(el, "Links");
     const edit = (): HTMLFormElement => form(links, "Change link");
+    const editing = async (): Promise<void> => {
+      const menu = await openMenu(m, "Actions of the link from Iris to Merge");
+      await pick(menu, "Edit link");
+      await openAdvanced(menu);
+    };
+
+    await editing();
+    expect(row(links, "ac").contains(edit())).toBe(true);
     expect([labelled(edit(), "From").value, labelled(edit(), "To").value]).toEqual(["Iris", "Merge"]);
     // The link feeds x, and the form offers Merge's other input as well, y,
     // which bc feeds.
     expect(await listed(selectButton(edit(), "Input"), step)).toEqual(["x", "y"]);
-    await click(button(row(links, "Iris → Merge"), "Close"));
+    await click(button(row(links, "ac"), "Close"));
     expect(links.querySelector('form[aria-label="Change link"]')).toBeNull();
-    expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Merge"));
+    expect(document.activeElement).toBe(button(links, "Actions of the link from Iris to Merge"));
 
-    await click(button(links, "Edit the link from Iris to Merge"));
+    await editing();
     await chosen(edit(), "To", "Bind");
     await step(() => {
       press(labelled(edit(), "From"), "Escape");
     });
     expect(links.querySelector('form[aria-label="Change link"]')).toBeNull();
-    expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Merge"));
+    expect(document.activeElement).toBe(button(links, "Actions of the link from Iris to Merge"));
     expect(board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
 
-    // Moved into the variadic Bind, the link takes a name for its input. The
-    // form stays open, on the link as the board holds it now.
-    await click(button(links, "Edit the link from Iris to Merge"));
+    // Moved into the variadic Bind, the link takes a name for its input. Its
+    // done() ends the advanced action as the user applies it, and the row
+    // shows the link as the board holds it now.
+    await editing();
     await chosen(edit(), "To", "Bind");
     await step(() => {
       type(labelled(edit(), "Input name"), "left");
@@ -471,18 +640,24 @@ describe("the links", () => {
     expect(board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
     await click(button(edit(), "Apply"));
     expect(board().links.ac).toEqual({ from: "a", to: "e", input: "left" });
-    expect([labelled(edit(), "To").value, labelled(edit(), "Input name").value]).toEqual(["Bind", "left"]);
-    await click(button(row(links, "Iris → Bind"), "Close"));
-    expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Bind"));
+    expect(links.querySelector('form[aria-label="Change link"]')).toBeNull();
+    expect(cells(row(links, "ac"))).toEqual(["Irisa", "Binde", "leftPosition 1"]);
+    expect(document.activeElement).toBe(button(links, "Actions of the link from Iris to Bind"));
   });
 
   test("into a block that is not variadic, swap their inputs with the link that feeds the input that the user picks, in one step, which the form says first", async () => {
-    const { el, core, board } = await mounted();
+    const m = await mounted();
+    const { el, core, board } = m;
     const links = section(el, "Links");
     const edit = (): HTMLFormElement => form(links, "Change link");
+    const editing = async (label: string): Promise<void> => {
+      const menu = await openMenu(m, label);
+      await pick(menu, "Edit link");
+      await openAdvanced(menu);
+    };
 
     // The link from Iris feeds Merge's x, and the one from Head its y.
-    await click(button(links, "Edit the link from Iris to Merge"));
+    await editing("Actions of the link from Iris to Merge");
     expect(note(selectButton(edit(), "Input"))).toBeUndefined();
     await picked(selectButton(edit(), "Input"), step, "y");
     expect(note(selectButton(edit(), "Input"))).toBe('The link from "Head" feeds "y". Applying gives that link "x", so the two links swap their inputs.');
@@ -504,21 +679,23 @@ describe("the links", () => {
     // Into another block, the form offers the free inputs alone, since the
     // link's old input means nothing there.
     await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
-    await click(button(row(links, "Iris → Merge"), "Close"));
-    await click(button(links, "Edit the link from Iris to Head"));
+    await editing("Actions of the link from Iris to Head");
     await chosen(edit(), "To", "Merge");
     expect([selectShows(selectButton(edit(), "Input")), selectButton(edit(), "Input").disabled]).toEqual(["y", true]);
   });
 
   test("into a variadic block, move to the place that the user picks in the row's form, keeping their IDs and their ends, as a step of its own", async () => {
-    const { el, core, board } = await mounted();
+    const m = await mounted();
+    const { el, core, board } = m;
     const links = section(el, "Links");
     const edit = (): HTMLFormElement => form(links, "Change link");
     const into = (): string[] => Object.keys(board().links).filter((id) => board().links[id]?.to === "e");
     const ends = board().links.de;
 
     // The links into Bind, Head's first and Wide sepals' second.
-    await click(button(links, "Edit the link from Wide sepals to Bind"));
+    const menu = await openMenu(m, "Actions of the link from Wide sepals to Bind");
+    await pick(menu, "Edit link");
+    await openAdvanced(menu);
     expect(await listed(selectButton(edit(), "Position"), step)).toEqual(["1", "2"]);
     expect(selectShows(selectButton(edit(), "Position"))).toBe("2");
     await picked(selectButton(edit(), "Position"), step, "1");
@@ -526,8 +703,7 @@ describe("the links", () => {
 
     expect(into()).toEqual(["de", "be"]);
     expect(board().links.de).toBe(ends);
-    await click(button(row(links, "Wide sepals → Bind"), "Close"));
-    expect(texts(row(links, "Wide sepals → Bind"), "td")[2]).toBe("No namePosition 1");
+    expect(cells(row(links, "de"))[2]).toBe("No namePosition 1");
 
     await step(() => {
       core.store.undo();
@@ -537,13 +713,16 @@ describe("the links", () => {
   });
 
   test("into a variadic block from another block, take the place that the user picks there, in the same step that moves the link there", async () => {
-    const { el, core, board } = await mounted();
+    const m = await mounted();
+    const { el, core, board } = m;
     const links = section(el, "Links");
     const edit = (): HTMLFormElement => form(links, "Change link");
     const into = (): string[] => Object.keys(board().links).filter((id) => board().links[id]?.to === "e");
 
     // Merge's inputs are fixed, so its link's form offers no place.
-    await click(button(links, "Edit the link from Iris to Merge"));
+    const menu = await openMenu(m, "Actions of the link from Iris to Merge");
+    await pick(menu, "Edit link");
+    await openAdvanced(menu);
     expect(selectShows(selectButton(edit(), "Input"))).toBe("x");
     expect(() => selectButton(edit(), "Position")).toThrow();
 
@@ -581,20 +760,13 @@ describe("the links", () => {
   test("are listed in a table that a search narrows by the blocks' names and IDs and by the input", async () => {
     const { el } = await mounted();
     const links = section(el, "Links");
-    expect(rows(el, "Links")).toEqual([
-      "Iris → Head",
-      "Iris → Merge",
-      "Head → Merge",
-      "Iris → Wide sepals",
-      "Head → Bind",
-      "Wide sepals → Bind",
-      "Iris → Scatter",
-    ]);
+    expect(rows(el, "Links")).toEqual(["ab", "ac", "bc", "ad", "be", "de", "keen_finch"]);
+    expect(cells(row(links, "ab"))).toEqual(["Irisa", "Headb", "data"]);
 
     for (const [search, found] of [
-      ["scatter", ["Iris → Scatter"]],
-      ["Merge", ["Iris → Merge", "Head → Merge"]],
-      [" y", ["Head → Merge"]],
+      ["scatter", ["keen_finch"]],
+      ["Merge", ["ac", "bc"]],
+      [" y", ["bc"]],
     ] as const) {
       await step(() => {
         type(find(links, "search input", HTMLInputElement), search);
@@ -648,12 +820,12 @@ describe("the stacks", () => {
     // The next stack gets a name and a colour of its own.
     expect(labelled(add(), "Name").placeholder).toBe("Stack 2");
     expect(colorButton(add()).textContent).toBe("#FC8D62");
-    expect(texts(row(section(el, "Stacks"), "Stack 1"), "li")).toEqual(["Scatter f", "Merge c"]);
+    expect(texts(row(section(el, "Stacks"), id ?? ""), "li")).toEqual(["Scatter f", "Merge c"]);
     // The table names the stack's colour, as a swatch that a screen reader
     // reads, and draws a ring for a stack with none, which it skips.
-    expect(swatchName(row(section(el, "Stacks"), "Stack 1"))).toBe("light pale green cyan");
-    expect(swatchName(row(section(el, "Stacks"), "Input"))).toBeNull();
-    expect(find(row(section(el, "Stacks"), "Input"), 'span[aria-hidden="true"]').style.backgroundColor).toBe("");
+    expect(swatchName(row(section(el, "Stacks"), id ?? ""))).toBe("light pale green cyan");
+    expect(swatchName(row(section(el, "Stacks"), "s1"))).toBeNull();
+    expect(find(row(section(el, "Stacks"), "s1"), 'span[aria-hidden="true"].bc\\:rounded-full').style.backgroundColor).toBe("");
   });
 
   test("take the colour that the user picks, of the palette or any other, or none", async () => {
@@ -706,13 +878,31 @@ describe("the stacks", () => {
     ]);
   });
 
-  test("are changed in their row, through the form of Edit stack, once the user applies it: renamed, coloured and given other blocks, one of which leaves its stack, in one step", async () => {
-    const { el, core, board } = await mounted();
+  test("open the menu of their stack from the … button of each row, which offers Rename, Edit stack and Remove stack", async () => {
+    const m = await mounted();
+    const stacks = section(m.el, "Stacks");
+
+    const renaming = await openMenu(m, "Actions of the stack Input");
+    expect(menuLabels(renaming)).toEqual(["Rename", "Edit stack", "Remove stack"]);
+    await pick(renaming, "Rename");
+    renaming.type("Sources", "Name");
+    await pick(renaming, "Name");
+    expect(m.board().stacks.s1?.name).toBe("Sources");
+    expect(names(m.el, "Stacks")).toEqual(["Sources"]);
+    expect(button(stacks, "Actions of the stack Sources")).toBeDefined();
+  });
+
+  test("are changed in their row, which turns into the form of Edit stack that the row's menu opens, once the user applies it: renamed, coloured and given other blocks, one of which leaves its stack, in one step", async () => {
+    const m = await mounted();
+    const { el, core, board } = m;
     await act(() => core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"] }));
     const stacks = section(el, "Stacks");
 
-    await click(button(stacks, "Edit the stack Input"));
+    const menu = await openMenu(m, "Actions of the stack Input");
+    await pick(menu, "Edit stack");
+    await openAdvanced(menu);
     const edit = (): HTMLFormElement => form(stacks, "Change stack");
+    expect(row(stacks, "s1").contains(edit())).toBe(true);
     expect(labelled(edit(), "Name").value).toBe("Input");
     expect(find(edit(), 'input[type="checkbox"]', HTMLInputElement).checked).toBe(false);
     expect(chipLabels(labelled(edit(), "Blocks"))).toEqual(["Iris", "Head"]);
@@ -728,8 +918,10 @@ describe("the stacks", () => {
 
     expect(board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "f"], color: "#66c2a5" });
     expect(board().stacks.plots?.blocks).toEqual([]);
-    await click(button(row(stacks, "Sources"), "Close"));
-    expect(document.activeElement).toBe(button(stacks, "Edit the stack Sources"));
+    // Applying ends the advanced action, and the row shows the stack again.
+    expect(stacks.querySelector('form[aria-label="Change stack"]')).toBeNull();
+    expect(texts(row(stacks, "s1"), "li")).toEqual(["Iris a", "Scatter f"]);
+    expect(document.activeElement).toBe(button(stacks, "Actions of the stack Sources"));
 
     // The whole edit is one step.
     await step(() => {
@@ -739,26 +931,143 @@ describe("the stacks", () => {
     expect(board().stacks.plots?.blocks).toEqual(["f"]);
   });
 
-  test("are removed, leaving their blocks on the board", async () => {
-    const { el, board } = await mounted();
-    await click(button(section(el, "Stacks"), "Remove the stack Input"));
+  test("are removed through the menus of their rows, leaving their blocks on the board", async () => {
+    const m = await mounted();
+    await pick(await openMenu(m, "Actions of the stack Input"), "Remove stack");
+    expect(m.board().stacks).toEqual({});
+    expect(Object.keys(m.board().blocks)).toEqual(["a", "b", "c", "d", "e", "f"]);
+    expect(section(m.el, "Stacks").textContent).toContain("The board has no stacks yet.");
+  });
+});
+
+describe("the selection", () => {
+  test("takes the object of a row that the user ticks, and lets go of it as the user unticks it, while the rows show what else selected", async () => {
+    const { el, core } = await mounted();
+    const blocks = section(el, "Blocks");
+
+    await click(rowCheckbox(row(blocks, "b")));
+    await click(rowCheckbox(row(section(el, "Links"), "ab")));
+    expect(core.selection.get()).toEqual([{ block: "b" }, { link: "ab" }]);
+    expect(ticked(el, "Blocks")).toEqual(["b"]);
+    expect(ticked(el, "Links")).toEqual(["ab"]);
+
+    await click(rowCheckbox(row(blocks, "b")));
+    expect(core.selection.get()).toEqual([{ link: "ab" }]);
+
+    // The rows follow the selection, whatever sets it, as the DAG does.
+    await step(() => {
+      core.selection.set([{ stack: "s1" }, { block: "d" }]);
+    });
+    expect([ticked(el, "Blocks"), ticked(el, "Links"), ticked(el, "Stacks")]).toEqual([["d"], [], ["s1"]]);
+  });
+
+  test("takes every row of a table's page by the checkbox of the table's header, and keeps the rows of its other pages and of other tables", async () => {
+    const { el, core } = await mounted();
+    for (let i = 1; i <= 8; i++) {
+      await act(() => core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: `h${String(i)}`, name: `Rows ${String(i)}` }));
+    }
+    const blocks = section(el, "Blocks");
+    const all = (): HTMLInputElement => find(blocks, '[role="columnheader"] input[type="checkbox"]', HTMLInputElement);
+    await step(() => {
+      core.selection.set([{ block: "h8" }, { link: "ab" }]);
+    });
+
+    await click(all());
+    expect(core.selection.get()).toEqual([
+      { block: "h8" },
+      { link: "ab" },
+      ...["a", "b", "c", "d", "e", "f", "h1", "h2", "h3", "h4"].map((block) => ({ block })),
+    ]);
+    expect(all().checked).toBe(true);
+
+    await click(all());
+    expect(core.selection.get()).toEqual([{ block: "h8" }, { link: "ab" }]);
+    await click(button(blocks, "Next"));
+    expect(ticked(el, "Blocks")).toEqual(["h8"]);
+  });
+
+  test("shows a bar above the sections while it holds a board object, which says how many it holds, with the menu of the selection and a button that clears it", async () => {
+    const m = await mounted();
+    const { el, core } = m;
+    expect(bar(el)).toBeNull();
+
+    await click(rowCheckbox(row(section(el, "Blocks"), "c")));
+    await click(rowCheckbox(row(section(el, "Links"), "ad")));
+    expect(bar(el)?.textContent).toContain("2 selected");
+    expect(el.firstElementChild?.firstElementChild).toBe(bar(el));
+
+    const menu = await openMenu(m, "Actions of the selection");
+    expect(menuLabels(menu)).toEqual(["Create stack", "Remove"]);
+    menu.escape();
+
+    await click(button(bar(el) ?? el, "Clear selection"));
+    expect(core.selection.get()).toEqual([]);
+    expect(bar(el)).toBeNull();
+    expect(ticked(el, "Blocks")).toEqual([]);
+  });
+
+  test("is removed through the bar's menu, in one step that undo takes back", async () => {
+    const m = await mounted();
+    const { el, core, board } = m;
+    const before = board();
+    await step(() => {
+      core.selection.set([{ block: "d" }, { link: "keen_finch" }, { stack: "s1" }]);
+    });
+
+    await pick(await openMenu(m, "Actions of the selection"), "Remove");
+    expect(Object.keys(board().blocks)).not.toContain("d");
+    expect(Object.keys(board().links)).not.toContain("keen_finch");
     expect(board().stacks).toEqual({});
-    expect(Object.keys(board().blocks)).toEqual(["a", "b", "c", "d", "e", "f"]);
-    expect(section(el, "Stacks").textContent).toContain("The board has no stacks yet.");
+    // What left the board leaves the selection, and the bar goes.
+    expect(core.selection.get()).toEqual([]);
+    expect(bar(el)).toBeNull();
+
+    await step(() => {
+      core.store.undo();
+    });
+    expect(board()).toEqual(before);
+  });
+
+  test("shows below the bar the advanced action that the bar's menu opens, as Create stack's form with the selected blocks given", async () => {
+    const m = await mounted();
+    const { el, core, board } = m;
+    await step(() => {
+      core.selection.set([{ block: "c" }, { block: "f" }, { link: "ab" }]);
+    });
+
+    const menu = await openMenu(m, "Actions of the selection");
+    await pick(menu, "Create stack");
+    await openAdvanced(menu);
+    expect(chipLabels(labelled(form(bar(el) ?? el, "Add stack"), "Blocks"))).toEqual(["Merge", "Scatter"]);
+    expect(section(el, "Stacks").querySelectorAll('form[aria-label="Add stack"]')).toHaveLength(1);
+    // Its Close button closes it, and so the form shows until the user closes
+    // it or its done() ends it.
+    await click(button(bar(el) ?? el, "Close"));
+    expect(bar(el)?.querySelector("form")).toBeNull();
+    const again = await openMenu(m, "Actions of the selection");
+    await pick(again, "Create stack");
+    await openAdvanced(again);
+    const adding = form(bar(el) ?? el, "Add stack");
+
+    await click(button(adding, "Add stack"));
+    const [id] = Object.keys(board().stacks).filter((stack) => stack !== "s1");
+    expect(board().stacks[id ?? ""]).toMatchObject({ name: "Stack 1", blocks: ["c", "f"] });
+    // The form's done() ended the advanced action, so the bar shows no form.
+    expect(bar(el)?.querySelector("form")).toBeNull();
+    expect(document.activeElement).toBe(button(bar(el) ?? el, "Actions of the selection"));
   });
 });
 
 describe("each edit", () => {
   test("applies as the user makes it, as one step that undo takes back", async () => {
-    const { el, core, board } = await mounted();
+    const m = await mounted();
+    const { core, board } = m;
 
-    await click(button(section(el, "Blocks"), "Rename the block Head"));
-    await step(() => {
-      const name = find(el, 'input[aria-label="Block name"]', HTMLInputElement);
-      type(name, "First rows");
-      press(name, "Enter");
-    });
-    await click(button(section(el, "Links"), "Remove the link from Iris to Scatter"));
+    const renaming = await openMenu(m, "Actions of the block Head");
+    await pick(renaming, "Rename");
+    renaming.type("First rows", "Name");
+    await pick(renaming, "Name");
+    await pick(await openMenu(m, "Actions of the link from Iris to Scatter"), "Remove link");
     expect(board().blocks.b?.name).toBe("First rows");
     expect(Object.keys(board().links)).not.toContain("keen_finch");
 
@@ -778,7 +1087,7 @@ describe("each edit", () => {
   test("that the command registry or the store refuses, the plugin says why below the form that made it, in a banner in the colour of an error under a sentence that names the edit, until the user submits the form again, and core raises no notification of it", async () => {
     const { el, core, board, notes } = await mounted();
     const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
-    await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
 
     // Another edit feeds Head's one input while the form is filled in.
     await chosen(add(), "From", "Scatter");
@@ -803,49 +1112,72 @@ describe("each edit", () => {
     expect(Object.values(board().links)).toContainEqual({ from: "f", to: "e", input: "" });
   });
 
-  test("that the store refuses from the rows of a table, the plugin says why below the table, naming the edit, until the user's next edit in the table", async () => {
-    const { el, core, board } = await refusing();
+  test("that the store refuses from the menu of a row, the plugin says why below the table, naming the edit in the plugin's words, until the user opens the menu of a row of the table again, and core raises no notification of it", async () => {
+    const m = await mounted();
+    const { el, core, board, notes } = m;
+    const links = section(el, "Links");
     const before = board();
-    const blocks = section(el, "Blocks");
-    const stacks = section(el, "Stacks");
 
-    await click(button(blocks, "Remove the block Head"));
-    expect(belowTable(blocks)).toEqual([
-      [
-        'Could not remove the block "Head".',
-        'The board lock refuses to remove block "b".',
-        'The board lock refuses to remove links "ab", "bc" and "be".',
-        'The board lock refuses to change stack "s1".',
-      ],
-    ]);
-    // The board lock refuses each part of the removal, so the reasons show as
-    // a list.
-    expect(find(blocks, "table").nextElementSibling?.querySelectorAll("ul > li")).toHaveLength(3);
+    // Change source… lists Bind as a source of the link from Iris to Merge.
+    // Another edit then links Merge to Bind, so that the link from Bind would
+    // close a cycle.
+    const menu = await openMenu(m, "Actions of the link from Iris to Merge");
+    await pick(menu, "Edit link");
+    await pick(menu, "Change source…");
+    await act(() => core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
+    await expect(act(() => menu.pick("Bind"))).rejects.toThrow();
+    await acting(() => undefined);
 
-    // The next edit in the table takes the place of the last.
-    await click(button(blocks, "Rename the block Iris"));
-    await step(() => {
-      const name = find(blocks, 'input[aria-label="Block name"]', HTMLInputElement);
-      type(name, "Sources");
-      press(name, "Enter");
-    });
-    expect(belowTable(blocks)).toEqual([['Could not rename the block "Iris".', 'The board lock refuses to rename block "a".']]);
-
-    // The tables do not show the ids of links and stacks, which the store's
-    // reason names, so the sentence before it names the link or the stack.
-    await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
-    expect(belowTable(section(el, "Links"))).toEqual([['Could not remove the link from "Iris" to "Head".', 'The board lock refuses to remove link "ab".']]);
-    await click(button(stacks, "Remove the stack Input"));
-    expect(belowTable(stacks)).toEqual([['Could not remove the stack "Input".', 'The board lock refuses to remove stack "s1".']]);
-    // Opening the form that changes a stack is the user's next edit in the
-    // table, and the reason goes.
-    await click(button(stacks, "Edit the stack Input"));
-    expect(refusals(stacks)).toEqual([]);
-    await click(button(row(stacks, "Input"), "Close"));
-    expect(belowTable(stacks)).toEqual([]);
-
-    expect(board()).toEqual(before);
+    // The table shows neither id, which the store's reason names, so the
+    // sentence before it names the link.
+    expect(belowTable(links)).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
+    expect(find(links, '[role="alert"]').className).toContain("bc:border-border-danger");
+    expect(belowTable(section(el, "Blocks"))).toEqual([]);
+    expect(board().links.ac).toEqual(before.links.ac);
     expect(held(core)).toEqual([]);
+    expect(notes).toEqual([]);
+
+    // The menu of a row of another table leaves the banner.
+    (await openMenu(m, "Actions of the block Head")).escape();
+    expect(belowTable(links)).toHaveLength(1);
+    // The menu of a row of this table takes it down as it opens, even where
+    // the user then picks nothing.
+    (await openMenu(m, "Actions of the link from Iris to Head")).escape();
+    expect(belowTable(links)).toEqual([]);
+  });
+
+  test("of another package that the store refuses from the menu of a row, the table names by the board action's label", async () => {
+    const breaks = action("Add to document", ["block"], () => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }]);
+    const m = await withActions([breaks]);
+    const { el, core, notes } = m;
+    const blocks = section(el, "Blocks");
+
+    const menu = await openMenu(m, "Actions of the block Head");
+    await expect(act(() => menu.pick("Add to document"))).rejects.toThrow();
+    await acting(() => undefined);
+    expect(belowTable(blocks)).toEqual([['Add to document failed for the block "Head".', 'It fails its preflight on the board as it is, with the args {"id":"nowhere"}.']]);
+    expect(held(core)).toEqual([]);
+    expect(notes).toEqual([]);
+  });
+
+  test("that the store refuses from the menu of the selection, the bar says why below itself, naming the selection", async () => {
+    const breaks = action("Archive", ["selection"], () => [{ id: "blockr.core-remove_stack", args: { id: "nowhere" } }]);
+    const m = await withActions([breaks]);
+    const { el, core } = m;
+    await step(() => {
+      core.selection.set([{ block: "a" }, { stack: "s1" }]);
+    });
+
+    const menu = await openMenu(m, "Actions of the selection");
+    await expect(act(() => menu.pick("Archive"))).rejects.toThrow();
+    await acting(() => undefined);
+    expect(refusals(bar(el) ?? el)).toEqual([["Archive failed for the selection.", 'It fails its preflight on the board as it is, with the args {"id":"nowhere"}.']]);
+    expect(belowTable(section(el, "Blocks"))).toEqual([]);
+    expect(held(core)).toEqual([]);
+
+    // The menu of the selection takes the banner down as it opens again.
+    (await openMenu(m, "Actions of the selection")).escape();
+    expect(refusals(bar(el) ?? el)).toEqual([]);
   });
 
   test("that the store would refuse from a form that adds to the board has no form to start from, since core's board actions that add fail their offers under the board lock, whatever the plugin's CoreApi says", async () => {
@@ -885,11 +1217,14 @@ describe("each edit", () => {
   });
 
   test("that the store refuses from the form that changes a row of a table, the form says why below its button, in the row, naming the link, as the form stays as the user filled it in", async () => {
-    const { el, core, board, notes } = await mounted();
+    const m = await mounted();
+    const { el, core, board, notes } = m;
     const links = section(el, "Links");
     const edit = (): HTMLFormElement => form(links, "Change link");
 
-    await click(button(links, "Edit the link from Iris to Merge"));
+    const menu = await openMenu(m, "Actions of the link from Iris to Merge");
+    await pick(menu, "Edit link");
+    await openAdvanced(menu);
     await chosen(edit(), "From", "Bind");
     // Another edit links Merge to Bind before the user applies the form, so
     // that the link from Bind would close a cycle.
@@ -898,7 +1233,7 @@ describe("each edit", () => {
 
     expect(refusals(edit())).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
     expect(find(edit(), '[role="alert"]').previousElementSibling?.contains(button(edit(), "Apply"))).toBe(true);
-    expect(row(links, "Iris → Merge").contains(edit())).toBe(true);
+    expect(row(links, "ac").contains(edit())).toBe(true);
     expect(labelled(edit(), "From").value).toBe("Bind");
     expect(belowTable(links)).toEqual([]);
     expect(board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
@@ -907,16 +1242,141 @@ describe("each edit", () => {
   });
 });
 
+describe("the sentence that names a refused edit", () => {
+  test("names the edit in the plugin's words for core's board actions, and by its label for another package's, with the object as the tables show it", async () => {
+    const board = (await mounted()).board();
+    const core = (id: string, label = ""): Pick<BoardAction, "id" | "label"> => ({ id: `blockr.core-${id}_action`, label });
+    expect(editTitle(board, core("remove_block"), { block: "b" })).toBe('Could not remove the block "Head".');
+    expect(editTitle(board, core("edit_link"), { link: "ac" })).toBe('Could not change the link from "Iris" to "Merge".');
+    expect(editTitle(board, core("rename"), { stack: "s1" })).toBe('Could not rename the stack "Input".');
+    expect(editTitle(board, core("add_stack"), { selection: [{ block: "c" }] })).toBe("Could not put the selection in a stack.");
+    expect(editTitle(board, core("append_block"), { block: "f" })).toBe('Could not append a block to the block "Scatter".');
+    expect(editTitle(board, core("insert_block"), { link: "ab" })).toBe('Could not insert a block into the link from "Iris" to "Head".');
+    expect(editTitle(board, core("prepend_block"), { block: "b" })).toBe('Could not prepend a block to the block "Head".');
+    expect(editTitle(board, core("add_link"), { block: "e" })).toBe('Could not add a link for the block "Bind".');
+    expect(editTitle(board, core("edit_stack"), { stack: "s1" })).toBe('Could not change the stack "Input".');
+    expect(editTitle(board, core("remove_selected"), { selection: [{ block: "c" }, { link: "ab" }] })).toBe("Could not remove the selection.");
+    // Another package's, and one of core's that the plugin has no words for,
+    // by their labels.
+    expect(editTitle(board, { id: "blockr.md-add_to_document_action", label: "Add to document" }, { block: "d" })).toBe(
+      'Add to document failed for the block "Wide sepals".',
+    );
+    expect(editTitle(board, core("copy_block_id", "Copy block ID"), { block: "a" })).toBe('Copy block ID failed for the block "Iris".');
+    // An object that the board no longer holds, by its id.
+    expect(editTitle(board, core("remove_link"), { link: "gone" })).toBe('Could not remove the link "gone".');
+    expect(editTitle(board, core("remove_stack"), { stack: "gone" })).toBe('Could not remove the stack "gone".');
+    // The targets of the menus that the plugin does not open, by their ids.
+    const other = { id: "blockr.test-check_action", label: "Check" };
+    expect([{ board: true } as const, { option: "n_rows" }, { plugin: "blockr.test-doc_plugin" }].map((target) => editTitle(board, other, target))).toEqual([
+      "Check failed for the board.",
+      'Check failed for the board option "n_rows".',
+      'Check failed for the plugin "blockr.test-doc_plugin".',
+    ]);
+  });
+});
+
+describe("a form in a row", () => {
+  test("hears the keys of its fields, which the table takes again once the form has closed", async () => {
+    const m = await mounted();
+    const links = section(m.el, "Links");
+    const menu = await openMenu(m, "Actions of the link from Iris to Merge");
+    await pick(menu, "Edit link");
+    await openAdvanced(menu);
+    await chosen(form(links, "Change link"), "To", "Bind");
+    const name = labelled(form(links, "Change link"), "Input name");
+
+    // React Aria's Table would move the focus to a row whose text starts with
+    // a letter that the user types, and keep the arrows from the field.
+    await step(() => {
+      name.focus();
+    });
+    const keys = ["H", "ArrowLeft", "ArrowDown"].map((key) => new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    for (const key of keys) {
+      await step(() => {
+        name.dispatchEvent(key);
+      });
+    }
+    expect(document.activeElement).toBe(name);
+    expect(keys.map((key) => key.defaultPrevented)).toEqual([false, false, false]);
+
+    // Once the form has closed, the arrows move between the rows again.
+    await click(button(row(links, "ac"), "Close"));
+    const first = row(links, "ab");
+    await step(() => {
+      first.focus();
+    });
+    await step(() => {
+      press(first, "ArrowDown");
+    });
+    expect(document.activeElement).toBe(row(links, "ac"));
+  });
+
+  test("open beside another in one table each take the table's keys, which the table takes again once both have closed", async () => {
+    const m = await mounted();
+    const links = section(m.el, "Links");
+    for (const label of ["Actions of the link from Iris to Merge", "Actions of the link from Iris to Head"]) {
+      const menu = await openMenu(m, label);
+      await pick(menu, "Edit link");
+      await openAdvanced(menu);
+    }
+    expect([row(links, "ac"), row(links, "ab")].map((tr) => tr.querySelectorAll('form[aria-label="Change link"]').length)).toEqual([1, 1]);
+    const arrow = (): boolean => {
+      const key = new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true });
+      labelled(find(row(links, "ab"), "form"), "From").dispatchEvent(key);
+      return key.defaultPrevented;
+    };
+
+    // The first form to close leaves the keys to the other.
+    await click(button(row(links, "ac"), "Close"));
+    expect(arrow()).toBe(false);
+    await click(button(row(links, "ab"), "Close"));
+    await step(() => {
+      row(links, "ab").focus();
+    });
+    await step(() => {
+      press(row(links, "ab"), "ArrowDown");
+    });
+    expect(document.activeElement).toBe(row(links, "ac"));
+  });
+
+  test("does not tick its row as the user clicks in it or presses Space or Enter in its fields", async () => {
+    const m = await mounted();
+    const stacks = section(m.el, "Stacks");
+    const menu = await openMenu(m, "Actions of the stack Input");
+    await pick(menu, "Edit stack");
+    await openAdvanced(menu);
+    const name = labelled(form(stacks, "Change stack"), "Name");
+
+    await clickAsBrowser(name);
+    expect(m.core.selection.get()).toEqual([]);
+    for (const key of [" ", "Enter"]) {
+      await step(() => {
+        name.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+        name.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true, cancelable: true }));
+      });
+      expect(m.core.selection.get()).toEqual([]);
+    }
+    await clickAsBrowser(labelled(form(stacks, "Change stack"), "Blocks"));
+    expect(m.core.selection.get()).toEqual([]);
+    expect(row(stacks, "s1").getAttribute("aria-selected")).toBe("false");
+
+    // The row's checkbox still ticks it.
+    await click(rowCheckbox(row(stacks, "s1")));
+    expect(m.core.selection.get()).toEqual([{ stack: "s1" }]);
+  });
+});
+
 describe("under the board lock", () => {
   const locked: HelloReply = { ...HELLO, lock: { board: true, load: false } };
 
-  test("the plugin draws no control, and lists the board's links and stacks alone, in tables that a search narrows", async () => {
-    const { el } = await mounted({ hello: locked });
+  test("the plugin draws no control for what the lock fixes, and lists the board's links and stacks alone, in tables that a search narrows and whose checkboxes select their rows", async () => {
+    const { el, core } = await mounted({ hello: locked });
 
     expect([...el.querySelectorAll("section")].map((s) => s.getAttribute("aria-label"))).toEqual(["Links", "Stacks"]);
     // The only buttons are those of the sections' headers, which collapse a
     // section and edit nothing, and the button of each search that clears
-    // it.
+    // it. No row shows a "…", since core's board actions on links and stacks
+    // fail their offers under the lock.
     expect(el.querySelectorAll("form, select")).toHaveLength(0);
     expect(
       [...el.querySelectorAll('button:not([aria-label="Clear search"])')].map((button) => [button.parentElement?.tagName, button.textContent]),
@@ -924,10 +1384,27 @@ describe("under the board lock", () => {
       ["H3", "Links7"],
       ["H3", "Stacks1"],
     ]);
-    expect([...el.querySelectorAll("input")].map((input) => input.type)).toEqual(["search", "search"]);
+    expect([...el.querySelectorAll<HTMLInputElement>('input:not([type="checkbox"])')].map((input) => input.type)).toEqual(["search", "search"]);
     expect(rows(el, "Links")).toHaveLength(7);
-    expect(texts(row(section(el, "Links"), "Iris → Head"), "td")).toEqual(["Irisa", "Headb", "data"]);
-    expect(texts(row(section(el, "Stacks"), "Input"), "li")).toEqual(["Iris a", "Head b"]);
+    expect(cells(row(section(el, "Links"), "ab"))).toEqual(["Irisa", "Headb", "data"]);
+    expect(texts(row(section(el, "Stacks"), "s1"), "li")).toEqual(["Iris a", "Head b"]);
+
+    // The lock fixes no selection, so the rows' checkboxes still select, and
+    // the bar shows no "…" either.
+    await click(rowCheckbox(row(section(el, "Links"), "ab")));
+    expect(core.selection.get()).toEqual([{ link: "ab" }]);
+    expect(bar(el)?.textContent).toContain("1 selected");
+    expect(bar(el)?.querySelector('button[aria-label="Actions of the selection"]')).toBeNull();
+  });
+
+  test("a row shows the … button where another package's board action applies to its object", async () => {
+    const counted = action("Count rows", ["link"], () => undefined);
+    const m = await withActions([counted], locked);
+    const { el } = m;
+
+    expect(rows(el, "Links").filter((id) => row(section(el, "Links"), id).querySelector("button") !== null)).toHaveLength(7);
+    expect(section(el, "Stacks").querySelector('[role="grid"] button')).toBeNull();
+    expect(menuLabels(await openMenu(m, "Actions of the link from Iris to Head"))).toEqual(["Count rows"]);
   });
 });
 
@@ -944,6 +1421,25 @@ describe("the cleanup that render() returns", () => {
 
     await act(() => core.commands.run("blockr.core-rename_block", { id: "b", name: "First rows" }));
     expect(el.childNodes).toHaveLength(0);
+  });
+
+  test("ends the advanced actions that the plugin's rows and bar show, as the user closes their places", async () => {
+    const m = await mounted();
+    const menu = await openMenu(m, "Actions of the link from Iris to Merge");
+    await pick(menu, "Edit link");
+    let ended = false;
+    await acting(() => {
+      void menu.openAdvanced().then(() => {
+        ended = true;
+      });
+    });
+    expect(form(section(m.el, "Links"), "Change link")).toBeDefined();
+    expect(ended).toBe(false);
+
+    await acting(() => {
+      m.end();
+    });
+    expect(ended).toBe(true);
   });
 });
 

@@ -195,9 +195,11 @@ test_that("the user edits the stacks of a board", {
 
   wait_for_statuses(app, ready("a", "b", "c"))
 
-  # Core's Edit board plugin edits the stacks, in a section of its own: a
-  # stack's row opens a form that changes the stack once the user applies it,
-  # and another form adds a stack once the user submits it.
+  # Core's Edit board plugin edits the stacks, in a section of its own: the
+  # button at the end of a stack's row opens the stack's menu, which core
+  # draws. The form of Edit stack, which the menu opens, shows in the row and
+  # changes the stack once the user applies it. Another form adds a stack once
+  # the user submits it.
   stacks <- "section[aria-label='Stacks']"
   change <- "form[aria-label='Change stack']"
   add <- "form[aria-label='Add stack']"
@@ -206,7 +208,9 @@ test_that("the user edits the stacks of a board", {
   # ID too, which tells apart the two dataset blocks.
   labels <- c(a = "Dataset", b = "Dataset", c = "Merge")
 
-  act(app, "click", "Edit the stack Stack", selector = stacks)
+  act(app, "click", "Actions of the stack Stack", selector = stacks)
+  act(app, "item", "Edit stack")
+  act(app, "click", "Show all options")
   act(app, "fill", "Name", "abc", selector = change)
   act(app, "choose", "Blocks", "b \u00b7", labels[["b"]], selector = change)
   act(app, "click", "Apply", selector = change)
@@ -220,9 +224,9 @@ test_that("the user edits the stacks of a board", {
     "the stack abc of a, c and b"
   )
 
-  # The row's form stays open once applied, until the user closes it.
-  act(app, "click", "Close", selector = stacks)
-  act(app, "click", "Remove the stack abc", selector = stacks)
+  # Applying ends the advanced action, so the row shows the stack again.
+  act(app, "click", "Actions of the stack abc", selector = stacks)
+  act(app, "item", "Remove stack")
   wait_for_board(app, function(board) !length(board$stacks), "no stack")
 
   act(app, "fill", "Name", "ABC", selector = add)

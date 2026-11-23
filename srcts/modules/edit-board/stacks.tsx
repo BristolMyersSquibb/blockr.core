@@ -3,38 +3,44 @@
 //   Create stack on the board, which the plugin mounts where a menu of the
 //   board offers Create stack.
 // - A table of the board's stacks, with each stack's name, colour and blocks,
-//   which a search narrows and which shows a page of rows at a time. A row's
-//   Edit button turns the row into the form that changes the stack, the
-//   advanced action of Edit stack on the stack, which changes the stack once
-//   the user saves it, until the user closes it. Its Remove button removes
-//   the stack with remove_stack, which leaves the stack's blocks on the
-//   board.
+//   which a search narrows and which shows a page of rows at a time. Each
+//   row's "…" opens the menu of its stack, which offers Rename, Edit stack and
+//   Remove stack among core's board actions. An advanced action that the menu
+//   opens, such as the form of Edit stack, shows in the row, which turns into
+//   the form until done() ends it or the user closes it. Remove stack leaves
+//   the stack's blocks on the board.
 // The table draws a stack's colour with the swatch of core's React SDK.
-// Where the store or the command registry refuses a removal, the table says
-// so below itself, naming the stack, until the user's next edit in the table.
-// The forms say why below themselves.
-// Under the board lock, it lists the stacks alone.
+// Where the store or the command registry refuses a board action that a row's
+// menu ran, the plugin shows why in a banner below the table, naming the
+// stack, until the user opens the menu of one of the table's rows again. The
+// forms say why below themselves.
+// Under the board lock, it lists the stacks alone, and a row shows no "…"
+// unless another package's board action applies to its stack.
 
 import type { ReactElement } from "react";
 import { ColorSwatch } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
-import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
+import type { BlockId, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { blockName, classes, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
-import type { Edits } from "../../ui/index.ts";
-import { Advanced, BOARD, offers, Part, RowAdvanced, Section, table, useRowEditing } from "./board.tsx";
+import { blockName, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
+import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
+import { useMenus } from "./menus.tsx";
 
-// Core's board actions whose advanced actions the section mounts, by their
-// ids, as any plugin names them.
+// Core's board action whose advanced action the section mounts, by its id, as
+// any plugin names it.
 const CREATE_STACK = "blockr.core-add_stack_action";
-const EDIT_STACK = "blockr.core-edit_stack_action";
+
+const COLUMNS = [
+  { id: "name", name: "Name", rowHeader: true },
+  { id: "blocks", name: "Blocks" },
+] as const;
 
 export function StacksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
   const stacks = Object.entries(board.stacks);
   const view = useTableView(stacks, ([id, stack]) => [stack.name, id, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
-  // The edits of the table's rows, which say why one was refused below the
+  // The menus of the table's rows, which say why one was refused below the
   // table.
-  const edits = useEdits(core);
+  const menus = useMenus(core);
 
   return (
     <Section title="Stacks" count={stacks.length}>
@@ -52,99 +58,37 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
             {view.found === 0 ? (
               <p className={styles.hint}>No stack matches the search.</p>
             ) : (
-              <table className={table.table}>
-                <caption className="bc:sr-only">The board's stacks</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" className={table.head}>
-                      Name
-                    </th>
-                    <th scope="col" className={table.head}>
-                      Blocks
-                    </th>
-                    {locked ? null : (
-                      <th scope="col" className={`${table.head} bc:w-24`}>
-                        <span className="bc:sr-only">Actions</span>
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {view.rows.map(([id, stack]) => (
-                    <StackRow key={id} core={core} edits={edits} board={board} id={id} stack={stack} locked={locked} />
-                  ))}
-                </tbody>
-              </table>
+              <ObjectsTable
+                core={core}
+                menus={menus}
+                kind="stack"
+                label="The board's stacks"
+                columns={COLUMNS}
+                rows={view.rows.map(([id, stack]) => ({
+                  id,
+                  text: stack.name,
+                  menuLabel: `Actions of the stack ${stack.name}`,
+                  cells: [
+                    {
+                      content: (
+                        <span className="bc:flex bc:items-center bc:gap-1.5">
+                          <Swatch color={stack.color} />
+                          <span className="bc:font-medium">{stack.name}</span>
+                        </span>
+                      ),
+                      className: WRAP,
+                    },
+                    { content: <StackBlocks board={board} blocks={stack.blocks} />, className: WRAP },
+                  ],
+                }))}
+              />
             )}
-            <Refusal refusal={edits.refusal} />
+            <Refusal refusal={menus.refusal} />
             <Pager label="Pages of stacks" view={view} />
           </>
         )}
       </Part>
     </Section>
-  );
-}
-
-function StackRow({
-  core,
-  edits,
-  board,
-  id,
-  stack,
-  locked,
-}: {
-  core: CoreApi;
-  edits: Edits;
-  board: Board;
-  id: StackId;
-  stack: Stack;
-  locked: boolean;
-}): ReactElement {
-  const { editing, open, close, button } = useRowEditing();
-  if (editing) {
-    return <RowAdvanced core={core} id={EDIT_STACK} target={{ stack: id }} label={stack.name} columns={3} onDone={close} />;
-  }
-  return (
-    <tr aria-label={stack.name} className={table.row}>
-      <td className={`${table.cell} bc:break-words`}>
-        <span className="bc:flex bc:items-center bc:gap-1.5">
-          <Swatch color={stack.color} />
-          <span className="bc:font-medium">{stack.name}</span>
-        </span>
-      </td>
-      <td className={`${table.cell} bc:break-words`}>
-        <StackBlocks board={board} blocks={stack.blocks} />
-      </td>
-      {locked ? null : (
-        <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Edit the stack ${stack.name}`}
-            ref={button}
-            onClick={() => {
-              // Opening the form is the user's next edit in the table, so the
-              // table's refusal goes. The form says why its own edits are
-              // refused.
-              edits.clear();
-              open();
-            }}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Remove the stack ${stack.name}`}
-            onClick={() => {
-              void edits.run(`Could not remove the stack "${stack.name}".`, "blockr.core-remove_stack", { id });
-            }}
-          >
-            Remove
-          </button>
-        </td>
-      )}
-    </tr>
   );
 }
 

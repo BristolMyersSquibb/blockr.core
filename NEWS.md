@@ -266,6 +266,9 @@
   Its error names `@blockr/core/react`, from which a package draws React Aria's components.
   A second copy of React Aria would hold React contexts of its own, which the components of the SDK do not read.
   The preset leaves `@internationalized/date` and `@internationalized/number` to the package, since they hold no React context (#754).
+  The preset resolves an import of the React Compiler's runtime, `react-compiler-runtime` or `react/compiler-runtime`, to the runtime of the React that the module imports.
+  So a package can bundle a library that the React Compiler built, such as React Flow 13, and its bundle holds no copy of the runtime.
+  A module that bundled the package `react-compiler-runtime` would fail as the page loads, since the package calls `require("react")` (#836).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a frontend sets them.
   What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
   Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
@@ -308,7 +311,7 @@
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
   Its `request()` sends a request of one of the app's plugins, by the id of the plugin's class, once the blocks that the request reads are evaluated, and keeps none of its answers.
   Its `mintId()` mints an ID in the shape that the blockr option `rand_id` names, as core's commands do.
-  A caller that adds a block and links it in one list of commands mints the block's ID first, since the list hands no value from one command to the next (#695).
+  A caller that adds a block and links it in one batch mints the block's ID first, since a batch hands no value from one command to the next (#695).
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol, takes the modules of plugin classes and board options by their IDs and serves core's own, as the page imports them.
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505, #560).
@@ -456,7 +459,7 @@
   So a plugin class's commands can refuse what its plugins lock, and mint IDs as core's commands do.
   A command throws what `refusal()` makes to refuse from its `preflight()`, `prepare()` or `run()`, and the command registry rejects with it as it is, as with its own refusals.
   Core's own commands read the board lock and mint IDs through the context too.
-  Undo never takes back what a command with `undo: false` changes, whether the command runs alone or in a list.
+  Undo never takes back what a command with `undo: false` changes, whether the command runs alone or in a batch.
   That suits a command that changes only what the user looks at, such as which of the dock's views shows.
   The command registry gives each delta of such a command `undo: false`, and the store applies and announces such a delta as any other, but keeps no inverse of it, as it keeps no board option values.
   A step of which the store keeps no inverse leaves the undo and redo steps as they are.
@@ -466,18 +469,18 @@
   Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
   A new step empties the redo steps, whoever takes it.
   An undo or a redo is a change of the origin that asks for it, `"user"` where none is given (#608).
-* The store's `apply()` returns whether the step took an undo step, and `commands.run()` resolves with that value, for a command alone and for a list.
+* The store's `apply()` returns whether the step took an undo step, and `commands.run()` resolves with that value, for a command alone and for a batch.
   So a plugin, such as the assistant's edit tool, need not work it out from the deltas that it hears.
   It could not always do so, since a delta can set a board option's value and give a block's state the value it holds already: the store keeps no inverse of such a delta, but announces all of it (#725).
-* The command registry takes a list of commands, each as `{ id, args }`, in `commands.run(list, origin)` and `commands.plan(list)`, as the assistant's edit tool runs one.
-  It plans each command on the board that the deltas of the commands before it leave, so that a list can add a block and then link it.
+* The command registry takes a batch of commands, each as `{ id, args }`, in `commands.run(batch, origin)` and `commands.plan(batch)`, as the assistant's edit tool runs one.
+  It plans each command on the board that the deltas of the commands before it leave, so that a batch can add a block and then link it.
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
-  Where the board changes while a command of the list waits in its `prepare()`, the registry plans the list again from its first command, on the board as it is then, and no command prepares twice.
+  Where the board changes while a command of the batch waits in its `prepare()`, the registry plans the batch again from its first command, on the board as it is then, and no command prepares twice.
   The registry applies the deltas of every command as one step of the origin, or applies none where one command refuses.
-  It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
-  The step of a list is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
-  Where the registry refuses a list that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
-  The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
+  It then rejects with a `CommandError` whose `index` gives the command's place in the batch, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
+  The step of a batch is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
+  Where the registry refuses a batch that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
+  The client records a batch in one span, `command batch`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
 * Core's commands `blockr.core-add_link` and `blockr.core-change_link` check a link in their preflight before the store does.
   The preflight fails for a link that would join a block to itself, close a cycle or feed an input that another link feeds.
   It throws the `refusal()` of the command's context, with a sentence for each failure, such as `The link would close a cycle through the blocks "a", "b" and "d".`
@@ -898,6 +901,42 @@
   The advanced action runs nothing before the user applies the edits through its Apply button.
   It then runs them as one step of the user, which one undo takes back: `remove_link`, `change_link`, `add_link`, then `move_link`, each at most once for each input.
   Where the store refuses the batch, the advanced action says why below its button and keeps what the user gave (#747, #828).
+* The rows of the Edit board plugin's tables open the menus of their blocks, links and stacks, in place of their own buttons, which renamed and removed a block, and changed and removed a link or a stack.
+  Each row ends in a "…" button, which opens the menu of its object through `core.boardActions.menu()`.
+  So a row offers every board action that applies to its object, another package's among them, as every other menu of the object does.
+  A row shows the button only where `core.boardActions.on()` gives its object a board action, so under the board lock a row shows none unless another package's board action applies.
+  An advanced action that a row's menu opens, such as the form of Edit link, shows in the row, which turns into the form in a cell across the row.
+  The form now closes once the user applies it, as its `done()` ends the advanced action, and the keyboard's focus goes back to the row's button.
+  Each row starts with a checkbox, which adds its object to `core.selection` or takes it out, and which shows whether the selection holds the object, whatever set it.
+  The checkbox in a table's header ticks every row of the page.
+  While the selection holds a board object, a bar above the sections says how many it holds, with a "…" button that opens the menu of the selection and a button that clears the selection.
+  An advanced action that the menu of the selection opens, such as the form of Create stack, shows below the bar.
+  Where the store refuses a board action that one of these menus ran, the plugin says why in a banner below the table or the bar, until the user opens one of the menus there again.
+  The reason starts with a sentence that names the edit: in the plugin's own words for core's board actions, as `Could not remove the stack "Input".`, and by its label for another package's, as `Add to document failed for the block "Filter".`
+  The tables draw with the `Table` of core's React SDK (#783, #828).
+* An item of a quick action takes `checked`.
+  It is true for the current pick and for a toggle that is on, and false for another pick and for a toggle that is off.
+  So a quick action shows which direction a layout runs in, or whether snapping is on.
+  Core's menu draws a tick at the start of the item while `checked` is true, in a slot that the item keeps while `checked` is false, as it draws the choices of a multi.
+  Assistive technology hears an item that gives `checked` as a checkbox of the menu, checked or not.
+  Picking the item runs its `pick()`, as for any item.
+  The `level()` of a `StubMenu` gives the item's `checked`, so that a test reads which item is checked (#837).
+* The store's `read()` gives the board that opening a JSON board's text would give, and what opening it would drop, as the DAG's Paste reads a copied board.
+  It opens the text as `check()` does and holds nothing, so the board on the page stays as it is.
+  The board it gives is migrated by the versions that the text records, and lacks what opening would drop.
+  It rejects with the `StoreError` that would refuse the board.
+  Unlike `check()`, it reads a text under the load lock as well, since the load lock fixes only which board the app shows.
+  Through `CoreApi`, core first imports the migrations of the block classes whose older states the text holds, as it does before it opens a board.
+  It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
+* A plugin class may give `afterStep(board, before, plugin)`, which returns the patches to its plugin's state that follow from a step as a whole.
+  The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.
+  It gets the board that the step leaves and the board that the step started from.
+  The store applies what every class returns as one more delta of the step.
+  It expands that delta through the `update` of each class and checks it as any other delta, so that the patches are undone, saved and announced with the step.
+  So the DAG can place a block that a batch adds and then links by that link, which `update` has not seen yet as it is given the block's delta.
+  Every class gets the board that the step's own deltas leave, so that what one class returns does not depend on the order of the app's plugins.
+  Where the step's own deltas take no undo step, as those of a command with `undo: false`, the patches of `afterStep` take none either.
+  The store's `dryRun()` calls no `afterStep`, since the command registry plans each command of a batch on the board between the deltas of the step (#834).
 
 # blockr.core 0.1.4
 

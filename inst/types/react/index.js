@@ -549,6 +549,7 @@ import {
   Table,
   TableBody,
   TableHeader,
+  TableStateContext,
   TabList,
   TabPanel,
   Tabs,
