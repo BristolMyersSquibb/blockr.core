@@ -771,7 +771,7 @@ describe("core's notifications", () => {
     });
     const reported = logged();
 
-    await expect(s.core.commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "blockr.test-relayout" }])).rejects.toThrow(
+    await expect(s.core.commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }, { id: "blockr.test-relayout" }])).rejects.toThrow(
       'The batch was refused at command 2, "blockr.test-relayout"\n- No layout.',
     );
     await s.settled();
@@ -855,7 +855,7 @@ describe("core's notifications", () => {
     const run = (origin?: string): Promise<boolean> =>
       s.core.commands.run(
         [
-          { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+          { id: "blockr.core-change_board", args: { name: "Sepals" } },
           { id: "blockr.core-remove_block", args: { id: "nowhere" } },
         ],
         origin,
@@ -946,9 +946,9 @@ describe("core's notifications", () => {
 
     expect(s.core.store.apply({ name: "Sepals" })).toBe(true);
     expect(s.core.store.apply({ name: "Petals" }, "assistant", { undo: false, notifier })).toBe(false);
-    await expect(s.core.commands.run("blockr.core-rename_board", { name: "Sepals" }, "assistant", { notifier })).resolves.toBe(true);
+    await expect(s.core.commands.run("blockr.core-change_board", { name: "Sepals" }, "assistant", { notifier })).resolves.toBe(true);
     await expect(s.core.commands.run("blockr.core-set_option", { id: "n_rows", value: 30 })).resolves.toBe(false);
-    await expect(s.core.commands.run([{ id: "blockr.core-rename_board", args: { name: "Petals" } }], "assistant", { notifier })).resolves.toBe(true);
+    await expect(s.core.commands.run([{ id: "blockr.core-change_board", args: { name: "Petals" } }], "assistant", { notifier })).resolves.toBe(true);
     await expect(s.core.commands.run([], "assistant")).resolves.toBe(false);
     await s.settled();
 
@@ -962,10 +962,10 @@ describe("core's notifications", () => {
     await s.settled();
     const bad = { notifier: "quiet" as never };
 
-    await expect(s.core.commands.run("blockr.core-rename_board", { name: "Sepals" }, "user", bad)).rejects.toThrow(
+    await expect(s.core.commands.run("blockr.core-change_board", { name: "Sepals" }, "user", bad)).rejects.toThrow(
       new TypeError("The `notifier` of run() is a function."),
     );
-    await expect(s.core.commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }], "user", bad)).rejects.toThrow(
+    await expect(s.core.commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }], "user", bad)).rejects.toThrow(
       new TypeError("The `notifier` of run() is a function."),
     );
     expect(() => {

@@ -415,7 +415,7 @@
   A row of each table renames or removes its block, or opens a form that changes its link or its stack once the user saves it.
   The form that changes a link into a variadic block also takes the link's position among the block's links.
   The block takes its links in that order.
-  A new position moves the link with core's command `blockr.core-move_link`, which keeps the link's ID and its ends.
+  Core's command `blockr.core-change_link` moves the link to a new position through its `before`, and keeps the link's ID.
   The form that changes a link into a block that is not variadic, such as a merge block, offers every input of the block.
   Where another link feeds the input that the user picks, the form says so, and saving swaps the inputs of the two links in one step.
   Core's command `blockr.core-change_link` swaps them where the link keeps its block.
@@ -499,7 +499,7 @@
   A block constructor takes it, as `NA` unless a script gives another, and `new_block_class()` refuses a state arg named `locked`, while a JSON board holds `NA` as `null`.
   R sends both locks with its reply to `hello`, in `lock`, as `{ "board": true, "load": true }`, where it sent the blocks that a locked board leaves open, and an evaluation carries the block's `locked`.
   The store's `locked()` says which blocks a lock fixes, and under the board lock the store refuses every delta but one that changes the state of a block that the board lock leaves open, a board option's value or what sits inside a plugin's state.
-  Core's command `blockr.core-set_block_lock` sets a block's lock.
+  Core's command `blockr.core-change_block` sets a block's lock through its `locked`.
   Under the board lock, R refuses an evaluation that binds a block's data inputs to other blocks or gives a locked block another state, with an error that names the lock.
   With the load lock on too, R holds every block to the opening board, which it reads as the app starts, and evaluates a locked block with the block expression that it built then.
   A locked block whose block expression fails to build then stops the app, naming the block, unless the failure is a `blockr_invalid()` or a `blockr_waiting()`, which R replies with to every evaluation of the block.
@@ -678,7 +678,7 @@
   Its chips then show no button and remove nothing on a key, Backspace removes nothing, no button clears, and a press in the field opens no list.
   The chips of a disabled select take no focus either, as its text field takes none.
   A bound select of one leaves its state arg unset so, through the new `unset()` of the binding of `bind()` and of `Bound` in the SDK, as a new block leaves an arg without a default.
-  For that, a block host's `submit()` leaves a state arg that its change gives as `undefined` unset, through the `unset` of `set_block`.
+  For that, a block host's `submit()` leaves a state arg that its change gives as `undefined` unset, through the `unset` of `blockr.core-change_block`.
   React Aria draws the list as wide as the field, in a portal at the end of the page's body.
   Given `value` and `onChange`, it picks for its caller, so that a plugin's UI can run a command with the pick.
   Given `bound`, it binds a block's state arg or a board option's value, as before: one string, or an array of strings, which it submits once, as its list closes, in place of `Checklist`, which is gone.
@@ -899,7 +899,8 @@
   On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
   The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
   The advanced action runs nothing before the user applies the edits through its Apply button.
-  It then runs them as one step of the user, which one undo takes back: `remove_link`, `change_link`, `add_link`, then `move_link`, each at most once for each input.
+  It then runs them as one step of the user, which one undo takes back: `remove_link`, `change_link` and `add_link`, each at most once for each input.
+  Where the user dragged the inputs of a variadic block into another order, a `change_link` for each input then puts it last, in that order.
   Where the store refuses the batch, the advanced action says why below its button and keeps what the user gave (#747, #828).
 * The rows of the Edit board plugin's tables open the menus of their blocks, links and stacks, in place of their own buttons, which renamed and removed a block, and changed and removed a link or a stack.
   Each row ends in a "…" button, which opens the menu of its object through `core.boardActions.menu()`.

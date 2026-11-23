@@ -862,7 +862,7 @@ function Toolbar({ board, showOptions }) {
         label: "Board name",
         name: board.name,
         onSubmit: (name) => {
-          void runCommand(core, "blockr.core-rename_board", { name });
+          void runCommand(core, "blockr.core-change_board", { name });
         },
         onDone: () => {
           setRenaming(false);

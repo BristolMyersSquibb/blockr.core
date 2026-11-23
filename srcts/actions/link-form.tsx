@@ -31,9 +31,9 @@
 //   select of the other end alone. The block is the link's target where the
 //   open icon of a "Take from" row handed it as the target, as "A link into
 //   "Merge".", and its source otherwise.
-// - The form that edits a link, Edit link's, changes it with change_link, and
-//   moves it with move_link to the place that the user picks among the links
-//   into a variadic block, which keeps its ID and its ends.
+// - The form that edits a link, Edit link's, changes it with change_link,
+//   which keeps its ID. Where the user picks another place among the links
+//   into a variadic block, the call gives that place too, as its `before`.
 // Where the store refuses the batch, the form says why below its button, and
 // keeps what the user gave. It reads the board as it is, through the store.
 
@@ -69,7 +69,6 @@ import type { CommandCall } from "./actions.ts";
 
 const ADD_LINK = "blockr.core-add_link";
 const CHANGE_LINK = "blockr.core-change_link";
-const MOVE_LINK = "blockr.core-move_link";
 
 // What the form that adds a link starts from: its source, its target and the
 // input, each where given.
@@ -206,19 +205,20 @@ function LinkForm({
   }
 
   // The batch that the form runs: add_link with an ID that CoreApi mints, or
-  // change_link, followed by move_link where the user picked another place
-  // among the links into a variadic block. The place counts the other links
-  // into the block, which change_link leaves where they are.
+  // change_link. Where the user picked another place among the links into a
+  // variadic block, change_link gives it as its `before`: the link at that
+  // place, which the link goes before, or null for the last place. The place
+  // counts the other links into the block, which change_link leaves where
+  // they are.
   function batch(source: BlockId, target: BlockId): CommandCall[] {
     const linkInput = variadic ? name.trim() : chosen;
     const link: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
     if (editing === undefined) {
       return [{ id: ADD_LINK, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
     }
-    const changed: CommandCall[] = [{ id: CHANGE_LINK, args: { id: editing.id, ...link } }];
-    if (among === undefined || position === undefined || position === among.place) return changed;
-    const before = among.others[position - 1];
-    return [...changed, { id: MOVE_LINK, args: { id: editing.id, ...(before === undefined ? {} : { before }) } }];
+    const moved = among !== undefined && position !== undefined && position !== among.place;
+    const before = moved ? (among.others[position - 1] ?? null) : undefined;
+    return [{ id: CHANGE_LINK, args: { id: editing.id, ...link, ...(before === undefined ? {} : { before }) } }];
   }
 
   async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {

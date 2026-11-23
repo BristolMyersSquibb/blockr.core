@@ -395,7 +395,7 @@ describe("menu()", () => {
   });
 
   test("runs the batch of a row as one step of the user, with the commands that extend returns, and hands the notifier a refusal with the board action that ran the batch", async () => {
-    const renames = action("Rename to First", ["block"], { run: () => [{ id: "blockr.core-rename_block", args: { id: "b", name: "First" } }] });
+    const renames = action("Rename to First", ["block"], { run: () => [{ id: "blockr.core-change_block", args: { id: "b", name: "First" } }] });
     const breaks = action("Break", ["block"], { run: () => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }] });
     const s = await stubbed([listing("test", [renames, breaks])]);
     const board = s.core.store.board();
@@ -404,7 +404,7 @@ describe("menu()", () => {
     const opts = {
       extend(deltas: readonly Delta[]): CommandCall[] {
         seen.push(deltas.map((delta) => Object.keys(delta.blocks?.mod ?? {})).flat());
-        return [{ id: "blockr.core-rename_block", args: { id: "a", name: "Second" } }];
+        return [{ id: "blockr.core-change_block", args: { id: "a", name: "Second" } }];
       },
       notifier(notifications: readonly Notification[], by: BoardAction) {
         handed.push([notifications.map(notificationCode), by.id]);
@@ -477,7 +477,7 @@ describe("menu()", () => {
   });
 
   test("closes the menu that is open as another opens, as a click outside it does, which applies the ticks of a multi", async () => {
-    const ticks = asking("Ticks", multi(() => [{ id: "blockr.core-rename_block", args: { id: "b", name: "Ticked" } }]));
+    const ticks = asking("Ticks", multi(() => [{ id: "blockr.core-change_block", args: { id: "b", name: "Ticked" } }]));
     const s = await stubbed([listing("test", [ticks])]);
 
     const first = s.menu({ block: "b" });
@@ -494,7 +494,7 @@ describe("menu()", () => {
   });
 
   test("closes the menu that is open as the next board opens, and drops its ticks", async () => {
-    const ticks = asking("Ticks", multi(() => [{ id: "blockr.core-rename_block", args: { id: "b", name: "Ticked" } }]));
+    const ticks = asking("Ticks", multi(() => [{ id: "blockr.core-change_block", args: { id: "b", name: "Ticked" } }]));
     const s = await stubbed([listing("test", [ticks])]);
 
     const menu = s.menu({ block: "b" });
@@ -565,7 +565,7 @@ describe("trigger()", () => {
     return { got, cls: listing("test", [runs]), id: runs.id };
   }
 
-  const rename = (name: string): CommandCall[] => [{ id: "blockr.core-rename_block", args: { id: "b", name } }];
+  const rename = (name: string): CommandCall[] => [{ id: "blockr.core-change_block", args: { id: "b", name } }];
 
   test("runs the batch that run returns as one step of the user, which one undo takes back, and calls run at once with the board, the target and CoreApi", async () => {
     const { got, cls, id } = running(() => [...rename("First"), { id: "blockr.core-remove_link", args: { id: "ab" } }]);
@@ -607,7 +607,7 @@ describe("trigger()", () => {
       el,
       extend(deltas) {
         seen.push(...deltas.map((delta) => Object.keys(delta.blocks?.add ?? {})));
-        return [{ id: "blockr.core-rename_block", args: { id: "n", name: "Placed" } }];
+        return [{ id: "blockr.core-change_block", args: { id: "n", name: "Placed" } }];
       },
     });
 

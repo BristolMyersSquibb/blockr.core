@@ -72,7 +72,7 @@ function stubbed(classes: readonly PluginClass[], options: StubCoreOptions = {},
   });
 }
 
-const rename = (name: string): CommandCall[] => [{ id: "blockr.core-rename_block", args: { id: "b", name } }];
+const rename = (name: string): CommandCall[] => [{ id: "blockr.core-change_block", args: { id: "b", name } }];
 const refused: CommandCall[] = [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }];
 const REFUSAL = 'The batch was refused at command 1, "blockr.core-remove_link"';
 
@@ -141,7 +141,7 @@ describe("opening an advanced action", () => {
     const shown = form();
     const link = asking("Create link", ["block", "board"], shown.module, {
       quick: (_board, target) =>
-        "board" in target ? undefined : { rows: [{ kind: "item", label: "Iris", pick: () => [{ id: "blockr.core-rename_block", args: { id: "b", name: "Linked" } }] }] },
+        "board" in target ? undefined : { rows: [{ kind: "item", label: "Iris", pick: () => [{ id: "blockr.core-change_block", args: { id: "b", name: "Linked" } }] }] },
     });
     const s = await stubbed([listing([link])]);
 
