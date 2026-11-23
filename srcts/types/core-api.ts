@@ -118,11 +118,8 @@ export interface CoreApi {
     //   core's dialog, from which the keyboard's focus returns to `el`.
     // Where the store or the command registry refuses the batch of a run or a
     // row, core tells the user why through a notification of the code
-    // `board_edit_failed`. Where the board action plays a role and its batch
-    // breaks the role, core refuses the batch before anything runs, as a fault
-    // of the board action's package, through a notification of the code
-    // `board_action_failed`. The notifier takes either notification in place
-    // of core, with the board action. It resolves once the batch has run, or
+    // `board_edit_failed`. The notifier takes either notification in place of
+    // core, with the board action. It resolves once the batch has run, or
     // once the menu has closed without one, and rejects with the refusal or
     // the failure. For an advanced action, it resolves once the advanced
     // action ends: once its done() has run a batch, or its place has closed

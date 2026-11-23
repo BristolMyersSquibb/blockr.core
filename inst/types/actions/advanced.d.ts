@@ -32,7 +32,7 @@ export interface AdvancedParts {
     readonly store: Pick<Store, "board" | "hasBoard" | "subscribe">;
     readonly core: () => CoreApi;
     readonly applies: (action: BoardAction, target: Target) => boolean;
-    readonly run: (action: BoardAction, target: Target, batch: readonly CommandCall[], batching: Batching) => Promise<readonly Delta[]>;
+    readonly run: (batch: readonly CommandCall[], batching: Batching) => Promise<readonly Delta[]>;
     readonly frontend: () => Place | undefined;
     readonly dialog: ShowDialog;
     readonly raise: (notification: Omit<Notification, "id">) => void;

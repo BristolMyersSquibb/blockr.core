@@ -20,10 +20,10 @@
 //   user may change or, for the colour, leave out. It mints the stack's ID
 //   through CoreApi's mintId() and adds the stack with add_stack.
 //   On a block or a selection, the new stack takes exactly the blocks that
-//   the target names, since Create stack plays add_stack_role, whose target
-//   fixes them (./roles.ts). So the form names those blocks in a line above
-//   its fields, as "A stack of the blocks "Merge" and "Scatter".", in place of
-//   the select of its blocks, which it shows on the board alone.
+//   the target names, as add_stack_role has it (./roles.ts). So the form
+//   names those blocks in a line above its fields, as "A stack of the blocks
+//   "Merge" and "Scatter".", in place of the select of its blocks, which it
+//   shows on the board alone.
 // - The form that edits a stack, Edit stack's, renames it with rename_stack
 //   and sets its colour and its blocks with change_stack, each where it
 //   changed. A name that the user leaves empty keeps the stack's name.

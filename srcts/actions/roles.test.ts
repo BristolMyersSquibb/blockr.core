@@ -2,8 +2,8 @@
 // those that the classes of the app's plugins list, the classes that core
 // refuses for a role that breaks a rule, the board action that the blockr
 // option board_actions picks for a role, which plays it in place of its
-// default, the picks for which core opens no board, and the check of each
-// batch that the board action that plays a role runs.
+// default, and the picks for which core opens no board. Core checks no batch
+// of the board action that plays a role, whose edit is the role's contract.
 // The fixture's board holds the blocks a, Iris; b, Head; c, Merge, with the
 // inputs x and y; d, Wide sepals; e, Bind, a variadic block; and f, Scatter.
 // Its links are ab, ac (x), bc (y), ad, be, de and keen_finch (a to f), and
@@ -21,7 +21,7 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { createBoardActions } from "./actions.ts";
-import { batchFailure, checkedPlayer, CORE_ROLES } from "./roles.ts";
+import { checkedPlayer, CORE_ROLES } from "./roles.ts";
 import type { Role } from "./roles.ts";
 
 // Core's board actions on the block b, as on() gives them, which come first
@@ -98,12 +98,7 @@ function appending(target: Target, from?: string): CommandCall[] {
 }
 
 // A role of blockr.test on blocks, whose board action renames the block.
-const notesRole: Role = {
-  id: "notes_role",
-  on: ["block"],
-  default: "blockr.test-notes_action",
-  commands: [{ id: "blockr.core-rename_block", fixes: (_board, target, args) => "block" in target && (args as { id?: unknown }).id === target.block }],
-};
+const notesRole: Role = { id: "notes_role", on: ["block"], default: "blockr.test-notes_action" };
 
 // The board action that plays notes_role by default, which renames the block
 // to the name given.
@@ -196,39 +191,6 @@ describe("the roles that a plugin class lists", () => {
       'gives the role "notes_role", whose default "notes" is not named as a board action\'s id is, "{pkg}-{name}".',
     ],
     ["has an advanced that is not true", [{ ...notesRole, advanced: false }], 'gives the role "notes_role", whose advanced is neither true nor left out.'],
-    ["has commands that are no array", [{ ...notesRole, commands: {} }], 'gives the role "notes_role", whose commands are no array.'],
-    ["runs no command", [{ ...notesRole, commands: [] }], 'gives the role "notes_role", which runs no command.'],
-    ["has a command that is no object", [{ ...notesRole, commands: ["rename"] }], 'gives the role "notes_role", with a command that is no object.'],
-    [
-      "has a command whose id is not named as a command's id is",
-      [{ ...notesRole, commands: [{ id: "rename_block" }] }],
-      'gives the role "notes_role", with a command whose id "rename_block" is not named as a command\'s id is, "{pkg}-{name}".',
-    ],
-    [
-      "has a command whose each names no kind that each takes",
-      [{ ...notesRole, commands: [{ id: "blockr.core-rename_block", each: "blocks" }] }],
-      'gives the role "notes_role", whose command "blockr.core-rename_block" has each "blocks", which is none of "block", "input", "link" and "stack".',
-    ],
-    [
-      "has a command whose optional is not true",
-      [{ ...notesRole, commands: [{ id: "blockr.core-rename_block", optional: false }] }],
-      'gives the role "notes_role", whose command "blockr.core-rename_block" has optional false, which is neither true nor left out.',
-    ],
-    [
-      "has a command whose repeats is not true",
-      [{ ...notesRole, commands: [{ id: "blockr.core-rename_block", repeats: 1 }] }],
-      'gives the role "notes_role", whose command "blockr.core-rename_block" has repeats 1, which is neither true nor left out.',
-    ],
-    [
-      "has a command with more than one of optional, each and repeats",
-      [{ ...notesRole, commands: [{ id: "blockr.core-rename_block", optional: true, each: "block" }] }],
-      'gives the role "notes_role", whose command "blockr.core-rename_block" has optional and each, while a command takes at most one of optional, each and repeats.',
-    ],
-    [
-      "has a command whose fixes is no function",
-      [{ ...notesRole, commands: [{ id: "blockr.core-rename_block", fixes: "b" }] }],
-      'gives the role "notes_role", whose command "blockr.core-rename_block" has a fixes that is no function.',
-    ],
   ])("refuse the whole class where its roles %s, with module_failed about the class", async (_rule, roles, message) => {
     const fine = action("fine", ["board"]);
     const cls = listing("faulty", [fine], {
@@ -439,287 +401,5 @@ describe("the board action that plays a role", () => {
     const reported = logged();
     await expect(stubbed([listing("kit", actions)], picks)).rejects.toThrow(`${why}\n${NO_BOARD}`);
     reported.restore();
-  });
-});
-
-describe("the check of a batch", () => {
-  // The board action of blockr.test that board_actions picks for
-  // append_block_role, which runs the batch that `run` returns.
-  function appendingKit(run: NonNullable<BoardAction["run"]>) {
-    const append = action("kit_append", ["block"], { role: "append_block_role", run });
-    return { cls: listing("kit", [append]), picks: { append_block_role: append.id } };
-  }
-
-  // What core says of a batch of the kit's board action that breaks its role,
-  // for the reason given.
-  const breaks = (why: string): string =>
-    `Core refused the batch of the board action "blockr.test-kit_append_action", which breaks its role "append_block_role": ${why}. The role runs "blockr.core-add_block", then "blockr.core-add_link".`;
-
-  test.each<[string, (target: Target) => CommandCall[], string]>([
-    [
-      "runs a command that the role does not run",
-      (target) => [...appending(target), { id: "blockr.core-remove_block", args: { id: "f" } }],
-      'its call 3 is of "blockr.core-remove_block", which the role does not run',
-    ],
-    ["links the new block to another block than the target", (target) => appending(target, "c"), 'the args of its call 2, of "blockr.core-add_link", do not keep what the target fixes'],
-    ["runs the role's commands out of order", (target) => [...appending(target)].reverse(), 'its call 1, of "blockr.core-add_link", comes where the role runs "blockr.core-add_block"'],
-    [
-      "runs a command more often than the role runs it",
-      (target) => [...appending(target), { id: ADD_LINK, args: { from: "b", to: "f" } }],
-      'its call 3, of "blockr.core-add_link", comes out of the role\'s order, or more often than the role runs it',
-    ],
-    ["leaves out a command of the role", (target) => appending(target).slice(0, 1), 'its batch holds no call of "blockr.core-add_link"'],
-  ])("refuses a batch that %s before anything runs, as a fault of the board action's package, naming the role and the call", async (_what, batch, why) => {
-    const { cls, picks } = appendingKit((_board, target) => batch(target));
-    const s = await stubbed([cls], picks);
-    const board = s.core.store.board();
-
-    const reported = logged();
-    await expect(s.core.boardActions.trigger("append_block_role", { block: "b" }, { el })).rejects.toThrow(breaks(why));
-    reported.restore();
-
-    expect(s.core.store.board()).toEqual(board);
-    expect(s.core.store.canUndo()).toBe(false);
-    expect(raised(s.core, "board_action_failed")).toEqual([about(cls.id, "board_action_failed", breaks(why))]);
-    expect(reported.errors().map((line) => line.message)).toEqual([breaks(why)]);
-    s.stop();
-  });
-
-  test("checks the batch of a row of the quick action, and of done(), which rejects and leaves the advanced action open", async () => {
-    let done: ((calls?: readonly CommandCall[]) => Promise<void>) | undefined;
-    const append = action("kit_append", ["block"], {
-      role: "append_block_role",
-      run: undefined,
-      quick: (_board, target) => ({ rows: [{ kind: "item", label: "Head", pick: () => appending(target, "c") }] }),
-      advanced: {
-        render(args) {
-          ({ done } = args);
-          return () => undefined;
-        },
-      },
-    });
-    const s = await stubbed([listing("kit", [append])], { append_block_role: append.id });
-    const why = breaks('the args of its call 2, of "blockr.core-add_link", do not keep what the target fixes');
-
-    const reported = logged();
-    const picked = s.core.boardActions.trigger("append_block_role", { block: "b" }, { el });
-    await expect(s.menu()?.pick("Head")).rejects.toThrow(why);
-    await expect(picked).rejects.toThrow(why);
-
-    void s.core.boardActions.trigger("append_block_role", { block: "b" }, { el });
-    void s.menu()?.openAdvanced();
-    await expect(done?.(appending({ block: "b" }, "c"))).rejects.toThrow(why);
-    expect(s.advanced()?.closed()).toBe(false);
-    reported.restore();
-
-    expect(Object.hasOwn(s.core.store.board().blocks, "n")).toBe(false);
-    expect(reported.errors().map((line) => line.message)).toEqual([why, why]);
-    s.stop();
-  });
-
-  test("leaves out the commands that the caller's extend adds after the batch", async () => {
-    const { cls, picks } = appendingKit((_board, target) => appending(target));
-    const s = await stubbed([cls], picks);
-
-    await s.core.boardActions.trigger("append_block_role", { block: "b" }, {
-      el,
-      extend: () => [{ id: "blockr.core-rename_block", args: { id: "n", name: "Appended" } }],
-    });
-
-    expect(s.core.store.board().blocks.n?.name).toBe("Appended");
-    s.core.store.undo();
-    expect(Object.hasOwn(s.core.store.board().blocks, "n")).toBe(false);
-    s.stop();
-  });
-});
-
-describe("the check of a batch against one of core's roles", () => {
-  const role = (id: string): Role => {
-    const found = CORE_ROLES.find((each) => each.id === id);
-    if (found === undefined) throw new Error(`Core has no role "${id}".`);
-    return found;
-  };
-  const call = (id: string, args: Json): CommandCall => ({ id: `blockr.core-${id}`, args });
-
-  test.each<[string, string, Target, CommandCall[], string | undefined]>([
-    [
-      "removes each link, block and stack of a selection once, links first",
-      "remove_selected_role",
-      { selection: [{ stack: "s1" }, { block: "f" }, { link: "ab" }, { block: "f" }, { link: "nowhere" }] },
-      [call("remove_link", { id: "ab" }), call("remove_block", { id: "f" }), call("remove_stack", { id: "s1" })],
-      undefined,
-    ],
-    [
-      "leaves out a block of the selection",
-      "remove_selected_role",
-      { selection: [{ block: "f" }, { block: "c" }] },
-      [call("remove_block", { id: "f" })],
-      'its batch holds 1 call of "blockr.core-remove_block" in a row, where the target holds 2 blocks',
-    ],
-    [
-      "removes a block that the selection does not hold",
-      "remove_selected_role",
-      { selection: [{ block: "f" }] },
-      [call("remove_block", { id: "c" })],
-      'the args of its call 1, of "blockr.core-remove_block", do not keep what the target fixes',
-    ],
-    ["moves the link alone", "edit_link_role", { link: "be" }, [call("move_link", { id: "be" })], undefined],
-    [
-      "changes and moves the link out of order",
-      "edit_link_role",
-      { link: "be" },
-      [call("move_link", { id: "be" }), call("change_link", { id: "be", from: "a" })],
-      'its call 2, of "blockr.core-change_link", comes out of the role\'s order, or more often than the role runs it',
-    ],
-    [
-      "changes another link",
-      "edit_link_role",
-      { link: "be" },
-      [call("change_link", { id: "de", from: "a" })],
-      'the args of its call 1, of "blockr.core-change_link", do not keep what the target fixes',
-    ],
-    [
-      "adds any number of inputs to a variadic block",
-      "edit_inputs_role",
-      { block: "e" },
-      [call("add_link", { from: "a", to: "e" }), call("add_link", { from: "c", to: "e" }), call("add_link", { from: "f", to: "e" })],
-      undefined,
-    ],
-    [
-      "removes the links of the inputs of a block that takes each by its name, once for each input",
-      "edit_inputs_role",
-      { block: "c" },
-      [call("remove_link", { id: "ac" }), call("remove_link", { id: "bc" })],
-      undefined,
-    ],
-    [
-      "adds an input to a variadic block and moves it among the others, in one batch",
-      "edit_inputs_role",
-      { block: "e" },
-      [
-        call("add_link", { id: "n1", from: "a", to: "e" }),
-        call("move_link", { id: "n1" }),
-        call("move_link", { id: "be" }),
-        call("move_link", { id: "de" }),
-      ],
-      undefined,
-    ],
-    [
-      "adds an input to another block",
-      "edit_inputs_role",
-      { block: "e" },
-      [call("add_link", { from: "a", to: "c" })],
-      'the args of its call 1, of "blockr.core-add_link", do not keep what the target fixes',
-    ],
-    [
-      "removes a link into another block",
-      "edit_inputs_role",
-      { block: "c" },
-      [call("remove_link", { id: "ab" })],
-      'the args of its call 1, of "blockr.core-remove_link", do not keep what the target fixes',
-    ],
-    [
-      "moves a link into another block",
-      "edit_inputs_role",
-      { block: "c" },
-      [call("change_link", { id: "ac", to: "d" })],
-      'the args of its call 1, of "blockr.core-change_link", do not keep what the target fixes',
-    ],
-    ["renames the stack", "rename_role", { stack: "s1" }, [call("rename_stack", { id: "s1", name: "Sources" })], undefined],
-    [
-      "renames a block on a stack",
-      "rename_role",
-      { stack: "s1" },
-      [call("rename_block", { id: "s1", name: "Sources" })],
-      'the args of its call 1, of "blockr.core-rename_block", do not keep what the target fixes',
-    ],
-    [
-      "renames the stack and changes it, in this order",
-      "edit_stack_role",
-      { stack: "s1" },
-      [call("rename_stack", { id: "s1", name: "Sources" }), call("change_stack", { id: "s1", color: "#66c2a5" })],
-      undefined,
-    ],
-    [
-      "adds a stack of exactly the selection's blocks",
-      "add_stack_role",
-      { selection: [{ block: "c" }, { link: "ab" }, { block: "f" }] },
-      [call("add_stack", { blocks: ["f", "c"] })],
-      undefined,
-    ],
-    [
-      "adds a stack of the selection's blocks and another",
-      "add_stack_role",
-      { selection: [{ block: "c" }, { link: "ab" }, { block: "f" }] },
-      [call("add_stack", { blocks: ["c", "f", "d"] })],
-      'the args of its call 1, of "blockr.core-add_stack", do not keep what the target fixes',
-    ],
-    [
-      "adds a stack without a block of the selection",
-      "add_stack_role",
-      { selection: [{ block: "c" }, { block: "f" }] },
-      [call("add_stack", { blocks: ["c"] })],
-      'the args of its call 1, of "blockr.core-add_stack", do not keep what the target fixes',
-    ],
-    ["adds a stack of any blocks on the board", "add_stack_role", { board: true }, [call("add_stack", { blocks: ["c", "d"] })], undefined],
-    [
-      "puts a block on a link, from the block that the link comes from",
-      "insert_block_role",
-      { link: "ab" },
-      [
-        call("add_block", { registry_id: "blockr.core-head_block", id: "n" }),
-        call("add_link", { from: "a", to: "n" }),
-        call("change_link", { id: "ab", from: "n" }),
-      ],
-      undefined,
-    ],
-    [
-      "puts a block on a link, from another block",
-      "insert_block_role",
-      { link: "ab" },
-      [call("add_block", { registry_id: "blockr.core-head_block", id: "n" }), call("add_link", { from: "b", to: "n" }), call("change_link", { id: "ab", from: "n" })],
-      'the args of its call 2, of "blockr.core-add_link", do not keep what the target fixes',
-    ],
-    ["adds a link into the block", "add_link_role", { block: "e" }, [call("add_link", { from: "f", to: "e" })], undefined],
-    [
-      "adds a link that neither starts nor ends at the block",
-      "add_link_role",
-      { block: "f" },
-      [call("add_link", { from: "c", to: "e" })],
-      'the args of its call 1, of "blockr.core-add_link", do not keep what the target fixes',
-    ],
-    ["adds any link on the board", "add_link_role", { board: true }, [call("add_link", { from: "c", to: "e" })], undefined],
-  ])("%s keeps the role, or breaks it as said", async (_what, id, target, batch, why) => {
-    const s = await stubCore();
-
-    expect(batchFailure(role(id), s.core.store.board(), s.core.blockRegistry(), target, batch)).toBe(why);
-    s.stop();
-  });
-
-  test("of a command with each input counts the inputs of the block's class, and the links into a variadic block, each of which is one of its inputs", async () => {
-    const s = await stubCore();
-    const inputs: Role = {
-      id: "inputs_role",
-      on: ["block"],
-      default: "blockr.test-inputs_action",
-      commands: [{ id: "blockr.core-remove_link", each: "input" }],
-    };
-    const check = (target: Target, links: readonly string[]) =>
-      batchFailure(
-        inputs,
-        s.core.store.board(),
-        s.core.blockRegistry(),
-        target,
-        links.map((id) => call("remove_link", { id })),
-      );
-
-    // Merge takes x and y, and Bind the links be and de.
-    expect(check({ block: "c" }, ["ac", "bc"])).toBeUndefined();
-    expect(check({ block: "c" }, ["ac"])).toBe('its batch holds 1 call of "blockr.core-remove_link" in a row, where the target holds 2 inputs');
-    expect(check({ block: "e" }, ["be", "de"])).toBeUndefined();
-    expect(check({ block: "e" }, ["be", "de", "be"])).toBe(
-      'its call 3, of "blockr.core-remove_link", comes out of the role\'s order, or more often than the role runs it',
-    );
-    s.stop();
   });
 });

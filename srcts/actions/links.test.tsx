@@ -233,7 +233,7 @@ describe("Create link", () => {
     expect(added.map((id) => s.core.store.board().links[id])).toEqual([{ from: "f", to: "e", input: "" }]);
   });
 
-  test("on a block, opens the form from the block, which it names in place of the select of the link's source, since its role fixes the block at one end", async () => {
+  test("on a block, opens the form from the block, which it names in place of the select of the link's source, since the link starts or ends at the block", async () => {
     const s = await stubbed();
     const links = Object.keys(s.core.store.board().links);
     const menu = s.menu({ block: "f" });

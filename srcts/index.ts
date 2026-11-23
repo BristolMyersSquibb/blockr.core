@@ -105,7 +105,6 @@ export type {
   QuickLevel,
   QuickRow,
   Role,
-  RoleCommand,
   ShownLevel,
   ShownRow,
   Target,

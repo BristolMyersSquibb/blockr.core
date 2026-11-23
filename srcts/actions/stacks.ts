@@ -6,8 +6,8 @@
 //   runs blockr.core-add_stack, with the blocks, or with none on the board, a
 //   name and a colour that no other stack has, and an ID that CoreApi mints as
 //   the user picks it. A block that the new stack takes leaves the stack that
-//   held it. It plays add_stack_role, which runs add_stack alone, so that its
-//   quick action lists no stack that the board holds for the blocks to join.
+//   held it. It plays add_stack_role, which adds a stack, so that its quick
+//   action lists no stack that the board holds for the blocks to join.
 //   Its advanced action is the form of a stack (./stack-form.tsx), with the
 //   blocks given, or with none on the board.
 // - Edit stack, on a stack. Its quick action offers Colour…, which lists the

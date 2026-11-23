@@ -141,14 +141,6 @@ function jsonEqual(a, b) {
   }
   return false;
 }
-function getAt(root, path) {
-  let at = root;
-  for (const key2 of path) {
-    if (!isObject(at) || !Object.hasOwn(at, key2)) return void 0;
-    at = at[key2];
-  }
-  return at;
-}
 function without(record, keys) {
   if (!keys.some((key2) => Object.hasOwn(record, key2))) return record;
   return Object.fromEntries(
@@ -2375,17 +2367,17 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
     }
   }
 }
-async function evaluateReads(deps, block, entry, name3, names2, signal5) {
+async function evaluateReads(deps, block, entry, name3, names, signal5) {
   const what = `The request "${name3}" of block "${block}"`;
-  if (names2.length === 0) return [];
+  if (names.length === 0) return [];
   const inputs = deps.scheduler.inputs(block);
   if (inputs === void 0) throw new Error(`Block "${block}" left the board, so its request "${name3}" did not go to R.`);
-  const unlinked = inputs.unlinked.filter((input2) => names2.includes(input2));
+  const unlinked = inputs.unlinked.filter((input2) => names.includes(input2));
   if (unlinked.length > 0) {
     throw new RequestError(`${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`);
   }
   const read = inputs.recipe.filter(
-    (input2) => names2.includes(input2.input) || names2.includes("...") && !entry.inputs.includes(input2.input)
+    (input2) => names.includes(input2.input) || names.includes("...") && !entry.inputs.includes(input2.input)
   );
   const upstream = [...new Set(read.flatMap((input2) => input2.block ?? []))];
   if (upstream.length === 0) return read.map((input2) => ({ input: input2.input }));
@@ -3756,20 +3748,20 @@ function createBlockrOptions(client) {
     }
     return asked;
   }
-  async function send(names2) {
-    const asked = [...names2.keys()];
+  async function send(names) {
+    const asked = [...names.keys()];
     let values2;
     try {
       values2 = await requestBlockrOptions(client, asked);
     } catch (error) {
       const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${errorMessage(error)}`, { cause: error });
-      for (const [name3, settle2] of names2) {
+      for (const [name3, settle2] of names) {
         found.delete(name3);
         settle2.reject(failure);
       }
       return;
     }
-    for (const [name3, settle2] of names2) {
+    for (const [name3, settle2] of names) {
       settle2.resolve(Object.hasOwn(values2, name3) ? values2[name3] ?? null : void 0);
     }
   }
@@ -3782,11 +3774,11 @@ function createBlockrOptions(client) {
     }
   };
 }
-async function requestBlockrOptions(client, names2) {
+async function requestBlockrOptions(client, names) {
   for (; ; ) {
     let reply;
     try {
-      ({ reply } = await client.request({ kind: "blockr_options", names: names2 }));
+      ({ reply } = await client.request({ kind: "blockr_options", names }));
     } catch (error) {
       if (error instanceof SessionEndedError) continue;
       throw error;
@@ -7768,7 +7760,7 @@ function createAdvanced(parts) {
       shown2.action,
       target2,
       given,
-      (calls, notifier) => finishShown(shown2, target2, own2, calls, notifier),
+      (calls, notifier) => finishShown(shown2, own2, calls, notifier),
       () => {
         end(shown2);
       }
@@ -7779,14 +7771,14 @@ function createAdvanced(parts) {
       unmount();
     };
   }
-  async function finishShown(shown2, target2, own2, calls, notifier) {
+  async function finishShown(shown2, own2, calls, notifier) {
     if (calls === void 0 || calls.length === 0) {
       end(shown2);
       return;
     }
     const { opening: opening2 } = shown2;
     const triggered = shown2.first && own2;
-    const deltas = await parts.run(shown2.action, target2, calls, {
+    const deltas = await parts.run(calls, {
       ...opening2.call === void 0 ? {} : { call: opening2.call },
       extend: triggered ? opening2.extend : void 0,
       notifier: notifier ?? (triggered ? opening2.notifier : void 0)
@@ -7926,7 +7918,7 @@ function createAdvanced(parts) {
       };
       const finish = async (calls, notifier) => {
         if (calls !== void 0 && calls.length > 0) {
-          await parts.run(action2, target2, calls, notifier === void 0 ? {} : { notifier });
+          await parts.run(calls, notifier === void 0 ? {} : { notifier });
         }
         again();
       };
@@ -9586,9 +9578,9 @@ function suggestedColor(stacks) {
   return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
 }
 function suggestedName(stacks) {
-  const names2 = new Set(stacks.map((stack) => stack.name));
+  const names = new Set(stacks.map((stack) => stack.name));
   let n = 1;
-  while (names2.has(`Stack ${String(n)}`)) n++;
+  while (names.has(`Stack ${String(n)}`)) n++;
   return `Stack ${String(n)}`;
 }
 var createStackForm = {
@@ -9731,8 +9723,8 @@ function StackColor({ color: color2, onChange }) {
         Checkbox,
         {
           isSelected: color2 !== null,
-          onChange: (selected2) => {
-            onChange(selected2 ? last : null);
+          onChange: (selected) => {
+            onChange(selected ? last : null);
           },
           children: "A colour of its own"
         }
@@ -9759,8 +9751,8 @@ function StackColor({ color: color2, onChange }) {
   ] });
 }
 function stackOf(board, blocks) {
-  const names2 = quoted(blocks.map((block) => blockName(board, block)));
-  return blocks.length === 1 ? `A stack of the block ${names2}.` : `A stack of the blocks ${names2}.`;
+  const names = quoted(blocks.map((block) => blockName(board, block)));
+  return blocks.length === 1 ? `A stack of the block ${names}.` : `A stack of the blocks ${names}.`;
 }
 function sameBlocks(a, b) {
   return a.length === b.length && a.every((block, i) => block === b[i]);
@@ -10001,158 +9993,38 @@ function removals(board, target2) {
 var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';
 
 // srcts/actions/roles.ts
-var EACH = ["block", "input", "link", "stack"];
-var ADD_BLOCK = "blockr.core-add_block";
-var RENAME_BLOCK = "blockr.core-rename_block";
-var REMOVE_BLOCK = "blockr.core-remove_block";
-var ADD_LINK4 = "blockr.core-add_link";
-var CHANGE_LINK4 = "blockr.core-change_link";
-var MOVE_LINK3 = "blockr.core-move_link";
-var REMOVE_LINK2 = "blockr.core-remove_link";
-var ADD_STACK3 = "blockr.core-add_stack";
-var CHANGE_STACK3 = "blockr.core-change_stack";
-var RENAME_STACK2 = "blockr.core-rename_stack";
-var REMOVE_STACK = "blockr.core-remove_stack";
 var CORE_ROLES = [
-  {
-    id: "add_block_role",
-    on: ["board"],
-    default: "blockr.core-add_block_action",
-    advanced: true,
-    commands: [{ id: ADD_BLOCK }]
-  },
-  {
-    id: "append_block_role",
-    on: ["block"],
-    default: "blockr.core-append_block_action",
-    commands: [{ id: ADD_BLOCK }, { id: ADD_LINK4, fixes: names("block", "from") }]
-  },
-  {
-    id: "prepend_block_role",
-    on: ["block"],
-    default: "blockr.core-prepend_block_action",
-    commands: [{ id: ADD_BLOCK }, { id: ADD_LINK4, fixes: names("block", "to") }]
-  },
-  {
-    id: "insert_block_role",
-    on: ["link"],
-    default: "blockr.core-insert_block_action",
-    commands: [{ id: ADD_BLOCK }, { id: ADD_LINK4, fixes: fromSource }, { id: CHANGE_LINK4, fixes: names("link") }]
-  },
-  {
-    id: "add_link_role",
-    on: ["block", "board"],
-    default: "blockr.core-add_link_action",
-    advanced: true,
-    commands: [{ id: ADD_LINK4, fixes: endsAtBlock }]
-  },
-  {
-    id: "add_stack_role",
-    on: ["block", "selection", "board"],
-    default: "blockr.core-add_stack_action",
-    advanced: true,
-    commands: [{ id: ADD_STACK3, fixes: takesBlocks }]
-  },
-  {
-    id: "rename_role",
-    on: ["block", "stack"],
-    default: "blockr.core-rename_action",
-    commands: [
-      { id: RENAME_BLOCK, optional: true, fixes: names("block") },
-      { id: RENAME_STACK2, optional: true, fixes: names("stack") }
-    ]
-  },
-  {
-    id: "edit_link_role",
-    on: ["link"],
-    default: "blockr.core-edit_link_action",
-    commands: [
-      { id: CHANGE_LINK4, optional: true, fixes: names("link") },
-      { id: MOVE_LINK3, optional: true, fixes: names("link") }
-    ]
-  },
-  {
-    id: "edit_inputs_role",
-    on: ["block"],
-    default: "blockr.core-edit_inputs_action",
-    commands: [
-      { id: REMOVE_LINK2, repeats: true, fixes: intoBlock },
-      { id: CHANGE_LINK4, repeats: true, fixes: intoBlock },
-      { id: ADD_LINK4, repeats: true, fixes: names("block", "to") },
-      { id: MOVE_LINK3, repeats: true, fixes: intoBlock }
-    ]
-  },
-  {
-    id: "edit_stack_role",
-    on: ["stack"],
-    default: "blockr.core-edit_stack_action",
-    commands: [
-      { id: RENAME_STACK2, optional: true, fixes: names("stack") },
-      { id: CHANGE_STACK3, optional: true, fixes: names("stack") }
-    ]
-  },
-  {
-    id: "remove_block_role",
-    on: ["block"],
-    default: "blockr.core-remove_block_action",
-    commands: [{ id: REMOVE_BLOCK, fixes: names("block") }]
-  },
-  {
-    id: "remove_link_role",
-    on: ["link"],
-    default: "blockr.core-remove_link_action",
-    commands: [{ id: REMOVE_LINK2, fixes: names("link") }]
-  },
-  {
-    id: "remove_stack_role",
-    on: ["stack"],
-    default: "blockr.core-remove_stack_action",
-    commands: [{ id: REMOVE_STACK, fixes: names("stack") }]
-  },
-  {
-    id: "remove_selected_role",
-    on: ["selection"],
-    default: "blockr.core-remove_selected_action",
-    commands: [
-      { id: REMOVE_LINK2, each: "link", fixes: selected("link") },
-      { id: REMOVE_BLOCK, each: "block", fixes: selected("block") },
-      { id: REMOVE_STACK, each: "stack", fixes: selected("stack") }
-    ]
-  }
+  // Adds a block on its own.
+  { id: "add_block_role", on: ["board"], default: "blockr.core-add_block_action", advanced: true },
+  // Adds a block that takes the result of the block, through a link from it.
+  { id: "append_block_role", on: ["block"], default: "blockr.core-append_block_action" },
+  // Adds a block that feeds the block, through a link into one of its inputs.
+  { id: "prepend_block_role", on: ["block"], default: "blockr.core-prepend_block_action" },
+  // Adds a block on the link, which then comes from the new block, while a
+  // new link feeds the new block from the block that the link came from.
+  { id: "insert_block_role", on: ["link"], default: "blockr.core-insert_block_action" },
+  // Adds a link that starts or ends at the block, or any link on the board.
+  { id: "add_link_role", on: ["block", "board"], default: "blockr.core-add_link_action", advanced: true },
+  // Adds a stack of exactly the blocks that the target holds, or of any
+  // blocks on the board.
+  { id: "add_stack_role", on: ["block", "selection", "board"], default: "blockr.core-add_stack_action", advanced: true },
+  // Renames the block or the stack.
+  { id: "rename_role", on: ["block", "stack"], default: "blockr.core-rename_action" },
+  // Changes the link, its ends, its input or its place among the links into
+  // its block.
+  { id: "edit_link_role", on: ["link"], default: "blockr.core-edit_link_action" },
+  // Changes the links into the block's inputs: removes, changes, adds and
+  // moves any number of them.
+  { id: "edit_inputs_role", on: ["block"], default: "blockr.core-edit_inputs_action" },
+  // Changes the stack, its name, its colour or its blocks.
+  { id: "edit_stack_role", on: ["stack"], default: "blockr.core-edit_stack_action" },
+  // Removes the block, the link or the stack.
+  { id: "remove_block_role", on: ["block"], default: "blockr.core-remove_block_action" },
+  { id: "remove_link_role", on: ["link"], default: "blockr.core-remove_link_action" },
+  { id: "remove_stack_role", on: ["stack"], default: "blockr.core-remove_stack_action" },
+  // Removes every link, block and stack of the selection.
+  { id: "remove_selected_role", on: ["selection"], default: "blockr.core-remove_selected_action" }
 ];
-function names(kind, arg = "id") {
-  return (_board, target2, args) => {
-    const id2 = idOf(target2, kind);
-    return id2 !== void 0 && getAt(args, [arg]) === id2;
-  };
-}
-function endsAtBlock(_board, target2, args) {
-  return !("block" in target2) || getAt(args, ["from"]) === target2.block || getAt(args, ["to"]) === target2.block;
-}
-function fromSource(board, target2, args) {
-  const link = "link" in target2 ? own(board.links, target2.link) : void 0;
-  return link !== void 0 && getAt(args, ["from"]) === link.from;
-}
-function takesBlocks(board, target2, args) {
-  if ("board" in target2) return true;
-  const blocks = getAt(args, ["blocks"]);
-  const taken = Array.isArray(blocks) ? blocks : [];
-  const held3 = heldBlocks(board, target2);
-  return taken.length === held3.length && held3.every((block) => taken.includes(block));
-}
-function intoBlock(board, target2, args) {
-  if (!("block" in target2)) return false;
-  const id2 = getAt(args, ["id"]);
-  const link = typeof id2 === "string" ? own(board.links, id2) : void 0;
-  const to = getAt(args, ["to"]);
-  return (link === void 0 || link.to === target2.block) && (to === void 0 || to === target2.block);
-}
-function selected(kind) {
-  return (board, target2, args) => {
-    const id2 = getAt(args, ["id"]);
-    return typeof id2 === "string" && held2(board, target2, kind).includes(id2);
-  };
-}
 function checkedPlayer(role, action2) {
   if (action2 === void 0) return { why: "no package registers that board action" };
   if (action2.role !== role.id) {
@@ -10165,57 +10037,6 @@ function checkedPlayer(role, action2) {
     return { why: "that board action has no advanced action, which callers of the role mount" };
   }
   return { player: action2 };
-}
-function batchFailure(role, board, registry, target2, batch2) {
-  let at = 0;
-  for (const command2 of role.commands) {
-    const most = command2.repeats === true ? Infinity : times(command2, board, registry, target2);
-    const least = command2.optional === true || command2.repeats === true ? 0 : most;
-    let count2 = 0;
-    while (count2 < most) {
-      const call = batch2[at];
-      if (call?.id !== command2.id) break;
-      const why = keeps(command2, board, target2, call, at);
-      if (why !== void 0) return why;
-      count2++;
-      at++;
-    }
-    if (count2 >= least) continue;
-    const next = batch2[at];
-    if (command2.each !== void 0) {
-      const calls = `${String(count2)} ${count2 === 1 ? "call" : "calls"}`;
-      const objects = `${String(least)} ${command2.each}${least === 1 ? "" : "s"}`;
-      return `its batch holds ${calls} of "${command2.id}" in a row, where the target holds ${objects}`;
-    }
-    return next === void 0 ? `its batch holds no call of "${command2.id}"` : `its call ${String(at + 1)}, of "${next.id}", comes where the role runs "${command2.id}"`;
-  }
-  const extra = batch2[at];
-  if (extra === void 0) return void 0;
-  return role.commands.some((command2) => command2.id === extra.id) ? `its call ${String(at + 1)}, of "${extra.id}", comes out of the role's order, or more often than the role runs it` : `its call ${String(at + 1)} is of "${extra.id}", which the role does not run`;
-}
-function described(role) {
-  return role.commands.map(({ id: id2, each, optional: optional4, repeats }) => {
-    const often = each !== void 0 ? ` once for each ${each}` : optional4 === true ? " at most once" : repeats === true ? " any number of times" : "";
-    return `"${id2}"${often}`;
-  }).join(", then ");
-}
-function times(command2, board, registry, target2) {
-  const { each } = command2;
-  if (each === void 0) return 1;
-  if (each !== "input") return held2(board, target2, each).length;
-  const block = heldBlock(board, target2);
-  if (block === void 0) return 0;
-  const inputs = classInputs(board, registry, block);
-  return inputs.includes("...") ? Object.values(board.links).filter((link) => link.to === block).length : inputs.length;
-}
-function keeps(command2, board, target2, call, at) {
-  if (command2.fixes === void 0) return void 0;
-  const which = `its call ${String(at + 1)}, of "${command2.id}"`;
-  try {
-    return command2.fixes(board, target2, call.args ?? {}) ? void 0 : `the args of ${which}, do not keep what the target fixes`;
-  } catch (error) {
-    return `the fixes of the role failed on ${which}: ${errorMessage(error)}`;
-  }
 }
 function checkedRoles(plugin, given, taken, actions) {
   const of = `The plugin class "${plugin}"`;
@@ -10252,49 +10073,15 @@ function checkedRoles(plugin, given, taken, actions) {
     if (role.advanced !== void 0 && role.advanced !== true) {
       throw new Error(`${named4}, whose advanced is neither true nor left out.`);
     }
-    const { commands } = role;
-    if (!Array.isArray(commands)) {
-      throw new Error(`${named4}, whose commands are no array.`);
-    }
-    if (commands.length === 0) {
-      throw new Error(`${named4}, which runs no command.`);
-    }
-    for (const command2 of commands) {
-      const why = commandFailure(command2);
-      if (why !== void 0) throw new Error(`${named4}, ${why}.`);
-    }
     const checked3 = role;
-    const found = checkedPlayer(checked3, actions.find((action2) => action2.id === fallback));
+    const listed = actions.find((action2) => action2.id === fallback);
+    const found = checkedPlayer(checked3, listed);
     if ("why" in found) {
-      const why = actions.some((action2) => action2.id === fallback) ? found.why : "it is no board action that the class lists";
+      const why = listed === void 0 ? "it is no board action that the class lists" : found.why;
       throw new Error(`${named4}, whose default "${fallback}" cannot play it, since ${why}.`);
     }
     return checked3;
   });
-}
-function commandFailure(command2) {
-  if (!isObject(command2)) return "with a command that is no object";
-  const { id: id2, each, optional: optional4, repeats, fixes: fixes2 } = command2;
-  if (typeof id2 !== "string" || !isCommandId(id2)) {
-    return `with a command whose id ${JSON.stringify(id2)} is not named as a command's id is, "{pkg}-{name}"`;
-  }
-  if (each !== void 0 && (typeof each !== "string" || !EACH.includes(each))) {
-    return `whose command "${id2}" has each ${JSON.stringify(each)}, which is none of ${quoted(EACH)}`;
-  }
-  if (optional4 !== void 0 && optional4 !== true) {
-    return `whose command "${id2}" has optional ${JSON.stringify(optional4)}, which is neither true nor left out`;
-  }
-  if (repeats !== void 0 && repeats !== true) {
-    return `whose command "${id2}" has repeats ${JSON.stringify(repeats)}, which is neither true nor left out`;
-  }
-  const often = ["optional", "each", "repeats"].filter((member) => command2[member] !== void 0);
-  if (often.length > 1) {
-    return `whose command "${id2}" has ${listing([...often])}, while a command takes at most one of optional, each and repeats`;
-  }
-  if (fixes2 !== void 0 && typeof fixes2 !== "function") {
-    return `whose command "${id2}" has a fixes that is no function`;
-  }
-  return void 0;
 }
 
 // srcts/actions/actions.ts
@@ -10474,17 +10261,6 @@ function boardActionsApi(actions, parts) {
     }
     return action2.role === void 0 || actions.player(action2.role) === action2 ? action2 : void 0;
   }
-  function keepsRole(action2, target2, batch2, notifier) {
-    const role = action2.role === void 0 ? void 0 : actions.role(action2.role);
-    if (role === void 0) return;
-    const why = batchFailure(role, store.board(), parts.core().blockRegistry(), target2, batch2);
-    if (why === void 0) return;
-    throw failed2(
-      action2,
-      new Error(`Core refused the batch of the board action "${action2.id}", which breaks its role "${role.id}": ${why}. The role runs ${described(role)}.`),
-      notifier
-    );
-  }
   async function batchOf(action2, target2, notifier) {
     let batch2;
     try {
@@ -10521,11 +10297,10 @@ function boardActionsApi(actions, parts) {
       notifier(notifications, action2);
     };
   }
-  async function runBatch(action2, target2, batch2, batching2, planned = false) {
+  async function runBatch(batch2, batching2, planned = false) {
     if (batch2.length === 0) return [];
-    const { extend, notifier } = batching2;
-    keepsRole(action2, target2, batch2, notifier);
     const core = parts.core();
+    const { extend, notifier } = batching2;
     let deltas = [];
     let added = [];
     if (extend !== void 0 || planned) {
@@ -10553,13 +10328,13 @@ function boardActionsApi(actions, parts) {
   }
   async function runOf(action2, target2, given) {
     const batch2 = await batchOf(action2, target2, notifierOf(given, action2));
-    if (batch2 !== void 0) await runBatch(action2, target2, batch2, batching(given, action2));
+    if (batch2 !== void 0) await runBatch(batch2, batching(given, action2));
   }
   const advanced = createAdvanced({
     store,
     core: parts.core,
     applies: (action2, target2) => store.hasBoard() && applies(action2, store.board(), target2),
-    run: (action2, target2, batch2, how) => runBatch(action2, target2, batch2, how, true),
+    run: (batch2, how) => runBatch(batch2, how, true),
     frontend: () => parts.frontend?.(),
     dialog: parts.dialog,
     raise: (notification) => {
@@ -10580,7 +10355,7 @@ function boardActionsApi(actions, parts) {
       core: parts.core,
       applies: (action2) => store.hasBoard() && applies(action2, store.board(), target2),
       run: async (batch2, action2) => {
-        await runBatch(action2, target2, batch2, batching(given, action2));
+        await runBatch(batch2, batching(given, action2));
       },
       trigger: (action2) => runOf(action2, target2, given),
       advanced: (action2, opened) => advanced.open(action2, target2, openingOf(given, action2, opened)),
@@ -11425,14 +11200,14 @@ function createFocus(store, signal5) {
 }
 var NOTHING_SELECTED = Object.freeze([]);
 function createSelection(store, plugins, signal5) {
-  let selected2 = NOTHING_SELECTED;
+  let selected = NOTHING_SELECTED;
   const listeners = /* @__PURE__ */ new Set();
   const holds = (object2, board) => holdsObject(board, object2, plugins.appPlugins());
   const offStore = store.subscribe((_change, board) => {
-    const kept = selected2.filter((object2) => holds(object2, board));
-    if (kept.length === selected2.length) return;
-    selected2 = Object.freeze(kept);
-    announceTo(listeners, selected2);
+    const kept = selected.filter((object2) => holds(object2, board));
+    if (kept.length === selected.length) return;
+    selected = Object.freeze(kept);
+    announceTo(listeners, selected);
   });
   signal5?.addEventListener(
     "abort",
@@ -11443,14 +11218,14 @@ function createSelection(store, plugins, signal5) {
     { once: true }
   );
   return {
-    get: () => selected2,
+    get: () => selected,
     set(objects) {
       const given = selectionGiven(objects);
       const lacking = given.find((object2) => !store.hasBoard() || !holds(object2, store.board()));
       if (lacking !== void 0) throw new Error(unheld(lacking));
-      if (sameIds(selected2.map(objectKey), given.map(objectKey))) return;
-      selected2 = given;
-      announceTo(listeners, selected2);
+      if (sameIds(selected.map(objectKey), given.map(objectKey))) return;
+      selected = given;
+      announceTo(listeners, selected);
     },
     subscribe(fn) {
       const wrapped = (objects) => {

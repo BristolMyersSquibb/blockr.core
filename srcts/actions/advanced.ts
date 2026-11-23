@@ -128,12 +128,10 @@ export interface AdvancedParts {
   readonly core: () => CoreApi;
   // Whether a menu of the target offers the board action now.
   readonly applies: (action: BoardAction, target: Target) => boolean;
-  // Runs a batch of the board action on the target as one step of the user,
-  // as menu() runs the batch of a row, and resolves with the deltas that it
-  // planned for the batch, as core.commands.plan() returns them. It checks
-  // the batch against the role that the board action plays, where it plays
-  // one, as menu() does (./actions.ts).
-  readonly run: (action: BoardAction, target: Target, batch: readonly CommandCall[], batching: Batching) => Promise<readonly Delta[]>;
+  // Runs a batch of the board action as one step of the user, as menu() runs
+  // the batch of a row, and resolves with the deltas that it planned for the
+  // batch, as core.commands.plan() returns them.
+  readonly run: (batch: readonly CommandCall[], batching: Batching) => Promise<readonly Delta[]>;
   // The place of the frontend that draws the board, where its module gives
   // `advanced`.
   readonly frontend: () => Place | undefined;
@@ -349,7 +347,7 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
       shown.action,
       target,
       given,
-      (calls, notifier) => finishShown(shown, target, own, calls, notifier),
+      (calls, notifier) => finishShown(shown, own, calls, notifier),
       () => {
         end(shown);
       },
@@ -361,25 +359,18 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
     };
   }
 
-  // A done() of an advanced action that a place shows, in a mount on the
-  // target given: it runs the batch, if any, and then ends the advanced
-  // action. The caller's `extend` and notifier take part until the advanced
-  // action first ends, in a mount on the target that it opened on, which
-  // `own` tells.
-  async function finishShown(
-    shown: Shown,
-    target: Target,
-    own: boolean,
-    calls: readonly CommandCall[] | undefined,
-    notifier: Notifier | undefined,
-  ): Promise<void> {
+  // A done() of an advanced action that a place shows: it runs the batch, if
+  // any, and then ends the advanced action. The caller's `extend` and
+  // notifier take part until the advanced action first ends, in a mount on
+  // the target that it opened on, which `own` tells.
+  async function finishShown(shown: Shown, own: boolean, calls: readonly CommandCall[] | undefined, notifier: Notifier | undefined): Promise<void> {
     if (calls === undefined || calls.length === 0) {
       end(shown);
       return;
     }
     const { opening } = shown;
     const triggered = shown.first && own;
-    const deltas = await parts.run(shown.action, target, calls, {
+    const deltas = await parts.run(calls, {
       ...(opening.call === undefined ? {} : { call: opening.call }),
       extend: triggered ? opening.extend : undefined,
       notifier: notifier ?? (triggered ? opening.notifier : undefined),
@@ -536,7 +527,7 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
       };
       const finish: Finish = async (calls, notifier) => {
         if (calls !== undefined && calls.length > 0) {
-          await parts.run(action, target, calls, notifier === undefined ? {} : { notifier });
+          await parts.run(calls, notifier === undefined ? {} : { notifier });
         }
         again();
       };

@@ -93,7 +93,7 @@ describe("Create stack", () => {
     await menu.pick("Create stack");
     expect(menu.level()).toMatchObject({ title: "Add Merge to", advanced: true });
     // It lists no stack that the board holds, since it plays add_stack_role,
-    // which runs add_stack alone.
+    // which adds a stack.
     expect(shown(menu.level())).toEqual([["New stack"]]);
 
     await menu.pick("New stack");
@@ -126,7 +126,7 @@ describe("Create stack", () => {
     expect(added(s)).toMatchObject([{ name: "Stack 1", blocks: [], color: "#66c2a5" }]);
   });
 
-  test("opens the form of a stack with the blocks given, which it names in place of the select of blocks, since its role fixes them, and which adds the stack once the user submits it and closes", async () => {
+  test("opens the form of a stack with the blocks given, which it names in place of the select of blocks, since the new stack takes exactly those, and which adds the stack once the user submits it and closes", async () => {
     const s = await stubbed();
     const menu = s.menu({ selection: [{ block: "c" }, { block: "f" }] });
     await menu.pick("Create stack");

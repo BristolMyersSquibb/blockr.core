@@ -28,12 +28,8 @@
 // another changes no menu's order. A board action that names a role that it
 // does not play is in no menu, and trigger() and mountAdvanced() run nothing
 // for its id, so that every caller meets one board action for the role.
-// Core checks each batch of the board action that plays a role against the
-// role before the command registry plans it, whether its run, a row of its
-// quick action or its advanced action's done() returns the batch. A batch
-// that breaks the role is a fault of the board action's package, which core
-// refuses before anything runs. The commands that the caller's `extend` adds
-// come after the batch, and fall outside the check.
+// What that board action does is the role's contract, which core trusts and
+// does not check (./roles.ts).
 // A call of menu() opens the menu of a target, with a row for each board
 // action that on() gives the target, which core runs by the rules of a quick
 // action (./quick.ts).
@@ -57,13 +53,10 @@
 //    notification of the code `board_action_failed`, about the plugin whose
 //    class lists the board action, or hands it to the caller's notifier.
 //    Then trigger() rejects.
-// 4. Where the board action plays a role, core checks the batch against the
-//    role (./roles.ts). Where the batch breaks the role, core logs that and
-//    tells the user as for a `run` that fails, and trigger() rejects.
-// 5. Where the caller gives `extend`, core hands it the deltas that the batch
+// 4. Where the caller gives `extend`, core hands it the deltas that the batch
 //    will apply, as core.commands.plan() returns them, and adds the commands
 //    that it returns to the end of the batch.
-// 6. Core runs the batch as one step of the user, through CoreApi's command
+// 5. Core runs the batch as one step of the user, through CoreApi's command
 //    registry, which tells the user why it refused the batch, or hands that to
 //    the caller's notifier, with the board action.
 // The promise of trigger() resolves once the batch has run, and rejects with
@@ -71,7 +64,7 @@
 // For a board action with a quick action, trigger() opens the quick action as
 // a menu at the anchor, or at the box of the element that the user triggered
 // from, and resolves once the menu has closed and the batch that it ran, if
-// any, has run. A batch of a row runs as steps 4 to 6 have it.
+// any, has run. A batch of a row runs as steps 4 and 5 have it.
 // Core shows one menu at a time: opening one closes the menu that is open, as
 // a click outside it does, and the keyboard's focus returns to the element
 // that the user triggered from as a menu closes.
@@ -100,7 +93,7 @@ import type { CoreParts } from "./core.ts";
 import { isElement, targetGiven } from "./given.ts";
 import { isBatch, openMenu } from "./quick.ts";
 import type { DrivenMenu, MenuStart, QuickLevel } from "./quick.ts";
-import { batchFailure, checkedPlayer, checkedRoles, CORE_ROLES, described } from "./roles.ts";
+import { checkedPlayer, checkedRoles, CORE_ROLES } from "./roles.ts";
 import type { Role } from "./roles.ts";
 import { kindsFailure } from "./targets.ts";
 
@@ -511,22 +504,6 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     return action.role === undefined || actions.player(action.role) === action ? action : undefined;
   }
 
-  // Checks a batch of the board action against the role that it plays, where
-  // it plays one, before the command registry plans the batch. A batch that
-  // breaks the role is a fault of the board action's package (failed(),
-  // below), and the call rejects with an Error that names the board action,
-  // the role and the call that broke it.
-  function keepsRole(action: BoardAction, target: Target, batch: readonly CommandCall[], notifier: Notifier | undefined): void {
-    const role = action.role === undefined ? undefined : actions.role(action.role);
-    if (role === undefined) return;
-    const why = batchFailure(role, store.board(), parts.core().blockRegistry(), target, batch);
-    if (why === undefined) return;
-    throw failed(
-      action,
-      new Error(`Core refused the batch of the board action "${action.id}", which breaks its role "${role.id}": ${why}. The role runs ${described(role)}.`),
-      notifier,
-    );
-  }
 
   // The batch that the board action's `run` returns, which it calls at once,
   // so that a copy that needs the user's click or key press, as Copy block ID's
@@ -582,24 +559,16 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
         };
   }
 
-  // Runs a batch of the board action on the target as one step of the user,
-  // with the commands that the caller's `extend` returns for the deltas that
-  // the batch will apply at its end, and tells the notifier why the store or
-  // the command registry refused it. It resolves with those deltas, which core
-  // plans where `extend` is given or `planned` asks for them, as for a done().
-  // It runs nothing for an empty batch, and nothing for one that breaks the
-  // role that the board action plays (keepsRole(), above).
-  async function runBatch(
-    action: BoardAction,
-    target: Target,
-    batch: readonly CommandCall[],
-    batching: Batching,
-    planned = false,
-  ): Promise<readonly Delta[]> {
+  // Runs a batch as one step of the user, with the commands that the caller's
+  // `extend` returns for the deltas that the batch will apply at its end, and
+  // tells the notifier why the store or the command registry refused it. It
+  // resolves with those deltas, which core plans where `extend` is given or
+  // `planned` asks for them, as for a done(). It runs nothing for an empty
+  // batch.
+  async function runBatch(batch: readonly CommandCall[], batching: Batching, planned = false): Promise<readonly Delta[]> {
     if (batch.length === 0) return [];
-    const { extend, notifier } = batching;
-    keepsRole(action, target, batch, notifier);
     const core = parts.core();
+    const { extend, notifier } = batching;
     let deltas: readonly Delta[] = [];
     let added: readonly CommandCall[] = [];
     if (extend !== undefined || planned) {
@@ -631,17 +600,17 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
 
   // Runs the board action's run on the target, and the batch that it returns
   // as one step of the user, as trigger() does for a board action that asks
-  // the user nothing (steps 3 to 6, above).
+  // the user nothing (steps 3 to 5, above).
   async function runOf(action: BoardAction, target: Target, given: Given): Promise<void> {
     const batch = await batchOf(action, target, notifierOf(given, action));
-    if (batch !== undefined) await runBatch(action, target, batch, batching(given, action));
+    if (batch !== undefined) await runBatch(batch, batching(given, action));
   }
 
   const advanced = createAdvanced({
     store,
     core: parts.core,
     applies: (action, target) => store.hasBoard() && applies(action, store.board(), target),
-    run: (action, target, batch, how) => runBatch(action, target, batch, how, true),
+    run: (batch, how) => runBatch(batch, how, true),
     frontend: () => parts.frontend?.(),
     dialog: parts.dialog,
     raise: (notification) => {
@@ -671,7 +640,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       core: parts.core,
       applies: (action) => store.hasBoard() && applies(action, store.board(), target),
       run: async (batch, action) => {
-        await runBatch(action, target, batch, batching(given, action));
+        await runBatch(batch, batching(given, action));
       },
       trigger: (action) => runOf(action, target, given),
       advanced: (action, opened) => advanced.open(action, target, openingOf(given, action, opened)),

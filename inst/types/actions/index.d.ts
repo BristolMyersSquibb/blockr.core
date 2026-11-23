@@ -6,4 +6,4 @@ export { CORE_MENU, drawWith, MENU_OPTION, menuModule } from "./module.ts";
 export type { MenuModule } from "./module.ts";
 export { openMenu } from "./quick.ts";
 export type { DrivenMenu, MenuParts, MenuStart, OpenMenu, QuickLevel, QuickRow, ShownLevel, ShownRow } from "./quick.ts";
-export type { Role, RoleCommand } from "./roles.ts";
+export type { Role } from "./roles.ts";

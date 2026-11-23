@@ -25,9 +25,8 @@
 //   from the blocks and the input that the open icon of the quick action
 //   hands it. It mints the link's ID through CoreApi's mintId() and adds the
 //   link with add_link.
-//   On a block, the link starts or ends at that block, since Create link
-//   plays add_link_role, whose target fixes one end of the link there
-//   (./roles.ts). So the form names the block in a line above its fields, as
+//   On a block, the link starts or ends at that block, as add_link_role has
+//   it (./roles.ts). So the form names the block in a line above its fields, as
 //   "A link from "Scatter".", in place of the select of that end, and offers a
 //   select of the other end alone. The block is the link's target where the
 //   open icon of a "Take from" row handed it as the target, as "A link into

@@ -1,8 +1,8 @@
 // The kinds of target, which the `on` of a board action and of a role names,
 // and what core's board actions and roles read off a target: the block, the
 // link or the stack that it names, which core's board actions share
-// (./core.ts, ./add.tsx), and the board objects of a kind that it holds, which
-// the roles count and check (./roles.ts).
+// (./core.ts, ./add.tsx), and the board objects of a kind that it holds, as
+// Remove on a selection removes them and Create stack takes its blocks.
 
 import type { BlockId, Board } from "../types/board.ts";
 import { quoted } from "../util/index.ts";

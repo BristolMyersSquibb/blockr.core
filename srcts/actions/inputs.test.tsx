@@ -579,7 +579,7 @@ describe("on a variadic block", () => {
     expect(s.core.store.canUndo()).toBe(false);
   });
 
-  test("through its board action, in core's dialog, adds an input and reorders the inputs in one batch, which moves the added input too and keeps edit_inputs_role", async () => {
+  test("through its board action, in core's dialog, adds an input and reorders the inputs in one batch, which moves the added input too", async () => {
     const s = await stubbed();
     const menu = s.menu({ block: "e" });
     await step(() => {
