@@ -896,6 +896,20 @@
   On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
   The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
   Each edit applies at once, as one step of the user, through `add_link`, `change_link`, `move_link` or `remove_link`, and the advanced action says below the inputs why the store refused one (#747).
+* An app draws the menus of board actions with a module of its choice, which the blockr option `board_action_menu` names by its ID, among the modules that the available packages offer.
+  Core's own menu is such a module, `blockr.core-board_action_menu`, which the option names unless the app names another, as `options(blockr.board_action_menu = "mykit-board_action_menu")` does.
+  Core asks R for the option in the request for the blockr options of its scheduler, and loads the module as each board opens, once per page, while the page that R serves has the browser fetch it as the page loads.
+  Where the option names no module by its ID, or a module that no package offers, that fails to load, that declares another major of core's JS API or that has no `render()`, core opens no board and shows why in its place.
+  The module's default export is a `MenuModule`, whose `render({ menu, el, anchor })` draws an open menu at the anchor and returns what core calls as the menu closes.
+  The open menu is an `OpenMenu`, whose `get()` gives the level that the menu shows, a `ShownLevel`, and whose `subscribe()` follows it.
+  Its `pick()`, `openAdvanced()`, `tick()`, `type()`, `escape()` and `close()` pass on what the user does, which core runs by the rules of a quick action.
+  Its members rely on no `this`, and `get()` returns the same object until the menu changes, so that a module in React reads the menu with `useSyncExternalStore()`.
+  As a menu closes, core gives the keyboard's focus back to the element that the user triggered the menu from, as core's menu did itself until now.
+  Where the module throws as it draws a menu, core closes the menu and raises `module_failed`.
+  The types `MenuModule`, `OpenMenu`, `ShownLevel` and `ShownRow` come from `@blockr/core`.
+  The stubs, `@blockr/core/stubs`, give in `menuModuleTests()` the tests that a package runs against its own module.
+  Each opens a menu through the module, finds the parts of the menu by their ARIA roles and names, does what a user does, and checks what core ran, and core runs them against its own menu.
+  Compressed, core's runtime shrinks from 102.4 KB to 98.8 KB, since it no longer holds core's menu, whose module takes 4.9 KB (#829).
 
 # blockr.core 0.1.4
 

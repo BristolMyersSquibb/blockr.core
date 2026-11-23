@@ -48,6 +48,14 @@ the human-readable form of its id, and the class's \code{module} (see
 \item The modules that it offers other packages' UIs, in \code{modules}: each by a
 name that gives it the ID \code{{pkg}-{name}}, as a registry id is, by which
 \code{host.module()} and \code{CoreApi.module()} reach it in the client.
+Such a module may draw the menus of board actions, as core's own menu,
+\code{blockr.core-board_action_menu}, does.
+The client draws them with the module that the blockr option
+\code{board_action_menu} names by its ID, which is core's menu unless an app
+names another, as in
+\code{options(blockr.board_action_menu = "mykit-board_action_menu")}.
+Its default export has the type \code{MenuModule} of \verb{@blockr/core}, and
+\code{menuModuleTests()} of \verb{@blockr/core/stubs} tests it.
 \item Its output families, in \code{families}: the name of each output family that
 it offers, which is the family's class, and under which its namespace
 binds the family (see \code{\link[=new_output_family]{new_output_family()}}).

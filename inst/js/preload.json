@@ -49,6 +49,14 @@
     "react-dom",
     "react-dom/client"
   ],
+  "board-action-menu.js": [
+    "react",
+    "react-dom",
+    "react-dom/client",
+    "./vendor-02042ca6.js",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
   "csv-block.js": [
     "@blockr/core/react",
     "react/jsx-runtime"

@@ -554,15 +554,18 @@ proto_hello_reply <- function(block_registry, lock, ...,
 }
 
 # What the reply to `hello` of a core app says of the modules that R serves:
-# the module that core offers other packages' UIs, its inputs, the app's
-# plugins, core's own three, each with the module of its class, what the
-# frontend reads of the arguments of `serve()`, nothing for core's basic
-# frontend, and core's board options, each with its module.
+# the modules that core offers other packages' UIs, its inputs and its menu of
+# board actions, the app's plugins, core's own three, each with the module of
+# its class, what the frontend reads of the arguments of `serve()`, nothing for
+# core's basic frontend, and core's board options, each with its module.
 proto_served <- function() {
   obj(
     modules = obj(
       `blockr.core-controls` = obj(
         module = proto_js("blockr-core-controls.js", "4d2a6c91")
+      ),
+      `blockr.core-board_action_menu` = obj(
+        module = proto_js("board-action-menu.js", "e3a7c05b")
       )
     ),
     plugins = proto_core_plugins(),

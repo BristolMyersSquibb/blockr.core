@@ -5,12 +5,13 @@
 // multi, whose choices the user ticks, and a text row, a field, as for a name.
 //
 // Here too is the logic that runs every menu of board actions by the rules of
-// a quick action, and that draws nothing. Core's menu draws what it shows
-// (./menu.tsx), and the CoreApi for tests drives it, picking rows by their
-// labels (../stubs/menu.ts), so that the rules are written once and a test of
-// a board action needs no browser. Its types stay inside core, since a
-// frontend that draws these menus itself is an item of the Backlog
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Backlog#a-frontends-own-menus-of-board-actions).
+// a quick action, and that draws nothing.
+// The module that the blockr option board_action_menu names draws what it
+// shows, core's own menu unless the app names another (./module.ts).
+// The CoreApi for tests drives it instead, picking rows by their labels
+// (../stubs/menu.ts).
+// So the rules are written once, and a test of a board action needs no
+// browser.
 //
 // A menu opens at one of two first levels:
 // - The menu of a target, which menu() opens: a row for each board action that
@@ -114,7 +115,8 @@ export type QuickRow =
       submit(value: string): readonly CommandCall[];
     };
 
-// A level as the menu shows it now.
+// A level as the menu shows it now, which the module that draws the menu
+// draws.
 export interface ShownLevel {
   // A number of its own, which another level that shows in its place does not
   // have, so that a view draws that level afresh.
@@ -152,27 +154,29 @@ export type ShownRow =
   | { readonly kind: "text"; readonly label: string; readonly value: string; readonly refusal?: string };
 
 // A menu that core runs by the rules of a quick action, and that draws
-// nothing. Each member stands for what the user does in the menu, and does
-// nothing once the menu has closed. The rows are those of the level shown, by
-// their index in its rows.
+// nothing, as the module that draws the menu gets it (./module.ts).
+// Each member stands for what the user does in the menu, and does nothing once
+// the menu has closed.
+// The rows are those of the level shown, by their index in its rows, whatever
+// the order in which the module shows them.
+// Core runs the batch that a pick, a text row or the ticks of a multi give, as
+// one step of the user, and tells the user why the store or the command
+// registry refused it.
+// No member relies on `this`, and get() returns the same object until the menu
+// changes, so that a module in React reads the menu with
+// `useSyncExternalStore(menu.subscribe, menu.get)`.
 export interface OpenMenu {
   // The level that the menu shows now, the same object until it changes.
   readonly get: () => ShownLevel;
   // Calls fn whenever that changes, and once more as the menu closes.
   readonly subscribe: (fn: () => void) => () => void;
-  // Whether the menu has closed.
-  readonly closed: () => boolean;
-  // A click or Enter on a row: it picks an item and submits a text row. Without
-  // a row, it is Enter in the filter. It resolves once what the pick started
-  // has settled: the next level shows, or the menu has closed and its batch
-  // has run. It rejects with the refusal where the store or the command
-  // registry refuses the batch, which a caller that waits for nothing ignores.
-  readonly pick: (row?: number) => Promise<void>;
+  // A click or Enter on a row: it picks an item and submits a text row.
+  // Without a row, it is Enter in the filter, which picks the first row left.
+  readonly pick: (row?: number) => void;
   // A click on the open icon of an item, by the item's index, or without
   // one, on the level's, which closes the menu and opens the advanced action.
-  // It resolves once the advanced action ends, and does nothing where the
-  // item or the level shows no open icon.
-  readonly openAdvanced: (row?: number) => Promise<void>;
+  // It does nothing where the item or the level shows no open icon.
+  readonly openAdvanced: (row?: number) => void;
   // A click on a choice of a multi, by the choice's id, which ticks or unticks
   // it.
   readonly tick: (row: number, choice: string) => void;
@@ -180,9 +184,25 @@ export interface OpenMenu {
   readonly type: (value: string, row?: number) => void;
   // Escape.
   readonly escape: () => void;
-  // A click outside the menu, or Tab, which applies the ticks of a multi. It
-  // resolves once the batch that the ticks apply has run, and rejects with the
-  // refusal, as pick() does.
+  // A click outside the menu, or Tab, which applies the ticks of a multi.
+  readonly close: () => void;
+}
+
+// The menu as core and the CoreApi for tests drive it: the members of
+// OpenMenu, of which pick(), openAdvanced() and close() say when what they
+// started has settled, with whether the menu has closed and drop().
+export interface DrivenMenu extends Omit<OpenMenu, "pick" | "openAdvanced" | "close"> {
+  // Whether the menu has closed.
+  readonly closed: () => boolean;
+  // It resolves once what the pick started has settled: the next level shows,
+  // or the menu has closed and its batch has run.
+  // It rejects with the refusal where the store or the command registry
+  // refuses the batch, which a caller that waits for nothing ignores.
+  readonly pick: (row?: number) => Promise<void>;
+  // It resolves once the advanced action ends.
+  readonly openAdvanced: (row?: number) => Promise<void>;
+  // It resolves once the batch that the ticks apply has run, and rejects with
+  // the refusal, as pick() does.
   readonly close: () => Promise<void>;
   // Closes the menu and drops what the user ticked, as where another board
   // opens.
@@ -302,7 +322,7 @@ export function inMenuOrder(actions: readonly BoardAction[]): BoardAction[] {
   return [...actions].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
 }
 
-export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
+export function openMenu(start: MenuStart, parts: MenuParts): DrivenMenu {
   const stack: Entry[] = [];
   const listeners = new Set<() => void>();
   let ended = false;

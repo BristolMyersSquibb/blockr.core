@@ -25,15 +25,7 @@ export async function mount(
   host: unknown,
   el: HTMLElement = document.createElement("div"),
 ): Promise<Mounted> {
-  if (!isObject(exports) || exports.api !== API) {
-    throw new Error(
-      `The module declares ${isObject(exports) && typeof exports.api === "number" ? `major ${String(exports.api)}` : "no major"} of core's JS API, where core's is ${String(API)}, as \`export const api = ${String(API)}\`.`,
-    );
-  }
-  const mod = exports.default;
-  if (!isObject(mod) || typeof mod.render !== "function") {
-    throw new Error("The module has no default export with a render() function.");
-  }
+  const mod = renderable(exports);
   const render = mod.render as (args: { el: HTMLElement; host: unknown; signal: AbortSignal }) => Rendered;
   const controller = new AbortController();
   const cleanup = await render.call(mod, { el, host, signal: controller.signal });
@@ -47,4 +39,21 @@ export async function mount(
       if (typeof cleanup === "function") cleanup();
     },
   };
+}
+
+// The default export of a module, given as what the module exports, which has
+// a render() function, as the default export of every module that core draws
+// with has. It throws where the module does not declare core's JS API major or
+// has no render(), as core refuses such a module.
+export function renderable(exports: unknown): Readonly<Record<string, unknown>> & { readonly render: (...args: never[]) => unknown } {
+  if (!isObject(exports) || exports.api !== API) {
+    throw new Error(
+      `The module declares ${isObject(exports) && typeof exports.api === "number" ? `major ${String(exports.api)}` : "no major"} of core's JS API, where core's is ${String(API)}, as \`export const api = ${String(API)}\`.`,
+    );
+  }
+  const mod = exports.default;
+  if (!isObject(mod) || typeof mod.render !== "function") {
+    throw new Error("The module has no default export with a render() function.");
+  }
+  return mod as Readonly<Record<string, unknown>> & { readonly render: (...args: never[]) => unknown };
 }

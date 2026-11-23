@@ -59,12 +59,17 @@ export type ShownRow = (Omit<Extract<QuickRow, {
 export interface OpenMenu {
     readonly get: () => ShownLevel;
     readonly subscribe: (fn: () => void) => () => void;
-    readonly closed: () => boolean;
-    readonly pick: (row?: number) => Promise<void>;
-    readonly openAdvanced: (row?: number) => Promise<void>;
+    readonly pick: (row?: number) => void;
+    readonly openAdvanced: (row?: number) => void;
     readonly tick: (row: number, choice: string) => void;
     readonly type: (value: string, row?: number) => void;
     readonly escape: () => void;
+    readonly close: () => void;
+}
+export interface DrivenMenu extends Omit<OpenMenu, "pick" | "openAdvanced" | "close"> {
+    readonly closed: () => boolean;
+    readonly pick: (row?: number) => Promise<void>;
+    readonly openAdvanced: (row?: number) => Promise<void>;
     readonly close: () => Promise<void>;
     readonly drop: () => void;
 }
@@ -88,6 +93,6 @@ export interface MenuParts {
     readonly closed: (ran: Promise<void> | undefined) => void;
 }
 export declare function inMenuOrder(actions: readonly BoardAction[]): BoardAction[];
-export declare function openMenu(start: MenuStart, parts: MenuParts): OpenMenu;
+export declare function openMenu(start: MenuStart, parts: MenuParts): DrivenMenu;
 export declare function levelItem(label: string, level: QuickLevel): QuickRow;
 export declare function isBatch(value: unknown): value is readonly CommandCall[];
