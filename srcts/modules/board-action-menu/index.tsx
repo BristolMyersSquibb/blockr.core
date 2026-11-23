@@ -1,12 +1,14 @@
-// Core's menu, which draws every menu of board actions that menu() and
-// trigger() open, whichever package opens it, and whichever frontend draws the
-// page, as Board actions has it
+// Core's menu, the module blockr.core-board_action_menu, which draws every
+// menu of board actions that menu() and trigger() open, whichever package
+// opens it, and whichever frontend draws the page, as Board actions has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#what-a-frontend-gives).
-// It draws the level that the menu shows (./quick.ts) with the menu of core's
-// React SDK, React Aria's Menu in core's theme, in a popover at the anchor, so
-// that it looks like the other menus on the page. It draws on Tailwind CSS,
-// whose theme variables a frontend sets to restyle it, as the dock does
-// through blockr.ui's design tokens.
+// The blockr option board_action_menu names it unless the app names another
+// module (../../actions/module.ts).
+// It draws the level that the menu shows with the menu of core's React SDK,
+// React Aria's Menu in core's theme, in a popover at the anchor, so that it
+// looks like the other menus on the page.
+// It draws on Tailwind CSS, whose theme variables a frontend sets to restyle
+// it, as the dock does through blockr.ui's design tokens.
 // It draws the rows as the design system draws the block's menu
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1160-L1165):
 // - The rows of each category together, which the menu of a target shows in
@@ -66,26 +68,29 @@
 //   that the arrow keys moved to from the filter, where it shows one, and
 //   otherwise the level's.
 // - The arrow keys move between the rows, from the filter too.
-// As the menu closes, the keyboard's focus returns to the element that the
-// user triggered from. React Aria's popover keeps a click outside the menu
-// from reaching what lies below it, so that the click only closes the menu.
+// As the menu closes, core gives the keyboard's focus back to the element that
+// the user triggered from.
+// React Aria's popover keeps a click outside the menu from reaching what lies
+// below it, so that the click only closes the menu.
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "../aria/index.ts";
-import { TextField } from "../inputs/index.ts";
-import { Menu, MenuItem, MenuSection, Popover } from "../overlays/index.ts";
-import { ariaShortcuts, matchesShortcut, onMac, shortcutLabel } from "../util/index.ts";
-import type { MenuPlace, ShowMenu } from "./actions.ts";
-import type { OpenMenu, ShownLevel, ShownRow } from "./quick.ts";
+import type { MenuModule, OpenMenu, ShownLevel, ShownRow } from "../../actions/index.ts";
+import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "../../aria/index.ts";
+import { TextField } from "../../inputs/index.ts";
+import { Menu, MenuItem, MenuSection, Popover } from "../../overlays/index.ts";
+import { ariaShortcuts, matchesShortcut, onMac, shortcutLabel } from "../../util/index.ts";
 
-// Draws the open menu at its place, in an element of its own at the end of the
-// page's body, until the function that it returns runs, which unmounts it and
-// gives the keyboard's focus back to the element that the user triggered from.
-export const showMenu: ShowMenu = (menu, at) => {
-  const doc = at.el.ownerDocument;
+export const api = 1;
+
+export default { render } satisfies MenuModule;
+
+// Draws the open menu at the anchor, in an element of its own at the end of the
+// page's body, until the function that it returns runs, which unmounts it.
+function render({ menu, el, anchor }: Parameters<MenuModule["render"]>[0]): () => void {
+  const doc = el.ownerDocument;
   const host = doc.createElement("div");
   doc.body.append(host);
   const root = createRoot(host);
@@ -97,45 +102,49 @@ export const showMenu: ShowMenu = (menu, at) => {
     if (event.key !== "Tab" || event.isComposing || !(event.target instanceof Node) || insideRef.current?.contains(event.target) !== true) return;
     event.preventDefault();
     event.stopPropagation();
-    void menu.close().catch(() => undefined);
+    menu.close();
   };
   doc.defaultView?.addEventListener("keydown", tab, true);
   flushSync(() => {
-    root.render(<CoreMenu menu={menu} at={at} insideRef={insideRef} />);
+    root.render(<CoreMenu menu={menu} anchor={anchor} win={doc.defaultView ?? window} insideRef={insideRef} />);
   });
   return () => {
     doc.defaultView?.removeEventListener("keydown", tab, true);
-    // The focus goes back where it is in the menu or nowhere, as after the user
-    // picked a row, pressed Escape or clicked outside the menu, and stays
-    // where code of the page moved it.
-    const active = doc.activeElement;
-    const lost = active === null || active === doc.body || (insideRef.current?.contains(active) ?? false);
     root.unmount();
     host.remove();
-    if (lost && at.el.isConnected) at.el.focus({ preventScroll: true });
   };
-};
+}
 
 // The popover, which holds the dialog of the level shown, named by the level's
 // title or its label. React Aria's popover takes the focus as it opens, unless
 // it holds a dialog, and so would React Aria's dialog. So the dialog is an
 // element of core's, and the level alone moves the focus (Level, below).
-function CoreMenu({ menu, at, insideRef }: { menu: OpenMenu; at: MenuPlace; insideRef: RefObject<HTMLElement | null> }): ReactElement {
+function CoreMenu({
+  menu,
+  anchor,
+  win,
+  insideRef,
+}: {
+  menu: OpenMenu;
+  anchor: DOMRect;
+  win: Window;
+  insideRef: RefObject<HTMLElement | null>;
+}): ReactElement {
   const level = useSyncExternalStore(menu.subscribe, menu.get);
-  const anchor = useRef<HTMLDivElement>(null);
-  const { x, y, width, height } = at.anchor;
-  const tip = openTip(at.el.ownerDocument.defaultView ?? window);
+  const box = useRef<HTMLDivElement>(null);
+  const { x, y, width, height } = anchor;
+  const tip = openTip(win);
   return (
     <>
       {/* The box that the popover hangs from, where the menu opens. */}
-      <div ref={anchor} aria-hidden="true" style={{ position: "fixed", left: x, top: y, width, height, pointerEvents: "none" }} />
+      <div ref={box} aria-hidden="true" style={{ position: "fixed", left: x, top: y, width, height, pointerEvents: "none" }} />
       <Popover
-        triggerRef={anchor}
+        triggerRef={box}
         isOpen
         placement="bottom start"
         isKeyboardDismissDisabled
         onOpenChange={(open) => {
-          if (!open) void menu.close().catch(() => undefined);
+          if (!open) menu.close();
         }}
         className="bc:max-w-80 bc:min-w-45"
       >
@@ -161,12 +170,12 @@ function CoreMenu({ menu, at, insideRef }: { menu: OpenMenu; at: MenuPlace; insi
               // open icon of the row with the focus does, or on the level's.
               event.preventDefault();
               event.stopPropagation();
-              void menu.openAdvanced(openRow(event.target)).catch(() => undefined);
+              menu.openAdvanced(openRow(event.target));
             } else if (event.key === "Enter" && isFilter(event.target) && !event.target.hasAttribute("aria-activedescendant")) {
               // Enter in the filter, where the arrow keys moved to no row.
               event.preventDefault();
               event.stopPropagation();
-              void menu.pick().catch(() => undefined);
+              menu.pick();
             }
           }}
         >
@@ -219,10 +228,10 @@ function Level({
     };
   }, [insideRef, rows]);
   const pick = (i?: number): void => {
-    void menu.pick(i).catch(() => undefined);
+    menu.pick(i);
   };
   const openAdvanced = (i?: number): void => {
-    void menu.openAdvanced(i).catch(() => undefined);
+    menu.openAdvanced(i);
   };
   const grouped = groups(listed);
 

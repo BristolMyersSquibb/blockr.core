@@ -7,7 +7,11 @@
 
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-// The module of core's storage plugin, which the build bundles on its own.
+import type { MenuModule, OpenMenu } from "../actions/index.ts";
+// The modules of core's storage plugin and of its menu of board actions, which
+// the build bundles on their own.
+// eslint-disable-next-line no-restricted-imports
+import coreMenu from "../modules/board-action-menu/index.tsx";
 // eslint-disable-next-line no-restricted-imports
 import fileStorage from "../modules/file-storage/index.ts";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
@@ -43,8 +47,13 @@ const EDIT_BOARD = "blockr.core-edit_board_plugin";
 // The modules of core's own plugin classes and board options at the URLs that
 // the fixture hello names, which every test serves but for core's basic
 // frontend: its storage plugin, its Edit board plugin with a ui that draws
-// nothing, and its board options.
+// nothing, and its board options. Every test serves core's menu of board
+// actions as well, which the blockr option board_action_menu names unless a
+// test sets it.
+const MENU = "blockr.core/board-action-menu.js?v=e3a7c05b";
+
 const CORE: Readonly<Record<string, unknown>> = {
+  [MENU]: { api: 1, default: coreMenu },
   "blockr.core/file-storage.js?v=8e1f0b2d": { api: 1, default: fileStorage },
   "blockr.core/edit-board.js?v=5c1e7a39": classModule({ ui: { render: () => undefined } }),
   ...Object.fromEntries(
@@ -275,7 +284,7 @@ afterEach(() => {
 });
 
 describe("starting the page", () => {
-  test("asks for the blockr options the scheduler reads, rand_id and those of the page's logger in one request, as soon as R answers hello", async () => {
+  test("asks for the blockr options the scheduler reads, rand_id, those of the page's logger and board_action_menu in one request, as soon as R answers hello", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
@@ -292,6 +301,7 @@ describe("starting the page", () => {
         "logger",
         "otel_client_endpoint",
         "otel_client_service_name",
+        "board_action_menu",
       ],
     });
 
@@ -359,7 +369,7 @@ describe("starting the page", () => {
 
     await expect(s.started.ready).rejects.toThrow("Conflicting options set for evaluation_queue");
     expect(failed).toEqual([
-      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id", "log_level", "logger", "otel_client_endpoint" and "otel_client_service_name": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
+      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id", "log_level", "logger", "otel_client_endpoint", "otel_client_service_name" and "board_action_menu": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
     ]);
     expect(s.r.kinds()).toEqual(["hello", "blockr_options"]);
   });
@@ -546,9 +556,11 @@ describe("starting the page", () => {
     s.r.options();
     await tick(100);
 
-    // Core waits for every module that R names, at once, before it opens the
-    // board, and draws nothing until then.
-    const listed = [...Object.values(hello.plugins), ...Object.values(hello.options)].map((entry) => entry.module);
+    // Core waits for every module that R names, at once, and for its menu of
+    // board actions, which the blockr option board_action_menu names unless
+    // the app names another, before it opens the board, and draws nothing
+    // until then.
+    const listed = [...Object.values(hello.plugins), ...Object.values(hello.options)].map((entry) => entry.module).concat(MENU);
     expect(new Set(s.imported)).toEqual(new Set(listed));
     expect(s.started.core()).toBeUndefined();
     expect(basic.renders).toHaveLength(0);
@@ -1983,6 +1995,240 @@ describe("a later session", () => {
   });
 });
 
+describe("the menus of board actions", () => {
+  // The URL at which R serves blockr.test's module that draws the menus of
+  // board actions, and R's reply to hello, which offers it to other packages
+  // as blockr.test-menu.
+  const TEST_MENU = "blockr.test/menu.js?v=1";
+  const offering: HelloReply = { ...hello, modules: { ...hello.modules, "blockr.test-menu": { module: TEST_MENU } } };
+
+  // A module that draws each menu as a button in an element of its own at the
+  // end of the page's body, which takes the focus, and records each call of its
+  // render() and of its cleanup.
+  function testMenu() {
+    const renders: { menu: OpenMenu; el: HTMLElement; anchor: DOMRect }[] = [];
+    let cleanups = 0;
+    const module: MenuModule = {
+      render({ menu, el, anchor }) {
+        renders.push({ menu, el, anchor });
+        const drawn = document.createElement("button");
+        drawn.textContent = menu.get().label;
+        document.body.append(drawn);
+        drawn.focus();
+        return () => {
+          cleanups++;
+          drawn.remove();
+        };
+      },
+    };
+    return { exports: { api: 1, default: module }, renders, cleanups: () => cleanups };
+  }
+
+  // The element that the user triggers a menu from, which has the keyboard's
+  // focus.
+  function triggerOnPage(): HTMLButtonElement {
+    const trigger = document.createElement("button");
+    document.body.append(trigger);
+    trigger.focus();
+    return trigger;
+  }
+
+  test("draws every menu with the module that the blockr option board_action_menu names, which a package offers, through the members of the open menu alone", async () => {
+    const basic = frontEnd();
+    const menu = testMenu();
+    const s = setup({ [BASIC]: basic.exports, [TEST_MENU]: menu.exports });
+    s.r.session(offering);
+    await tick();
+    s.r.options({ board_action_menu: "blockr.test-menu" });
+    const core = await s.started.ready;
+
+    // Core imports the module that the app names, and not its own menu.
+    expect(s.imported).toContain(TEST_MENU);
+    expect(s.imported).not.toContain(MENU);
+
+    const trigger = triggerOnPage();
+    const anchor = new DOMRect(10, 20, 0, 0);
+    core.boardActions.menu({ block: "a" }, { el: trigger, anchor });
+    expect(menu.renders).toHaveLength(1);
+    const [{ menu: open, el, anchor: at } = { menu: undefined, el: undefined, anchor: undefined }] = menu.renders;
+    expect(el).toBe(trigger);
+    expect(at).toBe(anchor);
+    if (open === undefined) throw new Error("The module drew no menu.");
+    // The module gets the members of the open menu that 1.1.16 gives it, and
+    // none of core's own.
+    expect(Object.keys(open).sort()).toEqual(["close", "escape", "get", "openAdvanced", "pick", "subscribe", "tick", "type"]);
+    expect(Object.isFrozen(open)).toBe(true);
+    expect(open.get()).toBe(open.get());
+    const { label, rows } = open.get();
+    expect(label).toBe("Board actions");
+    const remove = rows.findIndex((row) => row.label === "Remove block");
+    expect(remove).toBeGreaterThanOrEqual(0);
+
+    // A member that the module calls detached runs as a method would, waits
+    // for nothing and returns nothing.
+    const pick = open.pick as (row: number) => unknown;
+    expect(pick(remove)).toBeUndefined();
+    await tick();
+    expect(Object.keys(core.store.board().blocks)).not.toContain("a");
+    // The menu closed, so core called the module's cleanup, and gave the
+    // focus back to the element that the user triggered from, since the
+    // module's element took it off the page.
+    expect(menu.cleanups()).toBe(1);
+    expect(document.activeElement).toBe(trigger);
+
+    // A board that opens later draws its menus with the module that the page
+    // imported once.
+    const imported = s.imported.length;
+    const opening = core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Next" } }));
+    await tick();
+    s.r.answer(offering);
+    await opening;
+    expect(s.imported).toHaveLength(imported);
+    s.started.core()?.boardActions.menu({ block: "a" }, { el: trigger, anchor });
+    expect(menu.renders).toHaveLength(2);
+  });
+
+  test("checks what a module in plain JS gives the members of the open menu, which throw a TypeError for anything else", async () => {
+    const basic = frontEnd();
+    const menu = testMenu();
+    const s = setup({ [BASIC]: basic.exports, [TEST_MENU]: menu.exports });
+    s.r.session(offering);
+    await tick();
+    s.r.options({ board_action_menu: "blockr.test-menu" });
+    const core = await s.started.ready;
+    core.boardActions.menu({ block: "a" }, { el: triggerOnPage(), anchor: new DOMRect(0, 0, 0, 0) });
+    const open = menu.renders[0]?.menu as unknown as Record<string, (...args: unknown[]) => unknown>;
+
+    expect(() => open.pick?.("0")).toThrow(new TypeError('The pick() of an open menu takes the index of a row in the rows of the level, not "0".'));
+    expect(() => open.openAdvanced?.(-1)).toThrow(TypeError);
+    expect(() => open.tick?.(undefined, "b")).toThrow(TypeError);
+    expect(() => open.tick?.(0, 1)).toThrow(new TypeError("The tick() of an open menu takes the id of a choice, not 1."));
+    expect(() => open.type?.(1)).toThrow(new TypeError("The type() of an open menu takes the text that the user typed, not 1."));
+    expect(() => open.subscribe?.("fn")).toThrow(TypeError);
+    expect(Object.keys(core.store.board().blocks)).toContain("a");
+  });
+
+  test("opens no board where the blockr option board_action_menu names a module that no package offers, and shows why in its place, naming the blockr option and the module", async () => {
+    const r = playedR();
+    const el = document.createElement("div");
+    const basic = frontEnd();
+    const reported = logged();
+    const started = startPage({
+      el,
+      transport: r.transport,
+      loader: {
+        importer: (url) =>
+          url === BASIC ? Promise.resolve(basic.exports) : Object.hasOwn(CORE, url) ? Promise.resolve(CORE[url]) : Promise.reject(new TypeError(`No module at ${url}.`)),
+        stylesheet: () => Promise.resolve(),
+      },
+      measure: { info: () => null, watch: () => () => undefined },
+    });
+    r.session();
+    await tick();
+    r.options({ board_action_menu: "mykit-menu" });
+    const why =
+      'Core opens no board, since it cannot draw the menus of board actions with the module "mykit-menu" that the blockr option board_action_menu names. No package offers a module "mykit-menu".';
+    await expect(started.ready).rejects.toThrow(why);
+    reported.restore();
+
+    expect(el.firstElementChild?.getAttribute("role")).toBe("alert");
+    expect(el.textContent).toBe(why);
+    expect(basic.renders).toHaveLength(0);
+    expect(r.evaluations()).toEqual([]);
+  });
+
+  test.each([
+    {
+      what: "fails to load",
+      exports: undefined,
+      why: `The module blockr.test/menu.js of blockr.test failed to load: Failed to fetch dynamically imported module: ${TEST_MENU}`,
+    },
+    {
+      what: "declares another major of core's JS API",
+      exports: { api: 2, default: { render: () => () => undefined } },
+      why: "The module blockr.test-menu of blockr.test was built against major 2 of core's JS API, where core's is 1.",
+    },
+    {
+      what: "has no default export with a render() function",
+      exports: { api: 1, default: {} },
+      why: "The module blockr.test-menu of blockr.test has no default export with a render() function.",
+    },
+  ])("opens no board where the module that board_action_menu names $what", async ({ exports, why }) => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports, ...(exports === undefined ? {} : { [TEST_MENU]: exports }) },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session(offering);
+    await tick();
+    s.r.options({ board_action_menu: "blockr.test-menu" });
+
+    const said = `Core opens no board, since it cannot draw the menus of board actions with the module "blockr.test-menu" that the blockr option board_action_menu names. ${why}`;
+    await expect(s.started.ready).rejects.toThrow(said);
+    expect(failed).toEqual([said]);
+    expect(basic.renders).toHaveLength(0);
+    expect(s.started.core()).toBeUndefined();
+  });
+
+  test.each([3, "", ["blockr.test-menu"]])("opens no board where the blockr option board_action_menu holds %j, which names no module by its id", async (value) => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session();
+    await tick();
+    s.r.options({ board_action_menu: value as string });
+
+    const said = `Core opens no board, since the blockr option board_action_menu names no module by its id, as "blockr.core-board_action_menu", but holds ${JSON.stringify(value)}.`;
+    await expect(s.started.ready).rejects.toThrow(said);
+    expect(failed).toEqual([said]);
+    expect(basic.renders).toHaveLength(0);
+  });
+
+  test("closes the menu where the module throws as it draws one, which core logs and tells the user of, so that trigger() resolves", async () => {
+    const basic = frontEnd();
+    const failing: MenuModule = {
+      render() {
+        throw new Error("Nothing to draw with.");
+      },
+    };
+    const s = setup({ [BASIC]: basic.exports, [TEST_MENU]: { api: 1, default: failing } });
+    s.r.session(offering);
+    await tick();
+    s.r.options({ board_action_menu: "blockr.test-menu" });
+    const core = await s.started.ready;
+
+    const reported = logged();
+    const trigger = triggerOnPage();
+    expect(() => {
+      core.boardActions.menu({ block: "a" }, { el: trigger, anchor: new DOMRect(0, 0, 0, 0) });
+    }).not.toThrow();
+    // Rename has a quick action, which trigger() opens as a menu.
+    await core.boardActions.trigger("blockr.core-rename_action", { block: "a" }, { el: trigger });
+    reported.restore();
+
+    // Core raises the notification anew for each failure, in place of the one
+    // before.
+    const why = 'The module "blockr.test-menu" failed to draw a menu of board actions: Nothing to draw with.';
+    expect(reported.errors().map((line) => line.message)).toEqual([why, why]);
+    expect(held(core, (n) => notificationCode(n) === "module_failed")).toEqual([
+      { severity: "error", message: why, source: { kind: "core", code: "module_failed" } },
+    ]);
+    expect(core.store.board().blocks.a?.name).toBe(hello.board.board.blocks.a?.name);
+  });
+});
+
 describe("a block that serve() serves alone", () => {
   // The reply to the hello of an app that serves the head block alone, with
   // R binding its input data, which runs no plugin.
@@ -2015,8 +2261,9 @@ describe("a block that serve() serves alone", () => {
     expect(core.store.board().name).toBe(helloBlock.board.board.name);
     expect(drawn).toEqual([{ core, sent: 0 }]);
     // R names no plugin for a block served alone, so none runs, and core
-    // imports the modules of core's board options alone.
-    expect(new Set(s.imported)).toEqual(new Set(Object.values(helloBlock.options).map((entry) => entry.module)));
+    // imports the modules of core's board options alone, with the module that
+    // draws the menus of board actions, as for every board.
+    expect(new Set(s.imported)).toEqual(new Set([...Object.values(helloBlock.options).map((entry) => entry.module), MENU]));
     expect(core.plugins.appPlugins()).toEqual({});
     expect(core.plugins.storage()).toBeUndefined();
 

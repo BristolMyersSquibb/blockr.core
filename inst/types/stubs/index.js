@@ -110,7 +110,7 @@ function listing(items) {
   return `${items.slice(0, -1).join(", ")} and ${items.at(-1) ?? ""}`;
 }
 function quoted(items) {
-  return listing(items.map((item) => `"${item}"`));
+  return listing(items.map((item2) => `"${item2}"`));
 }
 function packageFromId(id2) {
   const at = id2.indexOf("-");
@@ -137,9 +137,9 @@ var raiseNothing = () => () => void 0;
 var repliedNothing = () => void 0;
 var notifyNothing = () => () => void 0;
 var refusedNothing = () => void 0;
-function givenNotifier(opts, call) {
+function givenNotifier(opts, call2) {
   if (opts?.notifier === void 0) return void 0;
-  if (typeof opts.notifier !== "function") throw new TypeError(`The \`notifier\` of ${call} is a function.`);
+  if (typeof opts.notifier !== "function") throw new TypeError(`The \`notifier\` of ${call2} is a function.`);
   return opts.notifier.bind(opts);
 }
 function sourceModule(object2, pkg, renderer) {
@@ -604,11 +604,11 @@ function stubBlockHost(fixture, options = {}) {
       requested2.push({ name: name2, args: given, ...opts.file === void 0 ? {} : { file: opts.file } });
       if (opts.signal?.aborted === true) return Promise.reject(asError(opts.signal.reason));
       const found = fixture.requests.find(
-        (call) => call.name === name2 && Object.keys(given).every((arg) => Object.hasOwn(call.args, arg)) && // The host fills in a state arg from the block's state
+        (call2) => call2.name === name2 && Object.keys(given).every((arg) => Object.hasOwn(call2.args, arg)) && // The host fills in a state arg from the block's state
         // where the module passes none.
-        Object.entries(call.args).every(
+        Object.entries(call2.args).every(
           ([arg, value2]) => jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state2, arg), value2)
-        ) && (call.file === void 0 ? opts.file === void 0 : opts.file !== void 0 && sameFile(call.file, opts.file)) && Object.entries(call.options).every(([id2, value2]) => jsonEqual(own(contextGiven.options ?? {}, id2), value2))
+        ) && (call2.file === void 0 ? opts.file === void 0 : opts.file !== void 0 && sameFile(call2.file, opts.file)) && Object.entries(call2.options).every(([id2, value2]) => jsonEqual(own(contextGiven.options ?? {}, id2), value2))
       );
       if (found === void 0) {
         return Promise.reject(
@@ -687,7 +687,7 @@ function answer(answers, name2, args, of) {
   if (!isObject(args)) {
     return Promise.reject(new TypeError(`The args of the request "${name2}" are an object.`));
   }
-  const found = answers.find((call) => call.name === name2 && jsonEqual(call.args ?? {}, args));
+  const found = answers.find((call2) => call2.name === name2 && jsonEqual(call2.args ?? {}, args));
   return found === void 0 ? Promise.reject(new Error(`No answer is given for the request "${name2}" of ${of} with the args ${JSON.stringify(args)}.`)) : Promise.resolve(found.answer);
 }
 
@@ -744,7 +744,7 @@ function stubOutputHost(options = {}) {
       const scope = opts.scope ?? "class";
       requested2.push({ name: name2, args, scope });
       if (opts.signal?.aborted === true) return Promise.reject(asError(opts.signal.reason));
-      const answers = (options.requests ?? []).filter((call) => (call.scope ?? "class") === scope);
+      const answers = (options.requests ?? []).filter((call2) => (call2.scope ?? "class") === scope);
       return answer(answers, name2, args, scope === "class" ? "the output class" : "the renderer");
     },
     emit(name2, payload) {
@@ -1010,24 +1010,24 @@ function createClient(transport, options) {
   }
   function transmit(outbound, bodies) {
     const calls = outbound.flatMap((entry) => entry.call ?? []);
-    for (const call of calls) {
-      waiting2.set(call.id, call);
+    for (const call2 of calls) {
+      waiting2.set(call2.id, call2);
     }
     const sent2 = transport.send(
       outbound.map((entry) => entry.message),
       bodies
     ).then(
       () => {
-        for (const call of calls) {
-          call.sent = true;
-          if (call.aborted) cancel(call);
+        for (const call2 of calls) {
+          call2.sent = true;
+          if (call2.aborted) cancel(call2);
         }
       },
       (error) => {
-        for (const call of calls) {
-          if (waiting2.get(call.id) === call) {
-            waiting2.delete(call.id);
-            call.settle({ error: asError(error) });
+        for (const call2 of calls) {
+          if (waiting2.get(call2.id) === call2) {
+            waiting2.delete(call2.id);
+            call2.settle({ error: asError(error) });
           }
         }
       }
@@ -1037,19 +1037,19 @@ function createClient(transport, options) {
       void sent2.finally(() => sending.delete(sent2));
     }
   }
-  function cancel(call) {
-    if (waiting2.get(call.id) !== call || !shared.has("cancel")) return;
-    quietly(transport.send([{ kind: "cancel", request: call.id }], /* @__PURE__ */ new Map()));
+  function cancel(call2) {
+    if (waiting2.get(call2.id) !== call2 || !shared.has("cancel")) return;
+    quietly(transport.send([{ kind: "cancel", request: call2.id }], /* @__PURE__ */ new Map()));
   }
-  function abort(entry, call) {
+  function abort(entry, call2) {
     const index = held4.indexOf(entry);
     if (index >= 0) {
       held4.splice(index, 1);
-      call.settle(cancelled(call.id));
-    } else if (call.sent) {
-      cancel(call);
+      call2.settle(cancelled(call2.id));
+    } else if (call2.sent) {
+      cancel(call2);
     } else {
-      call.aborted = true;
+      call2.aborted = true;
     }
   }
   function queue(entry) {
@@ -1067,8 +1067,8 @@ function createClient(transport, options) {
     ends2 += 1;
     const lost = [...waiting2.values()];
     waiting2.clear();
-    for (const call of lost) {
-      call.settle({ error: new SessionEndedError(call.id) });
+    for (const call2 of lost) {
+      call2.settle({ error: new SessionEndedError(call2.id) });
     }
   }
   function stop(theirs, ours) {
@@ -1078,14 +1078,14 @@ function createClient(transport, options) {
     end();
     const lost = held4;
     held4 = [];
-    for (const { call } of lost) {
-      call?.settle({ error: stopped });
+    for (const { call: call2 } of lost) {
+      call2?.settle({ error: stopped });
     }
   }
   function sendHello() {
     const named5 = options.hello();
     const id2 = mint2();
-    const call = {
+    const call2 = {
       id: id2,
       body: void 0,
       progress: void 0,
@@ -1114,7 +1114,7 @@ function createClient(transport, options) {
         });
       }
     };
-    transmit([{ message: { ...named5, id: id2, kind: "hello" }, call }], /* @__PURE__ */ new Map());
+    transmit([{ message: { ...named5, id: id2, kind: "hello" }, call: call2 }], /* @__PURE__ */ new Map());
   }
   transport.listen({
     started() {
@@ -1126,26 +1126,26 @@ function createClient(transport, options) {
     ended() {
       end();
     },
-    received(item, body) {
-      const call = waiting2.get(item.id);
-      if (call === void 0) return;
-      if (!("status" in item)) {
-        const note = item.progress;
+    received(item2, body) {
+      const call2 = waiting2.get(item2.id);
+      if (call2 === void 0) return;
+      if (!("status" in item2)) {
+        const note = item2.progress;
         guard(() => {
-          call.progress?.(note);
+          call2.progress?.(note);
         });
         return;
       }
-      waiting2.delete(item.id);
+      waiting2.delete(item2.id);
       if (body === null) {
-        call.settle({ reply: item, body: null });
+        call2.settle({ reply: item2, body: null });
       } else {
         body.then(
           (blob) => {
-            call.settle({ reply: item, body: blob });
+            call2.settle({ reply: item2, body: blob });
           },
           (error) => {
-            call.settle({ error: asError(error) });
+            call2.settle({ error: asError(error) });
           }
         );
       }
@@ -1164,9 +1164,9 @@ function createClient(transport, options) {
       };
       return new Promise((resolve, reject) => {
         const onAbort2 = () => {
-          abort(entry, call);
+          abort(entry, call2);
         };
-        const call = {
+        const call2 = {
           id: id2,
           body,
           progress,
@@ -1182,9 +1182,9 @@ function createClient(transport, options) {
             }
           }
         };
-        const entry = { message, call };
+        const entry = { message, call: call2 };
         if (signal5?.aborted === true) {
-          call.settle(cancelled(id2));
+          call2.settle(cancelled(id2));
           return;
         }
         signal5?.addEventListener("abort", onAbort2, { once: true });
@@ -1201,8 +1201,8 @@ function createClient(transport, options) {
       const lost = held4;
       held4 = [];
       end();
-      for (const { call } of lost) {
-        call?.settle({ error: new SessionEndedError(call.id) });
+      for (const { call: call2 } of lost) {
+        call2?.settle({ error: new SessionEndedError(call2.id) });
       }
       if (!runs) return;
       state2 = "started";
@@ -1329,12 +1329,12 @@ function replyOutcome(reply, revision) {
 function unsent(revision, error) {
   return { revision, message: `The evaluation could not be sent to R: ${error}` };
 }
-function unevaluated(revision, running2) {
+function unevaluated(revision, running3) {
   return {
     status: "unevaluated",
     revision,
     evaluated: null,
-    running: running2,
+    running: running3,
     conditions: NO_CONDITIONS,
     stdout: "",
     stderr: "",
@@ -1343,12 +1343,12 @@ function unevaluated(revision, running2) {
     unsent: null
   };
 }
-function failedToSend(failure, revision, evaluated, running2) {
+function failedToSend(failure, revision, evaluated, running3) {
   return {
     status: failure.revision === revision ? "failed" : "stale",
     revision,
     evaluated,
-    running: running2,
+    running: running3,
     conditions: NO_CONDITIONS,
     stdout: "",
     stderr: "",
@@ -1363,12 +1363,12 @@ var REPLIED = {
   invalid: "invalid",
   waiting: "waiting"
 };
-function replied(outcome, revision, running2) {
+function replied(outcome, revision, running3) {
   return {
     status: outcome.revision !== revision ? "stale" : REPLIED[outcome.status],
     revision,
     evaluated: outcome.revision,
-    running: running2,
+    running: running3,
     conditions: outcome.conditions,
     stdout: outcome.stdout,
     stderr: outcome.stderr,
@@ -1377,12 +1377,12 @@ function replied(outcome, revision, running2) {
     unsent: null
   };
 }
-function waiting(why, revision, evaluated, running2) {
+function waiting(why, revision, evaluated, running3) {
   return {
     status: "waiting",
     revision,
     evaluated,
-    running: running2,
+    running: running3,
     conditions: NO_CONDITIONS,
     stdout: "",
     stderr: "",
@@ -1413,9 +1413,9 @@ function blockStatuses(input2) {
     if (revision === void 0) continue;
     const outcome = input2.outcomes.get(id2);
     const failure = input2.unsent.get(id2);
-    const running2 = input2.running.has(id2);
+    const running3 = input2.running.has(id2);
     const reason = keptWaiting(input2.inputs.get(id2), statuses);
-    const now = reason !== void 0 ? waiting(reason, revision, outcome?.revision ?? null, running2) : failure !== void 0 ? failedToSend(failure, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
+    const now = reason !== void 0 ? waiting(reason, revision, outcome?.revision ?? null, running3) : failure !== void 0 ? failedToSend(failure, revision, outcome?.revision ?? null, running3) : outcome === void 0 ? unevaluated(revision, running3) : replied(outcome, revision, running3);
     const before = input2.before.get(id2);
     if (before !== void 0 && sameStatus(before, now)) {
       statuses.set(id2, before);
@@ -1645,11 +1645,11 @@ function evaluationPlan(input2) {
     }
     return since;
   };
-  const paramsFor = (id2, at) => pending.some((item) => item.block === id2) || sent2.some(
+  const paramsFor = (id2, at) => pending.some((item2) => item2.block === id2) || sent2.some(
     (evaluation) => evaluation.oneTime !== void 0 && evaluation.block === id2 && evaluation.revision === at
   );
   let oldest = Infinity;
-  for (const item of [...sent2, ...asked]) oldest = Math.min(oldest, item.id);
+  for (const item2 of [...sent2, ...asked]) oldest = Math.min(oldest, item2.id);
   const drop = (evaluation) => {
     cancel.push(evaluation.id);
     cancelled2.add(evaluation.id);
@@ -1680,8 +1680,8 @@ function evaluationPlan(input2) {
     if (inFlight(id2, at) || paramsFor(id2, at)) continue;
     queued.push({ block: id2, priority });
   }
-  for (const item of pending) {
-    queued.push({ block: item.block, priority: item.priority, oneTime: item.oneTime });
+  for (const item2 of pending) {
+    queued.push({ block: item2.block, priority: item2.priority, oneTime: item2.oneTime });
   }
   queued.sort(
     (a, b) => (a.priority === b.priority ? 0 : a.priority > b.priority ? -1 : 1) || (index.get(a.block) ?? 0) - (index.get(b.block) ?? 0)
@@ -1691,25 +1691,25 @@ function evaluationPlan(input2) {
   const reject = [];
   const rejected = /* @__PURE__ */ new Set();
   if (!input2.holding) {
-    for (const item of queued) {
-      if (item.oneTime !== void 0) {
-        if (rejected.has(item.oneTime)) continue;
-        const status = statuses.get(item.block);
-        if (status !== void 0 && keptWaiting(input2.inputs.get(item.block), statuses) !== void 0) {
-          reject.push({ oneTime: item.oneTime, error: waitingError(item.block, status) });
-          rejected.add(item.oneTime);
+    for (const item2 of queued) {
+      if (item2.oneTime !== void 0) {
+        if (rejected.has(item2.oneTime)) continue;
+        const status = statuses.get(item2.block);
+        if (status !== void 0 && keptWaiting(input2.inputs.get(item2.block), statuses) !== void 0) {
+          reject.push({ oneTime: item2.oneTime, error: waitingError(item2.block, status) });
+          rejected.add(item2.oneTime);
           continue;
         }
       }
-      if (slots <= 0 || !graph.upstream(item.block).every(available)) continue;
+      if (slots <= 0 || !graph.upstream(item2.block).every(available)) continue;
       send.push(
-        item.oneTime === void 0 ? { block: item.block } : { block: item.block, oneTime: item.oneTime }
+        item2.oneTime === void 0 ? { block: item2.block } : { block: item2.block, oneTime: item2.oneTime }
       );
-      planned.add(item.block);
+      planned.add(item2.block);
       slots -= 1;
     }
   }
-  const busy = asked.length > 0 || sent2.some((evaluation) => (evaluationPriority(evaluation) ?? 0) >= 0) || queued.some((item) => item.priority >= 0);
+  const busy = asked.length > 0 || sent2.some((evaluation) => (evaluationPriority(evaluation) ?? 0) >= 0) || queued.some((item2) => item2.priority >= 0);
   let idleSince = input2.idleSince;
   if (busy || input2.holding || !Number.isFinite(input2.delay)) {
     idleSince = void 0;
@@ -1974,37 +1974,37 @@ function createScheduler(options) {
       )
     };
   }
-  function send(item) {
-    const recipe = blockRecipe(item.block);
-    const at = revisions.value.get(item.block);
-    const block = board.value === void 0 ? void 0 : own(board.value.blocks, item.block);
+  function send(item2) {
+    const recipe = blockRecipe(item2.block);
+    const at = revisions.value.get(item2.block);
+    const block = board.value === void 0 ? void 0 : own(board.value.blocks, item2.block);
     if (recipe === void 0 || at === void 0 || block === void 0) return;
     let oneTime;
-    if (item.oneTime !== void 0) {
-      const found = oneTimes.value.get(item.oneTime);
+    if (item2.oneTime !== void 0) {
+      const found = oneTimes.value.get(item2.oneTime);
       if (found === void 0 || !("params" in found)) return;
-      oneTime = { id: item.oneTime, priority: found.priority, params: found.params };
+      oneTime = { id: item2.oneTime, priority: found.priority, params: found.params };
     }
     const id2 = ++ids3;
     sent2.value = new Map(sent2.value).set(id2, {
       id: id2,
       at: Date.now(),
-      block: item.block,
+      block: item2.block,
       revision: at,
       oneTime: oneTime === void 0 ? void 0 : { id: oneTime.id, priority: oneTime.priority },
-      background: item.background === true,
+      background: item2.background === true,
       cancelled: false
     });
     if (oneTime !== void 0) {
-      oneTimes.value = sent(oneTimes.value, oneTime.id, item.block, { id: id2, recipe });
+      oneTimes.value = sent(oneTimes.value, oneTime.id, item2.block, { id: id2, recipe });
     }
     const controller = new AbortController();
     controllers.set(id2, controller);
-    const cause = causes.get(item.block);
+    const cause = causes.get(item2.block);
     client.request(
       {
         kind: "evaluate",
-        block: item.block,
+        block: item2.block,
         revision: at,
         locked: block.locked,
         recipe,
@@ -2114,7 +2114,7 @@ function createScheduler(options) {
         idleSince = plan.idleSince;
         for (const id2 of plan.cancel) cancel(id2);
         for (const { oneTime, error } of plan.reject) end(oneTime, { error });
-        for (const item of plan.send) send(item);
+        for (const item2 of plan.send) send(item2);
         wake(plan.wakeAt);
       }
       planned = state2.value;
@@ -3986,15 +3986,7 @@ function sameContext(a, b) {
 
 // srcts/stubs/mount.ts
 async function mount(exports, host, el = document.createElement("div")) {
-  if (!isObject(exports) || exports.api !== API) {
-    throw new Error(
-      `The module declares ${isObject(exports) && typeof exports.api === "number" ? `major ${String(exports.api)}` : "no major"} of core's JS API, where core's is ${String(API)}, as \`export const api = ${String(API)}\`.`
-    );
-  }
-  const mod = exports.default;
-  if (!isObject(mod) || typeof mod.render !== "function") {
-    throw new Error("The module has no default export with a render() function.");
-  }
+  const mod = renderable(exports);
   const render2 = mod.render;
   const controller = new AbortController();
   const cleanup = await render2.call(mod, { el, host, signal: controller.signal });
@@ -4007,6 +3999,18 @@ async function mount(exports, host, el = document.createElement("div")) {
       if (typeof cleanup === "function") cleanup();
     }
   };
+}
+function renderable(exports) {
+  if (!isObject(exports) || exports.api !== API) {
+    throw new Error(
+      `The module declares ${isObject(exports) && typeof exports.api === "number" ? `major ${String(exports.api)}` : "no major"} of core's JS API, where core's is ${String(API)}, as \`export const api = ${String(API)}\`.`
+    );
+  }
+  const mod = exports.default;
+  if (!isObject(mod) || typeof mod.render !== "function") {
+    throw new Error("The module has no default export with a render() function.");
+  }
+  return mod;
 }
 
 // srcts/core/blockr-options.ts
@@ -6275,10 +6279,10 @@ function createRegistrations(migration = () => void 0) {
       validate = compile(what, state2.schema);
       checkInitial(what, validate, state2.default, "default");
     }
-    const item = { def, validate };
-    classes2.value = new Map([...classes2.value, [id2, item]]);
+    const item2 = { def, validate };
+    classes2.value = new Map([...classes2.value, [id2, item2]]);
     return () => {
-      if (classes2.value.get(id2) !== item) return;
+      if (classes2.value.get(id2) !== item2) return;
       const rest = new Map(classes2.value);
       rest.delete(id2);
       classes2.value = rest;
@@ -6310,10 +6314,10 @@ function createRegistrations(migration = () => void 0) {
         if (typeof def.default !== "function") {
           checkInitial(what, validate, def.default, "default");
         }
-        const item = { def, validate };
-        options.value = [...options.value, item];
+        const item2 = { def, validate };
+        options.value = [...options.value, item2];
         return () => {
-          options.value = options.value.filter((x) => x !== item);
+          options.value = options.value.filter((x) => x !== item2);
         };
       },
       registered: () => optionDefs.value
@@ -7269,30 +7273,30 @@ function createCommands(store, options = {}) {
       throw new Error(`The command "${id2}" is registered already.`);
     }
     const validate = command2.args === void 0 ? void 0 : compile(`the args of the command "${id2}"`, command2.args, "fail their schema");
-    const item = {
+    const item2 = {
       command: command2,
       validate,
       context: { ...shared, refusal: (failures) => refusal(id2, failures) }
     };
-    commands.value = new Map([...commands.value, [id2, item]]);
+    commands.value = new Map([...commands.value, [id2, item2]]);
     return () => {
-      if (commands.value.get(id2) !== item) return;
+      if (commands.value.get(id2) !== item2) return;
       const rest = new Map(commands.value);
       rest.delete(id2);
       commands.value = rest;
     };
   }
   function lookup(id2, given) {
-    const item = commands.value.get(id2);
-    if (item === void 0) {
+    const item2 = commands.value.get(id2);
+    if (item2 === void 0) {
       throw refusal(id2, [`No command "${id2}" is registered.`]);
     }
     const args = given ?? {};
-    const failures = item.validate?.(args) ?? [];
+    const failures = item2.validate?.(args) ?? [];
     if (failures.length > 0) {
       throw refusal(id2, failures.map((failure) => `The args ${failure}`));
     }
-    return { item, args };
+    return { item: item2, args };
   }
   function current2(id2) {
     if (ended()) {
@@ -7318,19 +7322,19 @@ function createCommands(store, options = {}) {
     const deltas2 = isDeltas(returned) ? returned : [returned];
     return deltas2.map((delta) => withEdits(command2.undo === false ? { ...delta, undo: false } : delta));
   }
-  function deltas(item, args) {
-    const board = current2(item.command.id);
-    allow(item, board, args);
-    if (item.command.prepare === void 0) return build(item, board, args);
-    return prepared(item, board, args);
+  function deltas(item2, args) {
+    const board = current2(item2.command.id);
+    allow(item2, board, args);
+    if (item2.command.prepare === void 0) return build(item2, board, args);
+    return prepared(item2, board, args);
   }
-  async function prepared(item, board, args) {
-    const { command: command2 } = item;
-    const input2 = await prepare(item, board, args);
+  async function prepared(item2, board, args) {
+    const { command: command2 } = item2;
+    const input2 = await prepare(item2, board, args);
     if (ended()) throw refusal(command2.id, [DROPPED]);
     const now = current2(command2.id);
-    allow(item, now, args);
-    return build(item, now, input2);
+    allow(item2, now, args);
+    return build(item2, now, input2);
   }
   async function prepare({ command: command2, context: context4 }, board, args) {
     try {
@@ -7363,19 +7367,19 @@ function createCommands(store, options = {}) {
         throw inBatch(0, first.item.command.id, error);
       }
       let board = start3;
-      for (const [index, { item, args }] of checked4.entries()) {
-        const { command: command2 } = item;
+      for (const [index, { item: item2, args }] of checked4.entries()) {
+        const { command: command2 } = item2;
         try {
-          allow(item, board, args);
+          allow(item2, board, args);
           if (command2.prepare !== void 0 && !inputs.has(index)) {
-            inputs.set(index, await within(() => prepare(item, board, args)));
+            inputs.set(index, await within(() => prepare(item2, board, args)));
             if (ended()) throw refusal(command2.id, [DROPPED]);
             if (store.board() !== start3) {
               again = true;
               break;
             }
           }
-          built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
+          built.push(...build(item2, board, inputs.has(index) ? inputs.get(index) : args));
           board = store.dryRun(built);
         } catch (error) {
           throw inBatch(index, command2.id, error);
@@ -7434,8 +7438,8 @@ function createCommands(store, options = {}) {
     registered: () => registered.value,
     preflight(id2, given) {
       try {
-        const { item, args } = lookup(id2, given);
-        allow(item, current2(id2), args);
+        const { item: item2, args } = lookup(id2, given);
+        allow(item2, current2(id2), args);
         return true;
       } catch {
         return false;
@@ -7449,16 +7453,16 @@ function createCommands(store, options = {}) {
       const origin = typeof third === "string" ? third : "user";
       return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
-        const { item, args } = lookup(target2, given);
-        const step2 = deltas(item, args);
+        const { item: item2, args } = lookup(target2, given);
+        const step2 = deltas(item2, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
         return within(() => store.apply(ready, origin));
       });
     },
     async plan(target2, given) {
       if (typeof target2 !== "string") return planned(target2, (built) => built);
-      const { item, args } = lookup(target2, given);
-      return deltas(item, args);
+      const { item: item2, args } = lookup(target2, given);
+      return deltas(item2, args);
     }
   };
   for (const command2 of coreCommands(store)) {
@@ -7556,10 +7560,10 @@ function openMenu(start3, parts) {
     view ??= shownNow();
     return view;
   }
-  function entry(action2, state2, actions) {
+  function entry(action3, state2, actions) {
     return {
       id: ++levels,
-      action: action2,
+      action: action3,
       ...actions === void 0 ? {} : { actions },
       state: state2,
       filter: "",
@@ -7568,8 +7572,8 @@ function openMenu(start3, parts) {
       ticks: /* @__PURE__ */ new Map()
     };
   }
-  function place(state2, action2, replacing) {
-    const next = entry(action2, state2);
+  function place(state2, action3, replacing) {
+    const next = entry(action3, state2);
     if (replacing === void 0) stack.push(next);
     else stack.splice(stack.indexOf(replacing), 1, next);
     changed();
@@ -7583,52 +7587,52 @@ function openMenu(start3, parts) {
     listeners.clear();
     parts.closed(ran);
   }
-  function finish(batch2, action2) {
+  function finish(batch2, action3) {
     if (batch2.length === 0) {
       end();
       return Promise.resolve();
     }
-    return closing(parts.run(batch2, action2));
+    return closing(parts.run(batch2, action3));
   }
   function closing(ran) {
     ran.catch(() => void 0);
     end(ran);
     return ran;
   }
-  function settle2(given, action2, what, replacing) {
+  function settle2(given, action3, what, replacing) {
     let value2;
     try {
       value2 = given();
     } catch (error) {
-      place(failure(action2, what, error), action2, replacing);
+      place(failure(action3, what, error), action3, replacing);
       return Promise.resolve();
     }
-    if (!isThenable(value2)) return outcome(value2, action2, what, replacing);
-    const loading = place({ kind: "loading" }, action2, replacing);
+    if (!isThenable(value2)) return outcome(value2, action3, what, replacing);
+    const loading = place({ kind: "loading" }, action3, replacing);
     const current2 = () => !ended && stack.at(-1) === loading;
     return Promise.resolve(value2).then(
-      (resolved) => current2() ? outcome(resolved, action2, what, loading) : void 0,
+      (resolved) => current2() ? outcome(resolved, action3, what, loading) : void 0,
       (error) => {
-        if (current2()) place(failure(action2, what, error), action2, loading);
+        if (current2()) place(failure(action3, what, error), action3, loading);
       }
     );
   }
-  function outcome(value2, action2, what, replacing) {
+  function outcome(value2, action3, what, replacing) {
     if (what === "quick" && value2 === void 0) {
-      if (action2.advanced !== void 0) return advanced(action2, {});
-      place(failure(action2, what, new TypeError(NO_LEVEL)), action2, replacing);
+      if (action3.advanced !== void 0) return advanced(action3, {});
+      place(failure(action3, what, new TypeError(NO_LEVEL)), action3, replacing);
       return Promise.resolve();
     }
-    if (what !== "quick" && isBatch(value2)) return finish(value2, action2);
+    if (what !== "quick" && isBatch(value2)) return finish(value2, action3);
     if ((what === "quick" || what === "pick") && isLevel(value2)) {
-      place({ kind: "level", level: value2 }, action2, replacing);
+      place({ kind: "level", level: value2 }, action3, replacing);
       return Promise.resolve();
     }
-    place(failure(action2, what, new TypeError(GAVE[what])), action2, replacing);
+    place(failure(action3, what, new TypeError(GAVE[what])), action3, replacing);
     return Promise.resolve();
   }
-  function failure(action2, what, error) {
-    log.error(new Error(`${SUBJECTS[what]} "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+  function failure(action3, what, error) {
+    log.error(new Error(`${SUBJECTS[what]} "${action3.id}" failed: ${errorMessage(error)}`, { cause: error }));
     return { kind: "error", message: errorMessage(error) };
   }
   function shownNow() {
@@ -7672,11 +7676,11 @@ function openMenu(start3, parts) {
       };
     }
     if (row.kind === "multi") {
-      const ticked = ticks(current2, index, row);
+      const ticked2 = ticks(current2, index, row);
       return {
         kind: "multi",
         label: row.label,
-        choices: (choices ?? row.choices).map(({ id: id2, label }) => ({ id: id2, label, picked: ticked.has(id2) }))
+        choices: (choices ?? row.choices).map(({ id: id2, label }) => ({ id: id2, label, picked: ticked2.has(id2) }))
       };
     }
     const value2 = current2.values.get(index) ?? row.value ?? "";
@@ -7699,12 +7703,12 @@ function openMenu(start3, parts) {
     const found = index === void 0 ? void 0 : now().rows[index];
     return found === void 0 ? { current: current2 } : { current: current2, found };
   }
-  function enter(action2) {
-    if (action2.run !== void 0) return closing(parts.trigger(action2));
-    if (action2.quick !== void 0) return settle2(() => action2.quick?.(parts.board(), parts.target, parts.core()), action2, "quick");
-    return advanced(action2, {});
+  function enter(action3) {
+    if (action3.run !== void 0) return closing(parts.trigger(action3));
+    if (action3.quick !== void 0) return settle2(() => action3.quick?.(parts.board(), parts.target, parts.core()), action3, "quick");
+    return advanced(action3, {});
   }
-  function advanced(action2, opened) {
+  function advanced(action3, opened) {
     let resolve = () => void 0;
     let reject = () => void 0;
     const ran = closing(
@@ -7713,54 +7717,54 @@ function openMenu(start3, parts) {
         reject = rejected;
       })
     );
-    parts.advanced(action2, opened).then(resolve, reject);
+    parts.advanced(action3, opened).then(resolve, reject);
     return ran;
   }
   function openAdvanced(index) {
     const shown2 = at(index);
     if (shown2 === void 0) return Promise.resolve();
     const { current: current2, found } = shown2;
-    const { action: action2, state: state2 } = current2;
-    if (action2?.advanced === void 0 || state2.kind !== "level") return Promise.resolve();
+    const { action: action3, state: state2 } = current2;
+    if (action3?.advanced === void 0 || state2.kind !== "level") return Promise.resolve();
     let picked = state2.level.picked;
     if (index !== void 0) {
       const row = found?.row;
       if (row?.kind !== "item" || row.advanced === void 0) return Promise.resolve();
       picked = row.advanced;
     }
-    if (!parts.applies(action2)) {
+    if (!parts.applies(action3)) {
       end();
       return Promise.resolve();
     }
-    return advanced(action2, {
+    return advanced(action3, {
       ...picked === void 0 ? {} : { picked },
       ...state2.level.filter === true ? { filter: current2.filter } : {}
     });
   }
-  function submit(current2, row, index, action2) {
+  function submit(current2, row, index, action3) {
     const value2 = current2.values.get(index) ?? row.value ?? "";
     current2.tried.add(index);
     if (refused2(current2, row, value2) !== void 0) {
       changed();
       return Promise.resolve();
     }
-    return settle2(() => row.submit(value2), action2, "submit");
+    return settle2(() => row.submit(value2), action3, "submit");
   }
   function applied(current2) {
-    const { action: action2, state: state2 } = current2;
-    if (action2 === void 0 || state2.kind !== "level") return [];
+    const { action: action3, state: state2 } = current2;
+    if (action3 === void 0 || state2.kind !== "level") return [];
     return state2.level.rows.flatMap((row, index) => {
       if (row.kind !== "multi" || !current2.ticks.has(index)) return [];
-      const ticked = ticks(current2, index, row);
+      const ticked2 = ticks(current2, index, row);
       const before = row.choices.filter((choice) => choice.picked).map(({ id: id2 }) => id2);
-      const picked = row.choices.filter((choice) => ticked.has(choice.id)).map(({ id: id2 }) => id2);
+      const picked = row.choices.filter((choice) => ticked2.has(choice.id)).map(({ id: id2 }) => id2);
       if (picked.length === before.length && picked.every((id2, i) => id2 === before[i])) return [];
       try {
         const batch2 = row.apply(picked);
         if (!isBatch(batch2)) throw new TypeError(NO_BATCH);
         return batch2;
       } catch (error) {
-        parts.failed(action2, new Error(`${SUBJECTS.submit} "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+        parts.failed(action3, new Error(`${SUBJECTS.submit} "${action3.id}" failed: ${errorMessage(error)}`, { cause: error }));
         return [];
       }
     });
@@ -7781,9 +7785,9 @@ function openMenu(start3, parts) {
       return row2 === void 0 ? Promise.resolve() : pick2(first);
     }
     if (found === void 0) return Promise.resolve();
-    const action2 = current2.actions?.[found.index];
-    if (action2 !== void 0) {
-      if (parts.applies(action2)) return enter(action2);
+    const action3 = current2.actions?.[found.index];
+    if (action3 !== void 0) {
+      if (parts.applies(action3)) return enter(action3);
       end();
       return Promise.resolve();
     }
@@ -7798,17 +7802,17 @@ function openMenu(start3, parts) {
     const row = shown2?.found?.row;
     if (shown2?.found === void 0 || row?.kind !== "multi" || !row.choices.some(({ id: id2 }) => id2 === choice)) return;
     const { current: current2, found } = shown2;
-    const ticked = new Set(ticks(current2, found.index, row));
-    if (ticked.has(choice)) ticked.delete(choice);
-    else ticked.add(choice);
-    current2.ticks.set(found.index, ticked);
+    const ticked2 = new Set(ticks(current2, found.index, row));
+    if (ticked2.has(choice)) ticked2.delete(choice);
+    else ticked2.add(choice);
+    current2.ticks.set(found.index, ticked2);
     changed();
   }
   if ("actions" in start3) {
     const board = parts.board();
     const actions = inMenuOrder(start3.actions);
     stack.push(
-      entry(void 0, { kind: "level", level: { rows: actions.map((action2) => actionRow(action2, board, parts.target)) } }, actions)
+      entry(void 0, { kind: "level", level: { rows: actions.map((action3) => actionRow(action3, board, parts.target)) } }, actions)
     );
   } else {
     void enter(start3.action);
@@ -7877,20 +7881,20 @@ function filtered(level, query) {
     return choices.length === 0 ? [] : [{ row, index, choices }];
   });
 }
-function actionRow(action2, board, target2) {
+function actionRow(action3, board, target2) {
   let detail;
   try {
-    const given = action2.detail?.(board, target2);
+    const given = action3.detail?.(board, target2);
     if (typeof given === "string" && given !== "") detail = given;
   } catch (error) {
-    log.error(new Error(`The detail of the board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+    log.error(new Error(`The detail of the board action "${action3.id}" failed: ${errorMessage(error)}`, { cause: error }));
   }
   return {
     kind: "item",
-    label: action2.label,
-    ...action2.icon === void 0 ? {} : { icon: action2.icon },
+    label: action3.label,
+    ...action3.icon === void 0 ? {} : { icon: action3.icon },
     ...detail === void 0 ? {} : { detail },
-    category: action2.category,
+    category: action3.category,
     pick: () => []
   };
 }
@@ -7898,7 +7902,7 @@ function levelItem(label, level) {
   return { kind: "item", label, pick: () => level };
 }
 function isBatch(value2) {
-  return Array.isArray(value2) && value2.every((call) => isObject(call) && typeof call.id === "string");
+  return Array.isArray(value2) && value2.every((call2) => isObject(call2) && typeof call2.id === "string");
 }
 function isLevel(value2) {
   if (!isObject(value2) || !Array.isArray(value2.rows)) return false;
@@ -7941,8 +7945,8 @@ function createAdvanced(parts) {
       for (const shown2 of [...places.values()]) close(shown2);
     });
   }
-  function render2(el, action2, target2, given, finish, left2) {
-    const module = action2.advanced;
+  function render2(el, action3, target2, given, finish, left2) {
+    const module = action3.advanced;
     const controller = new AbortController();
     const { signal: signal5 } = controller;
     let cleanup;
@@ -7962,10 +7966,10 @@ function createAdvanced(parts) {
     const offBoard = parts.signal === void 0 ? () => void 0 : onAbort(parts.signal, end2);
     const done = (calls, opts) => {
       if (signal5.aborted) {
-        return Promise.reject(new Error(`The advanced action of the board action "${action2.id}" has ended, so its done() runs nothing.`));
+        return Promise.reject(new Error(`The advanced action of the board action "${action3.id}" has ended, so its done() runs nothing.`));
       }
       if (pending) {
-        return Promise.reject(new Error(`The advanced action of the board action "${action2.id}" runs a done() already.`));
+        return Promise.reject(new Error(`The advanced action of the board action "${action3.id}" runs a done() already.`));
       }
       let notifier;
       try {
@@ -7977,7 +7981,7 @@ function createAdvanced(parts) {
       if (batch2 !== void 0 && !isBatch(batch2)) {
         return Promise.reject(
           new TypeError(
-            `The done() of the advanced action of the board action "${action2.id}" takes a batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }], or none.`
+            `The done() of the advanced action of the board action "${action3.id}" takes a batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }], or none.`
           )
         );
       }
@@ -7997,12 +8001,12 @@ function createAdvanced(parts) {
       try {
         rendered = module.render({ el, core: parts.core(), target: target2, ...given, signal: signal5, done });
       } catch (error) {
-        failed3(action2, error);
+        failed3(action3, error);
         return end2;
       }
       if (isThenable2(rendered)) {
         Promise.resolve(rendered).then(took, (error) => {
-          if (!signal5.aborted) failed3(action2, error);
+          if (!signal5.aborted) failed3(action3, error);
         });
       } else {
         took(rendered);
@@ -8010,16 +8014,16 @@ function createAdvanced(parts) {
     }
     return end2;
   }
-  function failed3(action2, error) {
-    const why = new Error(`The advanced action of the board action "${action2.id}" failed in render(): ${errorMessage(error)}`, { cause: error });
+  function failed3(action3, error) {
+    const why = new Error(`The advanced action of the board action "${action3.id}" failed in render(): ${errorMessage(error)}`, { cause: error });
     log.error(why);
-    const plugin = parts.classOf(action2.id);
+    const plugin = parts.classOf(action3.id);
     parts.raise(
       coreNotification("module_failed", "error", why.message, plugin === void 0 ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) })
     );
   }
-  function renders(action2, target2) {
-    return parts.signal?.aborted !== true && held4(target2) && parts.applies(action2, target2);
+  function renders(action3, target2) {
+    return parts.signal?.aborted !== true && held4(target2) && parts.applies(action3, target2);
   }
   function held4(target2) {
     if (!store.hasBoard()) return false;
@@ -8137,15 +8141,15 @@ function createAdvanced(parts) {
     places.set(shown2.key, shown2);
   }
   return {
-    open(action2, target2, opening2) {
-      if (parts.signal?.aborted === true || action2.advanced === void 0) return Promise.resolve();
+    open(action3, target2, opening2) {
+      if (parts.signal?.aborted === true || action3.advanced === void 0) return Promise.resolve();
       return new Promise((resolve) => {
         const caller = opening2.place;
         const frontend = caller === void 0 ? parts.frontend() : void 0;
         const place = caller?.show ?? frontend ?? DIALOG;
         const key2 = caller !== void 0 ? caller.key : frontend !== void 0 ? FRONTEND : DIALOG;
         const shown2 = {
-          action: action2,
+          action: action3,
           target: target2,
           opening: opening2,
           place,
@@ -8159,8 +8163,8 @@ function createAdvanced(parts) {
         };
         replace(shown2);
         const args = Object.freeze({
-          id: action2.id,
-          title: action2.label,
+          id: action3.id,
+          title: action3.label,
           target: target2,
           mount: (el, other) => mountIn(shown2, el, other),
           close: () => {
@@ -8179,8 +8183,8 @@ function createAdvanced(parts) {
         }
       });
     },
-    mount(el, action2, target2, picked) {
-      if (!renders(action2, target2)) return () => void 0;
+    mount(el, action3, target2, picked) {
+      if (!renders(action3, target2)) return () => void 0;
       const given = picked === void 0 ? {} : { picked };
       let stopped = false;
       let current2;
@@ -8197,7 +8201,7 @@ function createAdvanced(parts) {
           stop();
           return;
         }
-        current2 = render2(el, action2, target2, given, finish, stop);
+        current2 = render2(el, action3, target2, given, finish, stop);
       };
       const finish = async (calls, notifier) => {
         if (calls !== void 0 && calls.length > 0) {
@@ -9169,15 +9173,8 @@ function MenuItem2(props) {
     hasSubmenu ? /* @__PURE__ */ jsx11(ChevronRight, { size: 14 }) : null
   ] })) });
 }
-function MenuSection2({ title, items, children, ...props }) {
-  return /* @__PURE__ */ jsxs8(MenuSection, { ...props, children: [
-    title === void 0 ? null : /* @__PURE__ */ jsx11(Header, { className: HEADING, children: title }),
-    /* @__PURE__ */ jsx11(Collection, { items, children })
-  ] });
-}
 var MENU2 = "bc:grid bc:max-h-[inherit] bc:gap-0.5 bc:overflow-auto bc:p-1 bc:outline-none";
 var ITEM = "bc:box-border bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
-var HEADING = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 
 // srcts/overlays/palette.tsx
@@ -9412,8 +9409,8 @@ function known(props) {
   return (props.items ?? props.defaultItems) !== void 0 || typeof props.children !== "function";
 }
 function ids2(items) {
-  return [...items].flatMap((item) => {
-    const id2 = item.id;
+  return [...items].flatMap((item2) => {
+    const id2 = item2.id;
     return typeof id2 === "string" || typeof id2 === "number" ? [String(id2)] : [];
   });
 }
@@ -9493,7 +9490,7 @@ function Field({
   label
 }) {
   const { state: state2, keys, one: one2, known: known2, lacked } = usePicks(multiple);
-  const item = one2 === null ? void 0 : known2.get(one2);
+  const item2 = one2 === null ? void 0 : known2.get(one2);
   const invalid = marking && lacked.length > 0;
   const remove2 = (gone) => {
     state2?.setValue(keys.filter((key2) => !gone.has(key2)));
@@ -9516,8 +9513,8 @@ function Field({
       /* @__PURE__ */ jsx18(
         Input,
         {
-          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item ?? (one2 === null ? "" : String(one2)),
-          placeholder: one2 !== null && item === void 0 ? String(one2) : keys.length > 0 ? void 0 : placeholder,
+          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item2 ?? (one2 === null ? "" : String(one2)),
+          placeholder: one2 !== null && item2 === void 0 ? String(one2) : keys.length > 0 ? void 0 : placeholder,
           "aria-invalid": invalid || void 0,
           className: INPUT,
           onClick: () => {
@@ -9605,7 +9602,7 @@ function usePicks(multiple) {
   const value2 = state2?.value ?? null;
   const keys = multiple && Array.isArray(value2) ? value2 : [];
   const one2 = !multiple && value2 !== null && !Array.isArray(value2) ? value2 : null;
-  const known2 = new Map((state2?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
+  const known2 = new Map((state2?.selectedItems ?? []).map((item2) => [item2.key, item2.textValue]));
   const lacked = (one2 === null ? keys : [one2]).filter((key2) => !known2.has(key2));
   return { state: state2, keys, one: one2, known: known2, lacked };
 }
@@ -9628,7 +9625,7 @@ function ComboBoxItem(props) {
 }
 function ComboBoxSection({ title, items, children, ...props }) {
   return /* @__PURE__ */ jsxs14(ListBoxSection, { ...props, children: [
-    /* @__PURE__ */ jsx18(Header, { className: HEADING2, children: title }),
+    /* @__PURE__ */ jsx18(Header, { className: HEADING, children: title }),
     /* @__PURE__ */ jsx18(Collection, { items, children })
   ] });
 }
@@ -9641,7 +9638,7 @@ var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-cent
 var LAYOUT = { rowHeight: 32, headingHeight: 28, padding: 4 };
 var LIST = "bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
 var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:outline-none";
-var HEADING2 = "bc:box-border bc:h-[28px] bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
+var HEADING = "bc:box-border bc:h-[28px] bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
 var ROW = "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
@@ -9946,7 +9943,7 @@ function Drawn7({ label, description, errorMessage: errorMessage2, items, childr
       children: [
         label === void 0 ? null : /* @__PURE__ */ jsx27(Label, { className: styles.label, children: label }),
         /* @__PURE__ */ jsxs20(Button, { className: TRIGGER, children: [
-          /* @__PURE__ */ jsx27(SelectValue, { className: ({ isPlaceholder }) => isPlaceholder && asIs.length === 0 ? `${VALUE} ${PLACEHOLDER}` : VALUE, children: ({ state: state2, selectedText, defaultChildren, isPlaceholder }) => asIs.length > 0 ? list.format([...state2.selectedItems.map((item) => item.textValue), ...asIs]) : isPlaceholder ? defaultChildren : selectedText || defaultChildren }),
+          /* @__PURE__ */ jsx27(SelectValue, { className: ({ isPlaceholder }) => isPlaceholder && asIs.length === 0 ? `${VALUE} ${PLACEHOLDER}` : VALUE, children: ({ state: state2, selectedText, defaultChildren, isPlaceholder }) => asIs.length > 0 ? list.format([...state2.selectedItems.map((item2) => item2.textValue), ...asIs]) : isPlaceholder ? defaultChildren : selectedText || defaultChildren }),
           /* @__PURE__ */ jsx27(Chevron, {})
         ] }),
         /* @__PURE__ */ jsx27(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
@@ -10158,7 +10155,7 @@ function Disclosure2({ className, ...props }) {
 }
 function DisclosureHeader({ children, level = 3, className }) {
   const expanded = useContext10(DisclosureStateContext)?.isExpanded ?? false;
-  return /* @__PURE__ */ jsx36(Heading, { level, className: `${HEADING3} ${className ?? FACE}`, children: /* @__PURE__ */ jsxs28(Button, { slot: "trigger", className: TRIGGER2, children: [
+  return /* @__PURE__ */ jsx36(Heading, { level, className: `${HEADING2} ${className ?? FACE}`, children: /* @__PURE__ */ jsxs28(Button, { slot: "trigger", className: TRIGGER2, children: [
     /* @__PURE__ */ jsx36(Marker, { expanded }),
     children
   ] }) });
@@ -10179,7 +10176,7 @@ function Marker({ expanded }) {
   );
 }
 var DISCLOSURE = "bc:font-sans bc:text-text-default";
-var HEADING3 = "bc:m-0 bc:font-sans";
+var HEADING2 = "bc:m-0 bc:font-sans";
 var FACE = "bc:text-base bc:font-semibold";
 var TRIGGER2 = "bc:flex bc:w-full bc:cursor-pointer bc:items-center bc:gap-1.5 bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-left bc:text-inherit bc:[font:inherit] bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var PANEL = "bc:h-(--disclosure-panel-height) bc:overflow-clip bc:motion-safe:transition-[height]";
@@ -10262,7 +10259,7 @@ function Column2({ align = "start", ...props }) {
     {
       ...props,
       className: composeRenderProps(props.className, (given) => `${COLUMN} ${align === "end" ? "bc:text-end" : "bc:text-start"} ${given ?? ""}`),
-      children: composeRenderProps(props.children, (children, { sortDirection }) => /* @__PURE__ */ jsxs33("span", { className: `${HEADING4} ${align === "end" ? "bc:flex-row-reverse" : ""}`, children: [
+      children: composeRenderProps(props.children, (children, { sortDirection }) => /* @__PURE__ */ jsxs33("span", { className: `${HEADING3} ${align === "end" ? "bc:flex-row-reverse" : ""}`, children: [
         children,
         sortDirection === void 0 ? null : /* @__PURE__ */ jsx43(Arrow, { down: sortDirection === "descending" })
       ] }))
@@ -10312,7 +10309,7 @@ function Arrow({ down }) {
 var BOX2 = "bc:min-w-0 bc:overflow-auto bc:font-sans bc:text-text-default";
 var TABLE = "bc:w-full bc:border-collapse bc:text-left bc:text-sm";
 var COLUMN = "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom bc:font-semibold bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-allows-sorting:cursor-pointer";
-var HEADING4 = "bc:flex bc:items-end bc:gap-1";
+var HEADING3 = "bc:flex bc:items-end bc:gap-1";
 var PART = "bc:w-px bc:border-b bc:border-border-default bc:px-2 bc:py-1";
 var BODY = "bc:data-empty:text-center bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted";
 var ROW2 = "bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-selection-mode:select-none";
@@ -10336,13 +10333,13 @@ function blockItem(board, registry, id2) {
   const cls = block === void 0 ? void 0 : own(registry, block.registry_id)?.name ?? block.registry_id;
   return { id: id2, name: block?.name ?? id2, detail: cls === void 0 ? id2 : `${id2} \xB7 ${cls}` };
 }
-function blockTexts(item) {
-  return [item.name, item.detail, item.id];
+function blockTexts(item2) {
+  return [item2.name, item2.detail, item2.id];
 }
-function blockRow(item) {
-  return /* @__PURE__ */ jsxs36(ComboBoxItem, { id: item.id, textValue: item.name, children: [
-    /* @__PURE__ */ jsx46(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item.name }),
-    /* @__PURE__ */ jsx46(Text, { slot: "description", children: item.detail })
+function blockRow(item2) {
+  return /* @__PURE__ */ jsxs36(ComboBoxItem, { id: item2.id, textValue: item2.name, children: [
+    /* @__PURE__ */ jsx46(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item2.name }),
+    /* @__PURE__ */ jsx46(Text, { slot: "description", children: item2.detail })
   ] });
 }
 function blockName(board, block) {
@@ -10359,8 +10356,8 @@ function isVariadicBlock(board, registry, block) {
 // srcts/ui/edits.ts
 import { useMemo as useMemo4, useState as useState11 } from "react";
 function runCommand(core, target2, args) {
-  const running2 = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
-  return running2.then(
+  const running3 = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
+  return running3.then(
     () => true,
     () => false
   );
@@ -10371,8 +10368,8 @@ function useEdits(core) {
     const opts = { notifier: () => void 0 };
     function run(title, target2, given) {
       setRefusal(null);
-      const running2 = typeof target2 === "string" ? core.commands.run(target2, given, "user", opts) : typeof given === "function" ? given(target2, opts) : core.commands.run(target2, "user", opts);
-      return running2.then(
+      const running3 = typeof target2 === "string" ? core.commands.run(target2, given, "user", opts) : typeof given === "function" ? given(target2, opts) : core.commands.run(target2, "user", opts);
+      return running3.then(
         () => true,
         (error) => {
           setRefusal({ title, reasons: reasons(error) });
@@ -10401,7 +10398,7 @@ function notifiedReasons(notifications) {
   });
 }
 function isSentences(x) {
-  return Array.isArray(x) && x.length > 0 && x.every((item) => typeof item === "string");
+  return Array.isArray(x) && x.length > 0 && x.every((item2) => typeof item2 === "string");
 }
 
 // srcts/ui/hooks.ts
@@ -10425,7 +10422,7 @@ function useSearch(all, texts, none = "No options", start3 = "") {
   const [query, setQuery] = useState12(start3);
   const [started, setStarted] = useState12(start3 !== "");
   return {
-    items: query === "" ? all : all.filter((item) => texts(item).some((text) => contains(text, query))),
+    items: query === "" ? all : all.filter((item2) => texts(item2).some((text) => contains(text, query))),
     onInputChange: (text) => {
       setStarted(false);
       setQuery(text);
@@ -10822,7 +10819,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
   const options = useMemo5(() => blockClasses(Object.values(registry).filter((entry2) => !takes || entry2.inputs.length > 0)), [registry, takes]);
   const search = useSearch(
     options,
-    (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
+    (item2) => [item2.name, item2.description, item2.id, item2.category, item2.pkg ?? "", ...item2.keywords],
     "No block class to pick.",
     filter
   );
@@ -10890,10 +10887,10 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
               if (takes) setInput(void 0);
               setErrors((now) => without3(now, "registry"));
             },
-            children: (category) => /* @__PURE__ */ jsx51(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item) => /* @__PURE__ */ jsxs40(ComboBoxItem, { id: item.id, textValue: item.name, children: [
-              /* @__PURE__ */ jsx51(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item.name }),
-              item.description === "" ? null : /* @__PURE__ */ jsx51(Text, { slot: "description", children: item.description }),
-              item.pkg === null ? null : /* @__PURE__ */ jsx51("span", { className: BADGE, children: item.pkg })
+            children: (category) => /* @__PURE__ */ jsx51(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item2) => /* @__PURE__ */ jsxs40(ComboBoxItem, { id: item2.id, textValue: item2.name, children: [
+              /* @__PURE__ */ jsx51(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item2.name }),
+              item2.description === "" ? null : /* @__PURE__ */ jsx51(Text, { slot: "description", children: item2.description }),
+              item2.pkg === null ? null : /* @__PURE__ */ jsx51("span", { className: BADGE, children: item2.pkg })
             ] }) })
           }
         ),
@@ -10907,7 +10904,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
             onChange: (key2) => {
               if (key2 !== null) setInput(String(key2));
             },
-            children: (item) => /* @__PURE__ */ jsx51(SelectItem, { id: item.id, children: item.id })
+            children: (item2) => /* @__PURE__ */ jsx51(SelectItem, { id: item2.id, children: item2.id })
           }
         ) : null,
         link.kind === "name" ? /* @__PURE__ */ jsx51(
@@ -11025,15 +11022,15 @@ function classItem(entry) {
 }
 var UNCATEGORIZED = "uncategorized";
 function byGroupAndName(a, b) {
-  const last = (item) => item.category.toLowerCase() === UNCATEGORIZED ? 1 : 0;
+  const last = (item2) => item2.category.toLowerCase() === UNCATEGORIZED ? 1 : 0;
   return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
 }
 function byCategory(items) {
   const categories = /* @__PURE__ */ new Map();
-  for (const item of items) {
-    const members = categories.get(item.category) ?? [];
-    members.push(item);
-    categories.set(item.category, members);
+  for (const item2 of items) {
+    const members = categories.get(item2.category) ?? [];
+    members.push(item2);
+    categories.set(item2.category, members);
   }
   return [...categories].map(([name2, members]) => ({ id: `category:${name2}`, name: name2, items: members }));
 }
@@ -11150,14 +11147,14 @@ function classLevel(core, taking2, batch2) {
   const entries2 = Object.values(registry).filter((entry) => !taking2 || hasInput(entry));
   return {
     filter: true,
-    rows: blockClasses(entries2).map((item) => ({
+    rows: blockClasses(entries2).map((item2) => ({
       kind: "item",
-      label: item.name,
-      heading: item.category,
-      ...item.icon === "" ? {} : { icon: item.icon },
-      ...item.pkg === null ? {} : { detail: item.pkg },
+      label: item2.name,
+      heading: item2.category,
+      ...item2.icon === "" ? {} : { icon: item2.icon },
+      ...item2.pkg === null ? {} : { detail: item2.pkg },
       pick() {
-        const entry = own(registry, item.id);
+        const entry = own(registry, item2.id);
         const board = core.store.board();
         if (entry === void 0) return [];
         return batch2(entry, core.mintId((id2) => Object.hasOwn(board.blocks, id2)), board);
@@ -11586,12 +11583,12 @@ function VariadicInput({
   ] });
 }
 function holdStill(event) {
-  const item = event.currentTarget.closest('[role="row"][draggable="true"]');
-  if (item === null) return;
-  item.setAttribute("draggable", "false");
-  const doc = item.ownerDocument;
+  const item2 = event.currentTarget.closest('[role="row"][draggable="true"]');
+  if (item2 === null) return;
+  item2.setAttribute("draggable", "false");
+  const doc = item2.ownerDocument;
   const release = () => {
-    item.setAttribute("draggable", "true");
+    item2.setAttribute("draggable", "true");
     doc.removeEventListener("pointerup", release, true);
     doc.removeEventListener("pointercancel", release, true);
   };
@@ -11804,7 +11801,7 @@ function LinkForm({
               onChange: (key2) => {
                 if (key2 !== null) setPlace(Number(key2));
               },
-              children: (item) => /* @__PURE__ */ jsx54(SelectItem, { id: item.id, children: item.id })
+              children: (item2) => /* @__PURE__ */ jsx54(SelectItem, { id: item2.id, children: item2.id })
             }
           )
         ] }) : /* @__PURE__ */ jsx54(
@@ -11819,7 +11816,7 @@ function LinkForm({
             onChange: (key2) => {
               if (key2 !== null) setInput(String(key2));
             },
-            children: (item) => /* @__PURE__ */ jsx54(SelectItem, { id: item.id, children: item.id })
+            children: (item2) => /* @__PURE__ */ jsx54(SelectItem, { id: item2.id, children: item2.id })
           }
         ),
         editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx54("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
@@ -12079,14 +12076,14 @@ function StackForm({
     for (const block of stack.blocks) holder.set(block, stack.name);
   }
   const options = Object.keys(board.blocks).map((id2) => {
-    const item = blockItem(board, registry, id2);
+    const item2 = blockItem(board, registry, id2);
     const other = holder.get(id2);
-    return other === void 0 ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} \xB7 leaves the stack ${other}` };
+    return other === void 0 ? { ...item2, free: true } : { ...item2, free: false, detail: `${item2.detail} \xB7 leaves the stack ${other}` };
   });
   const search = useSearch(options, blockTexts, "The board holds no block.");
   const sections = [
-    { id: "free", title: "In no stack", items: search.items.filter((item) => item.free) },
-    { id: "held", title: "In another stack", items: search.items.filter((item) => !item.free) }
+    { id: "free", title: "In no stack", items: search.items.filter((item2) => item2.free) },
+    { id: "held", title: "In another stack", items: search.items.filter((item2) => !item2.free) }
   ].filter((section) => section.items.length > 0);
   const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
   function batch2() {
@@ -12468,7 +12465,7 @@ function createBoardActions(parts) {
       registered = [...registered, ...actions];
       for (const { id: id2 } of actions) classes2.set(id2, plugin);
       return () => {
-        registered = registered.filter((action2) => !actions.includes(action2));
+        registered = registered.filter((action3) => !actions.includes(action3));
         for (const { id: id2 } of actions) classes2.delete(id2);
       };
     },
@@ -12482,11 +12479,11 @@ function checked2(plugin, given, taken) {
     throw new Error(`${of} gives board actions that are no array.`);
   }
   const ids3 = new Set(taken);
-  return given.map((action2) => {
-    if (!isObject(action2)) {
+  return given.map((action3) => {
+    if (!isObject(action3)) {
       throw new Error(`${of} gives a board action that is no object.`);
     }
-    const { id: id2 } = action2;
+    const { id: id2 } = action3;
     if (typeof id2 !== "string" || !isCommandId(id2)) {
       throw new Error(`${of} gives a board action whose id ${JSON.stringify(id2)} is not named as a command's id is, "{pkg}-{name}".`);
     }
@@ -12495,13 +12492,13 @@ function checked2(plugin, given, taken) {
       throw new Error(`${named5}, which has the id of another board action.`);
     }
     ids3.add(id2);
-    if (typeof action2.label !== "string" || action2.label === "") {
+    if (typeof action3.label !== "string" || action3.label === "") {
       throw new Error(`${named5} without a label.`);
     }
-    if (action2.icon !== void 0 && typeof action2.icon !== "string") {
+    if (action3.icon !== void 0 && typeof action3.icon !== "string") {
       throw new Error(`${named5}, whose icon is no string of SVG markup.`);
     }
-    const on = action2.on;
+    const on = action3.on;
     if (!Array.isArray(on)) {
       throw new Error(`${named5}, whose on is no array of the kinds of target that it applies to.`);
     }
@@ -12512,26 +12509,26 @@ function checked2(plugin, given, taken) {
     if (other !== void 0) {
       throw new Error(`${named5}, whose on names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}.`);
     }
-    if (typeof action2.category !== "string" || action2.category === "") {
+    if (typeof action3.category !== "string" || action3.category === "") {
       throw new Error(`${named5} without a category.`);
     }
     for (const member of ["detail", "offers", "run", "quick"]) {
-      if (action2[member] !== void 0 && typeof action2[member] !== "function") {
+      if (action3[member] !== void 0 && typeof action3[member] !== "function") {
         throw new Error(`${named5}, whose ${member} is no function.`);
       }
     }
-    const { advanced } = action2;
+    const { advanced } = action3;
     if (advanced !== void 0 && (!isObject(advanced) || typeof advanced.render !== "function")) {
       throw new Error(`${named5}, whose advanced has no render() function.`);
     }
-    const asks = ["quick", "advanced"].filter((member) => action2[member] !== void 0);
-    if (action2.run !== void 0 && asks.length > 0) {
+    const asks = ["quick", "advanced"].filter((member) => action3[member] !== void 0);
+    if (action3.run !== void 0 && asks.length > 0) {
       throw new Error(`${named5}, which has run beside ${asks.join(" and ")}, while run is for a board action that asks the user nothing.`);
     }
-    if (action2.run === void 0 && asks.length === 0) {
+    if (action3.run === void 0 && asks.length === 0) {
       throw new Error(`${named5}, which has none of run, quick and advanced.`);
     }
-    return action2;
+    return action3;
   });
 }
 function boardActionsApi(actions, parts) {
@@ -12544,47 +12541,47 @@ function boardActionsApi(actions, parts) {
     },
     { once: true }
   );
-  function applies(action2, board, target2) {
-    if (!action2.on.includes(kindOf(target2))) return false;
-    if (action2.offers === void 0) return true;
+  function applies(action3, board, target2) {
+    if (!action3.on.includes(kindOf(target2))) return false;
+    if (action3.offers === void 0) return true;
     try {
-      return action2.offers(board, target2, lock);
+      return action3.offers(board, target2, lock);
     } catch (error) {
-      log.error(new Error(`The offers of the board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+      log.error(new Error(`The offers of the board action "${action3.id}" failed: ${errorMessage(error)}`, { cause: error }));
       return false;
     }
   }
   function on(target2) {
     if (!store.hasBoard()) return [];
     const board = store.board();
-    return actions.registered().filter((action2) => applies(action2, board, target2));
+    return actions.registered().filter((action3) => applies(action3, board, target2));
   }
   function registered(id2) {
-    const action2 = actions.registered().find((each) => each.id === id2);
-    if (action2 === void 0) {
+    const action3 = actions.registered().find((each) => each.id === id2);
+    if (action3 === void 0) {
       throw new Error(`No board action "${id2}" is registered.`);
     }
-    return action2;
+    return action3;
   }
-  async function batchOf(action2, target2, notifier) {
+  async function batchOf(action3, target2, notifier) {
     let batch2;
     try {
-      batch2 = await action2.run?.(store.board(), target2, parts.core());
+      batch2 = await action3.run?.(store.board(), target2, parts.core());
     } catch (error) {
-      throw failed3(action2, new Error(`The board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }), notifier);
+      throw failed3(action3, new Error(`The board action "${action3.id}" failed: ${errorMessage(error)}`, { cause: error }), notifier);
     }
     if (batch2 !== void 0 && !isBatch(batch2)) {
       throw failed3(
-        action2,
-        new TypeError(`The run of the board action "${action2.id}" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`),
+        action3,
+        new TypeError(`The run of the board action "${action3.id}" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`),
         notifier
       );
     }
     return batch2;
   }
-  function failed3(action2, failure, notifier) {
+  function failed3(action3, failure, notifier) {
     log.error(failure);
-    const plugin = actions.classOf(action2.id);
+    const plugin = actions.classOf(action3.id);
     raiseAgain(
       coreNotification(
         "board_action_failed",
@@ -12596,10 +12593,10 @@ function boardActionsApi(actions, parts) {
     );
     return failure;
   }
-  function notifierOf(given, action2) {
+  function notifierOf(given, action3) {
     const { notifier } = given;
     return notifier === void 0 ? void 0 : (notifications) => {
-      notifier(notifications, action2);
+      notifier(notifications, action3);
     };
   }
   async function runBatch(batch2, batching2, planned = false) {
@@ -12628,17 +12625,17 @@ function boardActionsApi(actions, parts) {
     await core.commands.run([...batch2, ...added], "user", notifier === void 0 ? void 0 : { notifier });
     return deltas;
   }
-  function batching(given, action2) {
-    return { call: given.call, extend: given.extend, notifier: notifierOf(given, action2) };
+  function batching(given, action3) {
+    return { call: given.call, extend: given.extend, notifier: notifierOf(given, action3) };
   }
-  async function runOf(action2, target2, given) {
-    const batch2 = await batchOf(action2, target2, notifierOf(given, action2));
-    if (batch2 !== void 0) await runBatch(batch2, batching(given, action2));
+  async function runOf(action3, target2, given) {
+    const batch2 = await batchOf(action3, target2, notifierOf(given, action3));
+    if (batch2 !== void 0) await runBatch(batch2, batching(given, action3));
   }
   const advanced = createAdvanced({
     store,
     core: parts.core,
-    applies: (action2, target2) => store.hasBoard() && applies(action2, store.board(), target2),
+    applies: (action3, target2) => store.hasBoard() && applies(action3, store.board(), target2),
     run: (batch2, how) => runBatch(batch2, how, true),
     frontend: () => parts.frontend?.(),
     dialog: parts.dialog,
@@ -12648,8 +12645,8 @@ function boardActionsApi(actions, parts) {
     classOf: (id2) => actions.classOf(id2),
     ...signal5 === void 0 ? {} : { signal: signal5 }
   });
-  function openingOf(given, action2, opened = {}) {
-    return { ...batching(given, action2), el: given.el, place: given.advanced, ...opened };
+  function openingOf(given, action3, opened = {}) {
+    return { ...batching(given, action3), el: given.el, place: given.advanced, ...opened };
   }
   function open(start3, target2, given, closed) {
     void shown2?.close().catch(() => void 0);
@@ -12658,14 +12655,14 @@ function boardActionsApi(actions, parts) {
       board: () => store.board(),
       target: target2,
       core: parts.core,
-      applies: (action2) => store.hasBoard() && applies(action2, store.board(), target2),
-      run: async (batch2, action2) => {
-        await runBatch(batch2, batching(given, action2));
+      applies: (action3) => store.hasBoard() && applies(action3, store.board(), target2),
+      run: async (batch2, action3) => {
+        await runBatch(batch2, batching(given, action3));
       },
-      trigger: (action2) => runOf(action2, target2, given),
-      advanced: (action2, opened) => advanced.open(action2, target2, openingOf(given, action2, opened)),
-      failed(action2, failure) {
-        failed3(action2, failure, notifierOf(given, action2));
+      trigger: (action3) => runOf(action3, target2, given),
+      advanced: (action3, opened) => advanced.open(action3, target2, openingOf(given, action3, opened)),
+      failed(action3, failure) {
+        failed3(action3, failure, notifierOf(given, action3));
       },
       closed(ran) {
         if (shown2?.closed() === true) shown2 = void 0;
@@ -12676,7 +12673,13 @@ function boardActionsApi(actions, parts) {
     });
     if (menu.closed()) return;
     shown2 = menu;
-    hide = parts.show(menu, { el: given.el, anchor: given.anchor ?? given.el.getBoundingClientRect() });
+    try {
+      hide = parts.show(menu, { el: given.el, anchor: given.anchor ?? given.el.getBoundingClientRect() });
+    } catch (error) {
+      log.error(asError(error));
+      raiseAgain(coreNotification("module_failed", "error", errorMessage(error)));
+      menu.drop();
+    }
   }
   return {
     on: (target2) => on(targetGiven(target2)),
@@ -12690,18 +12693,18 @@ function boardActionsApi(actions, parts) {
     async trigger(id2, target2, opts) {
       const checked4 = targetGiven(target2);
       const given = optionsGiven(opts, "trigger()");
-      const action2 = registered(id2);
-      if (signal5?.aborted === true || !store.hasBoard() || !applies(action2, store.board(), checked4)) return;
-      if (action2.run !== void 0) {
-        await runOf(action2, checked4, given);
+      const action3 = registered(id2);
+      if (signal5?.aborted === true || !store.hasBoard() || !applies(action3, store.board(), checked4)) return;
+      if (action3.run !== void 0) {
+        await runOf(action3, checked4, given);
         return;
       }
-      if (action2.quick === void 0) {
-        await advanced.open(action2, checked4, openingOf(given, action2));
+      if (action3.quick === void 0) {
+        await advanced.open(action3, checked4, openingOf(given, action3));
         return;
       }
       await new Promise((resolve, reject) => {
-        open({ action: action2 }, checked4, given, (ran) => {
+        open({ action: action3 }, checked4, given, (ran) => {
           if (ran === void 0) resolve();
           else ran.then(resolve, reject);
         });
@@ -12714,40 +12717,40 @@ function boardActionsApi(actions, parts) {
         throw new TypeError("The `el` of mountAdvanced() is the element in which core renders the advanced action.");
       }
       const checked4 = targetGiven(target2);
-      const action2 = registered(id2);
-      if (action2.advanced === void 0) {
+      const action3 = registered(id2);
+      if (action3.advanced === void 0) {
         throw new Error(`The board action "${id2}" has no advanced action to mount.`);
       }
-      return advanced.mount(given, action2, checked4, picked);
+      return advanced.mount(given, action3, checked4, picked);
     }
   };
 }
-function optionsGiven(opts, call) {
+function optionsGiven(opts, call2) {
   const given = isObject(opts) ? opts : {};
   const { el, anchor, extend, notifier, advanced } = given;
   if (!isElement(el)) {
-    throw new TypeError(`The \`el\` of ${call} is the element that the user triggered from, to which the keyboard's focus returns.`);
+    throw new TypeError(`The \`el\` of ${call2} is the element that the user triggered from, to which the keyboard's focus returns.`);
   }
-  if (anchor === void 0 ? call === "menu()" : !isRect(anchor)) {
-    throw new TypeError(`The \`anchor\` of ${call} is the box at which the menu opens, a DOMRect.`);
+  if (anchor === void 0 ? call2 === "menu()" : !isRect(anchor)) {
+    throw new TypeError(`The \`anchor\` of ${call2} is the box at which the menu opens, a DOMRect.`);
   }
   if (extend !== void 0 && typeof extend !== "function") {
-    throw new TypeError(`The \`extend\` of ${call} is a function.`);
+    throw new TypeError(`The \`extend\` of ${call2} is a function.`);
   }
   if (notifier !== void 0 && typeof notifier !== "function") {
-    throw new TypeError(`The \`notifier\` of ${call} is a function.`);
+    throw new TypeError(`The \`notifier\` of ${call2} is a function.`);
   }
   if (advanced !== void 0 && typeof advanced !== "function") {
-    throw new TypeError(`The \`advanced\` of ${call} is a function, which shows an advanced action in a place of the caller's.`);
+    throw new TypeError(`The \`advanced\` of ${call2} is a function, which shows an advanced action in a place of the caller's.`);
   }
   return {
-    call,
+    call: call2,
     el,
     anchor,
     // Each is called as a method of the options, as a caller may write it.
     extend: extend === void 0 ? void 0 : (deltas) => extend.call(given, deltas),
-    notifier: notifier === void 0 ? void 0 : (notifications, action2) => {
-      notifier.call(given, notifications, action2);
+    notifier: notifier === void 0 ? void 0 : (notifications, action3) => {
+      notifier.call(given, notifications, action3);
     },
     advanced: advanced === void 0 ? void 0 : { show: (args) => advanced.call(given, args), key: advanced }
   };
@@ -12815,381 +12818,88 @@ function CoreDialog({ args, onClose }) {
 }
 var WIDTH = "bc:min-w-[min(420px,100%)]";
 
-// srcts/actions/menu.tsx
-import { useEffect as useEffect2, useRef as useRef13, useSyncExternalStore as useSyncExternalStore3 } from "react";
-import { flushSync as flushSync7 } from "react-dom";
-import { createRoot as createRoot4 } from "react-dom/client";
-import { Fragment as Fragment27, jsx as jsx57, jsxs as jsxs45 } from "react/jsx-runtime";
-var showMenu = (menu, at) => {
-  const doc = at.el.ownerDocument;
-  const host = doc.createElement("div");
-  doc.body.append(host);
-  const root = createRoot4(host);
-  const insideRef = { current: null };
-  const tab = (event) => {
-    if (event.key !== "Tab" || event.isComposing || !(event.target instanceof Node) || insideRef.current?.contains(event.target) !== true) return;
-    event.preventDefault();
-    event.stopPropagation();
-    void menu.close().catch(() => void 0);
-  };
-  doc.defaultView?.addEventListener("keydown", tab, true);
-  flushSync7(() => {
-    root.render(/* @__PURE__ */ jsx57(CoreMenu, { menu, at, insideRef }));
-  });
-  return () => {
-    doc.defaultView?.removeEventListener("keydown", tab, true);
-    const active = doc.activeElement;
-    const lost = active === null || active === doc.body || (insideRef.current?.contains(active) ?? false);
-    root.unmount();
-    host.remove();
-    if (lost && at.el.isConnected) at.el.focus({ preventScroll: true });
-  };
-};
-function CoreMenu({ menu, at, insideRef }) {
-  const level = useSyncExternalStore3(menu.subscribe, menu.get);
-  const anchor = useRef13(null);
-  const { x, y, width, height } = at.anchor;
-  const tip = openTip(at.el.ownerDocument.defaultView ?? window);
-  return /* @__PURE__ */ jsxs45(Fragment27, { children: [
-    /* @__PURE__ */ jsx57("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
-    /* @__PURE__ */ jsx57(
-      Popover2,
-      {
-        triggerRef: anchor,
-        isOpen: true,
-        placement: "bottom start",
-        isKeyboardDismissDisabled: true,
-        onOpenChange: (open) => {
-          if (!open) void menu.close().catch(() => void 0);
-        },
-        className: "bc:max-w-80 bc:min-w-45",
-        children: /* @__PURE__ */ jsx57(
-          "div",
-          {
-            ref: (el) => {
-              insideRef.current = el;
-            },
-            role: "dialog",
-            "aria-label": level.title ?? level.label,
-            tabIndex: -1,
-            className: "bc:grid bc:gap-1 bc:outline-none",
-            onKeyDownCapture: (event) => {
-              if (event.nativeEvent.isComposing) return;
-              if (event.key === "Escape") {
-                event.preventDefault();
-                event.stopPropagation();
-                menu.escape();
-              } else if (level.advanced && matchesShortcut(OPEN_KEY, event.nativeEvent)) {
-                event.preventDefault();
-                event.stopPropagation();
-                void menu.openAdvanced(openRow(event.target)).catch(() => void 0);
-              } else if (event.key === "Enter" && isFilter(event.target) && !event.target.hasAttribute("aria-activedescendant")) {
-                event.preventDefault();
-                event.stopPropagation();
-                void menu.pick().catch(() => void 0);
-              }
-            },
-            children: /* @__PURE__ */ jsx57(Level, { menu, level, insideRef, tip }, level.id)
-          }
-        )
-      }
-    )
-  ] });
-}
-function Level({
-  menu,
-  level,
-  insideRef,
-  tip
-}) {
-  const texts = level.rows.flatMap((row, i) => row.kind === "text" ? [{ row, i }] : []);
-  const listed = level.rows.flatMap((row, i) => row.kind === "text" ? [] : [{ row, i }]);
-  const rows = level.rows.length > 0;
-  useEffect2(() => {
-    let frames = 0;
-    let frame;
-    const place = () => {
-      const el = insideRef.current;
-      if (el === null) return;
-      const field = el.querySelector("input:not([data-filter])") ?? el.querySelector("input[data-filter]");
-      const first = field ?? el.querySelector("[role=menuitem][data-key], [role=menuitemcheckbox][data-key]");
-      if (first === null && rows && frames++ < 10) {
-        frame = requestAnimationFrame(place);
-        return;
-      }
-      (first ?? el).focus({ preventScroll: true });
-      if (field !== null && !field.hasAttribute("data-filter")) field.select();
-    };
-    place();
-    return () => {
-      if (frame !== void 0) cancelAnimationFrame(frame);
-    };
-  }, [insideRef, rows]);
-  const pick2 = (i) => {
-    void menu.pick(i).catch(() => void 0);
-  };
-  const openAdvanced = (i) => {
-    void menu.openAdvanced(i).catch(() => void 0);
-  };
-  const grouped = groups(listed);
-  const list = /* @__PURE__ */ jsx57(Menu2, { "aria-label": level.label, renderEmptyState: () => /* @__PURE__ */ jsx57("p", { className: NOTE3, children: "No matches" }), children: grouped.map((group, g) => {
-    const divider = g > 0 && group.category !== grouped[g - 1]?.category;
-    const section = group.kind === "multi" ? /* @__PURE__ */ jsx57(
-      MenuSection2,
-      {
-        id: `multi-${String(group.i)}`,
-        title: group.row.label,
-        selectionMode: "multiple",
-        selectedKeys: group.row.choices.filter((choice) => choice.picked).map(({ id: id2 }) => choiceKey(group.i, id2)),
-        onSelectionChange: (keys) => {
-          for (const choice of group.row.choices) {
-            const ticked = keys === "all" || keys.has(choiceKey(group.i, choice.id));
-            if (ticked !== choice.picked) menu.tick(group.i, choice.id);
-          }
-        },
-        children: group.row.choices.map((choice) => /* @__PURE__ */ jsx57(MenuItem2, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
-      },
-      `multi-${String(group.i)}`
-    ) : /* @__PURE__ */ jsx57(
-      MenuSection2,
-      {
-        id: `items-${String(group.items[0]?.i ?? g)}`,
-        title: group.continues ? void 0 : group.heading,
-        ...group.checks ? { selectionMode: "multiple", selectedKeys: group.items.filter(({ row }) => row.checked === true).map(({ i }) => itemKey(i)) } : {},
-        children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx57(
-          Item,
-          {
-            row,
-            index: i,
-            tip,
-            onPick: () => {
-              pick2(i);
-            },
-            onOpen: () => {
-              openAdvanced(i);
-            }
-          },
-          i
-        ))
-      },
-      `items-${String(group.items[0]?.i ?? g)}`
+// srcts/actions/module.ts
+var MENU_OPTION = "board_action_menu";
+var CORE_MENU = "blockr.core-board_action_menu";
+async function menuModule(loader, value2) {
+  if (value2 !== void 0 && (typeof value2 !== "string" || value2 === "")) {
+    throw new Error(
+      `Core opens no board, since the blockr option ${MENU_OPTION} names no module by its id, as "${CORE_MENU}", but holds ${JSON.stringify(value2)}.`
     );
-    return divider ? [/* @__PURE__ */ jsx57(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
-  }) });
-  return /* @__PURE__ */ jsxs45(Fragment27, { children: [
-    level.advanced ? /* @__PURE__ */ jsxs45("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
-      level.title === void 0 ? null : /* @__PURE__ */ jsx57("p", { className: `${TITLE} bc:min-w-0 bc:flex-1`, children: level.title }),
-      /* @__PURE__ */ jsx57(
-        "button",
-        {
-          type: "button",
-          "aria-label": OPEN_NAME,
-          "aria-keyshortcuts": ariaShortcuts(OPEN_KEY),
-          title: tip,
-          className: OPEN,
-          onClick: () => {
-            openAdvanced();
-          },
-          children: /* @__PURE__ */ jsx57(OpenIcon, {})
-        }
-      )
-    ] }) : level.title === void 0 ? null : /* @__PURE__ */ jsx57("p", { className: TITLE, children: level.title }),
-    level.loading ? /* @__PURE__ */ jsx57("p", { role: "status", className: `${NOTE3} bc:animate-[bc-appear_300ms_ease-out_300ms_both]`, children: "Loading\u2026" }) : level.error === void 0 ? /* @__PURE__ */ jsxs45(Fragment27, { children: [
-      texts.map(({ row, i }) => /* @__PURE__ */ jsx57(
-        TextRow,
-        {
-          row,
-          onType: (value2) => {
-            menu.type(value2, i);
-          },
-          onSubmit: () => {
-            pick2(i);
-          }
-        },
-        i
-      )),
-      level.filter === void 0 ? listed.length === 0 ? null : list : /* @__PURE__ */ jsxs45(
-        Autocomplete,
-        {
-          inputValue: level.filter,
-          onInputChange: (value2) => {
-            menu.type(value2);
-          },
-          children: [
-            /* @__PURE__ */ jsx57(TextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx57(
-              Input,
-              {
-                "data-filter": "",
-                placeholder: "Filter",
-                spellCheck: "false",
-                "aria-keyshortcuts": level.advanced ? ariaShortcuts(OPEN_KEY) : void 0,
-                className: FILTER
-              }
-            ) }),
-            list
-          ]
-        }
-      )
-    ] }) : /* @__PURE__ */ jsx57("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger", children: level.error })
-  ] });
-}
-function groups(listed) {
-  const all = [];
-  for (const { row, i } of listed) {
-    if (row.kind === "text") continue;
-    if (row.kind === "multi") {
-      all.push({ kind: "multi", row, i });
-      continue;
-    }
-    const last = all.at(-1);
-    const checks = row.checked !== void 0;
-    const under = last?.kind === "items" && last.heading === row.heading && last.category === row.category;
-    if (under && last.checks === checks) {
-      last.items.push({ row, i });
-    } else {
-      all.push({
-        kind: "items",
-        ...row.heading === void 0 ? {} : { heading: row.heading },
-        ...row.category === void 0 ? {} : { category: row.category },
-        checks,
-        continues: under,
-        items: [{ row, i }]
-      });
-    }
   }
-  return all;
+  const id2 = value2 ?? CORE_MENU;
+  let module;
+  try {
+    module = mountableModule(await loader.module(id2), id2, packageFromId(id2));
+  } catch (error) {
+    throw new Error(
+      `Core opens no board, since it cannot draw the menus of board actions with the module "${id2}" that the blockr option ${MENU_OPTION} names. ${errorMessage(error)}`,
+      { cause: error }
+    );
+  }
+  return drawWith(module, id2);
 }
-function Item({
-  row,
-  index,
-  tip,
-  onPick,
-  onOpen
-}) {
-  const { label, icon, detail } = row;
-  const removes = row.category === "remove";
-  return /* @__PURE__ */ jsxs45(
-    MenuItem2,
-    {
-      id: itemKey(index),
-      textValue: label,
-      "aria-label": detail === void 0 ? label : `${label}, ${detail}`,
-      onAction: onPick,
-      className: removes ? REMOVES : void 0,
-      children: [
-        /* @__PURE__ */ jsxs45(
-          "span",
-          {
-            className: `bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${removes ? "bc:group-data-focused:text-text-danger bc:group-data-hovered:text-text-danger" : ""}`,
-            children: [
-              icon === void 0 ? null : /* @__PURE__ */ jsx57(
-                "span",
-                {
-                  "aria-hidden": "true",
-                  className: "bc:flex bc:size-4 bc:shrink-0 bc:[&>svg]:size-full",
-                  dangerouslySetInnerHTML: { __html: icon }
-                }
-              ),
-              /* @__PURE__ */ jsx57("span", { className: "bc:min-w-0 bc:truncate", children: label })
-            ]
-          }
-        ),
-        detail === void 0 && row.advanced !== true ? null : /* @__PURE__ */ jsxs45("span", { className: "bc:-my-1 bc:flex bc:items-center bc:gap-2", children: [
-          detail === void 0 ? null : /* @__PURE__ */ jsx57("span", { className: "bc:min-w-0 bc:truncate bc:text-xs bc:text-text-muted", children: detail }),
-          row.advanced === true ? /* @__PURE__ */ jsx57(
-            "span",
-            {
-              "aria-hidden": "true",
-              "data-open-row": index,
-              title: tip,
-              className: OPEN,
-              onPointerDown: (event) => {
-                event.stopPropagation();
-              },
-              onClick: (event) => {
-                event.stopPropagation();
-                onOpen();
-              },
-              children: /* @__PURE__ */ jsx57(OpenIcon, {})
-            }
-          ) : null
-        ] }),
-        row.advanced === true ? /* @__PURE__ */ jsx57(Text, { slot: "description", className: "bc:sr-only", children: tip }) : null
-      ]
+function drawWith(module, id2) {
+  const named5 = id2 === void 0 ? "The module" : `The module "${id2}"`;
+  return (menu, at) => {
+    const doc = at.el.ownerDocument;
+    let cleanup;
+    try {
+      cleanup = module.render({ menu: forModule(menu), el: at.el, anchor: at.anchor });
+    } catch (error) {
+      throw new Error(`${named5} failed to draw a menu of board actions: ${errorMessage(error)}`, { cause: error });
     }
-  );
-}
-function OpenIcon() {
-  return /* @__PURE__ */ jsxs45(
-    "svg",
-    {
-      "aria-hidden": "true",
-      width: "14",
-      height: "14",
-      viewBox: "0 0 16 16",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.25,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: [
-        /* @__PURE__ */ jsx57("path", { d: "M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" }),
-        /* @__PURE__ */ jsx57("path", { d: "M10 2.5h3.5V6M13.5 2.5 8 8" })
-      ]
-    }
-  );
-}
-function openRow(target2) {
-  if (!(target2 instanceof Element)) return void 0;
-  const active = isFilter(target2) ? target2.getAttribute("aria-activedescendant") : null;
-  const item = active === null ? target2.closest('[role="menuitem"], [role="menuitemcheckbox"]') : target2.ownerDocument.getElementById(active);
-  const marked = item?.querySelector("[data-open-row]")?.getAttribute("data-open-row");
-  return marked === void 0 || marked === null ? void 0 : Number(marked);
-}
-function TextRow({
-  row,
-  onType,
-  onSubmit
-}) {
-  return /* @__PURE__ */ jsx57(
-    TextField2,
-    {
-      label: row.label,
-      value: row.value,
-      spellCheck: "false",
-      isInvalid: row.refusal !== void 0,
-      ...row.refusal === void 0 ? {} : { errorMessage: row.refusal },
-      className: "bc:px-1 bc:pt-1",
-      onChange: onType,
-      onKeyDown: (event) => {
-        if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-          event.preventDefault();
-          onSubmit();
-        } else event.continuePropagation();
+    return () => {
+      try {
+        if (typeof cleanup === "function") cleanup();
+      } catch (error) {
+        log.error(new Error(`${named5} failed as a menu of board actions closed: ${errorMessage(error)}`, { cause: error }));
       }
+      const active = doc.activeElement;
+      const lost = active === null || active === doc.body || !active.isConnected;
+      if (lost && at.el.isConnected) at.el.focus({ preventScroll: true });
+    };
+  };
+}
+function forModule(menu) {
+  const settled2 = (ran) => {
+    ran.catch(() => void 0);
+  };
+  return Object.freeze({
+    get: () => menu.get(),
+    subscribe: (fn) => {
+      if (typeof fn !== "function") throw new TypeError("The subscribe() of an open menu takes a function, which it calls as the menu changes.");
+      return menu.subscribe(fn);
+    },
+    pick: (row) => {
+      settled2(menu.pick(row === void 0 ? void 0 : rowGiven(row, "pick()")));
+    },
+    openAdvanced: (row) => {
+      settled2(menu.openAdvanced(row === void 0 ? void 0 : rowGiven(row, "openAdvanced()")));
+    },
+    tick: (row, choice) => {
+      const index = rowGiven(row, "tick()");
+      if (typeof choice !== "string") throw new TypeError(`The tick() of an open menu takes the id of a choice, not ${JSON.stringify(choice)}.`);
+      menu.tick(index, choice);
+    },
+    type: (value2, row) => {
+      if (typeof value2 !== "string") throw new TypeError(`The type() of an open menu takes the text that the user typed, not ${JSON.stringify(value2)}.`);
+      menu.type(value2, row === void 0 ? void 0 : rowGiven(row, "type()"));
+    },
+    escape: () => {
+      menu.escape();
+    },
+    close: () => {
+      settled2(menu.close());
     }
-  );
+  });
 }
-function itemKey(row) {
-  return String(row);
+function rowGiven(row, member) {
+  if (typeof row !== "number" || !Number.isInteger(row) || row < 0) {
+    throw new TypeError(`The ${member} of an open menu takes the index of a row in the rows of the level, not ${JSON.stringify(row)}.`);
+  }
+  return row;
 }
-function choiceKey(row, choice) {
-  return `${String(row)}:${choice}`;
-}
-function isFilter(target2) {
-  return target2 instanceof HTMLInputElement && target2.hasAttribute("data-filter");
-}
-var TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
-var OPEN = "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:focus-visible:ring-2 bc:focus-visible:ring-border-accent";
-var OPEN_NAME = "Show all options";
-var OPEN_KEY = "Mod+Enter";
-function openTip(win) {
-  return `${OPEN_NAME} (${shortcutLabel(OPEN_KEY, onMac(win)) ?? OPEN_KEY})`;
-}
-var NOTE3 = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";
-var FILTER = "bc:box-border bc:w-full bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-text-default bc:outline-none";
-var DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border-default";
-var REMOVES = "bc:group bc:data-hovered:bg-bg-danger! bc:data-focused:bg-bg-danger!";
 
 // srcts/core/plugins.ts
 var NONE = Object.freeze({});
@@ -13623,8 +13333,8 @@ function createCore(parts) {
   return { api, plugins };
 }
 function refusing(store, commands, refused2) {
-  function edit(opts, call, fn) {
-    const notifier = givenNotifier(opts, call);
+  function edit(opts, call2, fn) {
+    const notifier = givenNotifier(opts, call2);
     try {
       return fn();
     } catch (error) {
@@ -14364,8 +14074,8 @@ function start2(options) {
   const loaded = /* @__PURE__ */ new Map();
   let changed = [];
   let reloading;
-  let running2;
-  const holdsBoard = () => running2?.store.hasBoard() === true;
+  let running3;
+  const holdsBoard = () => running3?.store.hasBoard() === true;
   let restarting;
   const nextRevision = counter();
   let settle2;
@@ -14433,7 +14143,7 @@ function start2(options) {
       return;
     }
     changed = changedPackages(loaded, hello);
-    askReload(running2?.notifications.raise);
+    askReload(running3?.notifications.raise);
     if (changed.length === 0) adopt(hello);
     if (restarting !== void 0) {
       const waiting2 = restarting;
@@ -14441,7 +14151,7 @@ function start2(options) {
       waiting2.resolve(latest ?? first);
       return;
     }
-    running2?.scheduler.session();
+    running3?.scheduler.session();
   }
   function noteHello(opening2) {
     const end2 = helloAnswered ?? performance.now();
@@ -14484,7 +14194,17 @@ function start2(options) {
       },
       { once: true }
     );
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel2, logger, otelClientEndpoint, otelClientServiceName] = await Promise.all([
+    const [
+      evaluationQueue,
+      backgroundEvaluationDelay,
+      gateVisibility,
+      randId,
+      logLevel2,
+      logger,
+      otelClientEndpoint,
+      otelClientServiceName,
+      boardActionMenu
+    ] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
       blockrOptions.read("background_evaluation_delay"),
       blockrOptions.read("gate_visibility"),
@@ -14492,7 +14212,8 @@ function start2(options) {
       blockrOptions.read("log_level"),
       blockrOptions.read("logger"),
       blockrOptions.read("otel_client_endpoint"),
-      blockrOptions.read("otel_client_service_name")
+      blockrOptions.read("otel_client_service_name"),
+      blockrOptions.read(MENU_OPTION)
     ]);
     if (!logging2) {
       const base = typeof document === "undefined" ? void 0 : document.baseURI;
@@ -14503,6 +14224,8 @@ function start2(options) {
       setUpLogging(settings, service, sessionId, options.otel ?? noOtel);
       tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), service, sessionId, options.otel ?? noOtel);
     }
+    const drawing = options.showMenu === void 0 ? menuModule(loader, boardActionMenu) : Promise.resolve(options.showMenu);
+    drawing.catch(() => void 0);
     const store = createStore({ hello: reply, signal: signal5, migration: (id2) => migrations.get(id2) });
     const notifications = createNotifications(store, { signal: signal5, plugins: reply.plugins });
     const { raise } = notifications;
@@ -14518,7 +14241,10 @@ function start2(options) {
       preflight: (id2, args) => commands.preflight(id2, args),
       blockRegistry: () => store.blockRegistry()
     });
-    await opening2.step("modules", () => register(reply, store, commands, boardActions, signal5, raise));
+    const showMenu = await opening2.step("modules", async () => {
+      await register(reply, store, commands, boardActions, signal5, raise);
+      return drawing;
+    });
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -14539,7 +14265,7 @@ function start2(options) {
       },
       commands,
       boardActions,
-      showMenu: options.showMenu ?? showMenu,
+      showMenu,
       showDialog: options.showDialog ?? showDialog,
       advanced: () => options.frontEnds?.advanced?.(signal5),
       scheduler,
@@ -14556,7 +14282,7 @@ function start2(options) {
       ...options.measure === void 0 ? {} : { measure: options.measure },
       ...options.frontEnds?.el === void 0 ? {} : { page: options.frontEnds.el }
     });
-    running2 = { store, scheduler, core, notifications, controller };
+    running3 = { store, scheduler, core, notifications, controller };
     let dropped = [];
     let failure;
     if (later === void 0) {
@@ -14747,7 +14473,7 @@ function start2(options) {
   }
   async function reopening(given, of, opening2, notifier) {
     const refused2 = "The store refused to open the board";
-    const current2 = running2;
+    const current2 = running3;
     if (current2?.controller !== of || of.signal.aborted) {
       const error = new StoreError(refused2, ["Another board opened since, so this store opens no board."]);
       opening2.record(tracing, error);
@@ -14775,7 +14501,7 @@ function start2(options) {
       throw error;
     }
     of.abort();
-    running2 = void 0;
+    running3 = void 0;
     try {
       const reply = await afresh();
       noteHello(opening2);
@@ -14800,7 +14526,7 @@ function start2(options) {
   }
   return {
     ready,
-    core: () => running2?.core,
+    core: () => running3?.core,
     stop() {
       end(new Error("Core has stopped."));
     }
@@ -14833,11 +14559,11 @@ function reloadNotification(changed) {
   );
 }
 function droppedNotification(dropped) {
-  const lines = dropped.map((item) => {
-    if ("option" in item) return `- board option "${item.option}"`;
-    if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
-    if ("plugin" in item) return `- plugin "${item.plugin}"`;
-    return `- package ${item.package} ${item.version}`;
+  const lines = dropped.map((item2) => {
+    if ("option" in item2) return `- board option "${item2.option}"`;
+    if ("block" in item2) return `- block "${item2.block}" (${item2.registry_id})`;
+    if ("plugin" in item2) return `- plugin "${item2.plugin}"`;
+    return `- package ${item2.package} ${item2.version}`;
   });
   return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
 }
@@ -14853,14 +14579,14 @@ function noOtel() {
 }
 
 // srcts/modules/basic/index.tsx
-import { flushSync as flushSync8 } from "react-dom";
-import { createRoot as createRoot5 } from "react-dom/client";
+import { flushSync as flushSync7 } from "react-dom";
+import { createRoot as createRoot4 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
 import { useCallback as useCallback8, useMemo as useMemo6, useState as useState22 } from "react";
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback5, useLayoutEffect as useLayoutEffect6, useRef as useRef14, useSyncExternalStore as useSyncExternalStore4 } from "react";
+import { memo, useCallback as useCallback5, useLayoutEffect as useLayoutEffect6, useRef as useRef13, useSyncExternalStore as useSyncExternalStore3 } from "react";
 
 // srcts/modules/basic/context.ts
 import { createContext as createContext6, useContext as useContext12 } from "react";
@@ -14872,7 +14598,7 @@ function useFrontEnd() {
 }
 
 // srcts/modules/basic/card.tsx
-import { jsx as jsx58, jsxs as jsxs46 } from "react/jsx-runtime";
+import { jsx as jsx57, jsxs as jsxs45 } from "react/jsx-runtime";
 var BlockCard = memo(function BlockCard2({ id: id2, block }) {
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
@@ -14880,8 +14606,8 @@ var BlockCard = memo(function BlockCard2({ id: id2, block }) {
   const notified = useNotified(core, { block: id2 });
   const footer = useFooter(status, notified);
   const sized = useSized(status);
-  const ref = useRef14(null);
-  const actions = useRef14(null);
+  const ref = useRef13(null);
+  const actions = useRef13(null);
   useLayoutEffect6(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ block: id2 }, el);
@@ -14895,7 +14621,7 @@ var BlockCard = memo(function BlockCard2({ id: id2, block }) {
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
   const offered = core.boardActions.on({ block: id2 }).length > 0;
-  return /* @__PURE__ */ jsxs46(
+  return /* @__PURE__ */ jsxs45(
     "article",
     {
       ref,
@@ -14904,11 +14630,11 @@ var BlockCard = memo(function BlockCard2({ id: id2, block }) {
       onPointerDown: focus,
       onFocus: focus,
       children: [
-        /* @__PURE__ */ jsxs46("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
-          /* @__PURE__ */ jsx58("h3", { className: classes.heading, children: block.name }),
-          /* @__PURE__ */ jsx58("span", { className: "bc:text-xs bc:text-text-muted", children: entry?.name ?? block.registry_id }),
-          /* @__PURE__ */ jsx58(StatusBadge, { status }),
-          offered ? /* @__PURE__ */ jsx58("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx58(
+        /* @__PURE__ */ jsxs45("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
+          /* @__PURE__ */ jsx57("h3", { className: classes.heading, children: block.name }),
+          /* @__PURE__ */ jsx57("span", { className: "bc:text-xs bc:text-text-muted", children: entry?.name ?? block.registry_id }),
+          /* @__PURE__ */ jsx57(StatusBadge, { status }),
+          offered ? /* @__PURE__ */ jsx57("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx57(
             ActionsButton,
             {
               ref: actions,
@@ -14920,13 +14646,13 @@ var BlockCard = memo(function BlockCard2({ id: id2, block }) {
             }
           ) }) : null
         ] }),
-        inputs ? /* @__PURE__ */ jsx58(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
-        /* @__PURE__ */ jsxs46(
+        inputs ? /* @__PURE__ */ jsx57(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsxs45(
           "div",
           {
             className: `bc:min-w-0 ${sized ? "bc:flex bc:h-104 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
-              /* @__PURE__ */ jsx58(
+              /* @__PURE__ */ jsx57(
                 Mounted,
                 {
                   mount: mountOutput2,
@@ -14935,36 +14661,36 @@ var BlockCard = memo(function BlockCard2({ id: id2, block }) {
                   className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              sized ? /* @__PURE__ */ jsx58(Footer, { ...footer }) : null
+              sized ? /* @__PURE__ */ jsx57(Footer, { ...footer }) : null
             ]
           }
         ),
-        /* @__PURE__ */ jsx58(Pills, { ...footer }),
-        /* @__PURE__ */ jsx58(Banners, { ...footer })
+        /* @__PURE__ */ jsx57(Pills, { ...footer }),
+        /* @__PURE__ */ jsx57(Banners, { ...footer })
       ]
     }
   );
 });
 function StackGroup({ id: id2, stack, children }) {
-  const { groups: groups2 } = useFrontEnd();
-  const collapsed = useSyncExternalStore4(groups2.subscribe, () => groups2.collapsed(id2));
+  const { groups } = useFrontEnd();
+  const collapsed = useSyncExternalStore3(groups.subscribe, () => groups.collapsed(id2));
   const color2 = stack.color ?? void 0;
-  return /* @__PURE__ */ jsx58(
+  return /* @__PURE__ */ jsx57(
     "section",
     {
       "aria-label": stack.name,
       className: "bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3",
       style: color2 === void 0 ? void 0 : { borderColor: color2 },
-      children: /* @__PURE__ */ jsxs46(
+      children: /* @__PURE__ */ jsxs45(
         Disclosure2,
         {
           isExpanded: !collapsed,
           onExpandedChange: (expanded) => {
-            groups2.collapse(id2, !expanded);
+            groups.collapse(id2, !expanded);
           },
           children: [
-            /* @__PURE__ */ jsx58(DisclosureHeader, { children: stack.name }),
-            /* @__PURE__ */ jsx58(DisclosurePanel2, { children: /* @__PURE__ */ jsx58("div", { hidden: collapsed, children: /* @__PURE__ */ jsx58("div", { className: "bc:grid bc:gap-3 bc:pt-3", children }) }) })
+            /* @__PURE__ */ jsx57(DisclosureHeader, { children: stack.name }),
+            /* @__PURE__ */ jsx57(DisclosurePanel2, { children: /* @__PURE__ */ jsx57("div", { hidden: collapsed, children: /* @__PURE__ */ jsx57("div", { className: "bc:grid bc:gap-3 bc:pt-3", children }) }) })
           ]
         }
       )
@@ -14981,14 +14707,14 @@ var TONES = {
 };
 function StatusBadge({ status }) {
   if (status === void 0) return null;
-  return /* @__PURE__ */ jsxs46(
+  return /* @__PURE__ */ jsxs45(
     "span",
     {
       "data-status": status.status,
       "aria-busy": status.running,
       className: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:px-2 bc:py-0.5 bc:text-xs bc:text-text-muted",
       children: [
-        /* @__PURE__ */ jsx58(
+        /* @__PURE__ */ jsx57(
           "span",
           {
             "aria-hidden": "true",
@@ -15031,23 +14757,23 @@ function stackBlocks(board, stack) {
 import { useCallback as useCallback6 } from "react";
 
 // srcts/modules/basic/ui.tsx
-import { jsx as jsx59, jsxs as jsxs47 } from "react/jsx-runtime";
+import { jsx as jsx58, jsxs as jsxs46 } from "react/jsx-runtime";
 function Dialog3({
   title,
   onClose,
   children
 }) {
-  return /* @__PURE__ */ jsx59(
+  return /* @__PURE__ */ jsx58(
     Modal2,
     {
       isOpen: true,
       onOpenChange: (open) => {
         if (!open) onClose();
       },
-      children: /* @__PURE__ */ jsx59(Dialog2, { children: /* @__PURE__ */ jsxs47("div", { className: "bc:grid bc:gap-3", children: [
-        /* @__PURE__ */ jsxs47("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
-          /* @__PURE__ */ jsx59(Heading, { slot: "title", className: classes.heading, children: title }),
-          /* @__PURE__ */ jsx59("button", { type: "button", className: classes.button, onClick: onClose, children: "Close" })
+      children: /* @__PURE__ */ jsx58(Dialog2, { children: /* @__PURE__ */ jsxs46("div", { className: "bc:grid bc:gap-3", children: [
+        /* @__PURE__ */ jsxs46("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
+          /* @__PURE__ */ jsx58(Heading, { slot: "title", className: classes.heading, children: title }),
+          /* @__PURE__ */ jsx58("button", { type: "button", className: classes.button, onClick: onClose, children: "Close" })
         ] }),
         children
       ] }) })
@@ -15056,7 +14782,7 @@ function Dialog3({
 }
 
 // srcts/modules/basic/options.tsx
-import { jsx as jsx60, jsxs as jsxs48 } from "react/jsx-runtime";
+import { jsx as jsx59, jsxs as jsxs47 } from "react/jsx-runtime";
 function OptionsDialog({ onClose }) {
   const { core } = useFrontEnd();
   const board = useBoard(core);
@@ -15067,20 +14793,20 @@ function OptionsDialog({ onClose }) {
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id2]);
   }
-  return /* @__PURE__ */ jsx60(Dialog3, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx60("p", { className: styles.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx60("div", { className: "bc:grid bc:divide-y bc:divide-border-default", children: [...categories].map(([category, ids3]) => /* @__PURE__ */ jsxs48("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
-    /* @__PURE__ */ jsx60("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
-    ids3.map((id2) => /* @__PURE__ */ jsx60(OptionUi, { id: id2 }, id2))
+  return /* @__PURE__ */ jsx59(Dialog3, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx59("p", { className: styles.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx59("div", { className: "bc:grid bc:divide-y bc:divide-border-default", children: [...categories].map(([category, ids3]) => /* @__PURE__ */ jsxs47("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
+    /* @__PURE__ */ jsx59("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
+    ids3.map((id2) => /* @__PURE__ */ jsx59(OptionUi, { id: id2 }, id2))
   ] }, category)) }) });
 }
 function OptionUi({ id: id2 }) {
   const { core } = useFrontEnd();
   const mount2 = useCallback6((el) => core.mountOption(el, id2), [core, id2]);
-  return /* @__PURE__ */ jsx60(Mounted, { mount: mount2 });
+  return /* @__PURE__ */ jsx59(Mounted, { mount: mount2 });
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback7, useLayoutEffect as useLayoutEffect7, useRef as useRef15, useSyncExternalStore as useSyncExternalStore5 } from "react";
-import { jsx as jsx61, jsxs as jsxs49 } from "react/jsx-runtime";
+import { useCallback as useCallback7, useLayoutEffect as useLayoutEffect7, useRef as useRef14, useSyncExternalStore as useSyncExternalStore4 } from "react";
+import { jsx as jsx60, jsxs as jsxs48 } from "react/jsx-runtime";
 function createSections() {
   const collapsed = /* @__PURE__ */ new Set();
   const listeners = /* @__PURE__ */ new Set();
@@ -15113,12 +14839,12 @@ function Plugins() {
   const { core } = useFrontEnd();
   const shown2 = placed(core);
   if (shown2.length === 0) return null;
-  return /* @__PURE__ */ jsx61(
+  return /* @__PURE__ */ jsx60(
     "aside",
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx61(PluginSection, { id: id2, plugin }, id2))
+      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx60(PluginSection, { id: id2, plugin }, id2))
     }
   );
 }
@@ -15126,19 +14852,19 @@ function PluginSection({ id: id2, plugin }) {
   const { core, inView: inView2, sections } = useFrontEnd();
   const notified = useNotified(core, { plugin: id2 });
   const pills = usePills(notified);
-  const collapsed = useSyncExternalStore5(sections.subscribe, () => sections.collapsed(id2));
-  const ref = useRef15(null);
+  const collapsed = useSyncExternalStore4(sections.subscribe, () => sections.collapsed(id2));
+  const ref = useRef14(null);
   useLayoutEffect7(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
   }, [inView2, id2]);
   const mount2 = useCallback7((el) => core.mountPlugin(el, id2), [core, id2]);
-  return /* @__PURE__ */ jsx61(
+  return /* @__PURE__ */ jsx60(
     "section",
     {
       "aria-label": plugin.name,
       className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`,
-      children: /* @__PURE__ */ jsxs49(
+      children: /* @__PURE__ */ jsxs48(
         Disclosure2,
         {
           isExpanded: !collapsed,
@@ -15146,14 +14872,14 @@ function PluginSection({ id: id2, plugin }) {
             sections.collapse(id2, !expanded);
           },
           children: [
-            /* @__PURE__ */ jsxs49("div", { className: "bc:grid bc:min-w-0 bc:gap-3", children: [
-              /* @__PURE__ */ jsxs49("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
-                /* @__PURE__ */ jsx61(DisclosureHeader, { children: plugin.name }),
-                /* @__PURE__ */ jsx61(Pills, { ...pills, className: "" })
+            /* @__PURE__ */ jsxs48("div", { className: "bc:grid bc:min-w-0 bc:gap-3", children: [
+              /* @__PURE__ */ jsxs48("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
+                /* @__PURE__ */ jsx60(DisclosureHeader, { children: plugin.name }),
+                /* @__PURE__ */ jsx60(Pills, { ...pills, className: "" })
               ] }),
-              /* @__PURE__ */ jsx61(Banners, { ...pills })
+              /* @__PURE__ */ jsx60(Banners, { ...pills })
             ] }),
-            /* @__PURE__ */ jsx61(DisclosurePanel2, { className: "bc:min-w-0", children: /* @__PURE__ */ jsx61("div", { ref, hidden: collapsed, className: "bc:min-w-0 bc:pt-3", children: /* @__PURE__ */ jsx61(Mounted, { mount: mount2, className: "bc:min-w-0" }) }) })
+            /* @__PURE__ */ jsx60(DisclosurePanel2, { className: "bc:min-w-0", children: /* @__PURE__ */ jsx60("div", { ref, hidden: collapsed, className: "bc:min-w-0 bc:pt-3", children: /* @__PURE__ */ jsx60(Mounted, { mount: mount2, className: "bc:min-w-0" }) }) })
           ]
         }
       )
@@ -15225,7 +14951,7 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useEffect as useEffect3, useId as useId3, useReducer, useState as useState21 } from "react";
+import { useEffect as useEffect2, useId as useId3, useReducer, useState as useState21 } from "react";
 
 // srcts/modules/basic/storage.ts
 var KINDS3 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -15275,7 +15001,7 @@ function distinct(list, twice) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { Fragment as Fragment28, jsx as jsx62, jsxs as jsxs50 } from "react/jsx-runtime";
+import { Fragment as Fragment27, jsx as jsx61, jsxs as jsxs49 } from "react/jsx-runtime";
 function Toolbar3({ board, showOptions }) {
   const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
@@ -15288,8 +15014,8 @@ function Toolbar3({ board, showOptions }) {
     } catch {
     }
   }
-  return /* @__PURE__ */ jsxs50("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border-default bc:pb-3", children: [
-    renaming ? /* @__PURE__ */ jsx62(
+  return /* @__PURE__ */ jsxs49("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border-default bc:pb-3", children: [
+    renaming ? /* @__PURE__ */ jsx61(
       NameField,
       {
         label: "Board name",
@@ -15301,8 +15027,8 @@ function Toolbar3({ board, showOptions }) {
           setRenaming(false);
         }
       }
-    ) : /* @__PURE__ */ jsx62("h1", { className: "bc:m-0 bc:font-sans bc:text-lg bc:font-semibold", children: board.name }),
-    locked2 || renaming ? null : /* @__PURE__ */ jsx62(
+    ) : /* @__PURE__ */ jsx61("h1", { className: "bc:m-0 bc:font-sans bc:text-lg bc:font-semibold", children: board.name }),
+    locked2 || renaming ? null : /* @__PURE__ */ jsx61(
       "button",
       {
         type: "button",
@@ -15314,8 +15040,8 @@ function Toolbar3({ board, showOptions }) {
         children: "Rename"
       }
     ),
-    /* @__PURE__ */ jsxs50(Toolbar2, { "aria-label": "Board", className: "bc:ml-auto", children: [
-      /* @__PURE__ */ jsx62(
+    /* @__PURE__ */ jsxs49(Toolbar2, { "aria-label": "Board", className: "bc:ml-auto", children: [
+      /* @__PURE__ */ jsx61(
         Button2,
         {
           variant: "secondary",
@@ -15325,8 +15051,8 @@ function Toolbar3({ board, showOptions }) {
           children: "Options"
         }
       ),
-      /* @__PURE__ */ jsx62(Separator2, { orientation: "vertical" }),
-      /* @__PURE__ */ jsx62(
+      /* @__PURE__ */ jsx61(Separator2, { orientation: "vertical" }),
+      /* @__PURE__ */ jsx61(
         Button2,
         {
           variant: "secondary",
@@ -15338,7 +15064,7 @@ function Toolbar3({ board, showOptions }) {
           children: "Undo"
         }
       ),
-      /* @__PURE__ */ jsx62(
+      /* @__PURE__ */ jsx61(
         Button2,
         {
           variant: "secondary",
@@ -15350,7 +15076,7 @@ function Toolbar3({ board, showOptions }) {
           children: "Redo"
         }
       ),
-      /* @__PURE__ */ jsx62(StorageControls, {})
+      /* @__PURE__ */ jsx61(StorageControls, {})
     ] })
   ] });
 }
@@ -15358,7 +15084,7 @@ function StorageControls() {
   const { core } = useFrontEnd();
   const storage = core.plugins.storage();
   const [, redraw] = useReducer((n) => n + 1, 0);
-  useEffect3(() => {
+  useEffect2(() => {
     if (storage?.subscribe === void 0) return void 0;
     try {
       return storage.subscribe(redraw);
@@ -15369,30 +15095,30 @@ function StorageControls() {
   }, [core, storage]);
   const drawn3 = drawnControls(core);
   const problem = drawn3?.problem;
-  useEffect3(() => {
+  useEffect2(() => {
     if (problem !== void 0) core.log("blockr.core").error(problem);
   }, [core, problem]);
   if (drawn3 === void 0 || !drawn3.failed && drawn3.controls.length === 0) return null;
-  return /* @__PURE__ */ jsxs50(Fragment28, { children: [
-    /* @__PURE__ */ jsx62(Separator2, { orientation: "vertical" }),
-    drawn3.failed ? /* @__PURE__ */ jsx62("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-text-danger", children: /* @__PURE__ */ jsx62(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn3.controls.map((control) => /* @__PURE__ */ jsx62(Control, { control }, control.id))
+  return /* @__PURE__ */ jsxs49(Fragment27, { children: [
+    /* @__PURE__ */ jsx61(Separator2, { orientation: "vertical" }),
+    drawn3.failed ? /* @__PURE__ */ jsx61("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-text-danger", children: /* @__PURE__ */ jsx61(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn3.controls.map((control) => /* @__PURE__ */ jsx61(Control, { control }, control.id))
   ] });
 }
 function Control({ control }) {
   switch (control.kind) {
     case "button":
-      return /* @__PURE__ */ jsx62(StorageButton, { button: control });
+      return /* @__PURE__ */ jsx61(StorageButton, { button: control });
     case "menu":
-      return /* @__PURE__ */ jsx62(StorageMenu, { label: control.label, items: control.items });
+      return /* @__PURE__ */ jsx61(StorageMenu, { label: control.label, items: control.items });
     case "status":
-      return /* @__PURE__ */ jsx62("span", { role: "status", className: "bc:font-sans bc:text-sm bc:text-text-muted", children: /* @__PURE__ */ jsx62(Tipped, { tooltip: control.tooltip, children: control.text }) });
+      return /* @__PURE__ */ jsx61("span", { role: "status", className: "bc:font-sans bc:text-sm bc:text-text-muted", children: /* @__PURE__ */ jsx61(Tipped, { tooltip: control.tooltip, children: control.text }) });
   }
 }
 function StorageButton({ button }) {
   const { core } = useFrontEnd();
   const reason = useId3();
   const off = button.disabled === true;
-  const drawn3 = /* @__PURE__ */ jsx62(
+  const drawn3 = /* @__PURE__ */ jsx61(
     Button2,
     {
       variant: "secondary",
@@ -15407,68 +15133,68 @@ function StorageButton({ button }) {
   );
   if (button.tooltip === void 0) return drawn3;
   if (off) {
-    return /* @__PURE__ */ jsxs50(Fragment28, { children: [
+    return /* @__PURE__ */ jsxs49(Fragment27, { children: [
       drawn3,
-      /* @__PURE__ */ jsx62("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-text-muted", children: button.tooltip })
+      /* @__PURE__ */ jsx61("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-text-muted", children: button.tooltip })
     ] });
   }
-  return /* @__PURE__ */ jsxs50(TooltipTrigger, { children: [
+  return /* @__PURE__ */ jsxs49(TooltipTrigger, { children: [
     drawn3,
-    /* @__PURE__ */ jsx62(Tooltip2, { children: button.tooltip })
+    /* @__PURE__ */ jsx61(Tooltip2, { children: button.tooltip })
   ] });
 }
 function Tipped({ tooltip, children }) {
-  if (tooltip === void 0) return /* @__PURE__ */ jsx62(Fragment28, { children });
-  return /* @__PURE__ */ jsxs50(TooltipTrigger, { children: [
-    /* @__PURE__ */ jsx62(Focusable, { children: /* @__PURE__ */ jsx62("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-border-accent", children }) }),
-    /* @__PURE__ */ jsx62(Tooltip2, { children: tooltip })
+  if (tooltip === void 0) return /* @__PURE__ */ jsx61(Fragment27, { children });
+  return /* @__PURE__ */ jsxs49(TooltipTrigger, { children: [
+    /* @__PURE__ */ jsx61(Focusable, { children: /* @__PURE__ */ jsx61("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-border-accent", children }) }),
+    /* @__PURE__ */ jsx61(Tooltip2, { children: tooltip })
   ] });
 }
 function StorageMenu({ label, items }) {
   const { core } = useFrontEnd();
   const mac = onMac(window);
-  return /* @__PURE__ */ jsxs50(MenuTrigger2, { placement: "bottom end", children: [
-    /* @__PURE__ */ jsxs50(Button2, { variant: "secondary", children: [
+  return /* @__PURE__ */ jsxs49(MenuTrigger2, { placement: "bottom end", children: [
+    /* @__PURE__ */ jsxs49(Button2, { variant: "secondary", children: [
       label,
-      /* @__PURE__ */ jsx62("span", { "aria-hidden": "true", children: "\u25BE" })
+      /* @__PURE__ */ jsx61("span", { "aria-hidden": "true", children: "\u25BE" })
     ] }),
-    /* @__PURE__ */ jsx62(Menu2, { "aria-label": label, children: entries(items, core, mac) })
+    /* @__PURE__ */ jsx61(Menu2, { "aria-label": label, children: entries(items, core, mac) })
   ] });
 }
 function entries(items, core, mac) {
-  return items.map((item) => {
-    if (item.kind === "menu") {
-      return /* @__PURE__ */ jsxs50(SubmenuTrigger2, { children: [
-        /* @__PURE__ */ jsx62(MenuItem2, { id: item.id, textValue: item.label, children: item.label }),
-        /* @__PURE__ */ jsx62(Menu2, { "aria-label": item.label, children: entries(item.items, core, mac) })
-      ] }, item.id);
+  return items.map((item2) => {
+    if (item2.kind === "menu") {
+      return /* @__PURE__ */ jsxs49(SubmenuTrigger2, { children: [
+        /* @__PURE__ */ jsx61(MenuItem2, { id: item2.id, textValue: item2.label, children: item2.label }),
+        /* @__PURE__ */ jsx61(Menu2, { "aria-label": item2.label, children: entries(item2.items, core, mac) })
+      ] }, item2.id);
     }
-    const label = item.kind === "button" ? item.label : item.text;
-    const shortcut = item.kind === "button" ? shortcutLabel(item.shortcut, mac) : void 0;
-    return /* @__PURE__ */ jsxs50(
+    const label = item2.kind === "button" ? item2.label : item2.text;
+    const shortcut = item2.kind === "button" ? shortcutLabel(item2.shortcut, mac) : void 0;
+    return /* @__PURE__ */ jsxs49(
       MenuItem2,
       {
-        id: item.id,
+        id: item2.id,
         textValue: label,
-        isDisabled: item.kind === "status" || item.disabled,
-        onAction: item.kind === "button" ? () => {
-          void runButton(core, item);
+        isDisabled: item2.kind === "status" || item2.disabled,
+        onAction: item2.kind === "button" ? () => {
+          void runButton(core, item2);
         } : void 0,
         children: [
-          /* @__PURE__ */ jsx62(Text, { slot: "label", children: label }),
-          item.tooltip === void 0 ? null : /* @__PURE__ */ jsx62(Text, { slot: "description", children: item.tooltip }),
-          shortcut === void 0 ? null : /* @__PURE__ */ jsx62(Keyboard, { children: shortcut })
+          /* @__PURE__ */ jsx61(Text, { slot: "label", children: label }),
+          item2.tooltip === void 0 ? null : /* @__PURE__ */ jsx61(Text, { slot: "description", children: item2.tooltip }),
+          shortcut === void 0 ? null : /* @__PURE__ */ jsx61(Keyboard, { children: shortcut })
         ]
       },
-      item.id
+      item2.id
     );
   });
 }
 
 // srcts/modules/basic/board.tsx
-import { jsx as jsx63, jsxs as jsxs51 } from "react/jsx-runtime";
+import { jsx as jsx62, jsxs as jsxs50 } from "react/jsx-runtime";
 function BasicBoard({ front }) {
-  return /* @__PURE__ */ jsx63(FrontEndContext, { value: front, children: /* @__PURE__ */ jsx63(Page, {}) });
+  return /* @__PURE__ */ jsx62(FrontEndContext, { value: front, children: /* @__PURE__ */ jsx62(Page, {}) });
 }
 function Page() {
   const { core } = useFrontEnd();
@@ -15481,10 +15207,10 @@ function Page() {
   const card = (id2) => {
     const block = board.blocks[id2];
     if (block === void 0) return null;
-    return /* @__PURE__ */ jsx63(BlockCard, { id: id2, block }, `block-${id2}`);
+    return /* @__PURE__ */ jsx62(BlockCard, { id: id2, block }, `block-${id2}`);
   };
-  return /* @__PURE__ */ jsxs51("div", { className: `${classes.page} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`, children: [
-    /* @__PURE__ */ jsx63(
+  return /* @__PURE__ */ jsxs50("div", { className: `${classes.page} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`, children: [
+    /* @__PURE__ */ jsx62(
       Toolbar3,
       {
         board,
@@ -15493,44 +15219,44 @@ function Page() {
         }
       }
     ),
-    /* @__PURE__ */ jsxs51("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
-      /* @__PURE__ */ jsx63(Plugins, {}),
-      /* @__PURE__ */ jsxs51("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
-        items.length === 0 ? /* @__PURE__ */ jsx63("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
-        items.map((item) => {
-          if ("block" in item) return card(item.block);
-          const stack = board.stacks[item.stack];
+    /* @__PURE__ */ jsxs50("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
+      /* @__PURE__ */ jsx62(Plugins, {}),
+      /* @__PURE__ */ jsxs50("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
+        items.length === 0 ? /* @__PURE__ */ jsx62("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
+        items.map((item2) => {
+          if ("block" in item2) return card(item2.block);
+          const stack = board.stacks[item2.stack];
           if (stack === void 0) return null;
-          return /* @__PURE__ */ jsx63(StackGroup, { id: item.stack, stack, children: item.blocks.length === 0 ? /* @__PURE__ */ jsx63("p", { className: styles.hint, children: "The stack holds no blocks." }) : item.blocks.map(card) }, `stack-${item.stack}`);
+          return /* @__PURE__ */ jsx62(StackGroup, { id: item2.stack, stack, children: item2.blocks.length === 0 ? /* @__PURE__ */ jsx62("p", { className: styles.hint, children: "The stack holds no blocks." }) : item2.blocks.map(card) }, `stack-${item2.stack}`);
         })
       ] })
     ] }),
-    options ? /* @__PURE__ */ jsx63(OptionsDialog, { onClose: close }) : null,
-    /* @__PURE__ */ jsx63(Toasts, {})
+    options ? /* @__PURE__ */ jsx62(OptionsDialog, { onClose: close }) : null,
+    /* @__PURE__ */ jsx62(Toasts, {})
   ] });
 }
 function Toasts() {
   const { core, toasts } = useFrontEnd();
   const board = useBoard(core);
-  return /* @__PURE__ */ jsx63(ToastRegion, { queue: toasts.queue, children: ({ toast }) => /* @__PURE__ */ jsx63(ToastItem, { toast, title: concerned(toast.content.about, core, board) }) });
+  return /* @__PURE__ */ jsx62(ToastRegion, { queue: toasts.queue, children: ({ toast }) => /* @__PURE__ */ jsx62(ToastItem, { toast, title: concerned(toast.content.about, core, board) }) });
 }
 function ToastItem({ toast, title }) {
   const notification = toast.content;
   const { severity } = notification;
   const mark = MARKS[severity];
   const pkg = sourcePackage(notification);
-  return /* @__PURE__ */ jsxs51(Toast, { toast, "data-severity": severity, className: `bc:border-l-4 ${LEFT[severity]}`, children: [
-    /* @__PURE__ */ jsx63("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx63(SeverityIcon, { severity }) }),
-    /* @__PURE__ */ jsxs51(UNSTABLE_ToastContent, { role: severity === "message" ? "status" : void 0, className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1", children: [
-      /* @__PURE__ */ jsxs51(Text, { slot: "title", elementType: "p", className: "bc:m-0 bc:text-xs bc:font-semibold", children: [
+  return /* @__PURE__ */ jsxs50(Toast, { toast, "data-severity": severity, className: `bc:border-l-4 ${LEFT[severity]}`, children: [
+    /* @__PURE__ */ jsx62("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx62(SeverityIcon, { severity }) }),
+    /* @__PURE__ */ jsxs50(UNSTABLE_ToastContent, { role: severity === "message" ? "status" : void 0, className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1", children: [
+      /* @__PURE__ */ jsxs50(Text, { slot: "title", elementType: "p", className: "bc:m-0 bc:text-xs bc:font-semibold", children: [
         title,
-        pkg === void 0 ? null : /* @__PURE__ */ jsxs51("span", { className: "bc:font-normal bc:text-text-muted", children: [
+        pkg === void 0 ? null : /* @__PURE__ */ jsxs50("span", { className: "bc:font-normal bc:text-text-muted", children: [
           " \xB7 ",
           pkg
         ] })
       ] }),
-      /* @__PURE__ */ jsx63(Text, { slot: "description", elementType: "p", className: "bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap", children: notification.message }),
-      isReload(notification) ? /* @__PURE__ */ jsx63("div", { children: /* @__PURE__ */ jsx63(
+      /* @__PURE__ */ jsx62(Text, { slot: "description", elementType: "p", className: "bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap", children: notification.message }),
+      isReload(notification) ? /* @__PURE__ */ jsx62("div", { children: /* @__PURE__ */ jsx62(
         Button2,
         {
           variant: "secondary",
@@ -15541,7 +15267,7 @@ function ToastItem({ toast, title }) {
         }
       ) }) : null
     ] }),
-    /* @__PURE__ */ jsx63(Button2, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx63("span", { "aria-hidden": "true", children: "\xD7" }) })
+    /* @__PURE__ */ jsx62(Button2, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx62("span", { "aria-hidden": "true", children: "\xD7" }) })
   ] });
 }
 var LEFT = {
@@ -15655,7 +15381,7 @@ function editable(target2) {
 }
 
 // srcts/modules/basic/index.tsx
-import { jsx as jsx64 } from "react/jsx-runtime";
+import { jsx as jsx63 } from "react/jsx-runtime";
 var basic_default = {
   frontend: { render, show }
 };
@@ -15665,9 +15391,9 @@ function render({ el, core }) {
   const shown2 = demandShown(core, doc.defaultView ?? window);
   const toasts = createToasts(core.notifications, (plugin) => hasSection(core, plugin));
   const front = { core, toasts, inView: shown2, sections: createSections(), groups: createSections() };
-  const root = createRoot5(el);
-  flushSync8(() => {
-    root.render(/* @__PURE__ */ jsx64(BasicBoard, { front }));
+  const root = createRoot4(el);
+  flushSync7(() => {
+    root.render(/* @__PURE__ */ jsx63(BasicBoard, { front }));
   });
   shown2.measure();
   const unbind = bindShortcuts(doc, core);
@@ -15684,7 +15410,7 @@ function show({ object: object2, el }) {
   const front = drawn2.get(el);
   const target2 = front?.inView.element(object2);
   if (front === void 0 || target2 === void 0) return;
-  flushSync8(() => {
+  flushSync7(() => {
     if ("plugin" in object2) {
       front.sections.collapse(object2.plugin, false);
       return;
@@ -15697,25 +15423,25 @@ function show({ object: object2, el }) {
 }
 
 // srcts/modules/edit-board/index.tsx
-import { flushSync as flushSync9 } from "react-dom";
-import { createRoot as createRoot6 } from "react-dom/client";
+import { flushSync as flushSync8 } from "react-dom";
+import { createRoot as createRoot5 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
 import { useCallback as useCallback11, useMemo as useMemo8 } from "react";
 
 // srcts/modules/edit-board/menus.tsx
-import { useCallback as useCallback9, useContext as useContext13, useEffect as useEffect4, useLayoutEffect as useLayoutEffect8, useMemo as useMemo7, useRef as useRef16, useState as useState23 } from "react";
-import { jsx as jsx65, jsxs as jsxs52 } from "react/jsx-runtime";
+import { useCallback as useCallback9, useContext as useContext13, useEffect as useEffect3, useLayoutEffect as useLayoutEffect8, useMemo as useMemo7, useRef as useRef15, useState as useState23 } from "react";
+import { jsx as jsx64, jsxs as jsxs51 } from "react/jsx-runtime";
 function useMenus(core) {
   const [refusal2, setRefusal] = useState23(null);
   const [shown2, setShown] = useState23(() => /* @__PURE__ */ new Map());
   const [back, setBack] = useState23(null);
-  const places = useRef16(/* @__PURE__ */ new Map());
-  const latest = useRef16(shown2);
-  useEffect4(() => {
+  const places = useRef15(/* @__PURE__ */ new Map());
+  const latest = useRef15(shown2);
+  useEffect3(() => {
     latest.current = shown2;
   }, [shown2]);
-  useEffect4(
+  useEffect3(
     () => () => {
       const open2 = [...latest.current.values()];
       queueMicrotask(() => {
@@ -15724,7 +15450,7 @@ function useMenus(core) {
     },
     []
   );
-  useEffect4(() => {
+  useEffect3(() => {
     if (back === null) return void 0;
     const timer = setTimeout(() => {
       setBack(null);
@@ -15758,8 +15484,8 @@ function useMenus(core) {
       core.boardActions.menu(target2, {
         el: button,
         anchor: button.getBoundingClientRect(),
-        notifier: (notifications, action2) => {
-          setRefusal({ title: editTitle(core.store.board(), action2, target2), reasons: notifiedReasons(notifications) });
+        notifier: (notifications, action3) => {
+          setRefusal({ title: editTitle(core.store.board(), action3, target2), reasons: notifiedReasons(notifications) });
         },
         advanced: placeOf(key2)
       });
@@ -15776,12 +15502,12 @@ function useMenus(core) {
   return useMemo7(() => ({ refusal: refusal2, shown: shown2, open, close, back }), [refusal2, shown2, open, close, back]);
 }
 function MenuButton({ menus, target: target2, place, label }) {
-  const ref = useRef16(null);
+  const ref = useRef15(null);
   const back = menus.back === place;
   useLayoutEffect8(() => {
     if (back) ref.current?.focus();
   }, [back]);
-  return /* @__PURE__ */ jsx65(
+  return /* @__PURE__ */ jsx64(
     ActionsButton,
     {
       ref,
@@ -15794,9 +15520,9 @@ function MenuButton({ menus, target: target2, place, label }) {
   );
 }
 function PlaceForm({ args, onClose }) {
-  const box = useRef16(null);
+  const box = useRef15(null);
   const mount2 = useCallback9((el) => args.mount(el), [args]);
-  useEffect4(() => {
+  useEffect3(() => {
     const el = box.current;
     if (el === null) return void 0;
     let listOpen = false;
@@ -15813,10 +15539,10 @@ function PlaceForm({ args, onClose }) {
       el.removeEventListener("keydown", heard);
     };
   }, [onClose]);
-  return /* @__PURE__ */ jsxs52("div", { ref: box, role: "group", "aria-label": args.title, className: "bc:grid bc:gap-2 bc:py-1 bc:whitespace-normal", ...KEPT, children: [
-    /* @__PURE__ */ jsx65(TakesKeys, {}),
-    /* @__PURE__ */ jsx65(Mounted, { mount: mount2, className: "bc:min-w-0" }),
-    /* @__PURE__ */ jsx65("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx65(Button2, { variant: "secondary", onPress: onClose, children: "Close" }) })
+  return /* @__PURE__ */ jsxs51("div", { ref: box, role: "group", "aria-label": args.title, className: "bc:grid bc:gap-2 bc:py-1 bc:whitespace-normal", ...KEPT, children: [
+    /* @__PURE__ */ jsx64(TakesKeys, {}),
+    /* @__PURE__ */ jsx64(Mounted, { mount: mount2, className: "bc:min-w-0" }),
+    /* @__PURE__ */ jsx64("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx64(Button2, { variant: "secondary", onPress: onClose, children: "Close" }) })
   ] });
 }
 var KEPT = Object.fromEntries(
@@ -15830,7 +15556,7 @@ var KEPT = Object.fromEntries(
 var taking = /* @__PURE__ */ new WeakMap();
 function TakesKeys() {
   const disable = useContext13(TableStateContext)?.setKeyboardNavigationDisabled;
-  useEffect4(() => {
+  useEffect3(() => {
     if (disable === void 0) return void 0;
     taking.set(disable, (taking.get(disable) ?? 0) + 1);
     disable(true);
@@ -15842,10 +15568,10 @@ function TakesKeys() {
   }, [disable]);
   return null;
 }
-function editTitle(board, action2, target2) {
+function editTitle(board, action3, target2) {
   const object2 = named4(board, target2);
-  const edit = own(CORE_EDITS, action2.id);
-  return edit === void 0 ? `${action2.label} failed for ${object2}.` : `Could not ${edit(object2)}.`;
+  const edit = own(CORE_EDITS, action3.id);
+  return edit === void 0 ? `${action3.label} failed for ${object2}.` : `Could not ${edit(object2)}.`;
 }
 var CORE_EDITS = {
   "blockr.core-append_block_action": (object2) => `append a block to ${object2}`,
@@ -15880,7 +15606,7 @@ function without4(map, key2) {
 }
 
 // srcts/modules/edit-board/blocks.tsx
-import { Fragment as Fragment29, jsx as jsx66, jsxs as jsxs53 } from "react/jsx-runtime";
+import { Fragment as Fragment28, jsx as jsx65, jsxs as jsxs52 } from "react/jsx-runtime";
 var ADD_BLOCK = "blockr.core-add_block_action";
 var COLUMNS = [
   { id: "name", name: "Name", rowHeader: true },
@@ -15893,11 +15619,11 @@ function BlocksSection({ core, board }) {
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
   const count2 = Object.keys(board.blocks).length;
   const menus = useMenus(core);
-  return /* @__PURE__ */ jsxs53(Section, { title: "Blocks", count: count2, children: [
-    offers(core, ADD_BLOCK, BOARD) ? /* @__PURE__ */ jsx66(Part, { title: "Add a block", children: /* @__PURE__ */ jsx66(Advanced, { core, id: ADD_BLOCK, target: BOARD }) }) : null,
-    /* @__PURE__ */ jsx66(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs53(Fragment29, { children: [
-      /* @__PURE__ */ jsx66(TableSearch, { label: "Search blocks", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx66(
+  return /* @__PURE__ */ jsxs52(Section, { title: "Blocks", count: count2, children: [
+    offers(core, ADD_BLOCK, BOARD) ? /* @__PURE__ */ jsx65(Part, { title: "Add a block", children: /* @__PURE__ */ jsx65(Advanced, { core, id: ADD_BLOCK, target: BOARD }) }) : null,
+    /* @__PURE__ */ jsx65(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs52(Fragment28, { children: [
+      /* @__PURE__ */ jsx65(TableSearch, { label: "Search blocks", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx65(
         ObjectsTable,
         {
           core,
@@ -15910,21 +15636,21 @@ function BlocksSection({ core, board }) {
             text: block.name,
             menuLabel: `Actions of the block ${block.name}`,
             cells: [
-              { content: /* @__PURE__ */ jsx66("span", { className: "bc:font-medium", children: block.name }), className: WRAP },
+              { content: /* @__PURE__ */ jsx65("span", { className: "bc:font-medium", children: block.name }), className: WRAP },
               { content: id2, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
               { content: className(block), className: `${WRAP} bc:text-text-muted` }
             ]
           }))
         }
       ),
-      /* @__PURE__ */ jsx66(Refusal2, { refusal: menus.refusal }),
-      /* @__PURE__ */ jsx66(Pager, { label: "Pages of blocks", view })
+      /* @__PURE__ */ jsx65(Refusal2, { refusal: menus.refusal }),
+      /* @__PURE__ */ jsx65(Pager, { label: "Pages of blocks", view })
     ] }) })
   ] });
 }
 
 // srcts/modules/edit-board/links.tsx
-import { Fragment as Fragment30, jsx as jsx67, jsxs as jsxs54 } from "react/jsx-runtime";
+import { Fragment as Fragment29, jsx as jsx66, jsxs as jsxs53 } from "react/jsx-runtime";
 var CREATE_LINK2 = "blockr.core-add_link_action";
 var COLUMNS2 = [
   { id: "from", name: "From", rowHeader: true },
@@ -15939,11 +15665,11 @@ function LinksSection({ core, board, locked: locked2 }) {
   );
   const variadic2 = variadicBlocks(board, core.blockRegistry());
   const menus = useMenus(core);
-  return /* @__PURE__ */ jsxs54(Section, { title: "Links", count: links.length, children: [
-    locked2 ? null : /* @__PURE__ */ jsx67(Part, { title: "Add a link", children: offers(core, CREATE_LINK2, BOARD) ? /* @__PURE__ */ jsx67(Advanced, { core, id: CREATE_LINK2, target: BOARD }) : /* @__PURE__ */ jsx67("p", { className: styles.hint, children: Object.keys(board.blocks).length < 2 ? "A link joins two blocks, so the board needs two blocks first." : "No new link can join two blocks of the board." }) }),
-    /* @__PURE__ */ jsx67(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs54(Fragment30, { children: [
-      /* @__PURE__ */ jsx67(TableSearch, { label: "Search links", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx67(
+  return /* @__PURE__ */ jsxs53(Section, { title: "Links", count: links.length, children: [
+    locked2 ? null : /* @__PURE__ */ jsx66(Part, { title: "Add a link", children: offers(core, CREATE_LINK2, BOARD) ? /* @__PURE__ */ jsx66(Advanced, { core, id: CREATE_LINK2, target: BOARD }) : /* @__PURE__ */ jsx66("p", { className: styles.hint, children: Object.keys(board.blocks).length < 2 ? "A link joins two blocks, so the board needs two blocks first." : "No new link can join two blocks of the board." }) }),
+    /* @__PURE__ */ jsx66(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs53(Fragment29, { children: [
+      /* @__PURE__ */ jsx66(TableSearch, { label: "Search links", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx66(
         ObjectsTable,
         {
           core,
@@ -15959,10 +15685,10 @@ function LinksSection({ core, board, locked: locked2 }) {
               text: `${from} \u2192 ${to}`,
               menuLabel: `Actions of the link from ${from} to ${to}`,
               cells: [
-                { content: /* @__PURE__ */ jsx67(BlockLabel, { board, id: link.from }), className: WRAP },
-                { content: /* @__PURE__ */ jsx67(BlockLabel, { board, id: link.to }), className: WRAP },
+                { content: /* @__PURE__ */ jsx66(BlockLabel, { board, id: link.from }), className: WRAP },
+                { content: /* @__PURE__ */ jsx66(BlockLabel, { board, id: link.to }), className: WRAP },
                 {
-                  content: variadic2.has(link.to) ? /* @__PURE__ */ jsx67(VariadicInput2, { board, id: id2, link }) : /* @__PURE__ */ jsx67("span", { className: "bc:font-mono bc:text-xs", children: link.input }),
+                  content: variadic2.has(link.to) ? /* @__PURE__ */ jsx66(VariadicInput2, { board, id: id2, link }) : /* @__PURE__ */ jsx66("span", { className: "bc:font-mono bc:text-xs", children: link.input }),
                   className: WRAP
                 }
               ]
@@ -15970,22 +15696,22 @@ function LinksSection({ core, board, locked: locked2 }) {
           })
         }
       ),
-      /* @__PURE__ */ jsx67(Refusal2, { refusal: menus.refusal }),
-      /* @__PURE__ */ jsx67(Pager, { label: "Pages of links", view })
+      /* @__PURE__ */ jsx66(Refusal2, { refusal: menus.refusal }),
+      /* @__PURE__ */ jsx66(Pager, { label: "Pages of links", view })
     ] }) })
   ] });
 }
 function BlockLabel({ board, id: id2 }) {
-  return /* @__PURE__ */ jsxs54("span", { className: "bc:grid", children: [
-    /* @__PURE__ */ jsx67("span", { children: blockName(board, id2) }),
-    /* @__PURE__ */ jsx67("span", { className: "bc:font-mono bc:text-xs bc:text-text-muted bc:break-all", children: id2 })
+  return /* @__PURE__ */ jsxs53("span", { className: "bc:grid", children: [
+    /* @__PURE__ */ jsx66("span", { children: blockName(board, id2) }),
+    /* @__PURE__ */ jsx66("span", { className: "bc:font-mono bc:text-xs bc:text-text-muted bc:break-all", children: id2 })
   ] });
 }
 function VariadicInput2({ board, id: id2, link }) {
   const place = createGraph(board).linksInto(link.to).indexOf(id2) + 1;
-  return /* @__PURE__ */ jsxs54("span", { className: "bc:grid", children: [
-    link.input === "" ? /* @__PURE__ */ jsx67("span", { className: "bc:text-text-muted", children: "No name" }) : /* @__PURE__ */ jsx67("span", { className: "bc:font-mono bc:text-xs", children: link.input }),
-    /* @__PURE__ */ jsxs54("span", { className: "bc:text-xs bc:text-text-muted", children: [
+  return /* @__PURE__ */ jsxs53("span", { className: "bc:grid", children: [
+    link.input === "" ? /* @__PURE__ */ jsx66("span", { className: "bc:text-text-muted", children: "No name" }) : /* @__PURE__ */ jsx66("span", { className: "bc:font-mono bc:text-xs", children: link.input }),
+    /* @__PURE__ */ jsxs53("span", { className: "bc:text-xs bc:text-text-muted", children: [
       "Position ",
       place
     ] })
@@ -15996,7 +15722,7 @@ function variadicBlocks(board, registry) {
 }
 
 // srcts/modules/edit-board/selection.ts
-import { useCallback as useCallback10, useSyncExternalStore as useSyncExternalStore6 } from "react";
+import { useCallback as useCallback10, useSyncExternalStore as useSyncExternalStore5 } from "react";
 function useSelected(core) {
   const subscribe = useCallback10(
     (notify) => core.selection.subscribe(() => {
@@ -16004,21 +15730,21 @@ function useSelected(core) {
     }),
     [core]
   );
-  return useSyncExternalStore6(subscribe, () => core.selection.get());
+  return useSyncExternalStore5(subscribe, () => core.selection.get());
 }
 function selectedIds(selected, kind) {
   return new Set(selected.flatMap((object2) => idOf(object2, kind) ?? []));
 }
 function tickRows(core, kind, shown2, keys) {
-  const ticked = (id2) => keys === "all" || keys.has(id2);
+  const ticked2 = (id2) => keys === "all" || keys.has(id2);
   const rows = new Set(shown2);
   const current2 = core.selection.get();
   const kept = current2.filter((object2) => {
     const id2 = idOf(object2, kind);
-    return id2 === void 0 || !rows.has(id2) || ticked(id2);
+    return id2 === void 0 || !rows.has(id2) || ticked2(id2);
   });
   const held4 = selectedIds(current2, kind);
-  const added = shown2.filter((id2) => ticked(id2) && !held4.has(id2)).map((id2) => objectOf(kind, id2));
+  const added = shown2.filter((id2) => ticked2(id2) && !held4.has(id2)).map((id2) => objectOf(kind, id2));
   core.selection.set([...kept, ...added]);
 }
 function objectOf(kind, id2) {
@@ -16033,7 +15759,7 @@ function idOf(object2, kind) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { Fragment as Fragment31, jsx as jsx68, jsxs as jsxs55 } from "react/jsx-runtime";
+import { Fragment as Fragment30, jsx as jsx67, jsxs as jsxs54 } from "react/jsx-runtime";
 var CREATE_STACK2 = "blockr.core-add_stack_action";
 var COLUMNS3 = [
   { id: "name", name: "Name", rowHeader: true },
@@ -16043,11 +15769,11 @@ function StacksSection({ core, board, locked: locked2 }) {
   const stacks = Object.entries(board.stacks);
   const view = useTableView(stacks, ([id2, stack]) => [stack.name, id2, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
   const menus = useMenus(core);
-  return /* @__PURE__ */ jsxs55(Section, { title: "Stacks", count: stacks.length, children: [
-    locked2 || !offers(core, CREATE_STACK2, BOARD) ? null : /* @__PURE__ */ jsx68(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx68(Advanced, { core, id: CREATE_STACK2, target: BOARD }) }),
-    /* @__PURE__ */ jsx68(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx68("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs55(Fragment31, { children: [
-      /* @__PURE__ */ jsx68(TableSearch, { label: "Search stacks", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx68("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx68(
+  return /* @__PURE__ */ jsxs54(Section, { title: "Stacks", count: stacks.length, children: [
+    locked2 || !offers(core, CREATE_STACK2, BOARD) ? null : /* @__PURE__ */ jsx67(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx67(Advanced, { core, id: CREATE_STACK2, target: BOARD }) }),
+    /* @__PURE__ */ jsx67(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs54(Fragment30, { children: [
+      /* @__PURE__ */ jsx67(TableSearch, { label: "Search stacks", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx67(
         ObjectsTable,
         {
           core,
@@ -16061,33 +15787,33 @@ function StacksSection({ core, board, locked: locked2 }) {
             menuLabel: `Actions of the stack ${stack.name}`,
             cells: [
               {
-                content: /* @__PURE__ */ jsxs55("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
-                  /* @__PURE__ */ jsx68(Swatch, { color: stack.color }),
-                  /* @__PURE__ */ jsx68("span", { className: "bc:font-medium", children: stack.name })
+                content: /* @__PURE__ */ jsxs54("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
+                  /* @__PURE__ */ jsx67(Swatch, { color: stack.color }),
+                  /* @__PURE__ */ jsx67("span", { className: "bc:font-medium", children: stack.name })
                 ] }),
                 className: WRAP
               },
-              { content: /* @__PURE__ */ jsx68(StackBlocks, { board, blocks: stack.blocks }), className: WRAP }
+              { content: /* @__PURE__ */ jsx67(StackBlocks, { board, blocks: stack.blocks }), className: WRAP }
             ]
           }))
         }
       ),
-      /* @__PURE__ */ jsx68(Refusal2, { refusal: menus.refusal }),
-      /* @__PURE__ */ jsx68(Pager, { label: "Pages of stacks", view })
+      /* @__PURE__ */ jsx67(Refusal2, { refusal: menus.refusal }),
+      /* @__PURE__ */ jsx67(Pager, { label: "Pages of stacks", view })
     ] }) })
   ] });
 }
 var SHOWN_BLOCKS = 6;
 function StackBlocks({ board, blocks }) {
-  if (blocks.length === 0) return /* @__PURE__ */ jsx68("span", { className: "bc:text-text-muted", children: "No blocks" });
+  if (blocks.length === 0) return /* @__PURE__ */ jsx67("span", { className: "bc:text-text-muted", children: "No blocks" });
   const rest = blocks.length - SHOWN_BLOCKS;
-  return /* @__PURE__ */ jsxs55("ul", { "aria-label": "Blocks", className: "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0", children: [
-    blocks.slice(0, SHOWN_BLOCKS).map((block) => /* @__PURE__ */ jsxs55("li", { className: "bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs", children: [
+  return /* @__PURE__ */ jsxs54("ul", { "aria-label": "Blocks", className: "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0", children: [
+    blocks.slice(0, SHOWN_BLOCKS).map((block) => /* @__PURE__ */ jsxs54("li", { className: "bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs", children: [
       blockName(board, block),
       " ",
-      /* @__PURE__ */ jsx68("span", { className: "bc:font-mono bc:text-text-muted", children: block })
+      /* @__PURE__ */ jsx67("span", { className: "bc:font-mono bc:text-text-muted", children: block })
     ] }, block)),
-    rest > 0 ? /* @__PURE__ */ jsxs55("li", { className: "bc:px-1 bc:text-xs bc:text-text-muted", children: [
+    rest > 0 ? /* @__PURE__ */ jsxs54("li", { className: "bc:px-1 bc:text-xs bc:text-text-muted", children: [
       "and ",
       rest,
       " more"
@@ -16095,21 +15821,21 @@ function StackBlocks({ board, blocks }) {
   ] });
 }
 function Swatch({ color: color2 }) {
-  return color2 === null ? /* @__PURE__ */ jsx68("span", { "aria-hidden": "true", className: RING }) : /* @__PURE__ */ jsx68(ColorSwatch2, { color: color2, className: DOT });
+  return color2 === null ? /* @__PURE__ */ jsx67("span", { "aria-hidden": "true", className: RING }) : /* @__PURE__ */ jsx67(ColorSwatch2, { color: color2, className: DOT });
 }
 var RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
 var DOT = "bc:size-3! bc:rounded-full!";
 
 // srcts/modules/edit-board/board.tsx
-import { jsx as jsx69, jsxs as jsxs56 } from "react/jsx-runtime";
+import { jsx as jsx68, jsxs as jsxs55 } from "react/jsx-runtime";
 function EditBoard({ core }) {
   const board = useBoard(core);
   const locked2 = core.lock.board;
-  return /* @__PURE__ */ jsxs56("div", { className: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default", children: [
-    /* @__PURE__ */ jsx69(SelectionBar, { core }),
-    locked2 ? null : /* @__PURE__ */ jsx69(BlocksSection, { core, board }),
-    /* @__PURE__ */ jsx69(LinksSection, { core, board, locked: locked2 }),
-    /* @__PURE__ */ jsx69(StacksSection, { core, board, locked: locked2 })
+  return /* @__PURE__ */ jsxs55("div", { className: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default", children: [
+    /* @__PURE__ */ jsx68(SelectionBar, { core }),
+    locked2 ? null : /* @__PURE__ */ jsx68(BlocksSection, { core, board }),
+    /* @__PURE__ */ jsx68(LinksSection, { core, board, locked: locked2 }),
+    /* @__PURE__ */ jsx68(StacksSection, { core, board, locked: locked2 })
   ] });
 }
 var SELECTION = "selection";
@@ -16119,15 +15845,15 @@ function SelectionBar({ core }) {
   const form = menus.shown.get(SELECTION);
   if (selected.length === 0 && form === void 0) return null;
   const target2 = { selection: selected };
-  return /* @__PURE__ */ jsxs56("div", { role: "region", "aria-label": "Selection", className: "bc:grid bc:gap-2", children: [
-    selected.length === 0 ? null : /* @__PURE__ */ jsxs56("div", { className: "bc:flex bc:items-center bc:gap-2 bc:rounded-md bc:border bc:border-border-default bc:px-3 bc:py-1.5 bc:text-sm", children: [
-      /* @__PURE__ */ jsxs56("span", { "aria-live": "polite", children: [
+  return /* @__PURE__ */ jsxs55("div", { role: "region", "aria-label": "Selection", className: "bc:grid bc:gap-2", children: [
+    selected.length === 0 ? null : /* @__PURE__ */ jsxs55("div", { className: "bc:flex bc:items-center bc:gap-2 bc:rounded-md bc:border bc:border-border-default bc:px-3 bc:py-1.5 bc:text-sm", children: [
+      /* @__PURE__ */ jsxs55("span", { "aria-live": "polite", children: [
         selected.length,
         " selected"
       ] }),
-      /* @__PURE__ */ jsxs56("span", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: [
-        core.boardActions.on(target2).length > 0 ? /* @__PURE__ */ jsx69(MenuButton, { menus, target: target2, place: SELECTION, label: "Actions of the selection" }) : null,
-        /* @__PURE__ */ jsx69(
+      /* @__PURE__ */ jsxs55("span", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: [
+        core.boardActions.on(target2).length > 0 ? /* @__PURE__ */ jsx68(MenuButton, { menus, target: target2, place: SELECTION, label: "Actions of the selection" }) : null,
+        /* @__PURE__ */ jsx68(
           Button2,
           {
             variant: "quiet",
@@ -16139,7 +15865,7 @@ function SelectionBar({ core }) {
         )
       ] })
     ] }),
-    form === void 0 ? null : /* @__PURE__ */ jsx69(
+    form === void 0 ? null : /* @__PURE__ */ jsx68(
       PlaceForm,
       {
         args: form,
@@ -16148,21 +15874,21 @@ function SelectionBar({ core }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx69(Refusal2, { refusal: menus.refusal })
+    /* @__PURE__ */ jsx68(Refusal2, { refusal: menus.refusal })
   ] });
 }
 function Section({ title, count: count2, children }) {
-  return /* @__PURE__ */ jsx69("section", { "aria-label": title, className: "bc:rounded-md bc:border bc:border-border-default", children: /* @__PURE__ */ jsxs56(Disclosure2, { defaultExpanded: true, children: [
-    /* @__PURE__ */ jsxs56(DisclosureHeader, { className: "bc:text-sm bc:font-semibold bc:[&>button]:gap-2 bc:[&>button]:px-3 bc:[&>button]:py-2", children: [
+  return /* @__PURE__ */ jsx68("section", { "aria-label": title, className: "bc:rounded-md bc:border bc:border-border-default", children: /* @__PURE__ */ jsxs55(Disclosure2, { defaultExpanded: true, children: [
+    /* @__PURE__ */ jsxs55(DisclosureHeader, { className: "bc:text-sm bc:font-semibold bc:[&>button]:gap-2 bc:[&>button]:px-3 bc:[&>button]:py-2", children: [
       title,
-      /* @__PURE__ */ jsx69("span", { className: "bc:rounded-full bc:border bc:border-border-default bc:px-1.5 bc:text-xs bc:font-normal bc:text-text-muted", children: count2 })
+      /* @__PURE__ */ jsx68("span", { className: "bc:rounded-full bc:border bc:border-border-default bc:px-1.5 bc:text-xs bc:font-normal bc:text-text-muted", children: count2 })
     ] }),
-    /* @__PURE__ */ jsx69(DisclosurePanel2, { children: /* @__PURE__ */ jsx69("div", { className: "bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3", children }) })
+    /* @__PURE__ */ jsx68(DisclosurePanel2, { children: /* @__PURE__ */ jsx68("div", { className: "bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3", children }) })
   ] }) });
 }
 function Part({ title, children }) {
-  return /* @__PURE__ */ jsxs56("div", { role: "group", "aria-label": title, className: "bc:grid bc:gap-2", children: [
-    /* @__PURE__ */ jsx69("h4", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: title }),
+  return /* @__PURE__ */ jsxs55("div", { role: "group", "aria-label": title, className: "bc:grid bc:gap-2", children: [
+    /* @__PURE__ */ jsx68("h4", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: title }),
     children
   ] });
 }
@@ -16180,7 +15906,7 @@ function ObjectsTable({
   const offered = new Set(rows.flatMap(({ id: id2 }) => core.boardActions.on(objectOf(kind, id2)).length > 0 ? [id2] : []));
   const actions = offered.size > 0;
   const span = columns.length + (actions ? 1 : 0);
-  return /* @__PURE__ */ jsxs56(
+  return /* @__PURE__ */ jsxs55(
     Table2,
     {
       "aria-label": label,
@@ -16195,18 +15921,18 @@ function ObjectsTable({
         );
       },
       children: [
-        /* @__PURE__ */ jsxs56(TableHeader2, { children: [
-          columns.map((column) => /* @__PURE__ */ jsx69(Column2, { id: column.id, isRowHeader: column.rowHeader === true, children: column.name }, column.id)),
-          actions ? /* @__PURE__ */ jsx69(Column2, { id: "actions", textValue: "Actions", className: "bc:w-px", children: /* @__PURE__ */ jsx69("span", { className: "bc:sr-only", children: "Actions" }) }) : null
+        /* @__PURE__ */ jsxs55(TableHeader2, { children: [
+          columns.map((column) => /* @__PURE__ */ jsx68(Column2, { id: column.id, isRowHeader: column.rowHeader === true, children: column.name }, column.id)),
+          actions ? /* @__PURE__ */ jsx68(Column2, { id: "actions", textValue: "Actions", className: "bc:w-px", children: /* @__PURE__ */ jsx68("span", { className: "bc:sr-only", children: "Actions" }) }) : null
         ] }),
-        /* @__PURE__ */ jsx69(TableBody2, { children: rows.map((row) => {
+        /* @__PURE__ */ jsx68(TableBody2, { children: rows.map((row) => {
           const form = menus.shown.get(row.id);
-          return /* @__PURE__ */ jsx69(Row2, { id: row.id, textValue: row.text, children: form === void 0 ? [
-            ...row.cells.map(({ content, className }, i) => /* @__PURE__ */ jsx69(Cell2, { className, children: content }, i)),
+          return /* @__PURE__ */ jsx68(Row2, { id: row.id, textValue: row.text, children: form === void 0 ? [
+            ...row.cells.map(({ content, className }, i) => /* @__PURE__ */ jsx68(Cell2, { className, children: content }, i)),
             ...actions ? [
-              /* @__PURE__ */ jsx69(Cell2, { className: "bc:text-right", children: offered.has(row.id) ? /* @__PURE__ */ jsx69(MenuButton, { menus, target: objectOf(kind, row.id), place: row.id, label: row.menuLabel }) : null }, "actions")
+              /* @__PURE__ */ jsx68(Cell2, { className: "bc:text-right", children: offered.has(row.id) ? /* @__PURE__ */ jsx68(MenuButton, { menus, target: objectOf(kind, row.id), place: row.id, label: row.menuLabel }) : null }, "actions")
             ] : []
-          ] : /* @__PURE__ */ jsx69(Cell2, { colSpan: span, className: WRAP, children: /* @__PURE__ */ jsx69(
+          ] : /* @__PURE__ */ jsx68(Cell2, { colSpan: span, className: WRAP, children: /* @__PURE__ */ jsx68(
             PlaceForm,
             {
               args: form,
@@ -16222,22 +15948,22 @@ function ObjectsTable({
 }
 var BOARD = { board: true };
 function offers(core, id2, target2) {
-  return core.boardActions.on(target2).some((action2) => action2.id === id2);
+  return core.boardActions.on(target2).some((action3) => action3.id === id2);
 }
 function Advanced({ core, id: id2, target: target2 }) {
   const key2 = JSON.stringify(target2);
   const mount2 = useCallback11((el) => core.boardActions.mountAdvanced(el, id2, JSON.parse(key2)), [core, id2, key2]);
-  return /* @__PURE__ */ jsx69(Mounted, { mount: mount2, className: "bc:min-w-0" });
+  return /* @__PURE__ */ jsx68(Mounted, { mount: mount2, className: "bc:min-w-0" });
 }
 
 // srcts/modules/edit-board/index.tsx
-import { jsx as jsx70 } from "react/jsx-runtime";
+import { jsx as jsx69 } from "react/jsx-runtime";
 var edit_board_default = {
   ui: {
     render({ el, core }) {
-      const root = createRoot6(el);
-      flushSync9(() => {
-        root.render(/* @__PURE__ */ jsx70(EditBoard, { core }));
+      const root = createRoot5(el);
+      flushSync8(() => {
+        root.render(/* @__PURE__ */ jsx69(EditBoard, { core }));
       });
       return () => {
         root.unmount();
@@ -16353,16 +16079,16 @@ var optionSchemas = {
 };
 
 // srcts/options/ui.tsx
-import { jsx as jsx71 } from "react/jsx-runtime";
+import { jsx as jsx70 } from "react/jsx-runtime";
 function numberUi(label, min) {
   function NumberUi({ host }) {
-    return /* @__PURE__ */ jsx71(NumberField2, { bound: useValue(host), label, minValue: min, step: 1 });
+    return /* @__PURE__ */ jsx70(NumberField2, { bound: useValue(host), label, minValue: min, step: 1 });
   }
   return reactModule(NumberUi);
 }
 function toggleButtonGroupUi(label, items) {
   function ToggleButtonGroupUi({ host }) {
-    return /* @__PURE__ */ jsx71(ToggleButtonGroup2, { bound: useValue(host), label, disallowEmptySelection: true, children: items.map((item) => /* @__PURE__ */ jsx71(ToggleButton2, { id: item.id, children: item.name }, item.id)) });
+    return /* @__PURE__ */ jsx70(ToggleButtonGroup2, { bound: useValue(host), label, disallowEmptySelection: true, children: items.map((item2) => /* @__PURE__ */ jsx70(ToggleButton2, { id: item2.id, children: item2.name }, item2.id)) });
   }
   return reactModule(ToggleButtonGroupUi);
 }
@@ -16843,6 +16569,9 @@ var hello_default = {
         modules: {
           "blockr.core-controls": {
             module: "blockr.core/blockr-core-controls.js?v=4d2a6c91"
+          },
+          "blockr.core-board_action_menu": {
+            module: "blockr.core/board-action-menu.js?v=e3a7c05b"
           }
         },
         plugins: {
@@ -17597,10 +17326,507 @@ function failed2(id2, phase, message, before = []) {
     conditions: [...before, { severity: "error", class: ["blockr_error", "error", "condition"], phase, message }]
   };
 }
+
+// srcts/stubs/menu-module.ts
+import { act } from "react";
+function menuModuleTests(exports) {
+  return TESTS.map(({ name: name2, check: check2 }) => ({ name: name2, run: () => running2(exports, check2) }));
+}
+async function running2(exports, check2) {
+  if (typeof document === "undefined") {
+    throw new Error("The tests of a module that draws the menus of board actions run on a DOM, such as happy-dom's.");
+  }
+  const module = renderable(exports);
+  const lines = [];
+  const restore = replaceLogger((line) => {
+    lines.push(line);
+  });
+  const trigger = document.createElement("button");
+  trigger.textContent = "Open the menu";
+  document.body.append(trigger);
+  const menus = [];
+  try {
+    await check2(tester(module, trigger, menus, lines));
+  } finally {
+    await acting(() => {
+      for (const menu of menus) menu.drop();
+    });
+    restore();
+    trigger.remove();
+  }
+  const errors = lines.filter((line) => line.level === "error");
+  if (errors.length > 0) {
+    throw new Error(`Core logged errors as the test ran:
+${errors.map((line) => line.message).join("\n")}`);
+  }
+}
+function tester(module, trigger, menus, lines) {
+  const draw = drawWith(module);
+  return {
+    async open(start3) {
+      const ran = [];
+      const opened = [];
+      trigger.focus();
+      let hide;
+      let menu;
+      await acting(() => {
+        const made = openMenu(start3, {
+          board: () => ({}),
+          target: { block: "a" },
+          core: () => ({}),
+          applies: () => true,
+          run(batch2, action3) {
+            ran.push({ action: action3.id, batch: batch2 });
+            return Promise.resolve();
+          },
+          async trigger(action3) {
+            const batch2 = await action3.run?.({}, { block: "a" }, {});
+            if (batch2 !== void 0) ran.push({ action: action3.id, batch: batch2 });
+          },
+          advanced(action3, how) {
+            opened.push({ action: action3.id, ...how });
+            return Promise.resolve();
+          },
+          failed(_action, failure) {
+            log.error(failure);
+          },
+          closed() {
+            hide?.();
+            hide = void 0;
+          }
+        });
+        menus.push(made);
+        menu = made;
+        if (!made.closed()) hide = draw(made, { el: trigger, anchor: new DOMRect(16, 24, 0, 0) });
+      });
+      if (menu === void 0) throw new Error("No menu opened.");
+      return { menu, ran, opened };
+    },
+    item: (name2) => until(() => byRole(ITEM4, name2), `The menu shows no item named "${name2}", an element of the role ${roles(ITEM4)}.`),
+    checkable: (name2) => until(
+      () => byRole(CHECKABLE, name2),
+      `The menu shows no item named "${name2}" that says whether it is checked, an element of the role ${roles(CHECKABLE)}.`
+    ),
+    choice: (name2) => until(() => byRole(CHOICE, name2), `The menu shows no choice of a multi named "${name2}", an element of the role ${roles(CHOICE)}.`),
+    field: (name2) => until(() => fieldNamed(name2), `The menu shows no field named "${name2}".`),
+    button: (name2) => until(() => byRole(["button"], name2), `The menu shows no button named "${name2}".`),
+    icon: (item2) => [...item2.querySelectorAll("*")].find(
+      (el) => [el.getAttribute("aria-label"), el.getAttribute("title")].some((said) => said?.trim().startsWith(OPEN) === true)
+    ),
+    async gone(name2) {
+      await until(
+        () => (byRole([...ITEM4, ...CHOICE], name2) ?? fieldNamed(name2)) === void 0 || void 0,
+        `The menu still shows "${name2}", which the level that it shows now does not hold.`
+      );
+    },
+    async shown(text) {
+      await until(() => document.body.textContent.includes(text) || void 0, `The menu does not show "${text}".`);
+    },
+    async loading(shows) {
+      await until(
+        () => document.querySelector(LOADS) !== null === shows || void 0,
+        shows ? "The menu does not show that its level loads, through an element of the role status or progressbar, or one marked aria-busy." : "The menu still shows that its level loads, once the level has come."
+      );
+    },
+    async click(el) {
+      await acting(() => {
+        el.click();
+      });
+      await pause();
+    },
+    async clickOutside() {
+      const outside2 = document.createElement("div");
+      document.body.append(outside2);
+      const init = { bubbles: true, cancelable: true, composed: true, button: 0, pointerId: 1, pointerType: "mouse", isPrimary: true };
+      const Pointer = typeof PointerEvent === "undefined" ? MouseEvent : PointerEvent;
+      await acting(() => {
+        outside2.dispatchEvent(new Pointer("pointerdown", { ...init, buttons: 1 }));
+        outside2.dispatchEvent(new MouseEvent("mousedown", { ...init, buttons: 1 }));
+        outside2.dispatchEvent(new Pointer("pointerup", init));
+        outside2.dispatchEvent(new MouseEvent("mouseup", init));
+        outside2.dispatchEvent(new MouseEvent("click", init));
+      });
+      outside2.remove();
+      await pause();
+    },
+    async type(field, text) {
+      await acting(() => {
+        field.focus();
+        if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+          Reflect.set(Object.getPrototypeOf(field), "value", text, field);
+        } else {
+          field.textContent = text;
+        }
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await pause();
+    },
+    async press(key2, on) {
+      if (on === void 0) await focusInMenu(trigger);
+      const target2 = on ?? document.activeElement ?? document.body;
+      await acting(() => {
+        target2.dispatchEvent(new KeyboardEvent("keydown", { key: key2, bubbles: true, cancelable: true, composed: true }));
+        target2.dispatchEvent(new KeyboardEvent("keyup", { key: key2, bubbles: true, cancelable: true, composed: true }));
+      });
+      await pause();
+    },
+    act: (fn) => acting(fn),
+    async closed(opened, after) {
+      await until(() => opened.menu.closed() || void 0, `The menu did not close ${after}, so the module did not pass that on.`);
+      await until(
+        () => document.querySelector(ANY_ROW) === null || void 0,
+        "The module left the rows of the menu on the page as the menu closed, so the function that its render() returned does not take them off."
+      );
+      if (document.activeElement !== trigger) {
+        throw new Error(
+          "The keyboard's focus is not back at the element that the user triggered the menu from, as the menu closed, since an element of the module's still holds it."
+        );
+      }
+    },
+    takeErrors() {
+      const errors = lines.filter((line) => line.level === "error");
+      lines.splice(0, lines.length, ...lines.filter((line) => line.level !== "error"));
+      return errors;
+    }
+  };
+}
+var ITEM4 = ["menuitem", "menuitemradio", "option"];
+var CHECKABLE = ["menuitemcheckbox", "menuitemradio", "option"];
+var CHOICE = ["menuitemcheckbox", "checkbox", "option"];
+var ANY_ROW = '[role="menu"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="listbox"], [role="option"]';
+var LOADS = '[role="status"], [role="progressbar"], [aria-busy="true"]';
+var FIELDS = 'input:not([type]), input[type="text"], input[type="search"], textarea, [role="textbox"], [role="searchbox"], [role="combobox"]';
+var OPEN = "Show all options";
+function roles(given) {
+  return given.length === 1 ? given[0] ?? "" : `${given.slice(0, -1).join(", ")} or ${given.at(-1) ?? ""}`;
+}
+function byRole(given, name2) {
+  const selector = [...given.map((role) => `[role="${role}"]`), ...given.includes("checkbox") ? ['input[type="checkbox"]'] : [], ...given.includes("button") ? ["button"] : []];
+  return [...document.querySelectorAll(selector.join(", "))].find((el) => {
+    const said = nameOf(el);
+    return said === name2 || said.startsWith(`${name2},`) || said.startsWith(`${name2} `);
+  });
+}
+function fieldNamed(name2) {
+  return [...document.querySelectorAll(FIELDS)].find((el) => nameOf(el) === name2);
+}
+function nameOf(el) {
+  const doc = el.ownerDocument;
+  const by = el.getAttribute("aria-labelledby")?.trim() ?? "";
+  if (by !== "") return squashed(by.split(/\s+/).map((id2) => doc.getElementById(id2)?.textContent ?? "").join(" "));
+  const label = el.getAttribute("aria-label")?.trim() ?? "";
+  if (label !== "") return squashed(label);
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+    const labels = [...el.labels ?? []].map((each) => each.textContent).join(" ");
+    return squashed(labels.trim() !== "" ? labels : el.getAttribute("title") ?? "");
+  }
+  return squashed(el.textContent);
+}
+function squashed(text) {
+  return text.replace(/\s+/g, " ").trim();
+}
+function ticked(el) {
+  if (el instanceof HTMLInputElement) return el.checked;
+  return el.getAttribute("aria-checked") === "true" || el.getAttribute("aria-selected") === "true";
+}
+function valueOf(el) {
+  return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.value : el.textContent;
+}
+function reactActs() {
+  return globalThis.IS_REACT_ACT_ENVIRONMENT === true;
+}
+async function acting(fn) {
+  if (reactActs()) {
+    await act(async () => {
+      await fn();
+    });
+  } else {
+    await fn();
+  }
+}
+async function pause(ms = 10) {
+  await acting(() => new Promise((resolve) => setTimeout(resolve, ms)));
+}
+async function until(found, failure) {
+  const ends2 = Date.now() + 2e3;
+  for (; ; ) {
+    const value2 = found();
+    if (value2 !== void 0) return value2;
+    if (Date.now() > ends2) throw new Error(failure);
+    await pause();
+  }
+}
+async function focusInMenu(trigger) {
+  for (let i = 0; i < 30; i++) {
+    const active = document.activeElement;
+    if (active !== null && active !== trigger && active !== document.body) return;
+    await pause();
+  }
+}
+function must(holds2, failure) {
+  if (!holds2) throw new Error(failure);
+}
+function ranAs(opened, expected, what) {
+  must(jsonEqual(opened.ran, expected), `${what}, but core ran ${JSON.stringify(opened.ran)}.`);
+}
+function action2(label, more) {
+  return { id: `blockr.test-${label.toLowerCase().replace(/[^a-z]+/g, "_")}_action`, label, on: ["block"], category: "edit", ...more };
+}
+function call(name2, args) {
+  return [{ id: `blockr.test-${name2}`, ...args === void 0 ? {} : { args } }];
+}
+function item(label, more = {}) {
+  return { kind: "item", label, pick: () => call("pick", { label }), ...more };
+}
+var ADVANCED = { render: () => () => void 0 };
+var COLUMNS4 = action2("Columns", {
+  quick: () => ({
+    rows: [
+      {
+        kind: "multi",
+        label: "Columns",
+        choices: [
+          { id: "a", label: "a", picked: true },
+          { id: "b", label: "b", picked: false },
+          { id: "c", label: "c", picked: false }
+        ],
+        apply: (picked) => call("columns", { picked: [...picked] })
+      }
+    ]
+  })
+});
+var APPEND = action2("Append block", {
+  advanced: ADVANCED,
+  quick: () => ({ filter: true, picked: { input: "data" }, rows: [item("Head", { advanced: { class: "head" } }), item("Tail")] })
+});
+var TESTS = [
+  {
+    name: "draws the rows of the menu of a target, and runs the board action of the row that the user clicks",
+    async check(t) {
+      const remove2 = action2("Remove block", { category: "remove", run: () => call("remove") });
+      const opened = await t.open({
+        actions: [remove2, action2("Add block", { category: "add", run: () => call("add") }), action2("Rename", { quick: () => ({ rows: [] }) })]
+      });
+      await t.item("Add block");
+      await t.item("Rename");
+      await t.click(await t.item("Remove block"));
+      await t.closed(opened, "after the user clicked the row Remove block");
+      ranAs(opened, [{ action: remove2.id, batch: call("remove") }], "A click on the row Remove block runs the board action Remove block");
+    }
+  },
+  {
+    name: "runs the batch of the item that the user clicks, by the item's index in the level's rows, whatever the order in which the module shows them",
+    async check(t) {
+      const append = action2("Append block", {
+        quick: () => ({
+          title: "Append block",
+          rows: [item("Head", { heading: "Transform" }), item("Plot", { heading: "Visualize" }), item("Filter", { heading: "Transform" })]
+        })
+      });
+      const opened = await t.open({ action: append });
+      await t.item("Head");
+      await t.item("Plot");
+      await t.click(await t.item("Filter"));
+      await t.closed(opened, "after the user clicked the item Filter");
+      ranAs(opened, [{ action: append.id, batch: call("pick", { label: "Filter" }) }], "A click on the item Filter runs the batch of Filter");
+    }
+  },
+  {
+    name: "says whether each item that gives checked is checked, and runs the pick of such an item that the user clicks",
+    async check(t) {
+      const layout = action2("Layout", {
+        quick: () => ({
+          rows: [item("Left to right", { checked: true }), item("Top to bottom", { checked: false }), item("Fit to view")]
+        })
+      });
+      const opened = await t.open({ action: layout });
+      await t.item("Fit to view");
+      must(ticked(await t.checkable("Left to right")), "The item Left to right does not say that it is checked, which its checked is.");
+      must(!ticked(await t.checkable("Top to bottom")), "The item Top to bottom says that it is checked, which its checked is not.");
+      await t.click(await t.checkable("Left to right"));
+      await t.closed(opened, "after the user clicked the item Left to right");
+      ranAs(opened, [{ action: layout.id, batch: call("pick", { label: "Left to right" }) }], "A click on the item Left to right runs its pick");
+    }
+  },
+  {
+    name: "shows the next level that an item opens in place of the menu's, from which Escape goes back, and closes the menu on Escape from the first level",
+    async check(t) {
+      const edit = action2("Edit link", {
+        quick: () => ({
+          rows: [{ kind: "item", label: "Change source\u2026", pick: () => ({ title: "Source", rows: [item("Dataset")] }) }, item("Remove link")]
+        })
+      });
+      const opened = await t.open({ action: edit });
+      await t.click(await t.item("Change source\u2026"));
+      await t.item("Dataset");
+      await t.gone("Change source\u2026");
+      await t.press("Escape");
+      await t.item("Change source\u2026");
+      await t.gone("Dataset");
+      await t.press("Escape");
+      await t.closed(opened, "on Escape from the first level");
+      ranAs(opened, [], "Escape runs nothing");
+    }
+  },
+  {
+    name: "submits a text row's value on Enter, and shows in place why its check refuses a value",
+    async check(t) {
+      const rename = action2("Rename", {
+        quick: () => ({
+          rows: [
+            {
+              kind: "text",
+              label: "Name",
+              value: "Head",
+              check: (value2) => value2.trim() === "" ? "A block needs a name." : void 0,
+              submit: (value2) => call("rename", { name: value2 })
+            }
+          ]
+        })
+      });
+      const opened = await t.open({ action: rename });
+      const field = await t.field("Name");
+      must(valueOf(field) === "Head", `The field Name holds "${valueOf(field)}", where the text row's value is "Head".`);
+      await t.type(field, "");
+      await t.press("Enter", await t.field("Name"));
+      await t.shown("A block needs a name.");
+      must(!opened.menu.closed(), "The menu closed as the user submitted a value that the text row's check refuses.");
+      ranAs(opened, [], "A value that the check refuses runs nothing");
+      await t.type(await t.field("Name"), "Tail");
+      await t.press("Enter", await t.field("Name"));
+      await t.closed(opened, "after the user submitted a value on Enter");
+      ranAs(opened, [{ action: rename.id, batch: call("rename", { name: "Tail" }) }], "Enter in the field Name submits its value, Tail");
+    }
+  },
+  {
+    name: "narrows the rows as the user types into the filter, and picks the first row left on Enter",
+    async check(t) {
+      const add = action2("Add block", { quick: () => ({ filter: true, rows: [item("Head"), item("Tail"), item("Sort")] }) });
+      const opened = await t.open({ action: add });
+      await t.type(await t.field("Filter"), "ta");
+      await t.item("Tail");
+      await t.gone("Head");
+      await t.gone("Sort");
+      await t.press("Enter", await t.field("Filter"));
+      await t.closed(opened, "after the user pressed Enter in the filter");
+      ranAs(opened, [{ action: add.id, batch: call("pick", { label: "Tail" }) }], "Enter in the filter picks Tail, the first row left");
+    }
+  },
+  {
+    name: "ticks the choices of a multi that the user clicks, and applies them as the user clicks outside the menu",
+    async check(t) {
+      const opened = await t.open({ action: COLUMNS4 });
+      must(ticked(await t.choice("a")), "The choice a does not show that it is ticked, as the multi picked it.");
+      must(!ticked(await t.choice("b")), "The choice b shows that it is ticked, which the multi did not pick.");
+      await t.click(await t.choice("b"));
+      await t.act(() => void 0);
+      must(ticked(await t.choice("b")), "The choice b does not show that it is ticked, once the user clicked it.");
+      ranAs(opened, [], "Ticking a choice runs nothing until the menu closes");
+      await t.clickOutside();
+      await t.closed(opened, "after the user clicked outside the menu");
+      ranAs(opened, [{ action: COLUMNS4.id, batch: call("columns", { picked: ["a", "b"] }) }], "A click outside the menu applies the ticks, a and b");
+    }
+  },
+  {
+    name: "applies the ticks of a multi as Tab closes the menu",
+    async check(t) {
+      const opened = await t.open({ action: COLUMNS4 });
+      await t.click(await t.choice("c"));
+      await t.press("Tab");
+      await t.closed(opened, "on Tab");
+      ranAs(opened, [{ action: COLUMNS4.id, batch: call("columns", { picked: ["a", "c"] }) }], "Tab applies the ticks, a and c");
+    }
+  },
+  {
+    name: "drops the ticks of a multi on Escape",
+    async check(t) {
+      const opened = await t.open({ action: COLUMNS4 });
+      await t.click(await t.choice("b"));
+      await t.press("Escape");
+      await t.closed(opened, "on Escape");
+      ranAs(opened, [], "Escape drops the ticks");
+    }
+  },
+  {
+    name: "shows that a level loads while its promise is pending, and then the level",
+    async check(t) {
+      let resolve = () => void 0;
+      const append = action2("Append block", {
+        quick: () => new Promise((resolved) => {
+          resolve = resolved;
+        })
+      });
+      await t.open({ action: append });
+      await t.loading(true);
+      await t.act(() => {
+        resolve({ rows: [item("Head")] });
+      });
+      await t.item("Head");
+      await t.loading(false);
+    }
+  },
+  {
+    name: "shows the message of a promise that rejects in place of the rows",
+    async check(t) {
+      const append = action2("Append block", { quick: () => Promise.reject(new Error("R gave no columns.")) });
+      await t.open({ action: append });
+      await t.shown("R gave no columns.");
+      t.takeErrors();
+    }
+  },
+  {
+    name: "opens the advanced action from the level's open icon, with what the level picked and the filter's text",
+    async check(t) {
+      const opened = await t.open({ action: APPEND });
+      await t.type(await t.field("Filter"), "he");
+      await t.gone("Tail");
+      await t.click(await t.button(OPEN));
+      await t.closed(opened, `after the user clicked the button ${OPEN}`);
+      must(
+        jsonEqual(opened.opened, [{ action: APPEND.id, picked: { input: "data" }, filter: "he" }]),
+        `A click on the level's open icon opens the advanced action with what the level picked and the filter's text, but core opened ${JSON.stringify(opened.opened)}.`
+      );
+      ranAs(opened, [], "The open icon picks no item");
+    }
+  },
+  {
+    name: "opens the advanced action from an item's open icon, with what the item hands it, and picks the item where the user clicks elsewhere on it",
+    async check(t) {
+      const opened = await t.open({ action: APPEND });
+      const icon = t.icon(await t.item("Head"));
+      if (icon === void 0) throw new Error(`The item Head shows no open icon, an element inside it whose aria-label or title starts with ${OPEN}.`);
+      must(t.icon(await t.item("Tail")) === void 0, "The item Tail shows an open icon, which it does not give.");
+      await t.click(icon);
+      await t.closed(opened, "after the user clicked the open icon of the item Head");
+      must(
+        jsonEqual(opened.opened, [{ action: APPEND.id, picked: { class: "head" }, filter: "" }]),
+        `A click on the open icon of the item Head opens the advanced action with what the item hands it, but core opened ${JSON.stringify(opened.opened)}.`
+      );
+      ranAs(opened, [], "The open icon picks no item");
+      const again = await t.open({ action: APPEND });
+      await t.click(await t.item("Head"));
+      await t.closed(again, "after the user clicked the item Head");
+      ranAs(again, [{ action: APPEND.id, batch: call("pick", { label: "Head" }) }], "A click on the item Head, beside its open icon, picks it");
+      must(again.opened.length === 0, "A click on the item Head, beside its open icon, opened the advanced action.");
+    }
+  },
+  {
+    name: "draws no open icon where the board action has no advanced action",
+    async check(t) {
+      const opened = await t.open({ action: action2("Append block", { quick: () => ({ rows: [item("Head", { advanced: { class: "head" } })] }) }) });
+      const head = await t.item("Head");
+      must(t.icon(head) === void 0, "The item Head shows an open icon, where its board action has no advanced action.");
+      await t.act(() => void 0);
+      must(byRole(["button"], OPEN) === void 0, `The level shows the button ${OPEN}, where its board action has no advanced action.`);
+      must(!opened.menu.closed(), "The menu closed by itself.");
+    }
+  }
+];
 export {
   HELLO,
   INFO,
   READY,
+  menuModuleTests,
   mount,
   stubBlockHost,
   stubCore,
