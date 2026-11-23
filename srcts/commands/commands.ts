@@ -28,7 +28,7 @@
 // so that a plugin that runs a command inside a span of its own, as the
 // assistant's tools do, holds the command in its trace. It names the command
 // by its id and the step's origin, as "assistant". A batch runs in one span,
-// "command list", which names the ids of its commands in order, since the
+// "command batch", which names the ids of its commands in order, since the
 // store applies their deltas as one step. The span is active while
 // the command prepares and runs, and while the store applies its deltas, so
 // that the scheduler takes it as what gave each block that the deltas change
@@ -435,7 +435,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // since the store applies their deltas at once.
   function runBatch(batch: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<boolean> {
     const ids = batch.map(({ id }) => id);
-    return traced("command list", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
+    return traced("command batch", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
       planned(batch, (built) => store.apply(built, origin)),
     );
   }
@@ -565,7 +565,7 @@ export function isLogged(error: unknown): boolean {
 function inBatch(index: number, id: string, error: unknown): CommandError {
   const named = error instanceof CommandError || error instanceof StoreError;
   const refused = new CommandError(
-    `The list of commands was refused at command ${String(index + 1)}, "${id}"`,
+    `The batch was refused at command ${String(index + 1)}, "${id}"`,
     named ? error.failures : [errorMessage(error)],
     { cause: error, index, preflight: error instanceof CommandError ? error.preflight : undefined },
   );

@@ -477,7 +477,7 @@
   It then rejects with a `CommandError` whose `index` gives the command's place in the batch, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
   The step of a batch is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
   Where the registry refuses a batch that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
-  The client records a batch in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
+  The client records a batch in one span, `command batch`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
 * Core's commands `blockr.core-add_link` and `blockr.core-change_link` check a link in their preflight before the store does.
   The preflight fails for a link that would join a block to itself, close a cycle or feed an input that another link feeds.
   It throws the `refusal()` of the command's context, with a sentence for each failure, such as `The link would close a cycle through the blocks "a", "b" and "d".`

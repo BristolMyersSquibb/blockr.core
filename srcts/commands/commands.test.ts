@@ -693,7 +693,7 @@ describe("planning", () => {
   });
 });
 
-describe("running a list", () => {
+describe("running a batch", () => {
   test("applies the commands in order as one step of the origin, each planned on the board that those before it leave, which one undo takes back", async () => {
     const { store, commands } = await setup();
     const board = store.board();
@@ -732,7 +732,7 @@ describe("running a list", () => {
     expect(store.board().plugins[placed.id]).toEqual({ positions: { d: { x: 4 } } });
   });
 
-  test("applies a list whose commands do not prepare before run() returns", async () => {
+  test("applies a batch whose commands do not prepare before run() returns", async () => {
     const { store, commands } = await setup();
 
     const done = commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }]);
@@ -740,7 +740,7 @@ describe("running a list", () => {
     await done;
   });
 
-  test("takes no undo step for a list of commands with undo: false, and leaves their deltas out of the undo step of a list that takes one", async () => {
+  test("takes no undo step for a batch of commands with undo: false, and leaves their deltas out of the undo step of a batch that takes one", async () => {
     const { store, commands } = await setup();
     commands.register(renameB({ undo: false }));
 
@@ -764,7 +764,7 @@ describe("running a list", () => {
     expect(store.board().blocks.b?.name).toBe("Three");
   });
 
-  test("takes no undo step for a list that sets only board options beside commands with undo: false, and leaves the undo and redo lists as they are", async () => {
+  test("takes no undo step for a batch that sets only board options beside commands with undo: false, and leaves the undo and redo lists as they are", async () => {
     const { store, commands } = await setup();
     commands.register(renameB({ undo: false }));
     store.apply({ name: "Sepals" });
@@ -805,7 +805,7 @@ describe("running a list", () => {
         "assistant",
       ),
     ).resolves.toBe(true);
-    // As for a list of the dock's activate_view, which has undo: false, and
+    // As for a batch of the dock's activate_view, which has undo: false, and
     // core's set_option.
     await expect(
       commands.run(
@@ -824,7 +824,7 @@ describe("running a list", () => {
   });
 });
 
-describe("refusing a list", () => {
+describe("refusing a batch", () => {
   test("applies none of it where a command fails its preflight, and rejects with the command's index and that it failed its preflight", async () => {
     const { store, commands } = await setup();
     const board = store.board();
@@ -841,7 +841,7 @@ describe("refusing a list", () => {
     );
 
     expect(error.message).toBe(
-      'The list of commands was refused at command 2, "blockr.core-remove_block"\n- It fails its preflight on the board as it is, with the args {"id":"zz"}.',
+      'The batch was refused at command 2, "blockr.core-remove_block"\n- It fails its preflight on the board as it is, with the args {"id":"zz"}.',
     );
     expect([error.index, error.preflight]).toEqual([1, false]);
     expect(error.failures).toEqual(['It fails its preflight on the board as it is, with the args {"id":"zz"}.']);
@@ -906,12 +906,12 @@ describe("refusing a list", () => {
     expect(error.index).toBe(0);
     expect(error.failures).toEqual(["No layout."]);
     expect(String(error.cause)).toContain('The command "test.pkg-rename_b" failed');
-    // The line holds the command's own CommandError, the list's cause.
+    // The line holds the command's own CommandError, the batch's cause.
     expect(reported.lines()[0]?.error).toBe(error.cause);
     expect(loggedFailure(reported)).toEqual({ message: 'The command "test.pkg-rename_b" failed\n- No layout.', cause: thrown });
   });
 
-  test("refuses a list at its first command before the store opens a board", async () => {
+  test("refuses a batch at its first command before the store opens a board", async () => {
     const commands = createCommands(createStore());
 
     const error = await rejection(commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }]));
@@ -920,7 +920,7 @@ describe("refusing a list", () => {
   });
 });
 
-describe("a list with a command that prepares", () => {
+describe("a batch with a command that prepares", () => {
   test("prepares the command on the board that the commands before it leave, and plans those after it on the board that it leaves", async () => {
     const { store, commands } = await setup();
     const ready = Promise.withResolvers<string>();
@@ -950,11 +950,11 @@ describe("a list with a command that prepares", () => {
     expect(store.board().blocks.g?.name).toBe("Later");
     expect(store.board().blocks.b?.name).toBe("Later");
     // The board did not change while the command prepared, so the registry
-    // planned the list once.
+    // planned the batch once.
     expect(run).toHaveBeenCalledTimes(1);
   });
 
-  test("plans the list again from its first command where the board changes while a command prepares, with what each prepare() gave", async () => {
+  test("plans the batch again from its first command where the board changes while a command prepares, with what each prepare() gave", async () => {
     const { store, commands } = await setup();
     const ready = Promise.withResolvers<string>();
     const prepare = vi.fn(() => ready.promise);
@@ -974,7 +974,7 @@ describe("a list with a command that prepares", () => {
     expect(store.board().blocks.b?.name).toBe("Head");
   });
 
-  test("runs the preflight of each command again as it plans the list again", async () => {
+  test("runs the preflight of each command again as it plans the batch again", async () => {
     const { store, commands } = await setup();
     const ready = Promise.withResolvers<string>();
     commands.register(later(() => ready.promise));
@@ -992,7 +992,7 @@ describe("a list with a command that prepares", () => {
     expect(store.board()).toBe(board);
   });
 
-  test("drops the list where another board opens while a command prepares, applying none of it", async () => {
+  test("drops the batch where another board opens while a command prepares, applying none of it", async () => {
     const store = await openedStore();
     const controller = new AbortController();
     const commands = createCommands(store, { signal: controller.signal });
@@ -1024,7 +1024,7 @@ describe("a list with a command that prepares", () => {
   });
 });
 
-describe("planning a list", () => {
+describe("planning a batch", () => {
   test("returns the deltas of the commands in order without applying them, with the edit ids of the board it was planned on, and none for a block that an earlier command adds", async () => {
     const { store, commands } = await setup();
     const board = store.board();
@@ -1084,7 +1084,7 @@ describe("planning a list", () => {
     expect(store.board().blocks.b?.name).toBe("Planned");
   });
 
-  test("leaves the store to refuse a planned list once another edit came first", async () => {
+  test("leaves the store to refuse a planned batch once another edit came first", async () => {
     const { store, commands } = await setup();
 
     const planned = await commands.plan([
@@ -1098,7 +1098,7 @@ describe("planning a list", () => {
     }).toThrow(/The delta was built on edit \d+ of block "b", which another edit has replaced/);
   });
 
-  test("refuses as running the list would, and plans no deltas for no commands", async () => {
+  test("refuses as running the batch would, and plans no deltas for no commands", async () => {
     const { commands } = await setup();
 
     const error = await rejection(
@@ -1154,7 +1154,7 @@ describe("spans", () => {
     recorded.restore();
   });
 
-  test("record a list as one span, which names the ids of its commands in order, and is active while the store announces the list's deltas", async () => {
+  test("record a batch as one span, which names the ids of its commands in order, and is active while the store announces the batch's deltas", async () => {
     const { store, commands } = await setup();
     commands.register(renameB({ prepare: (_board, args) => Promise.resolve(args) }));
     const recorded = recordSpans();
@@ -1176,7 +1176,7 @@ describe("spans", () => {
     );
     tool.end();
 
-    const span = recorded.span("command list");
+    const span = recorded.span("command batch");
     expect(span.parentSpanContext?.spanId).toBe(tool.spanContext().spanId);
     expect(span.attributes).toEqual({
       "blockr.command.ids": ["test.pkg-rename_b", "blockr.core-rename_block"],
@@ -1187,11 +1187,11 @@ describe("spans", () => {
     // second and the store applied both, and the span was active all the
     // same as the store announced them.
     expect(new Set(announced)).toEqual(new Set([span.spanContext().spanId]));
-    expect(recorded.spans().map(({ name }) => name)).toEqual(["command list", "execute_tool edit"]);
+    expect(recorded.spans().map(({ name }) => name)).toEqual(["command batch", "execute_tool edit"]);
     recorded.restore();
   });
 
-  test("mark a list that is refused as failed", async () => {
+  test("mark a batch that is refused as failed", async () => {
     const { commands } = await setup();
     const recorded = recordSpans();
 
@@ -1199,9 +1199,9 @@ describe("spans", () => {
       CommandError,
     );
 
-    const span = recorded.span("command list");
+    const span = recorded.span("command batch");
     expect(span.status.code).toBe(SpanStatusCode.ERROR);
-    expect(span.status.message).toMatch(/^The list of commands was refused at command 1, "blockr.core-remove_block"\n/);
+    expect(span.status.message).toMatch(/^The batch was refused at command 1, "blockr.core-remove_block"\n/);
     expect(span.attributes["blockr.delta.origin"]).toBe("user");
     recorded.restore();
   });

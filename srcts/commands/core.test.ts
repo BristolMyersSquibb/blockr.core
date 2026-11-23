@@ -215,7 +215,7 @@ describe("appending, prepending and inserting, as batches", () => {
         { id: "blockr.core-add_link", args: { from: "d", to: "cars" } },
       ]),
     ).rejects.toThrow(
-      'The list of commands was refused at command 2, "blockr.core-add_link"\n- The block "cars" takes no input, since its class "blockr.core-dataset_block" has none.',
+      'The batch was refused at command 2, "blockr.core-add_link"\n- The block "cars" takes no input, since its class "blockr.core-dataset_block" has none.',
     );
     expect(store.board()).toBe(board);
   });

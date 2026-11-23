@@ -759,7 +759,7 @@ describe("core's notifications", () => {
     s.stop();
   });
 
-  test("of a list of the user's whose command's own code throws concern the board, and core logs no line of its own, as for a command alone", async () => {
+  test("of a batch of the user's whose command's own code throws concern the board, and core logs no line of its own, as for a command alone", async () => {
     const s = await stubCore();
     await s.settled();
     s.core.commands.register({
@@ -772,14 +772,14 @@ describe("core's notifications", () => {
     const reported = logged();
 
     await expect(s.core.commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "blockr.test-relayout" }])).rejects.toThrow(
-      'The list of commands was refused at command 2, "blockr.test-relayout"\n- No layout.',
+      'The batch was refused at command 2, "blockr.test-relayout"\n- No layout.',
     );
     await s.settled();
     reported.restore();
 
     const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
     expect(refused.map(({ severity, message, about }) => [severity, message, about])).toEqual([
-      ["error", 'The list of commands was refused at command 2, "blockr.test-relayout"\n- No layout.', undefined],
+      ["error", 'The batch was refused at command 2, "blockr.test-relayout"\n- No layout.', undefined],
     ]);
     expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual([
       ["error", "blockr.core", 'The command "blockr.test-relayout" failed\n- No layout.'],
@@ -849,7 +849,7 @@ describe("core's notifications", () => {
     s.stop();
   });
 
-  test("of a list of commands that the command registry refuses are raised as for a command alone, for the user's list and the assistant's alike", async () => {
+  test("of a batch that the command registry refuses are raised as for a command alone, for the user's batch and the assistant's alike", async () => {
     const s = await stubCore();
     await s.settled();
     const run = (origin?: string): Promise<boolean> =>
@@ -860,7 +860,7 @@ describe("core's notifications", () => {
         ],
         origin,
       );
-    const refusal = 'The list of commands was refused at command 2, "blockr.core-remove_block"';
+    const refusal = 'The batch was refused at command 2, "blockr.core-remove_block"';
 
     await expect(run("assistant")).rejects.toThrow(refusal);
     const [first] = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
@@ -871,7 +871,7 @@ describe("core's notifications", () => {
     const refused = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
     expect(refused).toEqual([first]);
     expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual([["error", { kind: "core", code: "board_edit_failed" }, undefined]]);
-    expect(refused.map((n) => n.message)).toEqual([expect.stringMatching(/^The list of commands was refused at command 2, "blockr\.core-remove_block"\n/)]);
+    expect(refused.map((n) => n.message)).toEqual([expect.stringMatching(/^The batch was refused at command 2, "blockr\.core-remove_block"\n/)]);
     expect(s.core.store.board().name).not.toBe("Sepals");
     s.stop();
   });
@@ -888,12 +888,12 @@ describe("core's notifications", () => {
     };
     const refusing = (): Promise<boolean> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "user", { notifier });
 
-    // A command, a list of commands, a delta, an undo and a redo, each of
+    // A command, a batch, a delta, an undo and a redo, each of
     // which the store or the command registry refuses.
     await refusing().catch(() => heard.push("rejected"));
     await expect(
       s.core.commands.run([{ id: "blockr.core-remove_block", args: { id: "nowhere" } }], "assistant", { notifier }),
-    ).rejects.toThrow('The list of commands was refused at command 1, "blockr.core-remove_block"');
+    ).rejects.toThrow('The batch was refused at command 1, "blockr.core-remove_block"');
     expect(() => {
       s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant", { undo: false, notifier });
     }).toThrow("The store rejected the delta");
@@ -918,7 +918,7 @@ describe("core's notifications", () => {
     );
     expect(taken.map((n) => n.message)).toEqual([
       expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/),
-      expect.stringMatching(/^The list of commands was refused at command 1/),
+      expect.stringMatching(/^The batch was refused at command 1/),
       expect.stringMatching(/^The store rejected the delta/),
       expect.stringMatching(/^The store refused to undo the step/),
       expect.stringMatching(/^The store refused to redo the step/),

@@ -7148,7 +7148,7 @@ function createCommands(store, options = {}) {
   function runBatch(batch2, origin) {
     const ids2 = batch2.map(({ id: id2 }) => id2);
     return traced(
-      "command list",
+      "command batch",
       { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
       () => planned(batch2, (built) => store.apply(built, origin))
     );
@@ -7238,7 +7238,7 @@ function isLogged(error) {
 function inBatch(index, id2, error) {
   const named4 = error instanceof CommandError || error instanceof StoreError;
   const refused2 = new CommandError(
-    `The list of commands was refused at command ${String(index + 1)}, "${id2}"`,
+    `The batch was refused at command ${String(index + 1)}, "${id2}"`,
     named4 ? error.failures : [errorMessage(error)],
     { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
   );

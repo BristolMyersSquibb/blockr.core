@@ -107,7 +107,7 @@ describe("an edit that the command registry or the store refuses", () => {
     expect(alert.querySelector("ul")).toBeNull();
     expect(held(core)).toEqual([]);
 
-    // A list that refuses applies none of its commands, and gives the reasons
+    // A batch that refuses applies none of its commands, and gives the reasons
     // of the command that refused.
     await click(el, "Remove Iris and nowhere");
     expect(refusals(el)).toEqual([['Could not remove the blocks "Iris" and "nowhere".', 'It fails its preflight on the board as it is, with the args {"id":"nowhere"}.']]);
@@ -121,13 +121,13 @@ describe("an edit that the command registry or the store refuses", () => {
   });
 
   test("that runs through the done() of an advanced action is said by the control as well, which hands done() a notifier that takes the refusal's notifications", async () => {
-    // A done() that runs the list as one step of the user with the notifier
-    // that the control hands it, as core's does, and records each list.
-    const lists: (readonly unknown[])[] = [];
+    // A done() that runs the batch as one step of the user with the notifier
+    // that the control hands it, as core's does, and records each batch.
+    const batches: (readonly unknown[])[] = [];
     const ran: { commands?: CoreApi["commands"] } = {};
-    const done: Done = async (list, opts) => {
-      lists.push(list);
-      await ran.commands?.run(list, "user", opts);
+    const done: Done = async (batch, opts) => {
+      batches.push(batch);
+      await ran.commands?.run(batch, "user", opts);
     };
     const { el, core } = await drawn({ done });
     ran.commands = core.commands;
@@ -139,7 +139,7 @@ describe("an edit that the command registry or the store refuses", () => {
     await click(el, "Remove Head through done");
     expect(refusals(el)).toEqual([]);
     expect(Object.keys(core.store.board().blocks)).not.toContain("b");
-    expect(lists).toEqual([
+    expect(batches).toEqual([
       [{ id: "blockr.core-remove_block", args: { id: "nowhere" } }],
       [{ id: "blockr.core-remove_block", args: { id: "b" } }],
     ]);
@@ -156,7 +156,7 @@ test("an edit that fails with an error that lists no reasons says what the error
 describe("the reasons that notifications give", () => {
   test("are the failures of a refusal, without the line that heads them, and the message as it stands where it lists none", () => {
     const refused = {
-      message: ['The list of commands was refused at command 1, "blockr.core-remove_block"', '- No block "x" is on the board.', "- The board lock refuses it."].join("\n"),
+      message: ['The batch was refused at command 1, "blockr.core-remove_block"', '- No block "x" is on the board.', "- The board lock refuses it."].join("\n"),
     };
     expect(notifiedReasons([refused])).toEqual(['No block "x" is on the board.', "The board lock refuses it."]);
     expect(notifiedReasons([{ message: 'The board action "blockr.test-paste_action" failed: The clipboard is refused.' }])).toEqual([
