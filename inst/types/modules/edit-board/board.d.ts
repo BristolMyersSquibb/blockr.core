@@ -41,9 +41,9 @@ export declare function ObjectsTable({ core, menus, kind, label, columns, rows, 
 export declare const BOARD: {
     readonly board: true;
 };
-export declare function offers(core: CoreApi, id: string, target: Target): boolean;
-export declare function Advanced({ core, id, target }: {
+export declare function offers(core: CoreApi, role: string, target: Target): boolean;
+export declare function Advanced({ core, role, target }: {
     core: CoreApi;
-    id: string;
+    role: string;
     target: Target;
 }): ReactElement;

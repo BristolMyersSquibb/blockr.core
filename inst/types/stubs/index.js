@@ -15799,7 +15799,7 @@ function without4(map, key2) {
 
 // srcts/modules/edit-board/blocks.tsx
 import { Fragment as Fragment28, jsx as jsx65, jsxs as jsxs52 } from "react/jsx-runtime";
-var ADD_BLOCK = "blockr.core-add_block_action";
+var ROLE = "add_block_role";
 var COLUMNS = [
   { id: "name", name: "Name", rowHeader: true },
   { id: "id", name: "ID" },
@@ -15812,7 +15812,7 @@ function BlocksSection({ core, board }) {
   const count2 = Object.keys(board.blocks).length;
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs52(Section, { title: "Blocks", count: count2, children: [
-    offers(core, ADD_BLOCK, BOARD) ? /* @__PURE__ */ jsx65(Part, { title: "Add a block", children: /* @__PURE__ */ jsx65(Advanced, { core, id: ADD_BLOCK, target: BOARD }) }) : null,
+    offers(core, ROLE, BOARD) ? /* @__PURE__ */ jsx65(Part, { title: "Add a block", children: /* @__PURE__ */ jsx65(Advanced, { core, role: ROLE, target: BOARD }) }) : null,
     /* @__PURE__ */ jsx65(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs52(Fragment28, { children: [
       /* @__PURE__ */ jsx65(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx65(
@@ -15843,7 +15843,7 @@ function BlocksSection({ core, board }) {
 
 // srcts/modules/edit-board/links.tsx
 import { Fragment as Fragment29, jsx as jsx66, jsxs as jsxs53 } from "react/jsx-runtime";
-var CREATE_LINK2 = "blockr.core-add_link_action";
+var ROLE2 = "add_link_role";
 var COLUMNS2 = [
   { id: "from", name: "From", rowHeader: true },
   { id: "to", name: "To" },
@@ -15858,7 +15858,7 @@ function LinksSection({ core, board, locked: locked2 }) {
   const variadic2 = variadicBlocks(board, core.blockRegistry());
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs53(Section, { title: "Links", count: links.length, children: [
-    locked2 ? null : /* @__PURE__ */ jsx66(Part, { title: "Add a link", children: offers(core, CREATE_LINK2, BOARD) ? /* @__PURE__ */ jsx66(Advanced, { core, id: CREATE_LINK2, target: BOARD }) : /* @__PURE__ */ jsx66("p", { className: styles.hint, children: Object.keys(board.blocks).length < 2 ? "A link joins two blocks, so the board needs two blocks first." : "No new link can join two blocks of the board." }) }),
+    locked2 ? null : /* @__PURE__ */ jsx66(Part, { title: "Add a link", children: offers(core, ROLE2, BOARD) ? /* @__PURE__ */ jsx66(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx66("p", { className: styles.hint, children: Object.keys(board.blocks).length < 2 ? "A link joins two blocks, so the board needs two blocks first." : "No new link can join two blocks of the board." }) }),
     /* @__PURE__ */ jsx66(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs53(Fragment29, { children: [
       /* @__PURE__ */ jsx66(TableSearch, { label: "Search links", view }),
       view.found === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx66(
@@ -15952,7 +15952,7 @@ function idOf2(object2, kind) {
 
 // srcts/modules/edit-board/stacks.tsx
 import { Fragment as Fragment30, jsx as jsx67, jsxs as jsxs54 } from "react/jsx-runtime";
-var CREATE_STACK2 = "blockr.core-add_stack_action";
+var ROLE3 = "add_stack_role";
 var COLUMNS3 = [
   { id: "name", name: "Name", rowHeader: true },
   { id: "blocks", name: "Blocks" }
@@ -15962,7 +15962,7 @@ function StacksSection({ core, board, locked: locked2 }) {
   const view = useTableView(stacks, ([id2, stack]) => [stack.name, id2, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs54(Section, { title: "Stacks", count: stacks.length, children: [
-    locked2 || !offers(core, CREATE_STACK2, BOARD) ? null : /* @__PURE__ */ jsx67(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx67(Advanced, { core, id: CREATE_STACK2, target: BOARD }) }),
+    locked2 || !offers(core, ROLE3, BOARD) ? null : /* @__PURE__ */ jsx67(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx67(Advanced, { core, role: ROLE3, target: BOARD }) }),
     /* @__PURE__ */ jsx67(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs54(Fragment30, { children: [
       /* @__PURE__ */ jsx67(TableSearch, { label: "Search stacks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx67(
@@ -16139,12 +16139,12 @@ function ObjectsTable({
   );
 }
 var BOARD = { board: true };
-function offers(core, id2, target2) {
-  return core.boardActions.on(target2).some((action3) => action3.id === id2);
+function offers(core, role, target2) {
+  return core.boardActions.on(target2).some((action3) => action3.role === role);
 }
-function Advanced({ core, id: id2, target: target2 }) {
+function Advanced({ core, role, target: target2 }) {
   const key2 = JSON.stringify(target2);
-  const mount2 = useCallback11((el) => core.boardActions.mountAdvanced(el, id2, JSON.parse(key2)), [core, id2, key2]);
+  const mount2 = useCallback11((el) => core.boardActions.mountAdvanced(el, role, JSON.parse(key2)), [core, role, key2]);
   return /* @__PURE__ */ jsx68(Mounted, { mount: mount2, className: "bc:min-w-0" });
 }
 
