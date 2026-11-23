@@ -8,28 +8,35 @@
 //   block it goes to and the input it feeds, which a search narrows and which
 //   shows a page of rows at a time. For a link into a variadic block, the
 //   table shows the link's place among the block's links.
-//   A row's Edit button turns the row into the form that changes the link,
-//   the advanced action of Edit link on the link, which changes the link once
-//   the user saves it, until the user closes it. Its Remove button removes
-//   the link with remove_link.
-// Where the store or the command registry refuses a removal, the table says
-// so below itself, naming the link, until the user's next edit in the table.
-// The forms say why below themselves.
-// Under the board lock, it lists the links alone.
+//   Each row's "…" opens the menu of its link, which offers Insert block,
+//   Edit link and Remove link among core's board actions. An advanced action
+//   that the menu opens, such as the form of Edit link, shows in the row,
+//   which turns into the form until done() ends it or the user closes it.
+// Where the store or the command registry refuses a board action that a row's
+// menu ran, the plugin shows why in a banner below the table, naming the
+// link, until the user opens the menu of one of the table's rows again. The
+// forms say why below themselves.
+// Under the board lock, it lists the links alone, and a row shows no "…"
+// unless another package's board action applies to its link.
 
 import type { ReactElement } from "react";
 import { createGraph } from "../../graph/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../../types/core-api.ts";
-import { blockName, classes, isVariadicBlock, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
-import type { Edits } from "../../ui/index.ts";
-import { Advanced, BOARD, offers, Part, RowAdvanced, Section, table, useRowEditing } from "./board.tsx";
+import { blockName, isVariadicBlock, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
+import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
+import { useMenus } from "./menus.tsx";
 
-// Core's board actions whose advanced actions the section mounts, by their
-// ids, as any plugin names them.
+// Core's board action whose advanced action the section mounts, by its id, as
+// any plugin names it.
 const CREATE_LINK = "blockr.core-add_link_action";
-const EDIT_LINK = "blockr.core-edit_link_action";
+
+const COLUMNS = [
+  { id: "from", name: "From", rowHeader: true },
+  { id: "to", name: "To" },
+  { id: "input", name: "Input" },
+] as const;
 
 export function LinksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
   const links = Object.entries(board.links);
@@ -37,9 +44,9 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
     [blockName(board, link.from), link.from, blockName(board, link.to), link.to, link.input].join(" "),
   );
   const variadic = variadicBlocks(board, core.blockRegistry());
-  // The edits of the table's rows, which say why one was refused below the
+  // The menus of the table's rows, which say why one was refused below the
   // table.
-  const edits = useEdits(core);
+  const menus = useMenus(core);
 
   return (
     <Section title="Links" count={links.length}>
@@ -65,115 +72,41 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
             {view.found === 0 ? (
               <p className={styles.hint}>No link matches the search.</p>
             ) : (
-              <table className={table.table}>
-                <caption className="bc:sr-only">The board's links</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" className={table.head}>
-                      From
-                    </th>
-                    <th scope="col" className={table.head}>
-                      To
-                    </th>
-                    <th scope="col" className={table.head}>
-                      Input
-                    </th>
-                    {locked ? null : (
-                      <th scope="col" className={`${table.head} bc:w-24`}>
-                        <span className="bc:sr-only">Actions</span>
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {view.rows.map(([id, link]) => (
-                    <LinkRow
-                      key={id}
-                      core={core}
-                      edits={edits}
-                      board={board}
-                      id={id}
-                      link={link}
-                      variadic={variadic.has(link.to)}
-                      locked={locked}
-                    />
-                  ))}
-                </tbody>
-              </table>
+              <ObjectsTable
+                core={core}
+                menus={menus}
+                kind="link"
+                label="The board's links"
+                columns={COLUMNS}
+                rows={view.rows.map(([id, link]) => {
+                  const from = blockName(board, link.from);
+                  const to = blockName(board, link.to);
+                  return {
+                    id,
+                    text: `${from} → ${to}`,
+                    menuLabel: `Actions of the link from ${from} to ${to}`,
+                    cells: [
+                      { content: <BlockLabel board={board} id={link.from} />, className: WRAP },
+                      { content: <BlockLabel board={board} id={link.to} />, className: WRAP },
+                      {
+                        content: variadic.has(link.to) ? (
+                          <VariadicInput board={board} id={id} link={link} />
+                        ) : (
+                          <span className="bc:font-mono bc:text-xs">{link.input}</span>
+                        ),
+                        className: WRAP,
+                      },
+                    ],
+                  };
+                })}
+              />
             )}
-            <Refusal refusal={edits.refusal} />
+            <Refusal refusal={menus.refusal} />
             <Pager label="Pages of links" view={view} />
           </>
         )}
       </Part>
     </Section>
-  );
-}
-
-function LinkRow({
-  core,
-  edits,
-  board,
-  id,
-  link,
-  variadic,
-  locked,
-}: {
-  core: CoreApi;
-  edits: Edits;
-  board: Board;
-  id: LinkId;
-  link: Link;
-  variadic: boolean;
-  locked: boolean;
-}): ReactElement {
-  const { editing, open, close, button } = useRowEditing();
-  const label = `${blockName(board, link.from)} → ${blockName(board, link.to)}`;
-  if (editing) {
-    return <RowAdvanced core={core} id={EDIT_LINK} target={{ link: id }} label={label} columns={4} onDone={close} />;
-  }
-  return (
-    <tr aria-label={label} className={table.row}>
-      <td className={`${table.cell} bc:break-words`}>
-        <BlockLabel board={board} id={link.from} />
-      </td>
-      <td className={`${table.cell} bc:break-words`}>
-        <BlockLabel board={board} id={link.to} />
-      </td>
-      <td className={`${table.cell} bc:break-words`}>
-        {variadic ? <VariadicInput board={board} id={id} link={link} /> : <span className="bc:font-mono bc:text-xs">{link.input}</span>}
-      </td>
-      {locked ? null : (
-        <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
-            ref={button}
-            onClick={() => {
-              // Opening the form is the user's next edit in the table, so the
-              // table's refusal goes. The form says why its own edits are
-              // refused.
-              edits.clear();
-              open();
-            }}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
-            onClick={() => {
-              const title = `Could not remove the link from "${blockName(board, link.from)}" to "${blockName(board, link.to)}".`;
-              void edits.run(title, "blockr.core-remove_link", { id });
-            }}
-          >
-            Remove
-          </button>
-        </td>
-      )}
-    </tr>
   );
 }
 

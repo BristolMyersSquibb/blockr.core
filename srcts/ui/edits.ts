@@ -1,30 +1,32 @@
-// How core's basic frontend and its Edit board plugin make an edit: each runs
-// one of the commands that the command registry holds, or a list of them, as
-// one step of the user, as the user makes the edit, so that undo takes back
-// each one.
-// Where the store or the command registry refuses an edit, the two tell the
-// user why in different places:
+// How core's basic frontend and the advanced actions of core's board actions
+// make an edit: each runs one of the commands that the command registry
+// holds, or a list of them, as one step of the user, as the user makes the
+// edit, so that undo takes back each one.
+// Where the store or the command registry refuses an edit, they tell the user
+// why in different places:
 // - The basic frontend runs its own edits through runCommand(), which leaves
 //   the refusal to core. Core raises it as a notification, an error of the
 //   code `board_edit_failed`, which concerns the board (../core/core.ts), and
 //   the frontend draws it as it draws every notification.
-// - The Edit board plugin runs its edits through useEdits(), which takes the
+// - The advanced actions run their edits through useEdits(), which takes the
 //   notification of a refusal through the edit's notifier, so that core raises
-//   none. The plugin shows why close to the control that made the edit, until
-//   the user's next edit there: below the buttons of a form that adds to the
-//   board, and below a table for an edit in its rows, as The Edit board plugin
-//   has it
-//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
-//   The advanced action of Edit inputs, one of core's board actions, runs its
-//   edits so too, and shows why below its list of inputs
-//   (../actions/inputs.tsx).
-//   The block picker, the advanced action of core's board actions that add a
-//   block, runs its edit through useEdits() as well, and hands it to its
-//   done(), which runs it as one step of the user and ends the advanced action
+//   none. Each shows why close to the control that made the edit, until the
+//   user's next edit there. The advanced action of Edit inputs shows why below
+//   its list of inputs (../actions/inputs.tsx). The block picker, the advanced
+//   action of core's board actions that add a block, and the forms of a link
+//   and of a stack hand their edit to their done(), which runs it as one step
+//   of the user and ends the advanced action. They show why below their
+//   buttons
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
+// The Edit board plugin makes no edit itself. Its forms are those advanced
+// actions, and its rows open the menus of board actions. It takes the
+// notifications of a board action that one of its menus ran through the
+// notifier of menu(), and reads the reasons off them (notifiedReasons(),
+// below), as The Edit board plugin has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
 
 import { useMemo, useState } from "react";
-import type { CoreApi } from "../types/core-api.ts";
+import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { errorMessage } from "../util/index.ts";
 
@@ -51,9 +53,8 @@ export function runCommand(core: Pick<CoreApi, "commands">, target: string | rea
   );
 }
 
-// The edits of one control, such as a form or a table with the buttons and
-// the forms of its rows, and why the store or the command registry refused
-// the last of them, which the control shows close to itself.
+// The edits of one control, such as a form, and why the store or the command
+// registry refused the last of them, which the control shows close to itself.
 export interface Edits {
   // Why the last edit that run() made was refused, or null where it ran. It
   // holds until the next edit that run() makes, or until clear().
@@ -61,15 +62,13 @@ export interface Edits {
   // Runs the command with the args, or the commands of the list in order, as
   // runCommand() does, and resolves whether it ran. A list runs through
   // `done` where it is given.
-  // The title is the sentence that names the edit, such as `Could not remove
-  // the block "Head".`, which heads the reasons where the edit is refused.
-  // The reasons name the board's objects by their ids, which a table may not
-  // show.
+  // The title is the sentence that names the edit, such as `Could not add the
+  // link.`, which heads the reasons where the edit is refused. The reasons
+  // name the board's objects by their ids, which a form may not show.
   run(title: string, id: string, args?: Json): Promise<boolean>;
   run(title: string, list: readonly Listed[], done?: Done): Promise<boolean>;
   // Takes the refusal down where the user's next edit there does not reach
-  // run(): where a form's own checks stop it, or where the user opens the
-  // form that changes a row of the table.
+  // run(), as where a form's own checks stop it.
   clear(): void;
 }
 
@@ -123,6 +122,23 @@ export function useEdits(core: Pick<CoreApi, "commands">): Edits {
 function reasons(error: unknown): readonly string[] {
   const failures = error instanceof Error && "failures" in error ? error.failures : undefined;
   return isSentences(failures) ? failures : [errorMessage(error)];
+}
+
+// Each reason why the command registry or the store refused an edit, as the
+// notifications of the refusal say it, for a control that takes the
+// notifications through a notifier rather than the error, as the Edit board
+// plugin takes those of a menu.
+// The message of a CommandError or a StoreError heads its failures with a
+// line that names the command or the delta, and then gives each failure on a
+// line of its own, after "- ". The reasons are those failures, without the
+// line that heads them. A message of another shape, such as that a board
+// action's run failed, is one reason as it stands.
+export function notifiedReasons(notifications: readonly Pick<Notification, "message">[]): readonly string[] {
+  return notifications.flatMap(({ message }) => {
+    const [, ...lines] = message.split("\n");
+    const failures = lines.filter((line) => line.startsWith("- "));
+    return failures.length > 0 && failures.length === lines.length ? failures.map((line) => line.slice(2)) : [message];
+  });
 }
 
 function isSentences(x: unknown): x is readonly string[] {

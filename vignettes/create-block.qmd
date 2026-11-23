@@ -719,6 +719,8 @@ The module then runs the SDK of the blockr.core it runs on, and its inputs take 
 The preset fails a build that imports React Aria, such as `react-aria-components`.
 A module draws React Aria's components from the SDK instead.
 A second copy of React Aria in the module's bundle would hold React contexts of its own, which the components of the SDK do not read.
+A library that the React Compiler built, such as React Flow 13, imports the compiler's runtime.
+The preset resolves that import to the runtime of the one copy of React, so the module's bundle holds no copy of the runtime.
 A script `build.ts` builds the module, and Node runs it as it is from version 22.18:
 
 ```ts

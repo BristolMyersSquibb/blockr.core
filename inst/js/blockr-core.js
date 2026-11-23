@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-02042ca6.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-c5b8952d.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -320,7 +320,7 @@ function readShortcut(text) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-02042ca6.js";
+import { Validator } from "./vendor-c5b8952d.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -3857,10 +3857,10 @@ async function requestBlockrOptions(client, names2) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-02042ca6.js";
+import { computed as computed3, signal as signal4 } from "./vendor-c5b8952d.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-02042ca6.js";
+import { signal as signal3 } from "./vendor-c5b8952d.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -5963,7 +5963,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-02042ca6.js";
+import { computed as computed2, signal as signal2 } from "./vendor-c5b8952d.js";
 function createRegistrations(migration = () => void 0) {
   const classes2 = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -7396,7 +7396,7 @@ function openMenu(start2, parts) {
   }
   function shownRow(current2, { row, index, choices }) {
     if (row.kind === "item") {
-      const { label, heading, icon, detail, category } = row;
+      const { label, heading, icon, detail, category, checked: checked3 } = row;
       return {
         kind: "item",
         label,
@@ -7404,6 +7404,7 @@ function openMenu(start2, parts) {
         ...icon === void 0 ? {} : { icon },
         ...detail === void 0 ? {} : { detail },
         ...category === void 0 ? {} : { category },
+        ...checked3 === void 0 ? {} : { checked: checked3 },
         ...row.advanced !== void 0 && current2.action?.advanced !== void 0 ? { advanced: true } : {}
       };
     }
@@ -7645,7 +7646,7 @@ function isRow(row) {
   if (!isObject(row) || typeof row.label !== "string" || row.label === "") return false;
   switch (row.kind) {
     case "item":
-      return typeof row.pick === "function" && [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string"));
+      return typeof row.pick === "function" && [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string")) && optional(row.checked, "boolean");
     case "multi":
       return typeof row.apply === "function" && Array.isArray(row.choices) && row.choices.every(
         (choice) => isObject(choice) && typeof choice.id === "string" && typeof choice.label === "string" && typeof choice.picked === "boolean"
@@ -8020,7 +8021,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-02042ca6.js";
+import { useFilter } from "./vendor-c5b8952d.js";
 function useSearch(all, texts, none = "No options", start2 = "") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2(start2);
@@ -8241,7 +8242,7 @@ function useSized(status) {
 }
 
 // srcts/ui/ui.tsx
-import { TextField } from "@blockr/core/react";
+import { Button, TextField } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -8785,7 +8786,7 @@ function copyCommand(doc, text) {
 
 // srcts/actions/inputs.tsx
 import { useState as useState8 } from "react";
-import { Button, ComboBox as ComboBox2, GridList, GridListItem, TextField as TextField3, useBoard as useBoard2, useDragAndDrop } from "@blockr/core/react";
+import { Button as Button2, ComboBox as ComboBox2, GridList, GridListItem, TextField as TextField3, useBoard as useBoard2, useDragAndDrop } from "@blockr/core/react";
 import { Fragment as Fragment2, jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 var editInputs = {
   render({ el, core, target: target2 }) {
@@ -9021,7 +9022,7 @@ function AddInput({ edits, board, block, sources }) {
   );
 }
 function RemoveButton({ label, onPress }) {
-  return /* @__PURE__ */ jsx8(Button, { variant: "quiet", "aria-label": label, onPress, className: "bc:size-7 bc:shrink-0 bc:justify-center bc:p-0", children: /* @__PURE__ */ jsx8("span", { title: label, className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx8(Cross, {}) }) });
+  return /* @__PURE__ */ jsx8(Button2, { variant: "quiet", "aria-label": label, onPress, className: "bc:size-7 bc:shrink-0 bc:justify-center bc:p-0", children: /* @__PURE__ */ jsx8("span", { title: label, className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx8(Cross, {}) }) });
 }
 function Cross() {
   return /* @__PURE__ */ jsx8("svg", { width: "10", height: "10", viewBox: "0 0 10 10", fill: "none", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx8("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" }) });
@@ -10560,7 +10561,7 @@ function kindOf(target2) {
 // srcts/actions/dialog.tsx
 import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
-import { Button as Button2 } from "@blockr/core/react";
+import { Button as Button3 } from "@blockr/core/react";
 import { Dialog, Heading, Modal } from "@blockr/core/react";
 import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 var showDialog = (args, at) => {
@@ -10600,7 +10601,7 @@ function CoreDialog({ args, onClose }) {
       children: /* @__PURE__ */ jsx11(Dialog, { children: /* @__PURE__ */ jsxs9("div", { className: "bc:grid bc:gap-3", children: [
         /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
           /* @__PURE__ */ jsx11(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
-          /* @__PURE__ */ jsx11(Button2, { variant: "secondary", onPress: onClose, children: "Close" })
+          /* @__PURE__ */ jsx11(Button3, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
         /* @__PURE__ */ jsx11(Mounted, { mount, className: "bc:min-w-0" })
       ] }) })
@@ -10613,7 +10614,7 @@ var WIDTH = "bc:min-w-[min(420px,100%)]";
 import { useEffect, useRef as useRef3, useSyncExternalStore as useSyncExternalStore2 } from "react";
 import { flushSync as flushSync6 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
-import { Autocomplete, Input, Separator, Text as Text3, TextField as AriaTextField } from "./vendor-02042ca6.js";
+import { Autocomplete, Input, Separator, Text as Text3, TextField as AriaTextField } from "./vendor-c5b8952d.js";
 import { TextField as TextField6 } from "@blockr/core/react";
 import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
 import { Fragment as Fragment3, jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
@@ -10747,21 +10748,30 @@ function Level({
         children: group.row.choices.map((choice) => /* @__PURE__ */ jsx12(MenuItem, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
       },
       `multi-${String(group.i)}`
-    ) : /* @__PURE__ */ jsx12(MenuSection, { id: `items-${String(group.items[0]?.i ?? g)}`, title: group.heading, children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx12(
-      Item,
+    ) : /* @__PURE__ */ jsx12(
+      MenuSection,
       {
-        row,
-        index: i,
-        tip,
-        onPick: () => {
-          pick2(i);
-        },
-        onOpen: () => {
-          openAdvanced(i);
-        }
+        id: `items-${String(group.items[0]?.i ?? g)}`,
+        title: group.continues ? void 0 : group.heading,
+        ...group.checks ? { selectionMode: "multiple", selectedKeys: group.items.filter(({ row }) => row.checked === true).map(({ i }) => itemKey(i)) } : {},
+        children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx12(
+          Item,
+          {
+            row,
+            index: i,
+            tip,
+            onPick: () => {
+              pick2(i);
+            },
+            onOpen: () => {
+              openAdvanced(i);
+            }
+          },
+          i
+        ))
       },
-      i
-    )) }, `items-${String(group.items[0]?.i ?? g)}`);
+      `items-${String(group.items[0]?.i ?? g)}`
+    );
     return divider ? [/* @__PURE__ */ jsx12(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
   }) });
   return /* @__PURE__ */ jsxs10(Fragment3, { children: [
@@ -10830,13 +10840,17 @@ function groups(listed) {
       continue;
     }
     const last = all.at(-1);
-    if (last?.kind === "items" && last.heading === row.heading && last.category === row.category) {
+    const checks = row.checked !== void 0;
+    const under = last?.kind === "items" && last.heading === row.heading && last.category === row.category;
+    if (under && last.checks === checks) {
       last.items.push({ row, i });
     } else {
       all.push({
         kind: "items",
         ...row.heading === void 0 ? {} : { heading: row.heading },
         ...row.category === void 0 ? {} : { category: row.category },
+        checks,
+        continues: under,
         items: [{ row, i }]
       });
     }
@@ -10855,6 +10869,7 @@ function Item({
   return /* @__PURE__ */ jsxs10(
     MenuItem,
     {
+      id: itemKey(index),
       textValue: label,
       "aria-label": detail === void 0 ? label : `${label}, ${detail}`,
       onAction: onPick,
@@ -10925,7 +10940,7 @@ function OpenIcon() {
 function openRow(target2) {
   if (!(target2 instanceof Element)) return void 0;
   const active = isFilter(target2) ? target2.getAttribute("aria-activedescendant") : null;
-  const item = active === null ? target2.closest('[role="menuitem"]') : target2.ownerDocument.getElementById(active);
+  const item = active === null ? target2.closest('[role="menuitem"], [role="menuitemcheckbox"]') : target2.ownerDocument.getElementById(active);
   const marked = item?.querySelector("[data-open-row]")?.getAttribute("data-open-row");
   return marked === void 0 || marked === null ? void 0 : Number(marked);
 }
@@ -10952,6 +10967,9 @@ function TextRow({
       }
     }
   );
+}
+function itemKey(row) {
+  return String(row);
 }
 function choiceKey(row, choice) {
   return `${String(row)}:${choice}`;

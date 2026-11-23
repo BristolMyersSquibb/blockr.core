@@ -266,6 +266,9 @@
   Its error names `@blockr/core/react`, from which a package draws React Aria's components.
   A second copy of React Aria would hold React contexts of its own, which the components of the SDK do not read.
   The preset leaves `@internationalized/date` and `@internationalized/number` to the package, since they hold no React context (#754).
+  The preset resolves an import of the React Compiler's runtime, `react-compiler-runtime` or `react/compiler-runtime`, to the runtime of the React that the module imports.
+  So a package can bundle a library that the React Compiler built, such as React Flow 13, and its bundle holds no copy of the runtime.
+  A module that bundled the package `react-compiler-runtime` would fail as the page loads, since the package calls `require("react")` (#836).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a frontend sets them.
   What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
   Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
@@ -896,6 +899,26 @@
   On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
   The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
   Each edit applies at once, as one step of the user, through `add_link`, `change_link`, `move_link` or `remove_link`, and the advanced action says below the inputs why the store refused one (#747).
+* The rows of the Edit board plugin's tables open the menus of their blocks, links and stacks, in place of their own buttons, which renamed and removed a block, and changed and removed a link or a stack.
+  Each row ends in a "…" button, which opens the menu of its object through `core.boardActions.menu()`.
+  So a row offers every board action that applies to its object, another package's among them, as every other menu of the object does.
+  A row shows the button only where `core.boardActions.on()` gives its object a board action, so under the board lock a row shows none unless another package's board action applies.
+  An advanced action that a row's menu opens, such as the form of Edit link, shows in the row, which turns into the form in a cell across the row.
+  The form now closes once the user saves it, as its `done()` ends the advanced action, and the keyboard's focus goes back to the row's button.
+  Each row starts with a checkbox, which adds its object to `core.selection` or takes it out, and which shows whether the selection holds the object, whatever set it.
+  The checkbox in a table's header ticks every row of the page.
+  While the selection holds a board object, a bar above the sections says how many it holds, with a "…" button that opens the menu of the selection and a button that clears the selection.
+  An advanced action that the menu of the selection opens, such as the form of Create stack, shows below the bar.
+  Where the store refuses a board action that one of these menus ran, the plugin says why in a banner below the table or the bar, until the user opens one of the menus there again.
+  The reason starts with a sentence that names the edit: in the plugin's own words for core's board actions, as `Could not remove the stack "Input".`, and by its label for another package's, as `Add to document failed for the block "Filter".`
+  The tables draw with the `Table` of core's React SDK (#783).
+* An item of a quick action takes `checked`.
+  It is true for the current pick and for a toggle that is on, and false for another pick and for a toggle that is off.
+  So a quick action shows which direction a layout runs in, or whether snapping is on.
+  Core's menu draws a tick at the start of the item while `checked` is true, in a slot that the item keeps while `checked` is false, as it draws the choices of a multi.
+  Assistive technology hears an item that gives `checked` as a checkbox of the menu, checked or not.
+  Picking the item runs its `pick()`, as for any item.
+  The `level()` of a `StubMenu` gives the item's `checked`, so that a test reads which item is checked (#837).
 * Roles tie the board action that plays each to the commands that it runs, so that an app may swap one of core's board actions for one drawn with another UI kit, while every caller gets the same edit.
   A role, of the type `Role`, has an `id` that names no package, as `append_block_role`, its targets in `on`, its `default` board action, `advanced` where callers mount the advanced action of its player, and its `commands` in order, each with `each`, `optional` and `fixes`.
   Core defines a role for each of its board actions but Copy block ID, which names it in the new member `role` of `BoardAction`, and a plugin class lists roles of its own in the new member `roles`, beside `boardActions`.

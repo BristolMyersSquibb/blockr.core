@@ -14,7 +14,7 @@ import { find } from "../testing/inputs.ts";
 import { held } from "../testing/notifications.ts";
 import { step } from "../testing/react.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import { Refusal, useEdits } from "./index.ts";
+import { notifiedReasons, Refusal, useEdits } from "./index.ts";
 import type { Done } from "./index.ts";
 
 const stops: (() => void)[] = [];
@@ -151,4 +151,20 @@ test("an edit that fails with an error that lists no reasons says what the error
 
   await click(el, "Remove Head");
   expect(refusals(el)).toEqual([['Could not remove the block "Head".', "The session ended."]]);
+});
+
+describe("the reasons that notifications give", () => {
+  test("are the failures of a refusal, without the line that heads them, and the message as it stands where it lists none", () => {
+    const refused = {
+      message: ['The list of commands was refused at command 1, "blockr.core-remove_block"', '- No block "x" is on the board.', "- The board lock refuses it."].join("\n"),
+    };
+    expect(notifiedReasons([refused])).toEqual(['No block "x" is on the board.', "The board lock refuses it."]);
+    expect(notifiedReasons([{ message: 'The board action "blockr.test-paste_action" failed: The clipboard is refused.' }])).toEqual([
+      'The board action "blockr.test-paste_action" failed: The clipboard is refused.',
+    ]);
+    // A message whose lines after the first are not all failures stands as it
+    // is, and each notification gives its own reasons.
+    const prose = { message: "The run failed:\nsee the log." };
+    expect(notifiedReasons([prose, refused])).toEqual(["The run failed:\nsee the log.", 'No block "x" is on the board.', "The board lock refuses it."]);
+  });
 });

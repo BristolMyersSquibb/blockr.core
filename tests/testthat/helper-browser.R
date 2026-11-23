@@ -543,6 +543,17 @@ window.e2e = {
       ), 'button ' + text);
     button.click();
   },
+  // Picks the row of the label given in the menu of board actions that is
+  // open, which core draws at the end of the page's body, as a user clicks
+  // it.
+  async item(label, within) {
+    const item = await e2e.until(() =>
+      [...within.querySelectorAll('[role=menuitem]')].find((i) =>
+        i.getAttribute('aria-label') === label ||
+          i.textContent.trim() === label
+      ), 'menu item ' + label);
+    item.click();
+  },
   // Picks the item of the id given in the select of the label given, the
   // field of a ComboBox or the button of a Select, as a user opens its list
   // and clicks the item, once R has answered for the items, and closes the

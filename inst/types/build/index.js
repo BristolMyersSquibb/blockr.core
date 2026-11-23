@@ -12,9 +12,15 @@ var IMPORTS = [
 
 // srcts/build/preset.ts
 var REACT_ARIA = /^(react-aria-components|react-aria|react-stately|@react-(aria|stately)\/[^/]+)(\/.*)?$/;
+var COMPILER_RUNTIME = /^react[-/]compiler-runtime$/;
+var COMPILER_RUNTIME_MODULE = `import { __COMPILER_RUNTIME } from "react";
+export const { c } = __COMPILER_RUNTIME;
+`;
 var imports = {
   name: "blockr.core-imports",
   setup(build) {
+    build.onResolve({ filter: COMPILER_RUNTIME }, () => ({ path: "react-compiler-runtime", namespace: "blockr.core" }));
+    build.onLoad({ filter: /^react-compiler-runtime$/, namespace: "blockr.core" }, () => ({ contents: COMPILER_RUNTIME_MODULE, loader: "js" }));
     build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
       if (!IMPORTS.includes(args.path)) {
         return {
