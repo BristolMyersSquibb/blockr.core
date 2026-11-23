@@ -7,6 +7,9 @@
 // Every `update` runs again on what the rounds before added,
 // until none adds anything, as ProseMirror calls `appendTransaction` again for
 // what another plugin appended.
+// Once the last delta of a step is in, the `afterStep` of each plugin's class
+// gives what follows from the step as a whole, which the store applies as one
+// more delta of the step (afterStep(), below).
 
 import type { Board, PluginClassId, Stack, StackId } from "../types/board.ts";
 import { errorMessage, jsonEqual, own, quoted } from "../util/index.ts";
@@ -43,7 +46,7 @@ export function expand(
         failures.push(`The plugin class "${id}" failed to update the delta for its plugin: ${errorMessage(error)}`);
         continue;
       }
-      const wrong = misplaced(id, patches);
+      const wrong = misplaced(id, patches, `The plugin class "${id}" updated the delta for its plugin with`);
       if (wrong.length > 0) {
         failures.push(...wrong);
         continue;
@@ -65,6 +68,48 @@ export function expand(
   }
 
   return expanded;
+}
+
+// The delta that follows from a step as a whole, once its last delta is in:
+// the patches that the `afterStep` of each plugin's class returns for its
+// plugin, in the order of the board's plugins, or undefined where none
+// returns any.
+// Every class gets the same two boards: the board that the step's own deltas
+// leave and the board that the step started from. So no `afterStep` sees
+// what another returns, and the order of the app's plugins does not matter.
+// No order could be right, since plugins know nothing about each other. The
+// state of a plugin is its own, and no other plugin's `afterStep` relies on
+// it.
+// The store calls each `afterStep` once in a step, and not again on what the
+// others return, so that every step ends.
+export function afterStep(
+  board: Board,
+  before: Board,
+  registrations: Pick<Registrations, "plugin">,
+): Delta | undefined | { readonly failures: readonly string[] } {
+  const patches: Patch[] = [];
+  const failures: string[] = [];
+
+  for (const id of Object.keys(board.plugins)) {
+    const def = registrations.plugin(id)?.def;
+    if (def?.afterStep === undefined) continue;
+    let returned: unknown;
+    try {
+      returned = def.afterStep(board, before, id);
+    } catch (error) {
+      failures.push(`The afterStep of the plugin class "${id}" failed: ${errorMessage(error)}`);
+      continue;
+    }
+    const wrong = misplaced(id, returned, `The afterStep of the plugin class "${id}" returned`);
+    if (wrong.length > 0) {
+      failures.push(...wrong);
+      continue;
+    }
+    patches.push(...(returned as readonly Patch[]));
+  }
+
+  if (failures.length > 0) return { failures };
+  return patches.length === 0 ? undefined : { patches };
 }
 
 // Removing a block removes the links into and out of it and takes it out of
@@ -103,22 +148,23 @@ function expandCore(delta: Delta, board: Board): Delta {
   };
 }
 
-// What is wrong with what the `update` of the plugin class `id` returned for its
-// plugin: no array of patches, or a patch outside that plugin's state.
-function misplaced(id: PluginClassId, patches: unknown): string[] {
-  const of = `The plugin class "${id}" updated the delta for its plugin`;
-  if (!Array.isArray(patches)) return [`${of} with no array of patches.`];
+// What is wrong with what the `update` or the `afterStep` of the plugin class
+// `id` returned for its plugin: no array of patches, or a patch outside that
+// plugin's state. Each failure is a sentence that `of` starts, which names the
+// function.
+function misplaced(id: PluginClassId, patches: unknown, of: string): string[] {
+  if (!Array.isArray(patches)) return [`${of} no array of patches.`];
   const failures: string[] = [];
   for (const patch of patches as unknown[]) {
     const problems = malformed(patch);
     if (problems.length > 0) {
-      failures.push(`${of} with a patch that ${problems.join(", ")}.`);
+      failures.push(`${of} a patch that ${problems.join(", ")}.`);
       continue;
     }
     const { path } = patch as Patch;
     const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
     if (boardProperty !== "plugins" || plugin !== id) {
-      failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
+      failures.push(`${of} a patch at "${path}", outside that plugin's state.`);
     }
   }
   return failures;

@@ -3,12 +3,12 @@
 // own among them. A command reads the board and returns deltas, and the command
 // registry applies them through the store as one step of the origin it is
 // given, so that every edit, whoever makes it, passes the store's checks.
-// A list of commands runs as one step too, as the assistant's edit tool runs
-// one. The command registry plans each command on the board that the deltas
+// A batch runs as one step too, as the assistant's edit tool runs one.
+// The command registry plans each command on the board that the deltas
 // of the commands before it leave, which a dry run of the store gives. Then it
 // applies the deltas of every command, or none where one command refuses.
 // The command registry sets `undo: false` on each delta of a command that has
-// `undo: false`, whether the command runs alone or in a list. The store keeps
+// `undo: false`, whether the command runs alone or in a batch. The store keeps
 // no inverse of such a delta, as it keeps no board option values. So a step
 // is one undo step only where the store keeps the inverse of at least one of
 // its deltas (../store/store.ts). The command registry's run() resolves with
@@ -27,9 +27,9 @@
 // span failed. The span goes under the span that is active as run() is called,
 // so that a plugin that runs a command inside a span of its own, as the
 // assistant's tools do, holds the command in its trace. It names the command
-// by its id and the step's origin, as "assistant". A list of commands runs in
-// one span, "command list", which names the ids of its commands in order,
-// since the store applies their deltas as one step. The span is active while
+// by its id and the step's origin, as "assistant". A batch runs in one span,
+// "command batch", which names the ids of its commands in order, since the
+// store applies their deltas as one step. The span is active while
 // the command prepares and runs, and while the store applies its deltas, so
 // that the scheduler takes it as what gave each block that the deltas change
 // its revision, and the span of the block's evaluation links to it.
@@ -108,7 +108,7 @@ export interface Command<A extends Json = Json, P = A> {
   // False where undo never takes back its deltas, as for a command that
   // changes only what the user looks at, such as the dock's active view. The
   // command registry sets `undo: false` on each of its deltas, whether it runs
-  // alone or in a list. The store keeps no inverse of them, but still applies
+  // alone or in a batch. The store keeps no inverse of them, but still applies
   // and announces them as any others.
   readonly undo?: false;
   // What has to wait, such as a layout that elkjs returns as a promise.
@@ -137,17 +137,17 @@ export interface Commands {
   // hands that notification to the notifier in `opts`, before run() rejects
   // (../core/core.ts). The command registry itself ignores the notifier.
   run(id: string, args?: Json, origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<boolean>;
-  // Runs the commands of the list in order, each planned on the board that the
+  // Runs the commands of the batch in order, each planned on the board that the
   // deltas of the commands before it leave, and applies the deltas of every
   // command as one step of the origin, "user" unless given. Where a command
   // refuses, it applies none and rejects with a CommandError that gives the
   // command's index. It resolves with whether the step took an undo step, as
   // for a command alone: one where a command without `undo: false` changes
   // something besides board options. Its undo takes back only what those
-  // commands changed. A list whose commands do not prepare is applied before
+  // commands changed. A batch whose commands do not prepare is applied before
   // run() returns. Its notifier is as for a command alone.
   run(
-    list: readonly { readonly id: string; readonly args?: Json }[],
+    batch: readonly { readonly id: string; readonly args?: Json }[],
     origin?: Origin,
     opts?: { notifier?(notifications: readonly Notification[]): void },
   ): Promise<boolean>;
@@ -156,23 +156,23 @@ export interface Commands {
   // them once another edit has come first, and with `undo: false` where the
   // command has it.
   plan(id: string, args?: Json): Promise<Delta[]>;
-  // The deltas of the commands of the list in order, each built on the board
+  // The deltas of the commands of the batch in order, each built on the board
   // that the deltas of the commands before it leave, not applied. It rejects
-  // where run() would reject for the list. The deltas name the edit ids of the
-  // board that the list was planned on.
-  plan(list: readonly { readonly id: string; readonly args?: Json }[]): Promise<Delta[]>;
+  // where run() would reject for the batch. The deltas name the edit ids of the
+  // board that the batch was planned on.
+  plan(batch: readonly { readonly id: string; readonly args?: Json }[]): Promise<Delta[]>;
 }
 
 // What the command registry rejects with where it refuses to run a command, or
 // a command fails, with each failure in a sentence. What the store refuses it
-// rejects with as the store throws it, but for a command of a list.
-// Where it refuses a list, the CommandError gives the index of the command
+// rejects with as the store throws it, but for a command of a batch.
+// Where it refuses a batch, the CommandError gives the index of the command
 // that refused, and has what refused it as its cause: the command's own
 // CommandError, or the StoreError with which the store refused its deltas.
 export class CommandError extends Error {
   readonly failures: readonly string[];
-  // The command's place in the list that run() or plan() was given, counted
-  // from 0, where the command refused as one of a list.
+  // The command's place in the batch that run() or plan() was given, counted
+  // from 0, where the command refused as one of a batch.
   readonly index?: number;
   // False where the command failed its preflight, its preflight() answering
   // false, and left out otherwise, as a command's `undo` is false only where it
@@ -361,7 +361,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     }
   }
 
-  // Plans the commands of a list in order, and hands their deltas to `then` as
+  // Plans the commands of a batch in order, and hands their deltas to `then` as
   // soon as the last command's deltas are built. So run() applies the deltas
   // on the board that they were built on.
   // The registry first checks every command's args against its schema. Then
@@ -371,24 +371,24 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // follows the last command too, so that a refusal by the store always names
   // the command whose deltas it refused.
   // A command that prepares is built once its prepare() resolves. Where the
-  // board has changed meanwhile, the registry plans the list again from its
+  // board has changed meanwhile, the registry plans the batch again from its
   // first command, on the board as it is then. Each command keeps what its
   // prepare() gave, so that none prepares twice, and each runs its preflight()
   // again, as a command alone does once it has prepared.
   // Whatever refuses a command, the store's refusal of its deltas included,
   // rejects as a CommandError that gives the command's index.
   async function planned<T>(
-    list: readonly { readonly id: string; readonly args?: Json }[],
+    batch: readonly { readonly id: string; readonly args?: Json }[],
     then: (built: Delta[]) => T,
   ): Promise<T> {
     // The span of run(), active as planned() is called, which a command's
     // prepare() and `then` run in after an await.
     const within = keepContext();
-    const checked = list.map(({ id, args }, index) => {
+    const checked = batch.map(({ id, args }, index) => {
       try {
         return lookup(id, args);
       } catch (error) {
-        throw inList(index, id, error);
+        throw inBatch(index, id, error);
       }
     });
     const [first] = checked;
@@ -405,7 +405,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       try {
         start = current(first.item.command.id);
       } catch (error) {
-        throw inList(0, first.item.command.id, error);
+        throw inBatch(0, first.item.command.id, error);
       }
       let board = start;
       for (const [index, { item, args }] of checked.entries()) {
@@ -423,24 +423,24 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
           board = store.dryRun(built);
         } catch (error) {
-          throw inList(index, command.id, error);
+          throw inBatch(index, command.id, error);
         }
       }
     }
     return within(() => then(built));
   }
 
-  // Applies the deltas of the commands of a list as one step of the origin.
-  // The list runs in one span, which names the ids of its commands in order,
+  // Applies the deltas of the commands of a batch as one step of the origin.
+  // The batch runs in one span, which names the ids of its commands in order,
   // since the store applies their deltas at once.
-  function runList(list: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<boolean> {
-    const ids = list.map(({ id }) => id);
-    return traced("command list", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
-      planned(list, (built) => store.apply(built, origin)),
+  function runBatch(batch: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<boolean> {
+    const ids = batch.map(({ id }) => id);
+    return traced("command batch", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
+      planned(batch, (built) => store.apply(built, origin)),
     );
   }
 
-  // Runs a command, or a list of commands, in a span of its own, as the head
+  // Runs a command, or a batch, in a span of its own, as the head
   // of this file has it, and resolves with what `run` resolves with. The span
   // is active as `run` is called, and `run` keeps it active after an await,
   // as keepContext() keeps it. A refusal or a failure marks the span failed.
@@ -458,10 +458,10 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
 
   // The delta with the edit id of each block and each plugin it changes,
   // where it names none, as the store holds it. For a command alone, that is
-  // the board that the command read. For a command of a list, it is the board
-  // that the list was planned on, as the store checks every delta of a step
+  // the board that the command read. For a command of a batch, it is the board
+  // that the batch was planned on, as the store checks every delta of a step
   // against the edit ids of the board that the step started on. So a block
-  // that an earlier command of the list adds gets no edit id.
+  // that an earlier command of the batch adds gets no edit id.
   function withEdits(delta: Delta): Delta {
     const blocks = delta.blocks?.mod;
     const patches = delta.patches;
@@ -508,7 +508,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         return false;
       }
     },
-    // A list comes with its origin second, in place of the args, and its
+    // A batch comes with its origin second, in place of the args, and its
     // options third, in place of the origin. The command registry ignores the
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(
@@ -516,7 +516,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       given?: Json,
       third?: Origin | { notifier?(notifications: readonly Notification[]): void },
     ) {
-      if (typeof target !== "string") return runList(target, typeof given === "string" ? given : "user");
+      if (typeof target !== "string") return runBatch(target, typeof given === "string" ? given : "user");
       const origin = typeof third === "string" ? third : "user";
       return traced(`command ${target}`, { "blockr.command.id": target, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
@@ -548,24 +548,24 @@ export function isCommandId(id: string): boolean {
 }
 
 // The CommandErrors that failed() logged, and those with which the command
-// registry refuses a list for one of them, so that CoreApi does not log one
+// registry refuses a batch for one of them, so that CoreApi does not log one
 // again as it tells the user why an edit failed (../core/core.ts).
 const loggedErrors = new WeakSet<CommandError>();
 
 // Whether the command registry logged what the error reports already, as
-// what a command's own code threw, alone or as one of a list.
+// what a command's own code threw, alone or as one of a batch.
 export function isLogged(error: unknown): boolean {
   return error instanceof CommandError && loggedErrors.has(error);
 }
 
-// The CommandError with which the command registry refuses a list, for what
+// The CommandError with which the command registry refuses a batch, for what
 // refused the command at the index: the command's own CommandError, or the
 // StoreError with which the store refused its deltas. It keeps that error as
 // its cause, with its failures, and counts as logged where that error does.
-function inList(index: number, id: string, error: unknown): CommandError {
+function inBatch(index: number, id: string, error: unknown): CommandError {
   const named = error instanceof CommandError || error instanceof StoreError;
   const refused = new CommandError(
-    `The list of commands was refused at command ${String(index + 1)}, "${id}"`,
+    `The batch was refused at command ${String(index + 1)}, "${id}"`,
     named ? error.failures : [errorMessage(error)],
     { cause: error, index, preflight: error instanceof CommandError ? error.preflight : undefined },
   );
