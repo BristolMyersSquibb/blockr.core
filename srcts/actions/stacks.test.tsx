@@ -1,8 +1,8 @@
-// Core's board actions Create stack and Edit stack, on the board of the
-// fixture hello through the CoreApi for tests: the targets that they apply to,
-// their quick actions, which a test drives by the labels of their rows, and
-// their advanced actions, the forms of a stack, which the CoreApi for tests
-// shows in core's dialog.
+// Core's board actions Create stack, Edit stack and Add to stack, on the board
+// of the fixture hello through the CoreApi for tests: the targets that they
+// apply to, their quick actions, which a test drives by the labels of their
+// rows, and the advanced actions of the first two, the forms of a stack, which
+// the CoreApi for tests shows in core's dialog.
 // The fixture's board holds the blocks a, Iris; b, Head; c, Merge; d, Wide
 // sepals; e, Bind; and f, Scatter, and the stack s1, Input, which holds a and
 // b and has no colour.
@@ -16,10 +16,12 @@ import { openDialog } from "../testing/overlays.ts";
 import { step } from "../testing/react.ts";
 import { chipLabels, labelled, picked } from "../testing/select.ts";
 import type { BoardAction, Target } from "./actions.ts";
+import { swatch } from "./icons.ts";
 import type { ShownLevel } from "./quick.ts";
 
 const CREATE_STACK = "blockr.core-add_stack_action";
 const EDIT_STACK = "blockr.core-edit_stack_action";
+const ADD_TO_STACK = "blockr.core-add_to_stack_action";
 
 const stops: (() => void)[] = [];
 
@@ -87,28 +89,42 @@ describe("Create stack", () => {
     expect(on({ board: true })).toContain(CREATE_STACK);
   });
 
-  test("on a block, offers New stack alone, which adds a stack of the block with a name and a colour that no other stack has, in one step", async () => {
+  test("on a block, asks for the name in a text row, which holds a name that no other stack has, and adds a stack of the block in a colour that no other stack has, in one step", async () => {
     const s = await stubbed();
     const menu = s.menu({ block: "c" });
     await menu.pick("Create stack");
-    expect(menu.level()).toMatchObject({ title: "Add Merge to", advanced: true });
     // It lists no stack that the board holds, since it plays add_stack_role,
-    // which adds a stack.
-    expect(shown(menu.level())).toEqual([["New stack"]]);
+    // which adds a stack, while Add to stack puts the block into one.
+    expect(menu.level()).toMatchObject({ title: "New stack of Merge", advanced: true, rows: [{ kind: "text", label: "Name", value: "Stack 1" }] });
+    expect(shown(menu.level())).toEqual([["Name"]]);
 
-    await menu.pick("New stack");
+    await menu.pick("Name");
+    expect(menu.closed()).toBe(true);
     expect(added(s)).toEqual([{ id: expect.stringMatching(/^[a-z]+_[a-z]+$/) as string, name: "Stack 1", blocks: ["c"], color: "#66c2a5" }]);
     s.core.store.undo();
     expect(added(s)).toEqual([]);
+  });
+
+  test("takes the name that the user gives, without the spaces around it, and refuses an empty one in place", async () => {
+    const s = await stubbed();
+    const menu = s.menu({ block: "c" });
+    await menu.pick("Create stack");
+    menu.type("  ", "Name");
+    await menu.pick("Name");
+    expect(menu.level()?.rows).toEqual([{ kind: "text", label: "Name", value: "  ", refusal: "A name cannot be empty." }]);
+    expect(added(s)).toEqual([]);
+
+    menu.type(" Outputs ", "Name");
+    await menu.pick("Name");
+    expect(added(s)).toMatchObject([{ name: "Outputs", blocks: ["c"] }]);
   });
 
   test("on a selection, adds a stack of its blocks alone, which leave the stack that held them", async () => {
     const s = await stubbed();
     const menu = s.menu({ selection: [{ block: "a" }, { link: "ab" }, { block: "b" }] });
     await menu.pick("Create stack");
-    expect(menu.level()).toMatchObject({ title: "Add 2 blocks to" });
-    expect(shown(menu.level())).toEqual([["New stack"]]);
-    await menu.pick("New stack");
+    expect(menu.level()).toMatchObject({ title: "New stack of 2 blocks" });
+    await menu.pick("Name");
 
     expect(added(s)).toMatchObject([{ name: "Stack 1", blocks: ["a", "b"] }]);
     expect(s.core.store.board().stacks.s1?.blocks).toEqual([]);
@@ -116,14 +132,20 @@ describe("Create stack", () => {
     expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
   });
 
-  test("on the board, offers New stack alone, which adds a stack that holds no block", async () => {
+  test("on the board, adds a stack that holds no block, and the next one with the next name and colour", async () => {
     const s = await stubbed();
     const menu = s.menu({ board: true });
     await menu.pick("Create stack");
     expect(menu.level()?.title).toBeUndefined();
-    expect(shown(menu.level())).toEqual([["New stack"]]);
-    await menu.pick("New stack");
+    expect(shown(menu.level())).toEqual([["Name"]]);
+    await menu.pick("Name");
     expect(added(s)).toMatchObject([{ name: "Stack 1", blocks: [], color: "#66c2a5" }]);
+
+    const next = s.menu({ board: true });
+    await next.pick("Create stack");
+    expect(next.level()?.rows).toEqual([{ kind: "text", label: "Name", value: "Stack 2" }]);
+    await next.pick("Name");
+    expect(added(s)).toMatchObject([{ name: "Stack 1" }, { name: "Stack 2", blocks: [], color: "#fc8d62" }]);
   });
 
   test("opens the form of a stack with the blocks given, which it names in place of the select of blocks, since the new stack takes exactly those, and which adds the stack once the user submits it and closes", async () => {
@@ -300,5 +322,82 @@ describe("Edit stack", () => {
     expect(s.advanced()).toBeUndefined();
     expect(s.core.store.board().stacks.s1?.name).toBe("Input");
     expect(s.core.store.canUndo()).toBe(false);
+  });
+});
+
+describe("Add to stack", () => {
+  test("applies to a block or a selection that holds a block, where the board holds a stack that lacks one of the blocks", async () => {
+    const s = await stubbed();
+    const on = (target: Target) => ids(s.core.boardActions.on(target));
+
+    expect(on({ block: "c" })).toContain(ADD_TO_STACK);
+    expect(on({ selection: [{ link: "ab" }, { block: "a" }, { block: "c" }] })).toContain(ADD_TO_STACK);
+    // Input, the board's only stack, holds a and b already.
+    expect(on({ block: "a" })).not.toContain(ADD_TO_STACK);
+    expect(on({ selection: [{ block: "a" }, { block: "b" }] })).not.toContain(ADD_TO_STACK);
+    expect(on({ selection: [{ link: "ab" }, { stack: "s1" }] })).not.toContain(ADD_TO_STACK);
+    expect(on({ stack: "s1" })).not.toContain(ADD_TO_STACK);
+    expect(on({ board: true })).not.toContain(ADD_TO_STACK);
+
+    // A board without a stack offers it on no block.
+    await act(() => s.core.commands.run("blockr.core-remove_stack", { id: "s1" }));
+    expect(on({ block: "c" })).not.toContain(ADD_TO_STACK);
+  });
+
+  test("lists the board's stacks, each with its colour and how many blocks it holds, and puts the block at the end of the stack picked, in one step", async () => {
+    const s = await stubbed();
+    await act(() => s.core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"], color: "#66c2a5" }));
+
+    const menu = s.menu({ block: "c" });
+    await menu.pick("Add to stack");
+    // It has no advanced action, so that its level shows no open icon.
+    expect(menu.level()).toMatchObject({ title: "Add Merge to", advanced: false });
+    expect(shown(menu.level())).toEqual([
+      ["Input", "2 blocks"],
+      ["Plots", "1 block"],
+    ]);
+    expect(menu.level()?.rows.map((row) => ("icon" in row ? row.icon : undefined))).toEqual([swatch(null), swatch("#66c2a5")]);
+
+    await menu.pick("Plots");
+    expect(menu.closed()).toBe(true);
+    expect(s.core.store.board().stacks.plots?.blocks).toEqual(["f", "c"]);
+    s.core.store.undo();
+    expect(s.core.store.board().stacks.plots?.blocks).toEqual(["f"]);
+  });
+
+  test("on a selection, leaves out a stack that holds every one of its blocks, and takes the blocks out of the stack that held them", async () => {
+    const s = await stubbed();
+    await act(() => s.core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"], color: "#66c2a5" }));
+
+    // Input holds a, but lacks c.
+    const menu = s.menu({ selection: [{ block: "a" }, { link: "ab" }, { block: "c" }] });
+    await menu.pick("Add to stack");
+    expect(menu.level()).toMatchObject({ title: "Add 2 blocks to" });
+    expect(shown(menu.level())).toEqual([
+      ["Input", "2 blocks"],
+      ["Plots", "1 block"],
+    ]);
+    await menu.pick("Input");
+    expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b", "c"]);
+
+    // Input now holds both, so that only Plots is left.
+    const again = s.menu({ selection: [{ block: "a" }, { block: "c" }] });
+    await again.pick("Add to stack");
+    expect(shown(again.level())).toEqual([["Plots", "1 block"]]);
+    await again.pick("Plots");
+    expect(s.core.store.board().stacks.plots?.blocks).toEqual(["f", "a", "c"]);
+    expect(s.core.store.board().stacks.s1?.blocks).toEqual(["b"]);
+    s.core.store.undo();
+    expect(s.core.store.board().stacks.plots?.blocks).toEqual(["f"]);
+    expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b", "c"]);
+  });
+
+  test("plays add_to_stack_role, which trigger() takes in place of its id", async () => {
+    const s = await stubbed();
+    const triggered = s.core.boardActions.trigger("add_to_stack_role", { block: "c" }, { el: document.body });
+    expect(s.menu()?.level()).toMatchObject({ title: "Add Merge to", advanced: false });
+    await s.menu()?.pick("Input");
+    await triggered;
+    expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b", "c"]);
   });
 });

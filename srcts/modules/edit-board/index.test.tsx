@@ -996,8 +996,10 @@ describe("the selection", () => {
     expect(bar(el)?.textContent).toContain("2 selected");
     expect(el.firstElementChild?.firstElementChild).toBe(bar(el));
 
+    // The stack Input lacks c, so that the menu offers Add to stack beside
+    // Create stack.
     const menu = await openMenu(m, "Actions of the selection");
-    expect(menuLabels(menu)).toEqual(["Create stack", "Remove"]);
+    expect(menuLabels(menu)).toEqual(["Create stack", "Add to stack", "Remove"]);
     menu.escape();
 
     await click(button(bar(el) ?? el, "Clear selection"));
@@ -1026,6 +1028,24 @@ describe("the selection", () => {
       core.store.undo();
     });
     expect(board()).toEqual(before);
+  });
+
+  test("puts its blocks into a stack that the board holds through the bar's menu, in one step that undo takes back", async () => {
+    const m = await mounted();
+    const { core, board } = m;
+    await step(() => {
+      core.selection.set([{ block: "c" }, { block: "f" }]);
+    });
+
+    const menu = await openMenu(m, "Actions of the selection");
+    await pick(menu, "Add to stack");
+    await pick(menu, "Input");
+    expect(board().stacks.s1?.blocks).toEqual(["a", "b", "c", "f"]);
+
+    await step(() => {
+      core.store.undo();
+    });
+    expect(board().stacks.s1?.blocks).toEqual(["a", "b"]);
   });
 
   test("shows below the bar the advanced action that the bar's menu opens, as Create stack's form with the selected blocks given", async () => {
@@ -1249,7 +1269,8 @@ describe("the sentence that names a refused edit", () => {
     expect(editTitle(board, core("remove_block"), { block: "b" })).toBe('Could not remove the block "Head".');
     expect(editTitle(board, core("edit_link"), { link: "ac" })).toBe('Could not change the link from "Iris" to "Merge".');
     expect(editTitle(board, core("rename"), { stack: "s1" })).toBe('Could not rename the stack "Input".');
-    expect(editTitle(board, core("add_stack"), { selection: [{ block: "c" }] })).toBe("Could not put the selection in a stack.");
+    expect(editTitle(board, core("add_stack"), { selection: [{ block: "c" }] })).toBe("Could not put the selection in a new stack.");
+    expect(editTitle(board, core("add_to_stack"), { block: "c" })).toBe('Could not add the block "Merge" to a stack.');
     expect(editTitle(board, core("append_block"), { block: "f" })).toBe('Could not append a block to the block "Scatter".');
     expect(editTitle(board, core("insert_block"), { link: "ab" })).toBe('Could not insert a block into the link from "Iris" to "Head".');
     expect(editTitle(board, core("prepend_block"), { block: "b" })).toBe('Could not prepend a block to the block "Head".');

@@ -18,8 +18,8 @@ import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { QuickLevel } from "./quick.ts";
 
-// Core's board actions on the blocks b and c, whose inputs links feed, which
-// come first in every menu of one, and on the board.
+// Core's board actions on the block b, which come first in every menu of it,
+// and on the board. Links feed every input of b, and the stack s1 holds it.
 const ON_BLOCK = [
   "blockr.core-append_block_action",
   "blockr.core-add_link_action",
@@ -250,7 +250,17 @@ describe("on()", () => {
     const s = await stubbed([listing("test", [picky, open])]);
 
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, picky.id]);
-    expect(ids(s.core.boardActions.on({ block: "c" }))).toEqual(ON_BLOCK);
+    // No stack holds the block c, so that Add to stack applies to it as well.
+    expect(ids(s.core.boardActions.on({ block: "c" }))).toEqual([
+      "blockr.core-append_block_action",
+      "blockr.core-add_link_action",
+      "blockr.core-add_stack_action",
+      "blockr.core-rename_action",
+      "blockr.core-edit_inputs_action",
+      "blockr.core-add_to_stack_action",
+      "blockr.core-copy_block_id_action",
+      "blockr.core-remove_block_action",
+    ]);
     expect(ids(s.core.boardActions.on({ link: "ab" }))).toEqual([
       "blockr.core-insert_block_action",
       "blockr.core-edit_link_action",
