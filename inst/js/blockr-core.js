@@ -6212,15 +6212,19 @@ function createStore(options = {}) {
       packages.value = given.packages;
       return { json: checkJsonBoard(given.board), reply: given };
     }
-    if (hello === void 0) {
-      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
-    }
-    if (hello.lock.load) {
+    const reply = lastHello();
+    if (reply.lock.load) {
       throw new StoreError(refusedOpen, [
         "The load lock fixes the app to its opening board, so the store opens no other board."
       ]);
     }
-    return { json: checkJsonBoard(parse(given)), reply: hello };
+    return { json: checkJsonBoard(parse(given)), reply };
+  }
+  function lastHello() {
+    if (hello === void 0) {
+      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
+    }
+    return hello;
   }
   function build(json, reply) {
     guard2();
@@ -6268,6 +6272,13 @@ function createStore(options = {}) {
       stillOpen();
       const { json, reply } = prepareOpen(text);
       return build(json, reply).dropped;
+    });
+  }
+  function readText(text) {
+    return settled(() => {
+      stillOpen();
+      const reply = lastHello();
+      return build(checkJsonBoard(parse(text)), reply);
     });
   }
   function jsonBoard() {
@@ -6351,6 +6362,7 @@ function createStore(options = {}) {
     dryRun,
     open,
     check: checkText,
+    read: readText,
     undo: (origin) => {
       revert(true, origin);
     },
@@ -11586,7 +11598,9 @@ function start(options) {
     const { api: core, plugins } = createCore({
       store: {
         ...store,
-        open: (given, opts) => reopen(given, controller, opts)
+        open: (given, opts) => reopen(given, controller, opts),
+        check: (text) => afterMigrations(text, store, () => store.check(text)),
+        read: (text) => afterMigrations(text, store, () => store.read(text))
       },
       commands,
       boardActions,
@@ -11779,6 +11793,10 @@ function start(options) {
     }
     return { text, plugin };
   }
+  async function afterMigrations(text, store, run) {
+    await migrations.prepare(text, store.blockRegistry());
+    return run();
+  }
   let queue = Promise.resolve();
   function reopen(given, of, opts) {
     let notifier;
@@ -11808,9 +11826,8 @@ function start(options) {
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
     let before;
     try {
-      await migrations.prepare(text, current2.store.blockRegistry());
       try {
-        await current2.store.check(text);
+        await afterMigrations(text, current2.store, () => current2.store.check(text));
       } catch (error) {
         const why = errorMessage(error);
         log.debug(why);

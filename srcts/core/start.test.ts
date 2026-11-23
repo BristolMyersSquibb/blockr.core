@@ -1293,9 +1293,13 @@ describe("a board opened later", () => {
     expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual([["debug", "blockr.core", failed[0]?.message]]);
   });
 
-  test("migrates a block's state by the migrate that its class's UI module exports, which core imports before the board opens", async () => {
-    // The head block's class at version 2 of its state, whose UI module
-    // converts the n of version 1, a string, into a number.
+  // An app whose head block's class is at version 2 of its state, and whose
+  // UI module converts the n of version 1, a string, into a number.
+  // It gives the URL of that module, R's reply to hello, whose board records
+  // the head block at version 2, and the modules that the page starts with.
+  // It also gives the text of a board named "Older", which records the head
+  // block at version 1, with an n of "3".
+  function migratingHead() {
     const entry = hello.block_registry["blockr.core-head_block"];
     if (entry === undefined) throw new Error("The fixture has no head block.");
     // The board of the head block's blocks at the version given.
@@ -1318,22 +1322,52 @@ describe("a board opened later", () => {
       default: { render: () => undefined },
       migrate: (state: Record<string, Json>, version: number) => ({ ...state, n: version === 1 ? Number(state.n) : state.n }),
     };
-    const s = await started({ [BASIC]: frontEnd().exports, [entry.module]: head }, versioned);
+    const old = JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Older", blocks: at(1, "3") } });
+    return { module: entry.module, versioned, modules: { [BASIC]: frontEnd().exports, [entry.module]: head }, old };
+  }
+
+  test("migrates a block's state by the migrate that its class's UI module exports, which core imports before the board opens", async () => {
+    const { module, versioned, modules, old } = migratingHead();
+    const s = await started(modules, versioned);
     const imported = s.imported.length;
 
     // R's board records the head block at version 2, so the store migrates
     // nothing, and core imports no UI module for it.
-    expect(s.imported.filter((url) => url === entry.module)).toEqual([]);
+    expect(s.imported.filter((url) => url === module)).toEqual([]);
 
-    const old = { ...hello.board, board: { ...hello.board.board, name: "Older", blocks: at(1, "3") } };
-    await reopen(s, s.core, JSON.stringify(old), versioned);
+    await reopen(s, s.core, old, versioned);
     const next = s.started.core();
     const opened = Object.values(next?.store.board().blocks ?? {}).find((block) => block.registry_id === "blockr.core-head_block");
 
     expect(next?.store.board().name).toBe("Older");
     expect(opened?.state.n).toBe(3);
     // Once, for the check on the page and the opening alike.
-    expect(s.imported.slice(imported)).toEqual([entry.module]);
+    expect(s.imported.slice(imported)).toEqual([module]);
+  });
+
+  test("checks and reads a board through the store that CoreApi gives with the migrate that core imports for it, opening nothing", async () => {
+    const { module, versioned, modules, old } = migratingHead();
+    const s = await started(modules, versioned);
+    const imported = s.imported.length;
+    const board = s.core.store.board();
+    const sent = s.r.sent.length;
+
+    // The head block's class takes a whole number as n.
+    // Without the migration, the store would refuse the n of "3" that the
+    // text holds.
+    await expect(s.core.store.check(old)).resolves.toEqual([]);
+    const read = await s.core.store.read(old);
+    const pasted = Object.values(read.board.blocks).find((block) => block.registry_id === "blockr.core-head_block");
+
+    expect(read.board.name).toBe("Older");
+    expect(pasted?.state.n).toBe(3);
+    expect(read.dropped).toEqual([]);
+    // Once, for the check and the read alike.
+    expect(s.imported.slice(imported)).toEqual([module]);
+    // The board on the page stays open, and core sent R nothing.
+    expect(s.started.core()).toBe(s.core);
+    expect(s.core.store.board()).toBe(board);
+    expect(s.r.sent.slice(sent)).toEqual([]);
   });
 
   test("shows why where R refuses the hello with which core starts again", async () => {
