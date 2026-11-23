@@ -10094,7 +10094,7 @@ function keeps(command2, board, target2, call, at) {
     return `the fixes of the role failed on ${which}: ${errorMessage(error)}`;
   }
 }
-function checkedRoles(plugin, given, taken) {
+function checkedRoles(plugin, given, taken, actions) {
   const of = `The plugin class "${plugin}"`;
   if (!Array.isArray(given)) {
     throw new Error(`${of} gives roles that are no array.`);
@@ -10140,7 +10140,13 @@ function checkedRoles(plugin, given, taken) {
       const why = commandFailure(command2);
       if (why !== void 0) throw new Error(`${named4}, ${why}.`);
     }
-    return role;
+    const checked3 = role;
+    const found = checkedPlayer(checked3, actions.find((action2) => action2.id === fallback));
+    if ("why" in found) {
+      const why = actions.some((action2) => action2.id === fallback) ? found.why : "it is no board action that the class lists";
+      throw new Error(`${named4}, whose default "${fallback}" cannot play it, since ${why}.`);
+    }
+    return checked3;
   });
 }
 function commandFailure(command2) {
@@ -10189,7 +10195,7 @@ function createBoardActions(parts) {
       if (givenActions === void 0 && givenRoles === void 0) return () => void 0;
       const actions = givenActions === void 0 ? [] : checked2(plugin, givenActions, new Set(registered.map(({ id: id2 }) => id2)));
       const taken = () => new Map([...roles.values()].map(({ role, plugin: by }) => [role.id, by === void 0 ? CORE2 : packageFromId(by) ?? by]));
-      const listed = givenRoles === void 0 ? [] : checkedRoles(plugin, givenRoles, taken());
+      const listed = givenRoles === void 0 ? [] : checkedRoles(plugin, givenRoles, taken(), actions);
       registered = [...registered, ...actions];
       for (const { id: id2 } of actions) classes2.set(id2, plugin);
       for (const role of listed) roles.set(role.id, { role, plugin });
@@ -10215,21 +10221,12 @@ function createBoardActions(parts) {
       for (const [role, id2] of picks) {
         if (!roles.has(role)) failures.push(`${picking(id2, role)}, but no package registers that role.`);
       }
-      for (const { role, plugin } of roles.values()) {
+      for (const { role } of roles.values()) {
         const pick2 = picks.get(role.id);
         const id2 = pick2 ?? role.default;
         const found = checkedPlayer(role, registered.find((each) => each.id === id2));
-        if ("player" in found) {
-          players.set(role.id, found.player);
-        } else if (pick2 !== void 0) {
-          failures.push(`${picking(id2, role.id)}, but ${found.why}.`);
-        } else {
-          const failure = new Error(`No board action plays the role "${role.id}", since its default is the board action "${id2}", and ${found.why}.`);
-          log.error(failure);
-          parts.raise(
-            coreNotification("module_failed", "error", failure.message, plugin === void 0 ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) })
-          );
-        }
+        if ("player" in found) players.set(role.id, found.player);
+        else if (pick2 !== void 0) failures.push(`${picking(id2, role.id)}, but ${found.why}.`);
       }
       if (failures.length > 0) throw new Error([...failures, NO_BOARD2].join("\n"));
     },

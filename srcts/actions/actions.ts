@@ -184,7 +184,8 @@ export interface BoardActions {
   // - It has none of the three, so that nothing would run.
   // - Its `role` is no string.
   // A role breaks the rules that checkedRoles() in ./roles.ts names, as where
-  // another role has its id, which names the packages of both.
+  // another role has its id, which names the packages of both, or where its
+  // default is no board action of the class that can play it.
   register(plugin: PluginClassId, actions: readonly BoardAction[] | undefined, roles?: readonly Role[]): () => void;
   registered(): readonly BoardAction[];
   // The plugin class that lists the board action with the id given, or
@@ -194,17 +195,13 @@ export interface BoardActions {
   role(id: string): Role | undefined;
   // Chooses the board action that plays each role, once every module is
   // registered, from the blockr option board_actions as R sent it: the board
-  // action that it picks for the role, or else the role's default. It checks
-  // each (checkedPlayer() in ./roles.ts):
-  // - Where the app's pick fails the check, or no package registers it, or
-  //   it names a role that no package registers, or the blockr option holds
-  //   no picks, it throws, naming the pick, the role and what failed, so that
-  //   core opens no board. The blockr option is the app's rather than a
-  //   board's, so a wrong pick would break every board that the app opens.
-  // - Where a role's default fails the check, no board action plays the role.
-  //   That is a fault of the role's package, which core logs, raising a
-  //   notification of the code `module_failed` about the plugin whose class
-  //   lists the role, and the board opens.
+  // action that it picks for the role, or else the role's default, which
+  // register() checked. It checks each pick (checkedPlayer() in ./roles.ts).
+  // Where a pick fails the check, or no package registers it, or it names a
+  // role that no package registers, or the blockr option holds no picks, it
+  // throws, naming the pick, the role and what failed, so that core opens no
+  // board. The blockr option is the app's rather than a board's, so a wrong
+  // pick would break every board that the app opens.
   choosePlayers(picks: Json | undefined): void;
   // The board action that plays the role with the id given, or undefined
   // where none does.
@@ -264,7 +261,7 @@ export function createBoardActions(parts: CoreParts): BoardActions {
       // The package of each role registered already, by the role's id.
       const taken = (): Map<string, string> =>
         new Map([...roles.values()].map(({ role, plugin: by }) => [role.id, by === undefined ? CORE : (packageFromId(by) ?? by)]));
-      const listed = givenRoles === undefined ? [] : checkedRoles(plugin, givenRoles, taken());
+      const listed = givenRoles === undefined ? [] : checkedRoles(plugin, givenRoles, taken(), actions);
       registered = [...registered, ...actions];
       for (const { id } of actions) classes.set(id, plugin);
       for (const role of listed) roles.set(role.id, { role, plugin });
@@ -290,21 +287,12 @@ export function createBoardActions(parts: CoreParts): BoardActions {
       for (const [role, id] of picks) {
         if (!roles.has(role)) failures.push(`${picking(id, role)}, but no package registers that role.`);
       }
-      for (const { role, plugin } of roles.values()) {
+      for (const { role } of roles.values()) {
         const pick = picks.get(role.id);
         const id = pick ?? role.default;
         const found = checkedPlayer(role, registered.find((each) => each.id === id));
-        if ("player" in found) {
-          players.set(role.id, found.player);
-        } else if (pick !== undefined) {
-          failures.push(`${picking(id, role.id)}, but ${found.why}.`);
-        } else {
-          const failure = new Error(`No board action plays the role "${role.id}", since its default is the board action "${id}", and ${found.why}.`);
-          log.error(failure);
-          parts.raise(
-            coreNotification("module_failed", "error", failure.message, plugin === undefined ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) }),
-          );
-        }
+        if ("player" in found) players.set(role.id, found.player);
+        else if (pick !== undefined) failures.push(`${picking(id, role.id)}, but ${found.why}.`);
       }
       if (failures.length > 0) throw new Error([...failures, NO_BOARD].join("\n"));
     },

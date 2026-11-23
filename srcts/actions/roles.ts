@@ -16,12 +16,14 @@
 //
 // In each app, one board action plays each role: the one that the blockr
 // option `board_actions` picks for the role, or else the role's default. Core
-// checks that board action once every module is registered
-// (checkedPlayer(), below):
+// checks the board action that may play a role (checkedPlayer(), below):
 // - It names the role in `role`.
 // - Its `on` names the role's targets alone.
 // - It has an advanced action where the role has `advanced`, since callers
 //   mount the advanced action of the role.
+// It checks a role's default as it registers the role, where the default is
+// one of the board actions of the role's class, and the app's pick once every
+// module is registered, since a pick may name a board action of any package.
 //
 // Core checks each batch of the board action that plays a role before the
 // command registry plans it (batchFailure(), below). The batch holds the
@@ -342,8 +344,9 @@ function keeps(command: RoleCommand, board: Board, target: Target, call: Command
 // The roles that a plugin class lists, once each is a role that keeps the
 // rules, or an Error that says why the class is refused. The map `taken` gives
 // the package of each role registered already, by the role's id, so that the
-// Error for a role that has one of those ids names both packages. A role
-// breaks a rule where:
+// Error for a role that has one of those ids names both packages, and
+// `actions` the board actions that the class lists. A role breaks a rule
+// where:
 // - Its id is no string, or names a package.
 // - Another role has its id, core's, another class's or one that the class
 //   lists before it.
@@ -354,7 +357,14 @@ function keeps(command: RoleCommand, board: Board, target: Target, call: Command
 //   is not named as a command's id is, its `each` names no kind that `each`
 //   takes, its `optional` is neither true nor left out, or its `fixes` is no
 //   function.
-export function checkedRoles(plugin: PluginClassId, given: unknown, taken: ReadonlyMap<string, string>): readonly Role[] {
+// - Its default is no board action that the class lists, or one that cannot
+//   play the role (checkedPlayer(), above).
+export function checkedRoles(
+  plugin: PluginClassId,
+  given: unknown,
+  taken: ReadonlyMap<string, string>,
+  actions: readonly BoardAction[],
+): readonly Role[] {
   const of = `The plugin class "${plugin}"`;
   if (!Array.isArray(given)) {
     throw new Error(`${of} gives roles that are no array.`);
@@ -400,7 +410,13 @@ export function checkedRoles(plugin: PluginClassId, given: unknown, taken: Reado
       const why = commandFailure(command);
       if (why !== undefined) throw new Error(`${named}, ${why}.`);
     }
-    return role as unknown as Role;
+    const checked = role as unknown as Role;
+    const found = checkedPlayer(checked, actions.find((action) => action.id === fallback));
+    if ("why" in found) {
+      const why = actions.some((action) => action.id === fallback) ? found.why : "it is no board action that the class lists";
+      throw new Error(`${named}, whose default "${fallback}" cannot play it, since ${why}.`);
+    }
+    return checked;
   });
 }
 

@@ -20,7 +20,8 @@ import { withPlugins } from "../testing/store.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
-import { batchFailure, CORE_ROLES } from "./roles.ts";
+import { createBoardActions } from "./actions.ts";
+import { batchFailure, checkedPlayer, CORE_ROLES } from "./roles.ts";
 import type { Role } from "./roles.ts";
 
 // Core's board actions on the block b, as on() gives them, which come first
@@ -114,6 +115,18 @@ function notes(name: string): BoardAction {
 }
 
 describe("core's roles", () => {
+  test("each have one of core's board actions as their default, which can play them", () => {
+    const actions = createBoardActions({ raise: () => () => undefined, preflight: () => true, blockRegistry: () => ({}) });
+
+    for (const role of CORE_ROLES) {
+      expect(checkedPlayer(role, actions.registered().find(({ id }) => id === role.default))).toEqual({ player: expect.objectContaining({ id: role.default }) as unknown });
+    }
+    // Every one of core's board actions but Copy block ID names one of them.
+    expect(actions.registered().filter((action) => !CORE_ROLES.some((role) => role.default === action.id)).map(({ id }) => id)).toEqual([
+      "blockr.core-copy_block_id_action",
+    ]);
+  });
+
   test("are played by core's board actions, so that trigger() and mountAdvanced() take a role's id in place of the board action's", async () => {
     const s = await stubCore();
 
@@ -227,10 +240,57 @@ describe("the roles that a plugin class lists", () => {
     s.stop();
   });
 
+  test.each<[string, readonly BoardAction[], Role, string]>([
+    [
+      "is no board action that the class lists",
+      [],
+      notesRole,
+      'gives the role "notes_role", whose default "blockr.test-notes_action" cannot play it, since it is no board action that the class lists.',
+    ],
+    [
+      "names no role",
+      [action("notes", ["block"])],
+      notesRole,
+      'gives the role "notes_role", whose default "blockr.test-notes_action" cannot play it, since that board action names no role.',
+    ],
+    [
+      "names another role",
+      [action("notes", ["block"], { role: "append_block_role" })],
+      notesRole,
+      'gives the role "notes_role", whose default "blockr.test-notes_action" cannot play it, since that board action names the role "append_block_role".',
+    ],
+    [
+      "names other targets in on than the role",
+      [notes("Notes")],
+      { ...notesRole, on: ["link"] },
+      'gives the role "notes_role", whose default "blockr.test-notes_action" cannot play it, since the on of that board action names "block", where the targets of the role are "link".',
+    ],
+    [
+      "has no advanced action, while callers of the role mount one",
+      [notes("Notes")],
+      { ...notesRole, advanced: true },
+      'gives the role "notes_role", whose default "blockr.test-notes_action" cannot play it, since that board action has no advanced action, which callers of the role mount.',
+    ],
+  ])("refuse the whole class where a role's default %s, with module_failed about the class, as for any role that breaks a rule", async (_rule, actions, role, message) => {
+    const cls = listing("notes", actions, { roles: [role] });
+    const reported = logged();
+    const s = await stubbed([cls]);
+    reported.restore();
+
+    const why = `The plugin class "blockr.test-notes_plugin" ${message}`;
+    expect(raised(s.core, "module_failed")).toEqual([about(cls.id, "module_failed", why)]);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
+    expect(Object.keys(s.core.plugins.appPlugins())).not.toContain(cls.id);
+    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual(ON_BLOCK);
+    await expect(s.core.boardActions.trigger("notes_role", { block: "b" }, { el })).rejects.toThrow('No role "notes_role" is registered.');
+    s.stop();
+  });
+
   test("refuse a class whose role has the id of one of another package's classes, or of one that the class lists before it, naming both packages", async () => {
     const first = listing("first", [notes("First")], { roles: [notesRole] });
     const other: PluginClass = { id: "blockr.other-second_plugin", roles: [notesRole] };
-    const twice = listing("twice", [], { roles: [{ ...notesRole, id: "twice_role" }, { ...notesRole, id: "twice_role" }] });
+    const twiceRole: Role = { ...notesRole, id: "twice_role", default: "blockr.test-twice_action" };
+    const twice = listing("twice", [action("twice", ["block"], { role: "twice_role" })], { roles: [twiceRole, twiceRole] });
     const reported = logged();
     const s = await stubbed([first, other, twice]);
     reported.restore();
@@ -319,21 +379,6 @@ describe("the board action that plays a role", () => {
     expect(Object.hasOwn(s.core.store.board().blocks, "b")).toBe(true);
     s.core.boardActions.mountAdvanced(document.createElement("div"), lost.id, { block: "b" })();
     expect(renders).toEqual([]);
-    s.stop();
-  });
-
-  test("is none where the role's default fails the check of a player, which core logs and raises as module_failed about the class that lists the role, while the board opens", async () => {
-    const reported = logged();
-    const s = await stubbed([listing("notes", [notes("Notes")], { roles: [{ ...notesRole, on: ["link"] }] })]);
-    reported.restore();
-
-    const why =
-      'No board action plays the role "notes_role", since its default is the board action "blockr.test-notes_action", and the on of that board action names "block", where the targets of the role are "link".';
-    expect(raised(s.core, "module_failed")).toEqual([about("blockr.test-notes_plugin", "module_failed", why)]);
-    expect(reported.errors().map((line) => line.message)).toEqual([why]);
-    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual(ON_BLOCK);
-    await s.core.boardActions.trigger("notes_role", { block: "b" }, { el });
-    expect(s.core.store.board().blocks.b?.name).toBe("Head");
     s.stop();
   });
 

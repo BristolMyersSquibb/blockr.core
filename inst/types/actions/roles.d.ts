@@ -23,4 +23,4 @@ export declare function checkedPlayer(role: Role, action: BoardAction | undefine
 };
 export declare function batchFailure(role: Role, board: Board, registry: BlockRegistry, target: Target, batch: readonly CommandCall[]): string | undefined;
 export declare function described(role: Role): string;
-export declare function checkedRoles(plugin: PluginClassId, given: unknown, taken: ReadonlyMap<string, string>): readonly Role[];
+export declare function checkedRoles(plugin: PluginClassId, given: unknown, taken: ReadonlyMap<string, string>, actions: readonly BoardAction[]): readonly Role[];
