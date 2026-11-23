@@ -170,7 +170,12 @@ export const CORE_ROLES: readonly Role[] = [
     id: "edit_inputs_role",
     on: ["block"],
     default: "blockr.core-edit_inputs_action",
-    commands: [REMOVE_LINK, CHANGE_LINK, ADD_LINK, MOVE_LINK].map((id) => ({ id, repeats: true, fixes: intoBlock })),
+    commands: [
+      { id: REMOVE_LINK, repeats: true, fixes: intoBlock },
+      { id: CHANGE_LINK, repeats: true, fixes: intoBlock },
+      { id: ADD_LINK, repeats: true, fixes: names("block", "to") },
+      { id: MOVE_LINK, repeats: true, fixes: intoBlock },
+    ],
   },
   {
     id: "edit_stack_role",
@@ -244,15 +249,19 @@ function takesBlocks(board: Board, target: Target, args: Json): boolean {
   return taken.length === held.length && held.every((block) => taken.includes(block));
 }
 
-// The fixes of Edit inputs' commands: the link that the call names goes into
-// the block that the target names, and still does after it, or the link that
-// it adds does.
+// The fixes of Edit inputs' remove_link, change_link and move_link: the link
+// that the call names goes into the block that the target names, and still
+// does after it where the call gives `to`. A link that the board does not hold
+// yet passes, where the call gives no other block. It is one that an add_link
+// earlier in the batch adds, which its own fixes keeps to the block, as Edit
+// inputs moves an input that the user added, or none, which the command
+// registry refuses.
 function intoBlock(board: Board, target: Target, args: Json): boolean {
   if (!("block" in target)) return false;
   const id = getAt(args, ["id"]);
   const link = typeof id === "string" ? own(board.links, id) : undefined;
   const to = getAt(args, ["to"]);
-  return link === undefined ? to === target.block : link.to === target.block && (to === undefined || to === target.block);
+  return (link === undefined || link.to === target.block) && (to === undefined || to === target.block);
 }
 
 // A fixes by which the call removes a board object of the kind given that the

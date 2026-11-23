@@ -593,6 +593,25 @@ describe("the check of a batch against one of core's roles", () => {
       undefined,
     ],
     [
+      "adds an input to a variadic block and moves it among the others, in one batch",
+      "edit_inputs_role",
+      { block: "e" },
+      [
+        call("add_link", { id: "n1", from: "a", to: "e" }),
+        call("move_link", { id: "n1" }),
+        call("move_link", { id: "be" }),
+        call("move_link", { id: "de" }),
+      ],
+      undefined,
+    ],
+    [
+      "adds an input to another block",
+      "edit_inputs_role",
+      { block: "e" },
+      [call("add_link", { from: "a", to: "c" })],
+      'the args of its call 1, of "blockr.core-add_link", do not keep what the target fixes',
+    ],
+    [
       "removes a link into another block",
       "edit_inputs_role",
       { block: "c" },

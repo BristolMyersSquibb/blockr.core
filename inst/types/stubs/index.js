@@ -12564,7 +12564,12 @@ var CORE_ROLES = [
     id: "edit_inputs_role",
     on: ["block"],
     default: "blockr.core-edit_inputs_action",
-    commands: [REMOVE_LINK2, CHANGE_LINK4, ADD_LINK4, MOVE_LINK3].map((id2) => ({ id: id2, repeats: true, fixes: intoBlock }))
+    commands: [
+      { id: REMOVE_LINK2, repeats: true, fixes: intoBlock },
+      { id: CHANGE_LINK4, repeats: true, fixes: intoBlock },
+      { id: ADD_LINK4, repeats: true, fixes: names("block", "to") },
+      { id: MOVE_LINK3, repeats: true, fixes: intoBlock }
+    ]
   },
   {
     id: "edit_stack_role",
@@ -12629,7 +12634,7 @@ function intoBlock(board, target2, args) {
   const id2 = getAt(args, ["id"]);
   const link = typeof id2 === "string" ? own(board.links, id2) : void 0;
   const to = getAt(args, ["to"]);
-  return link === void 0 ? to === target2.block : link.to === target2.block && (to === void 0 || to === target2.block);
+  return (link === void 0 || link.to === target2.block) && (to === void 0 || to === target2.block);
 }
 function selected(kind) {
   return (board, target2, args) => {
