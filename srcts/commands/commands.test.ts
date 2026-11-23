@@ -74,6 +74,40 @@ const placed: PluginClass = {
   },
 };
 
+// An afterStep for the class of `placed`, which places each block that a
+// step adds one further along than the block that it reads from, by the links
+// of the board that the step leaves, as the DAG places what Append block adds.
+const placeAfterSource: NonNullable<PluginClass["afterStep"]> = (board, before, plugin) => {
+  const { positions } = board.plugins[plugin] as { readonly positions: Readonly<Record<string, { readonly x: number }>> };
+  return Object.keys(board.blocks)
+    .filter((id) => !Object.hasOwn(before.blocks, id))
+    .map((id) => {
+      const from = Object.values(board.links).find((link) => link.to === id)?.from;
+      const x = from === undefined ? 0 : (positions[from]?.x ?? 0) + 1;
+      return { op: "add", path: `/plugins/${plugin}/positions/${id}`, value: { x } };
+    });
+};
+
+// A store and its command registry on the board of a core app that runs the
+// plugin of `placed`, which holds a position for block d, with the afterStep
+// given.
+async function setupPlacing(
+  afterStep: NonNullable<PluginClass["afterStep"]> = placeAfterSource,
+): Promise<{ store: Store; commands: Commands }> {
+  const store = await openedStore(
+    (store) => store.plugins.register({ ...placed, afterStep }),
+    withPlugins({ [placed.id]: { name: "Placed", state: { positions: { d: { x: 4 } } } } }),
+  );
+  return { store, commands: createCommands(store) };
+}
+
+// The commands of a batch that adds block g and then links block d to it, as
+// Append block does.
+const appendG: readonly { readonly id: string; readonly args?: Json }[] = [
+  { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "g" } },
+  { id: "blockr.core-add_link", args: { from: "d", to: "g", id: "dg" } },
+];
+
 // A command of another package that names block "b" after the board, which
 // reads the board that it is planned on.
 function nameB(run = vi.fn((board: Board) => ({ blocks: { mod: { b: { name: board.name } } } }))): Command {
@@ -685,6 +719,19 @@ describe("running a list", () => {
     expect(store.canUndo("assistant")).toBe(false);
   });
 
+  test("has the afterStep of a plugin's class place what the batch adds by the links of its later commands, in the batch's one step", async () => {
+    const { store, commands } = await setupPlacing();
+    const seen = origins(store);
+
+    await commands.run(appendG, "assistant");
+
+    expect(store.board().plugins[placed.id]).toEqual({ positions: { d: { x: 4 }, g: { x: 5 } } });
+    expect(seen).toEqual(["assistant", "assistant", "assistant"]);
+    store.undo("assistant");
+    expect(store.board().blocks.g).toBeUndefined();
+    expect(store.board().plugins[placed.id]).toEqual({ positions: { d: { x: 4 } } });
+  });
+
   test("applies a list whose commands do not prepare before run() returns", async () => {
     const { store, commands } = await setup();
 
@@ -1002,6 +1049,20 @@ describe("planning a list", () => {
     store.apply(planned, "assistant");
     expect(store.board().blocks.b).toMatchObject({ state: { n: 7 }, name: "Top" });
     expect(store.board().blocks.g?.state).toMatchObject({ n: 3 });
+  });
+
+  test("plans each command on the board between the deltas of the step, where no afterStep has run, and returns none of what afterStep returns, which the store adds as the plan applies", async () => {
+    const afterStep = vi.fn(placeAfterSource);
+    const { store, commands } = await setupPlacing(afterStep);
+
+    const planned = await commands.plan(appendG);
+
+    expect(afterStep).not.toHaveBeenCalled();
+    expect(planned).toHaveLength(2);
+    expect(planned.some((delta) => delta.patches !== undefined)).toBe(false);
+    store.apply(planned);
+    expect(afterStep).toHaveBeenCalledTimes(1);
+    expect(store.board().plugins[placed.id]).toEqual({ positions: { d: { x: 4 }, g: { x: 5 } } });
   });
 
   test("gives the deltas of a command with undo: false undo: false, so that a plan applied later keeps them out of its undo step", async () => {

@@ -909,6 +909,15 @@
   Where the store refuses a board action that one of these menus ran, the plugin says why in a banner below the table or the bar, until the user opens one of the menus there again.
   The reason starts with a sentence that names the edit: in the plugin's own words for core's board actions, as `Could not remove the stack "Input".`, and by its label for another package's, as `Add to document failed for the block "Filter".`
   The tables draw with the `Table` of core's React SDK (#783).
+* A plugin class may give `afterStep(board, before, plugin)`, which returns the patches to its plugin's state that follow from a step as a whole.
+  The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.
+  It gets the board that the step leaves and the board that the step started from.
+  The store applies what every class returns as one more delta of the step.
+  It expands that delta through the `update` of each class and checks it as any other delta, so that the patches are undone, saved and announced with the step.
+  So the DAG can place a block that a batch adds and then links by that link, which `update` has not seen yet as it is given the block's delta.
+  Every class gets the board that the step's own deltas leave, so that what one class returns does not depend on the order of the app's plugins.
+  Where the step's own deltas take no undo step, as those of a command with `undo: false`, the patches of `afterStep` take none either.
+  The store's `dryRun()` calls no `afterStep`, since the command registry plans each command of a batch on the board between the deltas of the step (#834).
 
 # blockr.core 0.1.4
 

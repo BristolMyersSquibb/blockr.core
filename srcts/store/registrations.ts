@@ -31,9 +31,9 @@ import type { Delta, Patch } from "./delta.ts";
 // class meet at the id.
 // A class sets any mix of its members, or none of `ui`, `frontend` and
 // `storage`, as a plugin without a place on the screen does.
-// The store reads `state`, `update` and `migrate`, and core tells a frontend
-// and a storage plugin by `frontend` and `storage`, of which an app runs one
-// and one at most, and reads the rest.
+// The store reads `state`, `update`, `afterStep` and `migrate`, and core
+// tells a frontend and a storage plugin by `frontend` and `storage`, of which
+// an app runs one and one at most, and reads the rest.
 // An app runs at most one plugin of each class, so a plugin is named by the id
 // of its class.
 // What sits inside a plugin's state is the class's own design, and the store
@@ -62,6 +62,19 @@ export interface PluginClass {
   // every peer that applies a change computes the same patches.
   // It mints an id only into the step it is part of.
   update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
+  // The patches to the state of the class's plugin that follow from a step as
+  // a whole, once its last delta is in. The DAG's class places a block that a
+  // batch adds and then links by that link, which `update` has not seen yet as
+  // it is given the block's delta.
+  // The store calls it where the board holds the plugin's state, after every
+  // step that changes the board, undos and redos included. It gets the board
+  // that the step leaves and the board that the step started from.
+  // The store applies what it returns as one more delta of the step, which it
+  // expands and checks as any other, so that the patches are undone, saved and
+  // announced with the step.
+  // It reads only the two boards, so that every peer computes the same
+  // patches.
+  afterStep?(board: Board, before: Board, plugin: PluginClassId): readonly Patch[];
   // Converts the plugin's state, as a JSON board holds it, from the version of
   // the class that the board records to the one that R's `plugin_version()`
   // gives, and returns it as the board then holds it, so that what it leaves
@@ -277,7 +290,7 @@ export function createRegistrations(
     // A package that writes its JS without types may give members of the
     // wrong kind.
     const given = def as unknown as Readonly<Record<string, unknown>>;
-    for (const [member, article] of [["update", "an"], ["migrate", "a"], ["start", "a"]] as const) {
+    for (const [member, article] of [["update", "an"], ["afterStep", "an"], ["migrate", "a"], ["start", "a"]] as const) {
       if (given[member] !== undefined && typeof given[member] !== "function") {
         throw new Error(`The plugin class "${id}" has ${article} ${member} that is no function.`);
       }
