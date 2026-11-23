@@ -919,6 +919,13 @@
   Assistive technology hears an item that gives `checked` as a checkbox of the menu, checked or not.
   Picking the item runs its `pick()`, as for any item.
   The `level()` of a `StubMenu` gives the item's `checked`, so that a test reads which item is checked (#837).
+* The store's `read()` gives the board that opening a JSON board's text would give, and what opening it would drop, as the DAG's Paste reads a copied board.
+  It opens the text as `check()` does and holds nothing, so the board on the page stays as it is.
+  The board it gives is migrated by the versions that the text records, and lacks what opening would drop.
+  It rejects with the `StoreError` that would refuse the board.
+  Unlike `check()`, it reads a text under the load lock as well, since the load lock fixes only which board the app shows.
+  Through `CoreApi`, core first imports the migrations of the block classes whose older states the text holds, as it does before it opens a board.
+  It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
 
 # blockr.core 0.1.4
 

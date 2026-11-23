@@ -78,6 +78,21 @@ describe("the CoreApi for tests", () => {
     expect(output[0]).toMatchObject({ block: "b", revision: after.scheduler.status("b")?.revision });
   });
 
+  test("reads a board through the store, as the DAG's Paste reads a copied board, holding nothing", async () => {
+    const { core, sent, stop } = await stubCore();
+    const board = core.store.board();
+    const requests = sent.length;
+
+    const read = await core.store.read(JSON.stringify({ ...HELLO.board, board: { ...HELLO.board.board, name: "Copied" } }));
+
+    expect(read.board.name).toBe("Copied");
+    expect(Object.keys(read.board.blocks)).toEqual(Object.keys(HELLO.board.board.blocks));
+    expect(read.dropped).toEqual([]);
+    expect(core.store.board()).toBe(board);
+    expect(sent.slice(requests)).toEqual([]);
+    stop();
+  });
+
   test("evaluates what is demanded, as R replies ok to every evaluation", async () => {
     const { core, settled } = await stubCore();
     core.scheduler.demand("test", ["b"]);
