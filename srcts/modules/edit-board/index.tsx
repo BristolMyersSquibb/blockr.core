@@ -16,11 +16,10 @@
 // of a menu, so that undo takes back each one, and the plugin keeps nothing
 // staged.
 // Where the store or the command registry refuses an edit, the plugin says why
-// close to the control that made it: a form below its buttons, and a table or
-// the bar of the selection below itself, for a board action that one of its
-// menus ran, until the next board action that one of those menus runs. It
-// takes the notifications through the notifier of done() or of menu(), so
-// that core raises none.
+// close to the control that made it: below the buttons of a form, and below
+// the table or the bar of the selection whose menu ran the board action,
+// until the user opens one of those menus again. It takes the notifications
+// through the notifier of done() or of menu(), so that core raises none.
 // It keeps no state, so the board holds nothing for it.
 // It works on the board through CoreApi alone, and is written in React, on the
 // one copy of React that core puts on the page, in a root of its own.

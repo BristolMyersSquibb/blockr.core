@@ -906,7 +906,7 @@
   The checkbox in a table's header ticks every row of the page.
   While the selection holds a board object, a bar above the sections says how many it holds, with a "…" button that opens the menu of the selection and a button that clears the selection.
   An advanced action that the menu of the selection opens, such as the form of Create stack, shows below the bar.
-  Where the store refuses a board action that one of these menus ran, the table or the bar says why below itself, until the next board action that one of its menus runs.
+  Where the store refuses a board action that one of these menus ran, the plugin says why in a banner below the table or the bar, until the user opens one of the menus there again.
   The reason starts with a sentence that names the edit: in the plugin's own words for core's board actions, as `Could not remove the stack "Input".`, and by its label for another package's, as `Add to document failed for the block "Filter".`
   The tables draw with the `Table` of core's React SDK (#783).
 

@@ -15,8 +15,8 @@
 //   Append block, shows in the row.
 // Where the store or the command registry refuses an edit, the picker says why
 // below its button. Where it refuses a board action that a row's menu ran,
-// the table says so below itself, naming the block, until the next board
-// action that one of the table's menus runs.
+// the plugin shows why in a banner below the table, naming the block, until
+// the user opens the menu of one of the table's rows again.
 
 import type { ReactElement } from "react";
 import { styles } from "../../styles/index.ts";

@@ -11,9 +11,9 @@
 //   the stack's blocks on the board.
 // The table draws a stack's colour with the swatch of core's React SDK.
 // Where the store or the command registry refuses a board action that a row's
-// menu ran, the table says so below itself, naming the stack, until the next
-// board action that one of the table's menus runs. The forms say why below
-// themselves.
+// menu ran, the plugin shows why in a banner below the table, naming the
+// stack, until the user opens the menu of one of the table's rows again. The
+// forms say why below themselves.
 // Under the board lock, it lists the stacks alone, and a row shows no "…"
 // unless another package's board action applies to its stack.
 

@@ -1113,7 +1113,7 @@ describe("each edit", () => {
     expect(Object.values(board().links)).toContainEqual({ from: "f", to: "e", input: "" });
   });
 
-  test("that the store refuses from the menu of a row, the table says why below itself, naming the edit in the plugin's words, until the next board action that one of the table's menus runs, and core raises no notification of it", async () => {
+  test("that the store refuses from the menu of a row, the plugin says why below the table, naming the edit in the plugin's words, until the user opens the menu of a row of the table again, and core raises no notification of it", async () => {
     const m = await mounted();
     const { el, core, board, notes } = m;
     const links = section(el, "Links");
@@ -1138,11 +1138,12 @@ describe("each edit", () => {
     expect(held(core)).toEqual([]);
     expect(notes).toEqual([]);
 
-    // A menu that runs nothing leaves the reason.
-    (await openMenu(m, "Actions of the link from Iris to Head")).escape();
+    // The menu of a row of another table leaves the banner.
+    (await openMenu(m, "Actions of the block Head")).escape();
     expect(belowTable(links)).toHaveLength(1);
-    // The next board action that one of the table's menus runs takes it away.
-    await pick(await openMenu(m, "Actions of the link from Iris to Scatter"), "Remove link");
+    // The menu of a row of this table takes it down as it opens, even where
+    // the user then picks nothing.
+    (await openMenu(m, "Actions of the link from Iris to Head")).escape();
     expect(belowTable(links)).toEqual([]);
   });
 
@@ -1174,6 +1175,10 @@ describe("each edit", () => {
     expect(refusals(bar(el) ?? el)).toEqual([["Archive failed for the selection.", 'It fails its preflight on the board as it is, with the args {"id":"nowhere"}.']]);
     expect(belowTable(section(el, "Blocks"))).toEqual([]);
     expect(held(core)).toEqual([]);
+
+    // The menu of the selection takes the banner down as it opens again.
+    (await openMenu(m, "Actions of the selection")).escape();
+    expect(refusals(bar(el) ?? el)).toEqual([]);
   });
 
   test("that the store would refuse from a form that adds to the board has no form to start from, since core's board actions that add fail their offers under the board lock, whatever the plugin's CoreApi says", async () => {

@@ -13,9 +13,9 @@
 //   that the menu opens, such as the form of Edit link, shows in the row,
 //   which turns into the form until done() ends it or the user closes it.
 // Where the store or the command registry refuses a board action that a row's
-// menu ran, the table says so below itself, naming the link, until the next
-// board action that one of the table's menus runs. The forms say why below
-// themselves.
+// menu ran, the plugin shows why in a banner below the table, naming the
+// link, until the user opens the menu of one of the table's rows again. The
+// forms say why below themselves.
 // Under the board lock, it lists the links alone, and a row shows no "…"
 // unless another package's board action applies to its link.
 

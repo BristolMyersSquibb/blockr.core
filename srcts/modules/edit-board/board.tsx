@@ -25,8 +25,8 @@
 // the last one left it, a block that the user just added among it.
 // Where the store or the command registry refuses an edit, the plugin says why
 // close to the control that made it, in a banner in the colour of an error,
-// under a sentence that names the edit: a form below its buttons, and a table
-// or the bar below itself, for a board action that one of its menus ran.
+// under a sentence that names the edit: below the buttons of a form, and below
+// the table or the bar whose menu ran the board action.
 // Under the board lock, the store refuses what every board action of core's
 // but Copy block ID runs, so they fail their offers. The plugin then mounts no
 // form, and its rows and its bar show no "…" unless another package's board
@@ -182,8 +182,8 @@ export const WRAP = "bc:whitespace-normal! bc:break-words";
 // a checkbox that selects each row's object, ticked where core.selection holds
 // it, then the columns given, then a column with the "…" button of each row
 // whose object a board action applies to, where any row has one. The menus
-// are those of the table's section, which shows below the table why the store
-// refused a board action that one of them ran.
+// are those of the table's section, which shows the banner of a board action
+// that the store refused below the table.
 // A row whose menu opened an advanced action turns into the form, in a cell
 // across the row, which keeps the row's checkbox.
 // The checkbox in the header ticks every row of the page, or unticks them.

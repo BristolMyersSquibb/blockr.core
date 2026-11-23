@@ -15545,13 +15545,10 @@ function useMenus(core) {
   );
   const open = useCallback9(
     (target2, key2, button) => {
+      setRefusal(null);
       core.boardActions.menu(target2, {
         el: button,
         anchor: button.getBoundingClientRect(),
-        extend: () => {
-          setRefusal(null);
-          return [];
-        },
         notifier: (notifications, action2) => {
           setRefusal({ title: editTitle(core.store.board(), action2, target2), reasons: notifiedReasons(notifications) });
         },

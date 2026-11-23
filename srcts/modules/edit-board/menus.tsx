@@ -8,7 +8,7 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-menus-of-board-objects).
 // The plugin draws the button that opens a menu, a "…", only where
 // core.boardActions.on() gives the target a board action.
-// Beside the button, the plugin hands menu() three things:
+// Beside the button, the plugin hands menu() two things:
 // - A place for the advanced actions that the menu opens, such as the form of
 //   Edit link. A row's menu shows its form in the row, which turns into the
 //   form, in a cell across the row. The selection's menu shows its form below
@@ -17,14 +17,15 @@
 //   then goes back to the button that opened the menu.
 // - A notifier, which takes the notifications of a board action whose batch
 //   the store or the command registry refused, with the board action, so that
-//   core raises none. The table or the bar shows why below itself, until the
-//   next board action that one of its menus runs. The reason starts with a
-//   sentence that names the edit by the board action: in the plugin's own
+//   core raises none. The plugin shows why in a banner below the table whose
+//   row's menu ran the board action, or below the bar. The banner starts with
+//   a sentence that names the edit by the board action: in the plugin's own
 //   words for core's board actions, as `Could not remove the stack "Input".`,
 //   and by its label for another package's, as `Add to document failed for
 //   the block "Filter".`
-// - An extend, which adds no command to the batch. Core calls it as a board
-//   action of the menu runs a batch, and the refusal before goes then.
+// The banner holds until the user opens the menu of a row of the same table,
+// or of the bar, again, even where the user then picks nothing. Core tells
+// the plugin of a board action that it refused, but not of one that ran.
 
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
@@ -44,7 +45,7 @@ import { own } from "../../util/index.ts";
 export interface Menus {
   // Why the store or the command registry refused the last board action that
   // one of the menus ran, or null where none was refused. It holds until the
-  // next board action that one of the menus runs.
+  // user opens one of the menus again.
   readonly refusal: Refused | null;
   // The advanced action that each place shows, by the place's key, such as
   // the id of a row's object.
@@ -129,13 +130,10 @@ export function useMenus(core: CoreApi): Menus {
 
   const open = useCallback(
     (target: Target, key: string, button: HTMLElement) => {
+      setRefusal(null);
       core.boardActions.menu(target, {
         el: button,
         anchor: button.getBoundingClientRect(),
-        extend: () => {
-          setRefusal(null);
-          return [];
-        },
         notifier: (notifications, action) => {
           setRefusal({ title: editTitle(core.store.board(), action, target), reasons: notifiedReasons(notifications) });
         },
