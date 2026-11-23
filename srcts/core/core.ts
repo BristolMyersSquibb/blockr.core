@@ -384,8 +384,8 @@ export function createCore(parts: CoreParts): Core {
 }
 
 // The store and the command registry as plugins see them, through CoreApi.
-// Where either refuses an edit, a command, a list of commands, a delta, an
-// undo or a redo, of whatever origin, core tells the user why through a
+// Where either refuses an edit, a command, a batch, a delta, an undo or a
+// redo, of whatever origin, core tells the user why through a
 // notification of the code `board_edit_failed`, unless the call's notifier
 // takes it, and the call still rejects or throws with the reason, as
 // Notifications has it
@@ -416,10 +416,10 @@ function refusing(store: Store, commands: Commands, refused: Refused): { store: 
       throw error;
     }
   }
-  // Waits for a command, or a list of commands, that the command registry
-  // runs, and tells the user why the command registry or the store refused it,
-  // or hands that to the notifier. It resolves with what the command registry
-  // resolves with.
+  // Waits for a command, or a batch, that the command registry runs, and
+  // tells the user why the command registry or the store refused it, or hands
+  // that to the notifier. It resolves with what the command registry resolves
+  // with.
   function ran(opts: NotifierOpts, run: () => Promise<boolean>): Promise<boolean> {
     let notifier: Notifier | undefined;
     try {
@@ -451,7 +451,7 @@ function refusing(store: Store, commands: Commands, refused: Refused): { store: 
     },
     commands: {
       ...commands,
-      // A list comes with its origin second, in place of the args, and its
+      // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
       run(
         target: string | readonly { readonly id: string; readonly args?: Json }[],
@@ -463,8 +463,8 @@ function refusing(store: Store, commands: Commands, refused: Refused): { store: 
           const origin = typeof third === "string" ? third : undefined;
           return ran(fourth, () => commands.run(target, given, origin));
         }
-        const listed = typeof given === "string" ? given : undefined;
-        return ran(typeof third === "string" ? undefined : third, () => commands.run(target, listed));
+        const batchOrigin = typeof given === "string" ? given : undefined;
+        return ran(typeof third === "string" ? undefined : third, () => commands.run(target, batchOrigin));
       },
     },
   };

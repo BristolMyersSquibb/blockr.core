@@ -6980,8 +6980,8 @@ function command(def) {
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
   failures;
-  // The command's place in the list that run() or plan() was given, counted
-  // from 0, where the command refused as one of a list.
+  // The command's place in the batch that run() or plan() was given, counted
+  // from 0, where the command refused as one of a batch.
   index;
   // False where the command failed its preflight, its preflight() answering
   // false, and left out otherwise, as a command's `undo` is false only where it
@@ -7100,13 +7100,13 @@ function createCommands(store, options = {}) {
       throw failed(command2, error);
     }
   }
-  async function planned(list, then) {
+  async function planned(batch2, then) {
     const within = keepContext();
-    const checked3 = list.map(({ id: id2, args }, index) => {
+    const checked3 = batch2.map(({ id: id2, args }, index) => {
       try {
         return lookup(id2, args);
       } catch (error) {
-        throw inList(index, id2, error);
+        throw inBatch(index, id2, error);
       }
     });
     const [first] = checked3;
@@ -7121,7 +7121,7 @@ function createCommands(store, options = {}) {
       try {
         start2 = current2(first.item.command.id);
       } catch (error) {
-        throw inList(0, first.item.command.id, error);
+        throw inBatch(0, first.item.command.id, error);
       }
       let board = start2;
       for (const [index, { item, args }] of checked3.entries()) {
@@ -7139,18 +7139,18 @@ function createCommands(store, options = {}) {
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
           board = store.dryRun(built);
         } catch (error) {
-          throw inList(index, command2.id, error);
+          throw inBatch(index, command2.id, error);
         }
       }
     }
     return within(() => then(built));
   }
-  function runList(list, origin) {
-    const ids2 = list.map(({ id: id2 }) => id2);
+  function runBatch(batch2, origin) {
+    const ids2 = batch2.map(({ id: id2 }) => id2);
     return traced(
       "command list",
       { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(list, (built) => store.apply(built, origin))
+      () => planned(batch2, (built) => store.apply(built, origin))
     );
   }
   async function traced(name3, attributes, run) {
@@ -7202,11 +7202,11 @@ function createCommands(store, options = {}) {
         return false;
       }
     },
-    // A list comes with its origin second, in place of the args, and its
+    // A batch comes with its origin second, in place of the args, and its
     // options third, in place of the origin. The command registry ignores the
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(target2, given, third) {
-      if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
+      if (typeof target2 !== "string") return runBatch(target2, typeof given === "string" ? given : "user");
       const origin = typeof third === "string" ? third : "user";
       return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
@@ -7235,7 +7235,7 @@ var loggedErrors = /* @__PURE__ */ new WeakSet();
 function isLogged(error) {
   return error instanceof CommandError && loggedErrors.has(error);
 }
-function inList(index, id2, error) {
+function inBatch(index, id2, error) {
   const named4 = error instanceof CommandError || error instanceof StoreError;
   const refused2 = new CommandError(
     `The list of commands was refused at command ${String(index + 1)}, "${id2}"`,
@@ -11060,15 +11060,15 @@ function refusing(store, commands, refused2) {
     },
     commands: {
       ...commands,
-      // A list comes with its origin second, in place of the args, and its
+      // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
       run(target2, given, third, fourth) {
         if (typeof target2 === "string") {
           const origin = typeof third === "string" ? third : void 0;
           return ran(fourth, () => commands.run(target2, given, origin));
         }
-        const listed = typeof given === "string" ? given : void 0;
-        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, listed));
+        const batchOrigin = typeof given === "string" ? given : void 0;
+        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, batchOrigin));
       }
     }
   };

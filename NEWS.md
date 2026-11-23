@@ -308,7 +308,7 @@
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
   Its `request()` sends a request of one of the app's plugins, by the id of the plugin's class, once the blocks that the request reads are evaluated, and keeps none of its answers.
   Its `mintId()` mints an ID in the shape that the blockr option `rand_id` names, as core's commands do.
-  A caller that adds a block and links it in one list of commands mints the block's ID first, since the list hands no value from one command to the next (#695).
+  A caller that adds a block and links it in one batch mints the block's ID first, since a batch hands no value from one command to the next (#695).
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol, takes the modules of plugin classes and board options by their IDs and serves core's own, as the page imports them.
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505, #560).
@@ -456,7 +456,7 @@
   So a plugin class's commands can refuse what its plugins lock, and mint IDs as core's commands do.
   A command throws what `refusal()` makes to refuse from its `preflight()`, `prepare()` or `run()`, and the command registry rejects with it as it is, as with its own refusals.
   Core's own commands read the board lock and mint IDs through the context too.
-  Undo never takes back what a command with `undo: false` changes, whether the command runs alone or in a list.
+  Undo never takes back what a command with `undo: false` changes, whether the command runs alone or in a batch.
   That suits a command that changes only what the user looks at, such as which of the dock's views shows.
   The command registry gives each delta of such a command `undo: false`, and the store applies and announces such a delta as any other, but keeps no inverse of it, as it keeps no board option values.
   A step of which the store keeps no inverse leaves the undo and redo steps as they are.
@@ -466,18 +466,18 @@
   Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
   A new step empties the redo steps, whoever takes it.
   An undo or a redo is a change of the origin that asks for it, `"user"` where none is given (#608).
-* The store's `apply()` returns whether the step took an undo step, and `commands.run()` resolves with that value, for a command alone and for a list.
+* The store's `apply()` returns whether the step took an undo step, and `commands.run()` resolves with that value, for a command alone and for a batch.
   So a plugin, such as the assistant's edit tool, need not work it out from the deltas that it hears.
   It could not always do so, since a delta can set a board option's value and give a block's state the value it holds already: the store keeps no inverse of such a delta, but announces all of it (#725).
-* The command registry takes a list of commands, each as `{ id, args }`, in `commands.run(list, origin)` and `commands.plan(list)`, as the assistant's edit tool runs one.
-  It plans each command on the board that the deltas of the commands before it leave, so that a list can add a block and then link it.
+* The command registry takes a batch of commands, each as `{ id, args }`, in `commands.run(batch, origin)` and `commands.plan(batch)`, as the assistant's edit tool runs one.
+  It plans each command on the board that the deltas of the commands before it leave, so that a batch can add a block and then link it.
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
-  Where the board changes while a command of the list waits in its `prepare()`, the registry plans the list again from its first command, on the board as it is then, and no command prepares twice.
+  Where the board changes while a command of the batch waits in its `prepare()`, the registry plans the batch again from its first command, on the board as it is then, and no command prepares twice.
   The registry applies the deltas of every command as one step of the origin, or applies none where one command refuses.
-  It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
-  The step of a list is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
-  Where the registry refuses a list that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
-  The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
+  It then rejects with a `CommandError` whose `index` gives the command's place in the batch, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
+  The step of a batch is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
+  Where the registry refuses a batch that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
+  The client records a batch in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
 * Core's commands `blockr.core-add_link` and `blockr.core-change_link` check a link in their preflight before the store does.
   The preflight fails for a link that would join a block to itself, close a cycle or feed an input that another link feeds.
   It throws the `refusal()` of the command's context, with a sentence for each failure, such as `The link would close a cycle through the blocks "a", "b" and "d".`
