@@ -912,6 +912,13 @@
   Where the store refuses a board action that one of these menus ran, the plugin says why in a banner below the table or the bar, until the user opens one of the menus there again.
   The reason starts with a sentence that names the edit: in the plugin's own words for core's board actions, as `Could not remove the stack "Input".`, and by its label for another package's, as `Add to document failed for the block "Filter".`
   The tables draw with the `Table` of core's React SDK (#783).
+* An item of a quick action takes `checked`.
+  It is true for the current pick and for a toggle that is on, and false for another pick and for a toggle that is off.
+  So a quick action shows which direction a layout runs in, or whether snapping is on.
+  Core's menu draws a tick at the start of the item while `checked` is true, in a slot that the item keeps while `checked` is false, as it draws the choices of a multi.
+  Assistive technology hears an item that gives `checked` as a checkbox of the menu, checked or not.
+  Picking the item runs its `pick()`, as for any item.
+  The `level()` of a `StubMenu` gives the item's `checked`, so that a test reads which item is checked (#837).
 
 # blockr.core 0.1.4
 
