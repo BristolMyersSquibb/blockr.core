@@ -10455,7 +10455,6 @@ function Item({
     MenuItem,
     {
       id: itemKey(index),
-      tick: "end",
       textValue: label,
       "aria-label": detail === void 0 ? label : `${label}, ${detail}`,
       onAction: onPick,

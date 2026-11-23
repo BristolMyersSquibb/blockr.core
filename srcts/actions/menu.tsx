@@ -17,10 +17,12 @@
 // - The rows that remove in the theme's danger colour, on its danger
 //   background, under the pointer and as the keyboard's row, and plain at
 //   rest, as the design system draws a row that destroys something.
-// - An item that gives `checked` with a check at its end while `checked` is
-//   true, after its detail, as the design system marks the current pick and
-//   a toggle that is on
-//   (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1096-L1112).
+// - An item that gives `checked` with a tick in a slot at its start, which
+//   shows while `checked` is true, as the choices of a multi show theirs.
+//   The tick does not go at the row's end, where the design system marks the
+//   current pick and a toggle that is on
+//   (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1096-L1112),
+//   since the open icon of an item that gives `advanced` is there.
 // Assistive technology hears an item that gives `checked` as a checkbox of
 // the menu, checked or not, as in blockr.ui's own menu
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/js/blockr-ui.js#L1112-L1117).
@@ -403,9 +405,8 @@ function groups(listed: readonly { row: ShownRow; i: number }[]): Group[] {
 // not picked. The open icon carries the item's index, by which Mod+Enter on
 // the item finds it, and the tooltip, which assistive technology reads as the
 // item's description. The item's name is given, so that it holds no more
-// than its label and its detail. The item's `tick` is "end", so the SDK's
-// item draws the check at the item's end, after the open icon, while the
-// item's section picks the item.
+// than its label and its detail. In a section that picks, as for an item
+// that gives `checked`, the SDK's item draws its tick in a slot at its start.
 function Item({
   row,
   index,
@@ -424,7 +425,6 @@ function Item({
   return (
     <MenuItem
       id={itemKey(index)}
-      tick="end"
       textValue={label}
       aria-label={detail === undefined ? label : `${label}, ${detail}`}
       onAction={onPick}

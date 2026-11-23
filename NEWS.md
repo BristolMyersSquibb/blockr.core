@@ -912,12 +912,10 @@
 * An item of a quick action takes `checked`.
   It is true for the current pick and for a toggle that is on, and false for another pick and for a toggle that is off.
   So a quick action shows which direction a layout runs in, or whether snapping is on.
-  Core's menu draws a check at the end of the item while `checked` is true, after its `detail`, as the design system of blockr.ui marks the current pick and a toggle that is on.
+  Core's menu draws a tick at the start of the item while `checked` is true, in a slot that the item keeps while `checked` is false, as it draws the choices of a multi.
   Assistive technology hears an item that gives `checked` as a checkbox of the menu, checked or not.
   Picking the item runs its `pick()`, as for any item.
-  The `level()` of a `StubMenu` gives the item's `checked`, so that a test reads which item is checked.
-  The `MenuItem` of core's React SDK takes `tick`.
-  Where `tick` is `"end"`, the item draws its tick at its end, and keeps no slot for it at its start (#837).
+  The `level()` of a `StubMenu` gives the item's `checked`, so that a test reads which item is checked (#837).
 
 # blockr.core 0.1.4
 

@@ -86,9 +86,9 @@ export type QuickRow =
   // Its `advanced` is what its open icon hands the advanced action.
   // An item that offers a pick or a toggle gives `checked`. It is true for the
   // current pick and for a toggle that is on, and false for another pick and
-  // for a toggle that is off. A check shows at the item's end while `checked`
-  // is true. Picking the item runs its pick, as for any item, since the check
-  // only shows what holds.
+  // for a toggle that is off. A tick shows at the item's start while
+  // `checked` is true. Picking the item runs its pick, as for any item, since
+  // the tick only shows what holds.
   | {
       readonly kind: "item";
       readonly label: string;

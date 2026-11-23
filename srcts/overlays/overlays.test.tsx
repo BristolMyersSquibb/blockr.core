@@ -1,7 +1,7 @@
 // The overlays of core's React SDK, React Aria's in core's theme: what core
 // adds to them, where they stack, the tooltip and its trigger, the dialog that
-// asks, where the popover leaves the focus, the sheet, the submenu, where the
-// menu's items show their tick, and the toasts.
+// asks, where the popover leaves the focus, the sheet, the submenu and the
+// toasts.
 // The rest, such as the keys that move through a menu, is React Aria's.
 
 import type { ReactElement } from "react";
@@ -19,7 +19,6 @@ import {
   Focusable,
   Menu,
   MenuItem,
-  MenuSection,
   MenuTrigger,
   Modal,
   Popover,
@@ -318,44 +317,6 @@ describe("the submenu", () => {
     await click(menuItem(openMenu("Older"), "Version 1"));
     expect(onAction).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[role="menu"]')).toBeNull();
-  });
-});
-
-describe("the menu's items", () => {
-  test("show the tick of a pick in a slot at their start, which they keep while not picked, or at their end, without a slot, where their tick is end", async () => {
-    await draw(
-      <Menu aria-label="View">
-        <MenuSection aria-label="Shows" selectionMode="multiple" selectedKeys={["grid"]}>
-          <MenuItem id="grid">Grid</MenuItem>
-          <MenuItem id="ruler">Ruler</MenuItem>
-        </MenuSection>
-        <MenuSection aria-label="Snapping" selectionMode="multiple" selectedKeys={["snap"]}>
-          <MenuItem id="snap" tick="end">
-            Snap to grid
-          </MenuItem>
-          <MenuItem id="guides" tick="end">
-            Guides
-          </MenuItem>
-        </MenuSection>
-      </Menu>,
-    );
-
-    const items = [...openMenu("View").querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
-    expect(items.map((item) => [item.textContent, item.getAttribute("aria-checked")])).toEqual([
-      ["Grid", "true"],
-      ["Ruler", "false"],
-      ["Snap to grid", "true"],
-      ["Guides", "false"],
-    ]);
-    // Whether the first and the last part of each item hold the tick, and how
-    // many parts each has.
-    const ticks = (part: Element | null): boolean => part?.querySelector("svg") !== null;
-    expect(items.map((item) => [ticks(item.firstElementChild), ticks(item.lastElementChild), item.children.length])).toEqual([
-      [true, false, 2],
-      [false, false, 2],
-      [false, true, 2],
-      [false, false, 1],
-    ]);
   });
 });
 

@@ -1,8 +1,8 @@
 // Core's menu, as React draws it on the page: the menu of a target with the
 // icons, the details and the categories of its rows, the levels that it
-// shows in place of each other, a text row, the filter, a multi, the check of
-// an item, a level that loads or failed, the open icons of a level and of an
-// item, and the keyboard's focus as the menu closes.
+// shows in place of each other, a text row, the filter, a multi, the tick of
+// an item that gives checked, a level that loads or failed, the open icons of
+// a level and of an item, and the keyboard's focus as the menu closes.
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
@@ -299,7 +299,7 @@ describe("core's menu", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  test("draws a check at the end of an item while its checked is true, after its detail, which assistive technology hears as a checkbox of the menu, checked or not, and runs the item's pick on a click and on Enter", async () => {
+  test("draws a tick in a slot at the start of an item that gives checked, while checked is true, which assistive technology hears as a checkbox of the menu, checked or not, and runs the item's pick on a click and on Enter", async () => {
     const layout = action("Layout", {
       quick: () => ({
         rows: [
@@ -324,17 +324,15 @@ describe("core's menu", () => {
       ["menuitemcheckbox", "true"],
       ["menuitem", null],
     ]);
-    // The check is the last part of its row, after the detail, and no row
-    // keeps a slot for a tick at its start.
-    expect(rows.map((each) => each.lastElementChild?.querySelector("svg") !== null && each.lastElementChild?.textContent === "")).toEqual([
-      false,
-      true,
-      false,
-      true,
-      false,
-    ]);
+    // Each item that gives checked keeps a slot at its start, which holds the
+    // tick while checked is true, and the other items keep none.
+    const slots = rows.map((each) => {
+      const first = each.firstElementChild;
+      if (first?.classList.contains("bc:size-3.5") !== true) return "none";
+      return first.querySelector("svg") === null ? "empty" : "tick";
+    });
+    expect(slots).toEqual(["none", "tick", "empty", "tick", "none"]);
     expect(row(menu, "Snap to grid, 20 px").textContent).toBe("Snap to grid20 px");
-    expect(rows.map((each) => each.firstElementChild?.classList.contains("bc:size-3.5"))).toEqual([false, false, false, false, false]);
     // Each heading shows once, over all of its items.
     expect([...menu.querySelectorAll("header")].map((header) => header.textContent)).toEqual(["Direction", "Grid"]);
     await click(row(menu, "Top to bottom"));

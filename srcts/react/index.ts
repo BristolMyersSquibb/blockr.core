@@ -136,7 +136,6 @@ export {
 export type {
   AlertDialogProps,
   CommandPaletteProps,
-  MenuItemProps,
   MenuSectionProps,
   MenuTriggerProps,
   QueuedToast,

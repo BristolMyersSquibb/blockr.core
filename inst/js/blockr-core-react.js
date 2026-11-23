@@ -1204,12 +1204,11 @@ function SubmenuTrigger({ children, ...props }) {
 function Menu({ className, ...props }) {
   return /* @__PURE__ */ jsx11(AriaMenu, { ...props, className: composeRenderProps9(className, (given) => `${MENU} ${given ?? ""}`) });
 }
-function MenuItem({ tick = "start", ...props }) {
+function MenuItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
   return /* @__PURE__ */ jsx11(AriaMenuItem, { ...props, textValue, className: composeRenderProps9(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps9(props.children, (children, { selectionMode, isSelected, hasSubmenu }) => /* @__PURE__ */ jsxs8(Fragment6, { children: [
-    selectionMode === "none" || tick === "end" ? null : /* @__PURE__ */ jsx11("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx11(Tick, {}) : null }),
+    selectionMode === "none" ? null : /* @__PURE__ */ jsx11("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx11(Tick, {}) : null }),
     /* @__PURE__ */ jsx11("span", { className: CONTENT, children }),
-    tick === "end" && isSelected ? /* @__PURE__ */ jsx11("span", { className: "bc:flex bc:shrink-0 bc:text-bg-accent", children: /* @__PURE__ */ jsx11(Tick, {}) }) : null,
     hasSubmenu ? /* @__PURE__ */ jsx11(ChevronRight, { size: 14 }) : null
   ] })) });
 }
