@@ -15,6 +15,7 @@ export type QuickRow = {
     readonly icon?: string;
     readonly detail?: string;
     readonly category?: BoardAction["category"];
+    readonly checked?: boolean;
     pick(): readonly CommandCall[] | QuickLevel | Promise<readonly CommandCall[] | QuickLevel>;
     readonly advanced?: Json;
 } | {

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "./vendor-02042ca6.js";
+import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "./vendor-c5b8952d.js";
 import { TextField } from "@blockr/core/react";
 import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
 
@@ -198,21 +198,30 @@ function Level({
         children: group.row.choices.map((choice) => /* @__PURE__ */ jsx(MenuItem, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
       },
       `multi-${String(group.i)}`
-    ) : /* @__PURE__ */ jsx(MenuSection, { id: `items-${String(group.items[0]?.i ?? g)}`, title: group.heading, children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx(
-      Item,
+    ) : /* @__PURE__ */ jsx(
+      MenuSection,
       {
-        row,
-        index: i,
-        tip,
-        onPick: () => {
-          pick(i);
-        },
-        onOpen: () => {
-          openAdvanced(i);
-        }
+        id: `items-${String(group.items[0]?.i ?? g)}`,
+        title: group.continues ? void 0 : group.heading,
+        ...group.checks ? { selectionMode: "multiple", selectedKeys: group.items.filter(({ row }) => row.checked === true).map(({ i }) => itemKey(i)) } : {},
+        children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx(
+          Item,
+          {
+            row,
+            index: i,
+            tip,
+            onPick: () => {
+              pick(i);
+            },
+            onOpen: () => {
+              openAdvanced(i);
+            }
+          },
+          i
+        ))
       },
-      i
-    )) }, `items-${String(group.items[0]?.i ?? g)}`);
+      `items-${String(group.items[0]?.i ?? g)}`
+    );
     return divider ? [/* @__PURE__ */ jsx(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
   }) });
   return /* @__PURE__ */ jsxs(Fragment, { children: [
@@ -281,13 +290,17 @@ function groups(listed) {
       continue;
     }
     const last = all.at(-1);
-    if (last?.kind === "items" && last.heading === row.heading && last.category === row.category) {
+    const checks = row.checked !== void 0;
+    const under = last?.kind === "items" && last.heading === row.heading && last.category === row.category;
+    if (under && last.checks === checks) {
       last.items.push({ row, i });
     } else {
       all.push({
         kind: "items",
         ...row.heading === void 0 ? {} : { heading: row.heading },
         ...row.category === void 0 ? {} : { category: row.category },
+        checks,
+        continues: under,
         items: [{ row, i }]
       });
     }
@@ -306,6 +319,7 @@ function Item({
   return /* @__PURE__ */ jsxs(
     MenuItem,
     {
+      id: itemKey(index),
       textValue: label,
       "aria-label": detail === void 0 ? label : `${label}, ${detail}`,
       onAction: onPick,
@@ -376,7 +390,7 @@ function OpenIcon() {
 function openRow(target) {
   if (!(target instanceof Element)) return void 0;
   const active = isFilter(target) ? target.getAttribute("aria-activedescendant") : null;
-  const item = active === null ? target.closest('[role="menuitem"]') : target.ownerDocument.getElementById(active);
+  const item = active === null ? target.closest('[role="menuitem"], [role="menuitemcheckbox"]') : target.ownerDocument.getElementById(active);
   const marked = item?.querySelector("[data-open-row]")?.getAttribute("data-open-row");
   return marked === void 0 || marked === null ? void 0 : Number(marked);
 }
@@ -403,6 +417,9 @@ function TextRow({
       }
     }
   );
+}
+function itemKey(row) {
+  return String(row);
 }
 function choiceKey(row, choice) {
   return `${String(row)}:${choice}`;

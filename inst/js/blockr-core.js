@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-02042ca6.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-c5b8952d.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -256,7 +256,7 @@ function checkRaised(notification) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-02042ca6.js";
+import { Validator } from "./vendor-c5b8952d.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -3793,10 +3793,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-02042ca6.js";
+import { computed as computed3, signal as signal4 } from "./vendor-c5b8952d.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-02042ca6.js";
+import { signal as signal3 } from "./vendor-c5b8952d.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -5899,7 +5899,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-02042ca6.js";
+import { computed as computed2, signal as signal2 } from "./vendor-c5b8952d.js";
 function createRegistrations(migration = () => void 0) {
   const classes2 = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -7332,7 +7332,7 @@ function openMenu(start2, parts) {
   }
   function shownRow(current2, { row, index, choices }) {
     if (row.kind === "item") {
-      const { label, heading, icon, detail, category } = row;
+      const { label, heading, icon, detail, category, checked: checked3 } = row;
       return {
         kind: "item",
         label,
@@ -7340,6 +7340,7 @@ function openMenu(start2, parts) {
         ...icon === void 0 ? {} : { icon },
         ...detail === void 0 ? {} : { detail },
         ...category === void 0 ? {} : { category },
+        ...checked3 === void 0 ? {} : { checked: checked3 },
         ...row.advanced !== void 0 && current2.action?.advanced !== void 0 ? { advanced: true } : {}
       };
     }
@@ -7581,7 +7582,7 @@ function isRow(row) {
   if (!isObject(row) || typeof row.label !== "string" || row.label === "") return false;
   switch (row.kind) {
     case "item":
-      return typeof row.pick === "function" && [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string"));
+      return typeof row.pick === "function" && [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string")) && optional(row.checked, "boolean");
     case "multi":
       return typeof row.apply === "function" && Array.isArray(row.choices) && row.choices.every(
         (choice) => isObject(choice) && typeof choice.id === "string" && typeof choice.label === "string" && typeof choice.picked === "boolean"
@@ -7956,7 +7957,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-02042ca6.js";
+import { useFilter } from "./vendor-c5b8952d.js";
 function useSearch(all, texts, none = "No options", start2 = "") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2(start2);
@@ -8177,7 +8178,7 @@ function useSized(status) {
 }
 
 // srcts/ui/ui.tsx
-import { TextField } from "@blockr/core/react";
+import { Button, TextField } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -8685,7 +8686,7 @@ function copyCommand(doc, text) {
 
 // srcts/actions/inputs.tsx
 import { useState as useState8 } from "react";
-import { Button, ComboBox as ComboBox2, GridList, GridListItem, TextField as TextField3, useBoard as useBoard2, useDragAndDrop } from "@blockr/core/react";
+import { Button as Button2, ComboBox as ComboBox2, GridList, GridListItem, TextField as TextField3, useBoard as useBoard2, useDragAndDrop } from "@blockr/core/react";
 import { Fragment as Fragment2, jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 var editInputs = {
   render({ el, core, target: target2 }) {
@@ -8921,7 +8922,7 @@ function AddInput({ edits, board, block, sources }) {
   );
 }
 function RemoveButton({ label, onPress }) {
-  return /* @__PURE__ */ jsx8(Button, { variant: "quiet", "aria-label": label, onPress, className: "bc:size-7 bc:shrink-0 bc:justify-center bc:p-0", children: /* @__PURE__ */ jsx8("span", { title: label, className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx8(Cross, {}) }) });
+  return /* @__PURE__ */ jsx8(Button2, { variant: "quiet", "aria-label": label, onPress, className: "bc:size-7 bc:shrink-0 bc:justify-center bc:p-0", children: /* @__PURE__ */ jsx8("span", { title: label, className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx8(Cross, {}) }) });
 }
 function Cross() {
   return /* @__PURE__ */ jsx8("svg", { width: "10", height: "10", viewBox: "0 0 10 10", fill: "none", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx8("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" }) });
@@ -10095,7 +10096,7 @@ function kindOf(target2) {
 // srcts/actions/dialog.tsx
 import { flushSync as flushSync4 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
-import { Button as Button2 } from "@blockr/core/react";
+import { Button as Button3 } from "@blockr/core/react";
 import { Dialog, Heading, Modal } from "@blockr/core/react";
 import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 var showDialog = (args, at) => {
@@ -10135,7 +10136,7 @@ function CoreDialog({ args, onClose }) {
       children: /* @__PURE__ */ jsx11(Dialog, { children: /* @__PURE__ */ jsxs9("div", { className: "bc:grid bc:gap-3", children: [
         /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
           /* @__PURE__ */ jsx11(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
-          /* @__PURE__ */ jsx11(Button2, { variant: "secondary", onPress: onClose, children: "Close" })
+          /* @__PURE__ */ jsx11(Button3, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
         /* @__PURE__ */ jsx11(Mounted, { mount, className: "bc:min-w-0" })
       ] }) })

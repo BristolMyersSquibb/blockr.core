@@ -85,6 +85,11 @@ export type QuickRow =
   // category is that of its board action, in the menu of a target. Its pick
   // returns the batch to run, or the next level, either of which may wait.
   // Its `advanced` is what its open icon hands the advanced action.
+  // An item that offers a pick or a toggle gives `checked`. It is true for the
+  // current pick and for a toggle that is on, and false for another pick and
+  // for a toggle that is off. A tick shows at the item's start while
+  // `checked` is true. Picking the item runs its pick, as for any item, since
+  // the tick only shows what holds.
   | {
       readonly kind: "item";
       readonly label: string;
@@ -92,6 +97,7 @@ export type QuickRow =
       readonly icon?: string;
       readonly detail?: string;
       readonly category?: BoardAction["category"];
+      readonly checked?: boolean;
       pick(): readonly CommandCall[] | QuickLevel | Promise<readonly CommandCall[] | QuickLevel>;
       readonly advanced?: Json;
     }
@@ -474,7 +480,7 @@ export function openMenu(start: MenuStart, parts: MenuParts): DrivenMenu {
 
   function shownRow(current: Entry, { row, index, choices }: Showing): ShownRow {
     if (row.kind === "item") {
-      const { label, heading, icon, detail, category } = row;
+      const { label, heading, icon, detail, category, checked } = row;
       return {
         kind: "item",
         label,
@@ -482,6 +488,7 @@ export function openMenu(start: MenuStart, parts: MenuParts): DrivenMenu {
         ...(icon === undefined ? {} : { icon }),
         ...(detail === undefined ? {} : { detail }),
         ...(category === undefined ? {} : { category }),
+        ...(checked === undefined ? {} : { checked }),
         ...(row.advanced !== undefined && current.action?.advanced !== undefined ? { advanced: true as const } : {}),
       };
     }
@@ -787,7 +794,8 @@ function isRow(row: unknown): boolean {
     case "item":
       return (
         typeof row.pick === "function" &&
-        [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string"))
+        [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string")) &&
+        optional(row.checked, "boolean")
       );
     case "multi":
       return (
