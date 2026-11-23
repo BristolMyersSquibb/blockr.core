@@ -993,7 +993,7 @@ function createClient(transport, options) {
   let held4 = [];
   const sending = /* @__PURE__ */ new Set();
   let ends2 = 0;
-  function mint() {
+  function mint2() {
     next += 1;
     return String(next);
   }
@@ -1084,7 +1084,7 @@ function createClient(transport, options) {
   }
   function sendHello() {
     const named5 = options.hello();
-    const id2 = mint();
+    const id2 = mint2();
     const call2 = {
       id: id2,
       body: void 0,
@@ -1153,7 +1153,7 @@ function createClient(transport, options) {
   });
   return {
     request(request, { body, progress, signal: signal5, span: spanned } = {}) {
-      const id2 = mint();
+      const id2 = mint2();
       const span = requestSpan(request, spanned);
       const parent = span === void 0 ? void 0 : traceparent(span);
       const message = {
@@ -5586,7 +5586,7 @@ function collection(name2, current2, part, modify, places, before, failures) {
   }
   const kept = order.filter((id2) => !removed.has(id2)).map((id2) => [id2, current2[id2]]);
   const keptSuccessor = (named5) => named5 === null ? null : removed.has(named5) ? own(readdPlaces, named5) ?? null : named5;
-  const moves = [];
+  const moves2 = [];
   for (const [id2, named5] of Object.entries(before ?? {})) {
     if (Object.hasOwn(part.add ?? {}, id2)) continue;
     const at = kept.findIndex(([other]) => other === id2);
@@ -5605,7 +5605,7 @@ function collection(name2, current2, part, modify, places, before, failures) {
     kept.splice(at, 1);
     if (to === null) kept.push(entry);
     else kept.splice(kept.findIndex(([other]) => other === to), 0, entry);
-    moves.unshift([id2, was]);
+    moves2.unshift([id2, was]);
   }
   const added = [];
   for (const [id2, value2] of Object.entries(part.add ?? {})) {
@@ -5647,7 +5647,7 @@ function collection(name2, current2, part, modify, places, before, failures) {
       ...added.length === 0 ? {} : { rm: added },
       ...removed.size === 0 ? {} : { add: readd },
       ...Object.keys(remod).length === 0 ? {} : { mod: remod },
-      ...moves.length === 0 ? {} : { before: Object.fromEntries(moves) }
+      ...moves2.length === 0 ? {} : { before: Object.fromEntries(moves2) }
     },
     places: readdPlaces,
     changed: [.../* @__PURE__ */ new Set([...added, ...modded])],
@@ -11235,96 +11235,185 @@ function copyCommand(doc, text) {
 
 // srcts/actions/inputs.tsx
 import { useState as useState18 } from "react";
-import { Fragment as Fragment27, jsx as jsx53, jsxs as jsxs41 } from "react/jsx-runtime";
+import { flushSync as flushSync4 } from "react-dom";
+import { jsx as jsx53, jsxs as jsxs41 } from "react/jsx-runtime";
+var ADD_LINK = "blockr.core-add_link";
+var CHANGE_LINK = "blockr.core-change_link";
+var MOVE_LINK = "blockr.core-move_link";
+var REMOVE_LINK = "blockr.core-remove_link";
 var editInputs = {
-  render({ el, core, target: target2 }) {
+  render({ el, core, target: target2, done }) {
     if (!("block" in target2)) return void 0;
-    return drawForm(el, /* @__PURE__ */ jsx53(EditInputs, { core, block: target2.block }));
+    return drawForm(el, /* @__PURE__ */ jsx53(EditInputs, { core, block: target2.block, done }));
   }
 };
-function EditInputs({ core, block }) {
+function EditInputs({ core, block, done }) {
   const board = useBoard(core);
-  const edits = useEdits(core);
   if (own(board.blocks, block) === void 0) return null;
   const registry = core.blockRegistry();
-  const inputs = classInputs(board, registry, block);
-  const parts = { edits, board, registry, block, sources: sourcesOf(board, registry, block) };
-  const variadic2 = isVariadicBlock(board, registry, block);
-  const name2 = blockName(board, block);
-  return /* @__PURE__ */ jsxs41("div", { className: "bc:grid bc:gap-3 bc:font-sans bc:text-sm bc:text-text-default", children: [
-    /* @__PURE__ */ jsx53("p", { className: styles.hint, children: variadic2 ? `The inputs of the block "${name2}", which it takes in this order.` : `The inputs of the block "${name2}".` }),
-    variadic2 ? /* @__PURE__ */ jsx53(VariadicInputs, { ...parts }) : /* @__PURE__ */ jsx53(FixedInputs, { ...parts, inputs }),
-    /* @__PURE__ */ jsx53(Refusal2, { refusal: edits.refusal })
-  ] });
+  const parts = { core, done, board, registry, block, sources: sourcesOf(board, registry, block) };
+  return isVariadicBlock(board, registry, block) ? /* @__PURE__ */ jsx53(VariadicInputs, { ...parts }) : /* @__PURE__ */ jsx53(FixedInputs, { ...parts });
 }
 function sourcesOf(board, registry, block) {
   const downstream = createGraph(board).withDownstream([block]);
   return Object.keys(board.blocks).filter((id2) => !downstream.has(id2)).map((id2) => blockItem(board, registry, id2));
 }
-function FixedInputs({ inputs, ...parts }) {
-  return /* @__PURE__ */ jsx53("div", { className: "bc:grid bc:gap-2", children: inputs.map((input2) => /* @__PURE__ */ jsx53(FixedInput, { ...parts, input: input2 }, input2)) });
+function InputsForm({
+  core,
+  done,
+  board,
+  block,
+  variadic: variadic2,
+  prepare,
+  children
+}) {
+  const edits = useEdits(core);
+  const [busy, setBusy] = useState18(false);
+  const name2 = blockName(board, block);
+  async function submit(event) {
+    event.preventDefault();
+    if (busy) return;
+    const form = event.currentTarget;
+    const calls = prepare();
+    if (calls === void 0) {
+      edits.clear();
+      focusFirstInvalid(form);
+      return;
+    }
+    setBusy(true);
+    await edits.run(`Could not change the inputs of the block "${name2}".`, calls, done);
+    setBusy(false);
+  }
+  return /* @__PURE__ */ jsxs41(
+    Form2,
+    {
+      "aria-label": "Change inputs",
+      validationBehavior: "aria",
+      className: "bc:font-sans bc:text-sm bc:text-text-default",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      children: [
+        /* @__PURE__ */ jsx53("p", { className: styles.hint, children: variadic2 ? `The inputs of the block "${name2}", which it takes in this order.` : `The inputs of the block "${name2}".` }),
+        children,
+        /* @__PURE__ */ jsx53("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx53("button", { type: "submit", className: classes.primary, disabled: busy, children: "Apply" }) }),
+        /* @__PURE__ */ jsx53(Refusal2, { refusal: edits.refusal })
+      ]
+    }
+  );
 }
-function FixedInput({ edits, board, registry, block, sources, input: input2 }) {
-  const search = useSearch(sources, blockTexts, "No block can feed the input.");
+function FixedInputs(parts) {
+  const { core, board, registry, block, sources } = parts;
+  const [given, setGiven] = useState18({});
+  const inputs = classInputs(board, registry, block);
+  return /* @__PURE__ */ jsx53(InputsForm, { ...parts, variadic: false, prepare: () => fixedBatch(core, board, registry, block, given), children: /* @__PURE__ */ jsx53("div", { className: "bc:grid bc:gap-2", children: inputs.map((input2) => /* @__PURE__ */ jsx53(
+    FixedInput,
+    {
+      sources,
+      input: input2,
+      source: shownSource(board, registry, block, input2, given),
+      onChange: (source) => {
+        setGiven((now) => ({ ...now, [input2]: source }));
+      }
+    },
+    input2
+  )) }) });
+}
+function shownSource(board, registry, block, input2, given) {
+  const source = own(given, input2);
+  if (source === null || source !== void 0 && Object.hasOwn(board.blocks, source)) return source;
   const id2 = linkFeeding(board, registry, block, input2);
-  const link = id2 === void 0 ? void 0 : own(board.links, id2);
-  const what = `the input "${input2}"`;
+  return (id2 === void 0 ? void 0 : own(board.links, id2)?.from) ?? null;
+}
+function fixedBatch(core, board, registry, block, given) {
+  const removes = [];
+  const changes2 = [];
+  const adds = [];
+  const minted = /* @__PURE__ */ new Set();
+  for (const input2 of classInputs(board, registry, block)) {
+    const source = shownSource(board, registry, block, input2, given);
+    const id2 = linkFeeding(board, registry, block, input2);
+    const from = id2 === void 0 ? void 0 : own(board.links, id2)?.from;
+    if (id2 === void 0) {
+      if (source !== null) adds.push({ id: ADD_LINK, args: { id: mint(core, minted), from: source, to: block, input: input2 } });
+    } else if (source === null) {
+      removes.push({ id: REMOVE_LINK, args: { id: id2 } });
+    } else if (source !== from) {
+      changes2.push({ id: CHANGE_LINK, args: { id: id2, from: source } });
+    }
+  }
+  return [...removes, ...changes2, ...adds];
+}
+function mint(core, minted) {
+  const id2 = core.mintId((taken) => minted.has(taken) || Object.hasOwn(core.store.board().links, taken));
+  minted.add(id2);
+  return id2;
+}
+function FixedInput({
+  sources,
+  input: input2,
+  source,
+  onChange
+}) {
+  const search = useSearch(sources, blockTexts, "No block can feed the input.");
   return /* @__PURE__ */ jsxs41("div", { className: "bc:flex bc:items-end bc:gap-2", children: [
     /* @__PURE__ */ jsx53(
       ComboBox2,
       {
         label: input2,
         ...search,
-        value: link?.from ?? null,
+        value: source,
         placeholder: "Search blocks",
-        isRequired: link !== void 0,
+        isRequired: source !== null,
         className: "bc:min-w-0 bc:flex-1",
         onChange: (key2) => {
-          if (key2 === null) return;
-          const from = String(key2);
-          const title = `Could not change the source of ${what}.`;
-          if (id2 === void 0 || link === void 0) {
-            void edits.run(title, "blockr.core-add_link", { from, to: block, input: input2 });
-          } else if (from !== link.from) {
-            void edits.run(title, "blockr.core-change_link", { id: id2, from });
-          }
+          if (key2 !== null) onChange(String(key2));
         },
         children: blockRow
       }
     ),
-    /* @__PURE__ */ jsx53("div", { className: "bc:flex bc:w-7 bc:shrink-0 bc:justify-center bc:pb-1", children: id2 === void 0 ? null : /* @__PURE__ */ jsx53(
+    /* @__PURE__ */ jsx53("div", { className: "bc:flex bc:w-7 bc:shrink-0 bc:justify-center bc:pb-1", children: source === null ? null : /* @__PURE__ */ jsx53(
       RemoveButton,
       {
         label: `Remove the source of ${input2}`,
         onPress: () => {
-          void edits.run(`Could not remove the source of ${what}.`, "blockr.core-remove_link", { id: id2 });
+          onChange(null);
         }
       }
     ) })
   ] });
 }
+var UNCHANGED = { links: {}, removed: [], added: [], next: 1 };
 function VariadicInputs(parts) {
-  const { edits, board, block } = parts;
-  const order = createGraph(board).linksInto(block);
-  const rows = order.flatMap((id2, i) => {
-    const link = own(board.links, id2);
-    return link === void 0 ? [] : [{ id: id2, link, place: i + 1 }];
-  });
+  const { core, board, block, sources } = parts;
+  const [changes2, setChanges] = useState18(UNCHANGED);
+  const [checked4, setChecked] = useState18(/* @__PURE__ */ new Set());
+  const shown2 = shownInputs(board, block, changes2);
   const { dragAndDropHooks } = useDragAndDrop2({
     getItems: (keys) => [...keys].map((key2) => ({ "text/plain": String(key2) })),
     onReorder(event) {
       const [moved] = [...event.keys];
       if (moved === void 0) return;
-      const id2 = String(moved);
-      const before = placeBefore(order, id2, String(event.target.key), event.target.dropPosition);
-      if (before === null) return;
-      void edits.run(`Could not move input ${String(order.indexOf(id2) + 1)}.`, "blockr.core-move_link", {
-        id: id2,
-        ...before === void 0 ? {} : { before }
-      });
+      const keys = shown2.map(({ key: key2 }) => key2);
+      const order = reordered(keys, String(moved), String(event.target.key), event.target.dropPosition);
+      if (order !== null) {
+        setChanges((now) => ({ ...now, order }));
+      }
     }
   });
-  return /* @__PURE__ */ jsxs41(Fragment27, { children: [
+  const rows = shown2.map((input2, i) => ({
+    id: input2.key,
+    input: input2,
+    place: i + 1,
+    error: checked4.has(input2.key) ? nameError(board, shown2, input2.key) : void 0
+  }));
+  function prepare() {
+    flushSync4(() => {
+      setChecked(new Set(shown2.map(({ key: key2 }) => key2)));
+    });
+    return shown2.some(({ key: key2 }) => nameError(board, shown2, key2) !== void 0) ? void 0 : variadicBatch(core, board, block, shown2);
+  }
+  return /* @__PURE__ */ jsxs41(InputsForm, { ...parts, variadic: true, prepare, children: [
     /* @__PURE__ */ jsx53(
       GridList2,
       {
@@ -11334,26 +11423,127 @@ function VariadicInputs(parts) {
         keyboardNavigationBehavior: "tab",
         renderEmptyState: () => "No link feeds the block yet.",
         className: "bc:gap-1.5",
-        children: (row) => /* @__PURE__ */ jsx53(GridListItem2, { id: row.id, textValue: inputText(board, row.link, row.place), className: ROW3, children: /* @__PURE__ */ jsx53(VariadicInput, { ...parts, id: row.id, link: row.link, place: row.place }) })
+        children: (row) => /* @__PURE__ */ jsx53(GridListItem2, { id: row.id, textValue: inputText(board, row.input, row.place), className: ROW3, children: /* @__PURE__ */ jsx53(
+          VariadicInput,
+          {
+            sources,
+            input: row.input,
+            place: row.place,
+            error: row.error,
+            onChange: (change) => {
+              setChanges((now) => withChange(now, row.id, change));
+            },
+            onCheck: () => {
+              setChecked((now) => /* @__PURE__ */ new Set([...now, row.id]));
+            },
+            onRemove: () => {
+              setChanges((now) => withRemoved(now, row.id));
+            }
+          }
+        ) })
       }
     ),
-    /* @__PURE__ */ jsx53(AddInput, { ...parts })
+    /* @__PURE__ */ jsx53(
+      AddInput,
+      {
+        sources,
+        onAdd: (from) => {
+          setChanges((now) => ({ ...now, added: [...now.added, { key: String(now.next), from, input: "" }], next: now.next + 1 }));
+        }
+      }
+    )
   ] });
 }
-function placeBefore(order, moved, target2, position) {
-  const others = order.filter((id2) => id2 !== moved);
+function shownInputs(board, block, changes2) {
+  const removed = new Set(changes2.removed);
+  const held4 = (from) => from !== void 0 && Object.hasOwn(board.blocks, from);
+  const links = createGraph(board).linksInto(block).flatMap((id2) => {
+    const link = own(board.links, id2);
+    if (link === void 0 || removed.has(id2)) return [];
+    const change = own(changes2.links, id2);
+    const from = change?.from;
+    return [{ key: id2, from: held4(from) ? from : link.from, input: change?.input ?? link.input }];
+  });
+  const inputs = [...links, ...changes2.added.filter(({ from }) => held4(from))];
+  const { order } = changes2;
+  if (order === void 0) return inputs;
+  const place = ({ key: key2 }) => {
+    const at = order.indexOf(key2);
+    return at === -1 ? order.length : at;
+  };
+  return inputs.sort((a, b) => place(a) - place(b));
+}
+function withChange(changes2, key2, change) {
+  if (changes2.added.some((input2) => input2.key === key2)) {
+    return { ...changes2, added: changes2.added.map((input2) => input2.key === key2 ? { ...input2, ...change } : input2) };
+  }
+  return { ...changes2, links: { ...changes2.links, [key2]: { ...own(changes2.links, key2), ...change } } };
+}
+function withRemoved(changes2, key2) {
+  if (changes2.added.some((input2) => input2.key === key2)) {
+    return { ...changes2, added: changes2.added.filter((input2) => input2.key !== key2) };
+  }
+  return { ...changes2, removed: [...changes2.removed, key2] };
+}
+function reordered(keys, moved, target2, position) {
+  const others = keys.filter((key2) => key2 !== moved);
   const at = others.indexOf(target2);
   if (moved === target2 || position === "on" || at === -1) return null;
   const index = position === "before" ? at : at + 1;
   const next = [...others.slice(0, index), moved, ...others.slice(index)];
-  if (next.every((id2, i) => id2 === order[i])) return null;
-  return others[index];
+  return next.every((key2, i) => key2 === keys[i]) ? null : next;
 }
-function inputText(board, link, place) {
-  const from = blockName(board, link.from);
-  return link.input === "" ? `Input ${String(place)}, from ${from}` : `Input ${String(place)}, ${link.input}, from ${from}`;
+function nameError(board, shown2, key2) {
+  const input2 = shown2.find((other) => other.key === key2);
+  if (input2 === void 0 || input2.input.trim() === own(board.links, key2)?.input) return void 0;
+  const taken = shown2.flatMap((other) => other.key === key2 ? [] : [other.input.trim()]);
+  return inputNameError(input2.input, taken);
 }
-function VariadicInput({ edits, board, block, sources, id: id2, link, place }) {
+function variadicBatch(core, board, block, shown2) {
+  const into = createGraph(board).linksInto(block);
+  const minted = /* @__PURE__ */ new Set();
+  const order = [];
+  const changes2 = [];
+  const adds = [];
+  for (const { key: key2, from, input: input2 } of shown2) {
+    const name2 = input2.trim();
+    const link = own(board.links, key2);
+    if (link === void 0) {
+      const id2 = mint(core, minted);
+      order.push(id2);
+      adds.push({ id: ADD_LINK, args: { id: id2, from, to: block, ...name2 === "" ? {} : { input: name2 } } });
+      continue;
+    }
+    order.push(key2);
+    const args = { ...from === link.from ? {} : { from }, ...name2 === link.input ? {} : { input: name2 } };
+    if (Object.keys(args).length > 0) changes2.push({ id: CHANGE_LINK, args: { id: key2, ...args } });
+  }
+  const kept = into.filter((id2) => order.includes(id2));
+  return [
+    ...into.filter((id2) => !order.includes(id2)).map((id2) => ({ id: REMOVE_LINK, args: { id: id2 } })),
+    ...changes2,
+    ...adds,
+    ...moves([...kept, ...minted], order)
+  ];
+}
+function moves(from, to) {
+  if (from.length === to.length && from.every((id2, i) => id2 === to[i])) return [];
+  return to.map((id2) => ({ id: MOVE_LINK, args: { id: id2 } }));
+}
+function inputText(board, { from, input: input2 }, place) {
+  const source = blockName(board, from);
+  const name2 = input2.trim();
+  return name2 === "" ? `Input ${String(place)}, from ${source}` : `Input ${String(place)}, ${name2}, from ${source}`;
+}
+function VariadicInput({
+  sources,
+  input: input2,
+  place,
+  error,
+  onChange,
+  onCheck,
+  onRemove
+}) {
   const search = useSearch(sources, blockTexts, "No block can feed the block.");
   const what = `input ${String(place)}`;
   return /* @__PURE__ */ jsxs41("div", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2", onPointerDownCapture: holdStill, children: [
@@ -11362,27 +11552,34 @@ function VariadicInput({ edits, board, block, sources, id: id2, link, place }) {
       {
         "aria-label": `Source of ${what}`,
         ...search,
-        value: link.from,
+        value: input2.from,
         placeholder: "Search blocks",
         isRequired: true,
         className: "bc:min-w-0 bc:flex-1",
         onChange: (key2) => {
-          if (key2 === null || String(key2) === link.from) return;
-          void edits.run(`Could not change the source of ${what}.`, "blockr.core-change_link", { id: id2, from: String(key2) });
+          if (key2 !== null && String(key2) !== input2.from) onChange({ from: String(key2) });
         },
         children: blockRow
       }
     ),
-    /* @__PURE__ */ jsx53(InputName, { edits, board, block, id: id2, link, what }),
     /* @__PURE__ */ jsx53(
-      RemoveButton,
+      TextField2,
       {
-        label: `Remove ${what}`,
-        onPress: () => {
-          void edits.run(`Could not remove ${what}.`, "blockr.core-remove_link", { id: id2 });
-        }
+        "aria-label": `Name of ${what}`,
+        value: input2.input,
+        placeholder: "No name",
+        isInvalid: error !== void 0,
+        errorMessage: error,
+        autoComplete: "off",
+        ...identifier,
+        className: "bc:w-1/3 bc:shrink-0",
+        onChange: (value2) => {
+          onChange({ input: value2 });
+        },
+        onBlur: onCheck
       }
-    )
+    ),
+    /* @__PURE__ */ jsx53(RemoveButton, { label: `Remove ${what}`, onPress: onRemove })
   ] });
 }
 function holdStill(event) {
@@ -11398,72 +11595,17 @@ function holdStill(event) {
   doc.addEventListener("pointerup", release, true);
   doc.addEventListener("pointercancel", release, true);
 }
-function InputName({
-  edits,
-  board,
-  block,
-  id: id2,
-  link,
-  what
-}) {
-  const [text, setText] = useState18(link.input);
-  const [error, setError] = useState18(void 0);
-  const [held4, setHeld] = useState18(link.input);
-  if (held4 !== link.input) {
-    setHeld(link.input);
-    setText(link.input);
-    setError(void 0);
-  }
-  function submit() {
-    const name2 = text.trim();
-    const found = inputNameError(name2, namesInto(board, block, id2));
-    setError(found);
-    if (found !== void 0) {
-      edits.clear();
-      return;
-    }
-    if (name2 !== link.input) void edits.run(`Could not rename ${what}.`, "blockr.core-change_link", { id: id2, input: name2 });
-  }
-  return /* @__PURE__ */ jsx53(
-    TextField2,
-    {
-      "aria-label": `Name of ${what}`,
-      value: text,
-      placeholder: "No name",
-      isInvalid: error !== void 0,
-      errorMessage: error,
-      autoComplete: "off",
-      ...identifier,
-      className: "bc:w-1/3 bc:shrink-0",
-      onChange: (value2) => {
-        setText(value2);
-        setError(void 0);
-      },
-      onKeyDown: (event) => {
-        if (event.key === "Enter" && !event.nativeEvent.isComposing) submit();
-        else event.continuePropagation();
-      },
-      onBlur: submit
-    }
-  );
-}
-function AddInput({ edits, board, block, sources }) {
+function AddInput({ sources, onAdd }) {
   const search = useSearch(sources, blockTexts, "No block can feed the block.");
-  const [picked, setPicked] = useState18(null);
   return /* @__PURE__ */ jsx53(
     ComboBox2,
     {
       label: "Add input",
       ...search,
-      value: picked,
+      value: null,
       placeholder: "Search blocks",
       onChange: (key2) => {
-        if (key2 === null) return;
-        const from = String(key2);
-        setPicked(from);
-        void edits.run(`Could not add an input from "${blockName(board, from)}".`, "blockr.core-add_link", { from, to: block }).then(() => {
-          setPicked(null);
-        });
+        if (key2 !== null) onAdd(String(key2));
       },
       children: blockRow
     }
@@ -11479,11 +11621,11 @@ var ROW3 = "bc:rounded-md bc:border bc:border-border-default bc:bg-bg-subtle bc:
 
 // srcts/actions/link-form.tsx
 import { useState as useState19 } from "react";
-import { flushSync as flushSync4 } from "react-dom";
+import { flushSync as flushSync5 } from "react-dom";
 import { jsx as jsx54, jsxs as jsxs42 } from "react/jsx-runtime";
-var ADD_LINK = "blockr.core-add_link";
-var CHANGE_LINK = "blockr.core-change_link";
-var MOVE_LINK = "blockr.core-move_link";
+var ADD_LINK2 = "blockr.core-add_link";
+var CHANGE_LINK2 = "blockr.core-change_link";
+var MOVE_LINK2 = "blockr.core-move_link";
 var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
     const start3 = picked === void 0 ? "block" in target2 ? { from: target2.block } : {} : startOf(picked);
@@ -11557,18 +11699,18 @@ function LinkForm({
     const linkInput = variadic2 ? name2.trim() : chosen;
     const link = { from: source2, to: target3, ...linkInput === void 0 ? {} : { input: linkInput } };
     if (editing === void 0) {
-      return [{ id: ADD_LINK, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
+      return [{ id: ADD_LINK2, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
     }
-    const changed = [{ id: CHANGE_LINK, args: { id: editing.id, ...link } }];
+    const changed = [{ id: CHANGE_LINK2, args: { id: editing.id, ...link } }];
     if (among === void 0 || position === void 0 || position === among.place) return changed;
     const before = among.others[position - 1];
-    return [...changed, { id: MOVE_LINK, args: { id: editing.id, ...before === void 0 ? {} : { before } } }];
+    return [...changed, { id: MOVE_LINK2, args: { id: editing.id, ...before === void 0 ? {} : { before } } }];
   }
   async function submit(event) {
     event.preventDefault();
     const form = event.currentTarget;
     const found = check2();
-    flushSync4(() => {
+    flushSync5(() => {
       setErrors(found);
       edits.clear();
     });
@@ -11678,7 +11820,7 @@ function LinkForm({
           }
         ),
         editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx54("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
-        /* @__PURE__ */ jsx54("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx54("button", { type: "submit", className: classes.primary, disabled: busy, children: editing === void 0 ? "Add link" : "Save" }) }),
+        /* @__PURE__ */ jsx54("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx54("button", { type: "submit", className: classes.primary, disabled: busy, children: editing === void 0 ? "Add link" : "Apply" }) }),
         /* @__PURE__ */ jsx54(Refusal2, { refusal: edits.refusal })
       ]
     }
@@ -11698,7 +11840,7 @@ function swapHint(board, registry, editing, input2) {
   const other = linkFeeding(board, registry, editing.link.to, input2, editing.id);
   const from = other === void 0 ? void 0 : own(board.links, other)?.from;
   if (from === void 0) return void 0;
-  return `The link from "${blockName(board, from)}" feeds "${input2}". Saving gives that link "${editing.link.input}", so the two links swap their inputs.`;
+  return `The link from "${blockName(board, from)}" feeds "${input2}". Applying gives that link "${editing.link.input}", so the two links swap their inputs.`;
 }
 function placeAmong(board, id2, to) {
   const ids3 = Object.keys(board.links).filter((other) => other === id2 || own(board.links, other)?.to === to);
@@ -11716,8 +11858,8 @@ function optional3(key2, error) {
 // srcts/actions/links.ts
 var CREATE_LINK = "blockr.core-add_link_action";
 var EDIT_LINK = "blockr.core-edit_link_action";
-var ADD_LINK2 = "blockr.core-add_link";
-var CHANGE_LINK2 = "blockr.core-change_link";
+var ADD_LINK3 = "blockr.core-add_link";
+var CHANGE_LINK3 = "blockr.core-change_link";
 function createLinkAction(parts) {
   return {
     id: CREATE_LINK,
@@ -11783,7 +11925,7 @@ function newLink(core, parts, from, to) {
   const free = freeInputs(board, parts.blockRegistry(), to) ?? [];
   const adding = (input2) => [
     {
-      id: ADD_LINK2,
+      id: ADD_LINK3,
       args: { id: core.mintId((id2) => Object.hasOwn(core.store.board().links, id2)), from, to, ...input2 === void 0 ? {} : { input: input2 } }
     }
   ];
@@ -11791,7 +11933,7 @@ function newLink(core, parts, from, to) {
   return {
     title: `Into which input of ${blockName(board, to)}?`,
     picked: { from, to },
-    rows: free.filter((input2) => parts.preflight(ADD_LINK2, { from, to, input: input2 })).map((input2) => ({ kind: "item", label: input2, pick: () => adding(input2) }))
+    rows: free.filter((input2) => parts.preflight(ADD_LINK3, { from, to, input: input2 })).map((input2) => ({ kind: "item", label: input2, pick: () => adding(input2) }))
   };
 }
 function joiningOn(board, parts) {
@@ -11808,7 +11950,7 @@ function feeds(joining, block, first = false) {
   const upstream = joining.graph.withUpstream([block]);
   return passing(
     [...joining.takers].filter((to) => !upstream.has(to)),
-    (to) => joining.preflight(ADD_LINK2, { from: block, to }),
+    (to) => joining.preflight(ADD_LINK3, { from: block, to }),
     first
   );
 }
@@ -11817,7 +11959,7 @@ function fedBy(joining, block, first = false) {
   const downstream = joining.graph.withDownstream([block]);
   return passing(
     Object.keys(joining.board.blocks).filter((from) => !downstream.has(from)),
-    (from) => joining.preflight(ADD_LINK2, { from, to: block }),
+    (from) => joining.preflight(ADD_LINK3, { from, to: block }),
     first
   );
 }
@@ -11828,17 +11970,17 @@ function passing(blocks, check2, first) {
 }
 function sourceRows(board, registry, parts, id2, link) {
   const downstream = createGraph(board).withDownstream([link.to]);
-  return Object.keys(board.blocks).filter((from) => from !== link.from && !downstream.has(from) && parts.preflight(CHANGE_LINK2, { id: id2, from })).map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ id: CHANGE_LINK2, args: { id: id2, from } }] }));
+  return Object.keys(board.blocks).filter((from) => from !== link.from && !downstream.has(from) && parts.preflight(CHANGE_LINK3, { id: id2, from })).map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ id: CHANGE_LINK3, args: { id: id2, from } }] }));
 }
 function inputRows(board, registry, parts, id2, link) {
-  return classInputs(board, registry, link.to).filter((input2) => input2 !== link.input && parts.preflight(CHANGE_LINK2, { id: id2, input: input2 })).map((input2) => {
+  return classInputs(board, registry, link.to).filter((input2) => input2 !== link.input && parts.preflight(CHANGE_LINK3, { id: id2, input: input2 })).map((input2) => {
     const other = linkFeeding(board, registry, link.to, input2, id2);
     const from = other === void 0 ? void 0 : own(board.links, other)?.from;
     return {
       kind: "item",
       label: input2,
       ...from === void 0 ? {} : { detail: `swaps with ${blockName(board, from)}` },
-      pick: () => [{ id: CHANGE_LINK2, args: { id: id2, input: input2 } }]
+      pick: () => [{ id: CHANGE_LINK3, args: { id: id2, input: input2 } }]
     };
   });
 }
@@ -11851,7 +11993,7 @@ function renameRow(board, id2, link) {
     check: (value2) => inputNameError(value2, taken),
     submit(value2) {
       const input2 = value2.trim();
-      return input2 === link.input ? [] : [{ id: CHANGE_LINK2, args: { id: id2, input: input2 } }];
+      return input2 === link.input ? [] : [{ id: CHANGE_LINK3, args: { id: id2, input: input2 } }];
     }
   };
 }
@@ -12009,7 +12151,7 @@ function StackForm({
             children: (section) => /* @__PURE__ */ jsx55(ComboBoxSection, { id: section.id, title: section.title, items: section.items, children: blockRow })
           }
         ),
-        /* @__PURE__ */ jsx55("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx55("button", { type: "submit", className: classes.primary, disabled: busy, children: editing === void 0 ? "Add stack" : "Save" }) }),
+        /* @__PURE__ */ jsx55("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx55("button", { type: "submit", className: classes.primary, disabled: busy, children: editing === void 0 ? "Add stack" : "Apply" }) }),
         /* @__PURE__ */ jsx55(Refusal2, { refusal: edits.refusal })
       ]
     }
@@ -12627,7 +12769,7 @@ function kindOf(target2) {
 }
 
 // srcts/actions/dialog.tsx
-import { flushSync as flushSync5 } from "react-dom";
+import { flushSync as flushSync6 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 import { jsx as jsx56, jsxs as jsxs44 } from "react/jsx-runtime";
 var showDialog = (args, at) => {
@@ -12647,7 +12789,7 @@ var showDialog = (args, at) => {
     const active = doc.activeElement;
     if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
   }
-  flushSync5(() => {
+  flushSync6(() => {
     root.render(/* @__PURE__ */ jsx56(CoreDialog, { args, onClose: hide }));
   });
   return () => {
@@ -14437,7 +14579,7 @@ function noOtel() {
 }
 
 // srcts/modules/basic/index.tsx
-import { flushSync as flushSync6 } from "react-dom";
+import { flushSync as flushSync7 } from "react-dom";
 import { createRoot as createRoot4 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
@@ -14859,7 +15001,7 @@ function distinct(list, twice) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { Fragment as Fragment28, jsx as jsx61, jsxs as jsxs49 } from "react/jsx-runtime";
+import { Fragment as Fragment27, jsx as jsx61, jsxs as jsxs49 } from "react/jsx-runtime";
 function Toolbar3({ board, showOptions }) {
   const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
@@ -14957,7 +15099,7 @@ function StorageControls() {
     if (problem !== void 0) core.log("blockr.core").error(problem);
   }, [core, problem]);
   if (drawn3 === void 0 || !drawn3.failed && drawn3.controls.length === 0) return null;
-  return /* @__PURE__ */ jsxs49(Fragment28, { children: [
+  return /* @__PURE__ */ jsxs49(Fragment27, { children: [
     /* @__PURE__ */ jsx61(Separator2, { orientation: "vertical" }),
     drawn3.failed ? /* @__PURE__ */ jsx61("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-text-danger", children: /* @__PURE__ */ jsx61(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn3.controls.map((control) => /* @__PURE__ */ jsx61(Control, { control }, control.id))
   ] });
@@ -14991,7 +15133,7 @@ function StorageButton({ button }) {
   );
   if (button.tooltip === void 0) return drawn3;
   if (off) {
-    return /* @__PURE__ */ jsxs49(Fragment28, { children: [
+    return /* @__PURE__ */ jsxs49(Fragment27, { children: [
       drawn3,
       /* @__PURE__ */ jsx61("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-text-muted", children: button.tooltip })
     ] });
@@ -15002,7 +15144,7 @@ function StorageButton({ button }) {
   ] });
 }
 function Tipped({ tooltip, children }) {
-  if (tooltip === void 0) return /* @__PURE__ */ jsx61(Fragment28, { children });
+  if (tooltip === void 0) return /* @__PURE__ */ jsx61(Fragment27, { children });
   return /* @__PURE__ */ jsxs49(TooltipTrigger, { children: [
     /* @__PURE__ */ jsx61(Focusable, { children: /* @__PURE__ */ jsx61("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-border-accent", children }) }),
     /* @__PURE__ */ jsx61(Tooltip2, { children: tooltip })
@@ -15250,7 +15392,7 @@ function render({ el, core }) {
   const toasts = createToasts(core.notifications, (plugin) => hasSection(core, plugin));
   const front = { core, toasts, inView: shown2, sections: createSections(), groups: createSections() };
   const root = createRoot4(el);
-  flushSync6(() => {
+  flushSync7(() => {
     root.render(/* @__PURE__ */ jsx63(BasicBoard, { front }));
   });
   shown2.measure();
@@ -15268,7 +15410,7 @@ function show({ object: object2, el }) {
   const front = drawn2.get(el);
   const target2 = front?.inView.element(object2);
   if (front === void 0 || target2 === void 0) return;
-  flushSync6(() => {
+  flushSync7(() => {
     if ("plugin" in object2) {
       front.sections.collapse(object2.plugin, false);
       return;
@@ -15281,7 +15423,7 @@ function show({ object: object2, el }) {
 }
 
 // srcts/modules/edit-board/index.tsx
-import { flushSync as flushSync7 } from "react-dom";
+import { flushSync as flushSync8 } from "react-dom";
 import { createRoot as createRoot5 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
@@ -15464,7 +15606,7 @@ function without4(map, key2) {
 }
 
 // srcts/modules/edit-board/blocks.tsx
-import { Fragment as Fragment29, jsx as jsx65, jsxs as jsxs52 } from "react/jsx-runtime";
+import { Fragment as Fragment28, jsx as jsx65, jsxs as jsxs52 } from "react/jsx-runtime";
 var ADD_BLOCK = "blockr.core-add_block_action";
 var COLUMNS = [
   { id: "name", name: "Name", rowHeader: true },
@@ -15479,7 +15621,7 @@ function BlocksSection({ core, board }) {
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs52(Section, { title: "Blocks", count: count2, children: [
     offers(core, ADD_BLOCK, BOARD) ? /* @__PURE__ */ jsx65(Part, { title: "Add a block", children: /* @__PURE__ */ jsx65(Advanced, { core, id: ADD_BLOCK, target: BOARD }) }) : null,
-    /* @__PURE__ */ jsx65(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs52(Fragment29, { children: [
+    /* @__PURE__ */ jsx65(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs52(Fragment28, { children: [
       /* @__PURE__ */ jsx65(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx65(
         ObjectsTable,
@@ -15508,7 +15650,7 @@ function BlocksSection({ core, board }) {
 }
 
 // srcts/modules/edit-board/links.tsx
-import { Fragment as Fragment30, jsx as jsx66, jsxs as jsxs53 } from "react/jsx-runtime";
+import { Fragment as Fragment29, jsx as jsx66, jsxs as jsxs53 } from "react/jsx-runtime";
 var CREATE_LINK2 = "blockr.core-add_link_action";
 var COLUMNS2 = [
   { id: "from", name: "From", rowHeader: true },
@@ -15525,7 +15667,7 @@ function LinksSection({ core, board, locked: locked2 }) {
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs53(Section, { title: "Links", count: links.length, children: [
     locked2 ? null : /* @__PURE__ */ jsx66(Part, { title: "Add a link", children: offers(core, CREATE_LINK2, BOARD) ? /* @__PURE__ */ jsx66(Advanced, { core, id: CREATE_LINK2, target: BOARD }) : /* @__PURE__ */ jsx66("p", { className: styles.hint, children: Object.keys(board.blocks).length < 2 ? "A link joins two blocks, so the board needs two blocks first." : "No new link can join two blocks of the board." }) }),
-    /* @__PURE__ */ jsx66(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs53(Fragment30, { children: [
+    /* @__PURE__ */ jsx66(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs53(Fragment29, { children: [
       /* @__PURE__ */ jsx66(TableSearch, { label: "Search links", view }),
       view.found === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx66(
         ObjectsTable,
@@ -15617,7 +15759,7 @@ function idOf(object2, kind) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { Fragment as Fragment31, jsx as jsx67, jsxs as jsxs54 } from "react/jsx-runtime";
+import { Fragment as Fragment30, jsx as jsx67, jsxs as jsxs54 } from "react/jsx-runtime";
 var CREATE_STACK2 = "blockr.core-add_stack_action";
 var COLUMNS3 = [
   { id: "name", name: "Name", rowHeader: true },
@@ -15629,7 +15771,7 @@ function StacksSection({ core, board, locked: locked2 }) {
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs54(Section, { title: "Stacks", count: stacks.length, children: [
     locked2 || !offers(core, CREATE_STACK2, BOARD) ? null : /* @__PURE__ */ jsx67(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx67(Advanced, { core, id: CREATE_STACK2, target: BOARD }) }),
-    /* @__PURE__ */ jsx67(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs54(Fragment31, { children: [
+    /* @__PURE__ */ jsx67(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs54(Fragment30, { children: [
       /* @__PURE__ */ jsx67(TableSearch, { label: "Search stacks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx67(
         ObjectsTable,
@@ -15820,7 +15962,7 @@ var edit_board_default = {
   ui: {
     render({ el, core }) {
       const root = createRoot5(el);
-      flushSync7(() => {
+      flushSync8(() => {
         root.render(/* @__PURE__ */ jsx69(EditBoard, { core }));
       });
       return () => {

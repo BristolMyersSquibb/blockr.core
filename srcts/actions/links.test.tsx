@@ -319,7 +319,7 @@ describe("Edit link", () => {
     expect(s.core.store.board().links.de).toEqual({ from: "d", to: "e", input: "" });
   });
 
-  test("opens the form of the link, which changes the link once the user saves it, in one step, and closes", async () => {
+  test("opens the form of the link, which changes the link once the user applies it, in one step, and closes", async () => {
     const s = await stubbed();
     const menu = s.menu({ link: "ac" });
     await menu.pick("Edit link");
@@ -331,16 +331,16 @@ describe("Edit link", () => {
     const form = (): HTMLFormElement => dialogForm(s, "Change link");
     expect([labelled(form(), "From").value, labelled(form(), "To").value]).toEqual(["Iris", "Merge"]);
     // The form offers Merge's other input too, which bc feeds, and says that
-    // saving it swaps the inputs.
+    // applying it swaps the inputs.
     expect(await listed(selectButton(form(), "Input"), step)).toEqual(["x", "y"]);
 
-    // It runs nothing before the user saves it.
+    // It runs nothing before the user applies it.
     await chosen(form(), "From", "Scatter");
     await picked(selectButton(form(), "Input"), step, "y");
-    expect(note(selectButton(form(), "Input"))).toBe('The link from "Head" feeds "y". Saving gives that link "x", so the two links swap their inputs.');
+    expect(note(selectButton(form(), "Input"))).toBe('The link from "Head" feeds "y". Applying gives that link "x", so the two links swap their inputs.');
     expect(s.core.store.board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
     await acting(() => {
-      button(form(), "Save").click();
+      button(form(), "Apply").click();
     });
     await ended;
 
@@ -373,7 +373,7 @@ describe("Edit link", () => {
     });
     await picked(selectButton(form(), "Position"), step, "1");
     await acting(() => {
-      button(form(), "Save").click();
+      button(form(), "Apply").click();
     });
 
     const into = (): string[] => Object.keys(s.core.store.board().links).filter((id) => s.core.store.board().links[id]?.to === "e");
@@ -395,15 +395,15 @@ describe("Edit link", () => {
     const form = (): HTMLFormElement => dialogForm(s, "Change link");
     await chosen(form(), "From", "Bind");
 
-    // Another edit links Merge to Bind before the user saves, so that the
-    // link from Bind would close a cycle.
+    // Another edit links Merge to Bind before the user applies the form, so
+    // that the link from Bind would close a cycle.
     await act(() => s.core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
     await acting(() => {
-      button(form(), "Save").click();
+      button(form(), "Apply").click();
     });
 
     expect(refusals(form())).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
-    expect(find(form(), '[role="alert"]').previousElementSibling?.contains(button(form(), "Save"))).toBe(true);
+    expect(find(form(), '[role="alert"]').previousElementSibling?.contains(button(form(), "Apply"))).toBe(true);
     expect(s.advanced()?.closed()).toBe(false);
     expect(labelled(form(), "From").value).toBe("Bind");
     expect(s.core.store.board().links.ac).toEqual({ from: "a", to: "c", input: "x" });

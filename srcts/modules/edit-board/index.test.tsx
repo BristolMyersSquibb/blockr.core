@@ -599,7 +599,7 @@ describe("the links", () => {
     expect(links.textContent).not.toContain("Iris → Merge");
   });
 
-  test("are changed in their row, which turns into the form of Edit link that the row's menu opens, until the user saves the edit or closes the form by Close or Escape, the focus then back on the row's … button", async () => {
+  test("are changed in their row, which turns into the form of Edit link that the row's menu opens, until the user applies the edit or closes the form by Close or Escape, the focus then back on the row's … button", async () => {
     const m = await mounted();
     const { el, board } = m;
     const links = section(el, "Links");
@@ -630,15 +630,15 @@ describe("the links", () => {
     expect(board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
 
     // Moved into the variadic Bind, the link takes a name for its input. Its
-    // done() ends the advanced action as the user saves it, and the row shows
-    // the link as the board holds it now.
+    // done() ends the advanced action as the user applies it, and the row
+    // shows the link as the board holds it now.
     await editing();
     await chosen(edit(), "To", "Bind");
     await step(() => {
       type(labelled(edit(), "Input name"), "left");
     });
     expect(board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
     expect(board().links.ac).toEqual({ from: "a", to: "e", input: "left" });
     expect(links.querySelector('form[aria-label="Change link"]')).toBeNull();
     expect(cells(row(links, "ac"))).toEqual(["Irisa", "Binde", "leftPosition 1"]);
@@ -660,8 +660,8 @@ describe("the links", () => {
     await editing("Actions of the link from Iris to Merge");
     expect(note(selectButton(edit(), "Input"))).toBeUndefined();
     await picked(selectButton(edit(), "Input"), step, "y");
-    expect(note(selectButton(edit(), "Input"))).toBe('The link from "Head" feeds "y". Saving gives that link "x", so the two links swap their inputs.');
-    await click(button(edit(), "Save"));
+    expect(note(selectButton(edit(), "Input"))).toBe('The link from "Head" feeds "y". Applying gives that link "x", so the two links swap their inputs.');
+    await click(button(edit(), "Apply"));
     expect([board().links.ac, board().links.bc]).toEqual([
       { from: "a", to: "c", input: "y" },
       { from: "b", to: "c", input: "x" },
@@ -699,7 +699,7 @@ describe("the links", () => {
     expect(await listed(selectButton(edit(), "Position"), step)).toEqual(["1", "2"]);
     expect(selectShows(selectButton(edit(), "Position"))).toBe("2");
     await picked(selectButton(edit(), "Position"), step, "1");
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
 
     expect(into()).toEqual(["de", "be"]);
     expect(board().links.de).toBe(ends);
@@ -731,7 +731,7 @@ describe("the links", () => {
     expect(await listed(selectButton(edit(), "Position"), step)).toEqual(["1", "2", "3"]);
     expect(selectShows(selectButton(edit(), "Position"))).toBe("1");
     await picked(selectButton(edit(), "Position"), step, "3");
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
     expect(into()).toEqual(["be", "de", "ac"]);
     expect(board().links.ac).toEqual({ from: "a", to: "e", input: "" });
 
@@ -892,7 +892,7 @@ describe("the stacks", () => {
     expect(button(stacks, "Actions of the stack Sources")).toBeDefined();
   });
 
-  test("are changed in their row, which turns into the form of Edit stack that the row's menu opens, once the user saves it: renamed, coloured and given other blocks, one of which leaves its stack, in one step", async () => {
+  test("are changed in their row, which turns into the form of Edit stack that the row's menu opens, once the user applies it: renamed, coloured and given other blocks, one of which leaves its stack, in one step", async () => {
     const m = await mounted();
     const { el, core, board } = m;
     await act(() => core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"] }));
@@ -914,11 +914,11 @@ describe("the stacks", () => {
     // Escape closes the list, and leaves the form open.
     await picked(labelled(edit(), "Blocks"), step, "Head", "Scatter");
     expect(chipLabels(labelled(edit(), "Blocks"))).toEqual(["Iris", "Scatter"]);
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
 
     expect(board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "f"], color: "#66c2a5" });
     expect(board().stacks.plots?.blocks).toEqual([]);
-    // Saving ends the advanced action, and the row shows the stack again.
+    // Applying ends the advanced action, and the row shows the stack again.
     expect(stacks.querySelector('form[aria-label="Change stack"]')).toBeNull();
     expect(texts(row(stacks, "s1"), "li")).toEqual(["Iris a", "Scatter f"]);
     expect(document.activeElement).toBe(button(stacks, "Actions of the stack Sources"));
@@ -1226,13 +1226,13 @@ describe("each edit", () => {
     await pick(menu, "Edit link");
     await openAdvanced(menu);
     await chosen(edit(), "From", "Bind");
-    // Another edit links Merge to Bind before the user saves, so that the link
-    // from Bind would close a cycle.
+    // Another edit links Merge to Bind before the user applies the form, so
+    // that the link from Bind would close a cycle.
     await act(() => core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
 
     expect(refusals(edit())).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
-    expect(find(edit(), '[role="alert"]').previousElementSibling?.contains(button(edit(), "Save"))).toBe(true);
+    expect(find(edit(), '[role="alert"]').previousElementSibling?.contains(button(edit(), "Apply"))).toBe(true);
     expect(row(links, "ac").contains(edit())).toBe(true);
     expect(labelled(edit(), "From").value).toBe("Bind");
     expect(belowTable(links)).toEqual([]);

@@ -18,9 +18,9 @@
 //   as it was runs nothing.
 // - Edit inputs, on a block whose class has inputs, has an advanced action
 //   alone, which lists the block's inputs, each with its source, and applies
-//   each edit at once (./inputs.tsx). It has no quick action, since moving an
-//   input would take three picks at the trigger, so that its row in a menu
-//   opens its advanced action at once.
+//   the user's edits as one batch through its Apply button (./inputs.tsx). It
+//   has no quick action, since moving an input would take three picks at the
+//   trigger, so that its row in a menu opens its advanced action at once.
 // - Copy block ID puts the block's id on the clipboard itself, and raises a
 //   notification of the code `copy_failed` about the block where the browser
 //   refuses (./clipboard.ts). Its row in a menu shows the block's id.
