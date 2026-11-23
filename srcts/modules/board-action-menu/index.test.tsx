@@ -1,22 +1,24 @@
-// Core's menu, as React draws it on the page: the menu of a target with the
+// Core's menu, the module blockr.core-board_action_menu, as React draws it on
+// the page, where core draws each menu with it: the menu of a target with the
 // icons, the details and the categories of its rows, the levels that it
 // shows in place of each other, a text row, the filter, a multi, the tick of
 // an item that gives checked, a level that loads or failed, the open icons of
 // a level and of an item, and the keyboard's focus as the menu closes.
+// The tests that core ships for a package's module run on it too
+// (./module.test.ts).
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
-import { find, press, type } from "../testing/inputs.ts";
-import { logged } from "../testing/logged.ts";
-import { openMenu as shownMenu } from "../testing/overlays.ts";
-import { step } from "../testing/react.ts";
-import type { Board } from "../types/board.ts";
-import type { CoreApi } from "../types/core-api.ts";
-import type { Json } from "../types/json.ts";
-import type { BoardAction, CommandCall } from "./actions.ts";
-import { showMenu } from "./menu.tsx";
-import { openMenu } from "./quick.ts";
-import type { MenuStart, OpenMenu, QuickLevel, QuickRow } from "./quick.ts";
+import { CORE_MENU, drawWith, openMenu } from "../../actions/index.ts";
+import type { BoardAction, CommandCall, DrivenMenu, MenuStart, QuickLevel, QuickRow } from "../../actions/index.ts";
+import { find, press, type } from "../../testing/inputs.ts";
+import { logged } from "../../testing/logged.ts";
+import { openMenu as shownMenu } from "../../testing/overlays.ts";
+import { step } from "../../testing/react.ts";
+import type { Board } from "../../types/board.ts";
+import type { CoreApi } from "../../types/core-api.ts";
+import type { Json } from "../../types/json.ts";
+import coreMenu from "./index.tsx";
 
 // A board action of blockr.test on blocks, labelled by its name.
 function action(name: string, more: Partial<BoardAction> = {}): BoardAction {
@@ -32,11 +34,11 @@ const item = (label: string, more: Partial<Extract<QuickRow, { kind: "item" }>> 
   ...more,
 });
 
-// Core's menu, drawn at a point beside a button that the user triggered from,
-// which has the keyboard's focus as the menu opens, with parts that record each
-// batch that it runs, a board action's run's too, and each advanced action that
-// it opens, with what the open icon handed it, and unmount the menu as it
-// closes.
+// Core's menu, drawn as core draws a menu with it, at a point beside a button
+// that the user triggered from, which has the keyboard's focus as the menu
+// opens, with parts that record each batch that it runs, a board action's
+// run's too, and each advanced action that it opens, with what the open icon
+// handed it, and unmount the menu as it closes.
 async function drawn(start: MenuStart) {
   const trigger = document.createElement("button");
   trigger.textContent = "Open";
@@ -45,7 +47,7 @@ async function drawn(start: MenuStart) {
   const ran: [readonly CommandCall[], string][] = [];
   const advanced: [string, { readonly picked?: Json; readonly filter?: string }][] = [];
   let hide: () => void = () => undefined;
-  let menu: OpenMenu | undefined;
+  let menu: DrivenMenu | undefined;
   await step(() => {
     menu = openMenu(start, {
       board: () => ({}) as Board,
@@ -71,7 +73,7 @@ async function drawn(start: MenuStart) {
         hide();
       },
     });
-    hide = showMenu(menu, { el: trigger, anchor: new DOMRect(10, 20, 0, 0) });
+    hide = drawWith(coreMenu, CORE_MENU)(menu, { el: trigger, anchor: new DOMRect(10, 20, 0, 0) });
   });
   await settle();
   if (menu === undefined) throw new Error("The menu did not open.");

@@ -149,6 +149,8 @@ So the code takes a fallback of its own only where nothing sets the blockr optio
 The client asks for a blockr option once per page, the first time its code reads it through `CoreApi.blockrOption()`, and keeps the value, since a blockr option is fixed for the app.
 Core asks for those its scheduler reads, `evaluation_queue`, `background_evaluation_delay` and `gate_visibility`, as soon as R has answered its `hello`, so that they are there before the scheduler starts ([Scheduling](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#scheduling)).
 It asks for `rand_id`, the shape of the ids that core's commands mint, in the same request ([Ids](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#ids)).
+It asks for `board_action_menu` in that request too, which names by its id the module that draws the menus of board actions, among those in the reply's `modules`, and which is core's own menu, `blockr.core-board_action_menu`, unless the app names another ([What a frontend gives](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#what-a-frontend-gives)).
+Where the module cannot draw the menus, as where no package offers it, the client opens no board and says why in its place.
 
 ## Evaluating a block
 

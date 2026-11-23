@@ -6,7 +6,7 @@
 // frontend opened, and drives it as a user would, picking its rows by their
 // labels.
 
-import type { OpenMenu, ShowMenu, ShownLevel } from "../actions/index.ts";
+import type { DrivenMenu, ShowMenu, ShownLevel } from "../actions/index.ts";
 import { quoted } from "../util/index.ts";
 
 // A menu of board actions, which a test drives as a user would. Each member
@@ -50,8 +50,8 @@ export interface StubMenu {
 // What the CoreApi for tests hands core to show each menu, which records the
 // menu that is open in place of drawing it, and that menu, as a test drives it.
 export function stubMenus(): { readonly show: ShowMenu; readonly open: () => StubMenu | undefined } {
-  let open: OpenMenu | undefined;
-  const driven = new WeakMap<OpenMenu, StubMenu>();
+  let open: DrivenMenu | undefined;
+  const driven = new WeakMap<DrivenMenu, StubMenu>();
   return {
     show(menu) {
       open = menu;
@@ -70,7 +70,7 @@ export function stubMenus(): { readonly show: ShowMenu; readonly open: () => Stu
   };
 }
 
-function drive(menu: OpenMenu): StubMenu {
+function drive(menu: DrivenMenu): StubMenu {
   // The index of the row of the kind given with the label given, in the rows
   // that the level shows, or an Error that says which rows it shows.
   function find(label: string, kinds: readonly string[]): number {

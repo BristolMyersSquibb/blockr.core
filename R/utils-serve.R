@@ -405,7 +405,7 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 
   check_component_options(registry, plugins, options, families)
 
-  modules <- page_modules(board, registry, plugins, options, families)
+  modules <- page_modules(board, registry, plugins, options, families, offered)
   dark_mode <- board_dark_mode(board)
 
   shiny::shinyApp(
@@ -531,6 +531,8 @@ component_options <- function(registry, plugins, families) {
 # as JSON.
 # Core imports the module of each of the app's plugins, `plugins`, and of each
 # of its board options, `options`, before it opens the board.
+# It also imports the module that draws the menus of board actions, among the
+# modules that the available packages offer, `offered` (see `menu_module()`).
 # The frontend then imports the UI module of the class of each block on the
 # board, and the module of the class's renderer, from the app's block
 # registry, `registry`.
@@ -539,7 +541,8 @@ component_options <- function(registry, plugins, families) {
 # A block whose class the registry lacks adds nothing, since the board fails
 # to open with it.
 page_modules <- function(board, registry, plugins = list(),
-                         options = app_options(), families = app_families()) {
+                         options = app_options(), families = app_families(),
+                         offered = offered_modules()) {
 
   json <- if (inherits(board, "json")) board else encode_message(board)
   blocks <- decode_message(json)[["board"]][["blocks"]]
@@ -556,11 +559,34 @@ page_modules <- function(board, registry, plugins = list(),
   modules <- c(
     lst_xtr(plugins, "module"),
     lst_xtr(options, "module"),
+    list(menu_module(offered)),
     lst_xtr(entries, "block_class", "ui"),
     lst_xtr(renderers, "module")
   )
 
   unique(Filter(not_null, unname(modules)))
+}
+
+# The module that draws the menus of board actions, which the blockr option
+# `board_action_menu` names by its ID, among the modules that the available
+# packages offer, `offered`.
+# The option names core's own menu, `blockr.core-board_action_menu`, unless an
+# app names another, as the client reads it.
+# It is `NULL` where the option names no module that a package offers, or
+# holds no ID, as where it is set twice, since the client then opens no board
+# and says why.
+menu_module <- function(offered = offered_modules()) {
+
+  id <- tryCatch(
+    blockr_option("board_action_menu", "blockr.core-board_action_menu"),
+    error = function(e) NULL
+  )
+
+  if (!is_nonempty_string(id)) {
+    return(NULL)
+  }
+
+  offered[[id]]
 }
 
 # The value of the board option `dark_mode` that the opening board given as

@@ -31,6 +31,14 @@
 #' * The modules that it offers other packages' UIs, in `modules`: each by a
 #'   name that gives it the ID `{pkg}-{name}`, as a registry id is, by which
 #'   `host.module()` and `CoreApi.module()` reach it in the client.
+#'   Such a module may draw the menus of board actions, as core's own menu,
+#'   `blockr.core-board_action_menu`, does.
+#'   The client draws them with the module that the blockr option
+#'   `board_action_menu` names by its ID, which is core's menu unless an app
+#'   names another, as in
+#'   `options(blockr.board_action_menu = "mykit-board_action_menu")`.
+#'   Its default export has the type `MenuModule` of `@blockr/core`, and
+#'   `menuModuleTests()` of `@blockr/core/stubs` tests it.
 #' * Its output families, in `families`: the name of each output family that
 #'   it offers, which is the family's class, and under which its namespace
 #'   binds the family (see [new_output_family()]).
