@@ -24,6 +24,11 @@
 //   from the blocks and the input that the open icon of the quick action
 //   hands it. It mints the link's ID through CoreApi's mintId() and adds the
 //   link with add_link.
+//   On a block, the link starts or ends at that block, since Create link
+//   plays add_link_role, whose target fixes one end of the link there
+//   (./roles.ts). So the user may change either end, while the form refuses a
+//   link that neither starts nor ends at the block, and says why below the end
+//   that started there.
 // - The form that edits a link, Edit link's, changes it with change_link, and
 //   moves it with move_link to the place that the user picks among the links
 //   into a variadic block, which keeps its ID and its ends.
@@ -72,11 +77,13 @@ interface Start {
   readonly input?: string;
 }
 
-// Create link's advanced action.
+// Create link's advanced action, which keeps the block that its target names
+// at one end of the link.
 export const createLinkForm: AdvancedModule = {
   render({ el, core, target, picked, done }) {
-    const start = picked === undefined ? ("block" in target ? { from: target.block } : {}) : startOf(picked);
-    return drawForm(el, <AddLink core={core} start={start} done={done} />);
+    const fixed = "block" in target ? target.block : undefined;
+    const start = picked === undefined ? (fixed === undefined ? {} : { from: fixed }) : startOf(picked);
+    return drawForm(el, <AddLink core={core} start={start} {...(fixed === undefined ? {} : { fixed })} done={done} />);
   },
 };
 
@@ -101,9 +108,9 @@ function startOf(picked: Json): Start {
   };
 }
 
-function AddLink({ core, start, done }: { core: CoreApi; start: Start; done: Done }): ReactElement {
+function AddLink({ core, start, fixed, done }: { core: CoreApi; start: Start; fixed?: BlockId; done: Done }): ReactElement {
   const board = useBoard(core);
-  return <LinkForm core={core} board={board} start={start} done={done} />;
+  return <LinkForm core={core} board={board} start={start} {...(fixed === undefined ? {} : { fixed })} done={done} />;
 }
 
 // The form that edits the link, which draws nothing once the board no longer
@@ -119,17 +126,20 @@ type Errors = Partial<Record<"from" | "to" | "input", string>>;
 // The form that adds a link, or that changes the link given, which offers
 // only links that the store takes (above). Where it changes a link into a
 // variadic block, it offers the link's place among the block's links as
-// well.
+// well. Where it adds a link with a block `fixed`, the link starts or ends at
+// that block.
 function LinkForm({
   core,
   board,
   start = {},
+  fixed,
   editing,
   done,
 }: {
   core: CoreApi;
   board: Board;
   start?: Start;
+  fixed?: BlockId;
   editing?: { readonly id: LinkId; readonly link: Link };
   done: Done;
 }): ReactElement {
@@ -176,7 +186,17 @@ function LinkForm({
       ...(source === undefined ? { from: "Pick the block that the link comes from." } : {}),
       ...(target === undefined ? { to: "Pick the block that the link goes to." } : {}),
       ...(variadic ? optional("input", inputNameError(name, taken)) : {}),
+      ...unfixed(),
     };
+  }
+
+  // Why the link neither starts nor ends at the block `fixed`, below the end
+  // that started there, or nothing where it does, or where the form adds a
+  // link with no block fixed.
+  function unfixed(): Errors {
+    if (fixed === undefined || source === undefined || target === undefined || source === fixed || target === fixed) return {};
+    const end = start.to === fixed ? "to" : "from";
+    return { [end]: `The link starts or ends at "${blockName(board, fixed)}", since the form was opened on that block.` };
   }
 
   // The batch that the form runs: add_link with an ID that CoreApi mints, or

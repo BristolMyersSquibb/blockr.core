@@ -4,3 +4,4 @@ export type { AdvancedModule, Place, PlaceArgs, ShowDialog } from "./advanced.ts
 export { showDialog } from "./dialog.tsx";
 export { showMenu } from "./menu.tsx";
 export type { OpenMenu, QuickLevel, QuickRow, ShownLevel, ShownRow } from "./quick.ts";
+export type { Role, RoleCommand } from "./roles.ts";

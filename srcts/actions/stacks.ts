@@ -2,26 +2,21 @@
 // board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions):
 // - Create stack, on a block, on a selection that holds a block, of which it
-//   takes the blocks, or on the board. On a block or a selection, its quick
-//   action lists the board's stacks that the blocks join, and New stack, as
-//   blockr.dock#550 had them. A stack that holds every one of the blocks
-//   already is left out, since joining it would change nothing. On the board,
-//   it lists New stack alone, which adds a stack that holds no block. Each row
-//   that joins a stack runs blockr.core-change_stack, which puts the blocks at
-//   the end of the stack, and New stack runs blockr.core-add_stack, with the
-//   blocks, a name and a colour that no other stack has, and an ID that
-//   CoreApi mints as the user picks it. A block that joins a stack leaves the
-//   stack that held it. Its advanced action is the form of a stack
-//   (./stack-form.tsx), with the blocks given, or with none on the board.
+//   takes the blocks, or on the board. Its quick action holds New stack, which
+//   runs blockr.core-add_stack, with the blocks, or with none on the board, a
+//   name and a colour that no other stack has, and an ID that CoreApi mints as
+//   the user picks it. A block that the new stack takes leaves the stack that
+//   held it. It plays add_stack_role, which runs add_stack alone, so that its
+//   quick action lists no stack that the board holds for the blocks to join.
+//   Its advanced action is the form of a stack (./stack-form.tsx), with the
+//   blocks given, or with none on the board.
 // - Edit stack, on a stack. Its quick action offers Colour…, which lists the
 //   stack's colour and the colours of a palette that no other stack has, and
 //   Blocks…, whose choices the user ticks, the stack's blocks and those in no
 //   stack, which apply as the menu closes, as blockr.dock#550 had them. Each
 //   runs blockr.core-change_stack. Its advanced action is the form of a stack,
 //   editing it. Renaming and removing a stack are core's Rename and Remove
-//   stack.
-// Each row of a stack shows the stack's colour as its icon, and how many
-// blocks the stack holds at its end.
+//   stack. It plays edit_stack_role.
 // Under the board lock, both fail their offers(), since the store refuses
 // what they run.
 
@@ -33,7 +28,8 @@ import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { PLUS, swatch } from "./icons.ts";
 import { levelItem } from "./quick.ts";
 import type { QuickRow } from "./quick.ts";
-import { createStackForm, editStackForm, PALETTE, stackedBlocks, suggestedColor, suggestedName } from "./stack-form.tsx";
+import { createStackForm, editStackForm, PALETTE, suggestedColor, suggestedName } from "./stack-form.tsx";
+import { heldBlocks } from "./targets.ts";
 
 const CREATE_STACK = "blockr.core-add_stack_action";
 const EDIT_STACK = "blockr.core-edit_stack_action";
@@ -47,21 +43,15 @@ export function createStackAction(): BoardAction {
     icon: PLUS,
     on: ["block", "selection", "board"],
     category: "add",
-    offers: (board, target, lock) => !lock.board && ("board" in target || stackedBlocks(board, target).length > 0),
+    offers: (board, target, lock) => !lock.board && ("board" in target || heldBlocks(board, target).length > 0),
     quick(board, target, core) {
-      const blocks = stackedBlocks(board, target);
+      const blocks = heldBlocks(board, target);
       if (!("board" in target) && blocks.length === 0) return undefined;
-      const joined = blocks.length === 0 ? [] : Object.entries(board.stacks).filter(([, stack]) => blocks.some((block) => !stack.blocks.includes(block)));
-      const rows: QuickRow[] = [
-        ...joined.map(([id, stack]): QuickRow => ({
-          ...stackRow(stack),
-          pick: () => [{ id: CHANGE_STACK, args: { id, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }],
-        })),
-        { kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) },
-      ];
+      const rows: QuickRow[] = [{ kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) }];
       return blocks.length === 0 ? { rows } : { title: `Add ${blocksLabel(board, blocks)} to`, rows };
     },
     advanced: createStackForm,
+    role: "add_stack_role",
   };
 }
 
@@ -84,6 +74,7 @@ export function editStackAction(): BoardAction {
       };
     },
     advanced: editStackForm,
+    role: "edit_stack_role",
   };
 }
 
@@ -144,12 +135,6 @@ function blocksRow(board: Board, id: StackId, stack: Stack): QuickRow {
     ],
     apply: (picked) => [{ id: CHANGE_STACK, args: { id, blocks: [...picked] } }],
   };
-}
-
-// A stack as a row of a quick action shows it: by its name, with its colour
-// as its icon and how many blocks it holds at its end.
-function stackRow(stack: Stack): { kind: "item"; label: string; icon: string; detail: string } {
-  return { kind: "item", label: stack.name, icon: swatch(stack.color), detail: count(stack.blocks.length) };
 }
 
 function count(blocks: number): string {

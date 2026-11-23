@@ -141,6 +141,14 @@ function jsonEqual(a, b) {
   }
   return false;
 }
+function getAt(root, path) {
+  let at = root;
+  for (const key2 of path) {
+    if (!isObject(at) || !Object.hasOwn(at, key2)) return void 0;
+    at = at[key2];
+  }
+  return at;
+}
 function without(record, keys) {
   if (!keys.some((key2) => Object.hasOwn(record, key2))) return record;
   return Object.fromEntries(
@@ -302,11 +310,11 @@ var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
 function readShortcut(text) {
   const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
   const key2 = text.slice(at + 1);
-  const names = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
-  if (key2 === "" || new Set(names).size < names.length || !names.every((name3) => MODIFIERS.includes(name3))) {
+  const names2 = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
+  if (key2 === "" || new Set(names2).size < names2.length || !names2.every((name3) => MODIFIERS.includes(name3))) {
     return void 0;
   }
-  const has = (name3) => names.includes(name3);
+  const has = (name3) => names2.includes(name3);
   if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
   return { key: key2, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
 }
@@ -630,7 +638,7 @@ function createClient(transport, options) {
   let stopped;
   let shared = /* @__PURE__ */ new Set();
   const waiting2 = /* @__PURE__ */ new Map();
-  let held2 = [];
+  let held3 = [];
   const sending = /* @__PURE__ */ new Set();
   let ends2 = 0;
   function mint() {
@@ -682,9 +690,9 @@ function createClient(transport, options) {
     quietly(transport.send([{ kind: "cancel", request: call.id }], /* @__PURE__ */ new Map()));
   }
   function abort(entry, call) {
-    const index = held2.indexOf(entry);
+    const index = held3.indexOf(entry);
     if (index >= 0) {
-      held2.splice(index, 1);
+      held3.splice(index, 1);
       call.settle(cancelled(call.id));
     } else if (call.sent) {
       cancel(call);
@@ -698,7 +706,7 @@ function createClient(transport, options) {
     } else if (state2 === "ready") {
       dispatch([entry]);
     } else {
-      held2.push(entry);
+      held3.push(entry);
     }
   }
   function end() {
@@ -716,8 +724,8 @@ function createClient(transport, options) {
       `R speaks version ${theirs} of the wire protocol, where the client speaks ${ours}, so the client sends R nothing.`
     );
     end();
-    const lost = held2;
-    held2 = [];
+    const lost = held3;
+    held3 = [];
     for (const { call } of lost) {
       call?.settle({ error: stopped });
     }
@@ -742,8 +750,8 @@ function createClient(transport, options) {
             const theirs = new Set(reply.capabilities);
             shared = new Set(named4.capabilities.filter((c) => theirs.has(c)));
             state2 = "ready";
-            const outbound = held2;
-            held2 = [];
+            const outbound = held3;
+            held3 = [];
             dispatch(outbound);
           } else {
             stop(reply.protocol, named4.protocol);
@@ -838,8 +846,8 @@ function createClient(transport, options) {
     hello() {
       if (stopped !== void 0) return;
       const runs = state2 !== "none";
-      const lost = held2;
-      held2 = [];
+      const lost = held3;
+      held3 = [];
       end();
       for (const { call } of lost) {
         call?.settle({ error: new SessionEndedError(call.id) });
@@ -2423,17 +2431,17 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
     }
   }
 }
-async function evaluateReads(deps, block, entry, name3, names, signal5) {
+async function evaluateReads(deps, block, entry, name3, names2, signal5) {
   const what = `The request "${name3}" of block "${block}"`;
-  if (names.length === 0) return [];
+  if (names2.length === 0) return [];
   const inputs = deps.scheduler.inputs(block);
   if (inputs === void 0) throw new Error(`Block "${block}" left the board, so its request "${name3}" did not go to R.`);
-  const unlinked = inputs.unlinked.filter((input2) => names.includes(input2));
+  const unlinked = inputs.unlinked.filter((input2) => names2.includes(input2));
   if (unlinked.length > 0) {
     throw new RequestError(`${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`);
   }
   const read = inputs.recipe.filter(
-    (input2) => names.includes(input2.input) || names.includes("...") && !entry.inputs.includes(input2.input)
+    (input2) => names2.includes(input2.input) || names2.includes("...") && !entry.inputs.includes(input2.input)
   );
   const upstream = [...new Set(read.flatMap((input2) => input2.block ?? []))];
   if (upstream.length === 0) return read.map((input2) => ({ input: input2.input }));
@@ -2730,7 +2738,7 @@ function mountOutput(deps, el, block) {
   const ready = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
-  let held2;
+  let held3;
   let asking;
   let error = null;
   let drawing;
@@ -2806,9 +2814,9 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     const want = wanted();
     if (want !== void 0) {
-      if (held2 !== void 0 && fits2(held2.asked, want.asked, want.ids)) {
+      if (held3 !== void 0 && fits2(held3.asked, want.asked, want.ids)) {
         stopAsking();
-      } else if (shelf.last !== void 0 && shelf.last !== held2 && fits2(shelf.last.asked, want.asked, want.ids)) {
+      } else if (shelf.last !== void 0 && shelf.last !== held3 && fits2(shelf.last.asked, want.asked, want.ids)) {
         stopAsking();
         take(shelf.last);
       } else {
@@ -2933,7 +2941,7 @@ function mountOutput(deps, el, block) {
     deps.raise(coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) }));
   }
   function take(next) {
-    held2 = next;
+    held3 = next;
     error = null;
     const named5 = next.output.renderer;
     expect(named5);
@@ -2943,11 +2951,11 @@ function mountOutput(deps, el, block) {
     wake();
   }
   function draw() {
-    if (held2 === void 0 || drawing !== void 0 || !onScreen()) return;
-    const named5 = held2.output.renderer;
+    if (held3 === void 0 || drawing !== void 0 || !onScreen()) return;
+    const named5 = held3.output.renderer;
     prepare(named5).then(
       (prepared) => {
-        if (ended() || drawing !== void 0 || held2?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
+        if (ended() || drawing !== void 0 || held3?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
         mountRenderer(prepared);
       },
       (failure) => {
@@ -3033,8 +3041,8 @@ function mountOutput(deps, el, block) {
           );
           return true;
         }
-        if (status.status === "ready" && held2?.asked.revision === status.revision) {
-          resolve(held2);
+        if (status.status === "ready" && held3?.asked.revision === status.revision) {
+          resolve(held3);
           return true;
         }
         return false;
@@ -3111,18 +3119,18 @@ function mountOutput(deps, el, block) {
     const module = rendererModule(prepared.renderer);
     return {
       block,
-      output: () => held2?.output ?? null,
-      body: () => held2?.body ?? null,
-      params: () => held2?.asked.params ?? EMPTY,
+      output: () => held3?.output ?? null,
+      body: () => held3?.body ?? null,
+      params: () => held3?.asked.params ?? EMPTY,
       option(id2) {
         let memo = named5;
-        if (memo === void 0 || memo.for !== held2) {
+        if (memo === void 0 || memo.for !== held3) {
           const read = optionReader(
-            optionsFor(held2?.asked),
+            optionsFor(held3?.asked),
             outputOptions,
             (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
           );
-          memo = { for: held2, read };
+          memo = { for: held3, read };
           named5 = memo;
         }
         return memo.read(id2);
@@ -3804,20 +3812,20 @@ function createBlockrOptions(client) {
     }
     return asked;
   }
-  async function send(names) {
-    const asked = [...names.keys()];
+  async function send(names2) {
+    const asked = [...names2.keys()];
     let values2;
     try {
       values2 = await requestBlockrOptions(client, asked);
     } catch (error) {
       const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${errorMessage(error)}`, { cause: error });
-      for (const [name3, settle2] of names) {
+      for (const [name3, settle2] of names2) {
         found.delete(name3);
         settle2.reject(failure);
       }
       return;
     }
-    for (const [name3, settle2] of names) {
+    for (const [name3, settle2] of names2) {
       settle2.resolve(Object.hasOwn(values2, name3) ? values2[name3] ?? null : void 0);
     }
   }
@@ -3830,11 +3838,11 @@ function createBlockrOptions(client) {
     }
   };
 }
-async function requestBlockrOptions(client, names) {
+async function requestBlockrOptions(client, names2) {
   for (; ; ) {
     let reply;
     try {
-      ({ reply } = await client.request({ kind: "blockr_options", names }));
+      ({ reply } = await client.request({ kind: "blockr_options", names: names2 }));
     } catch (error) {
       if (error instanceof SessionEndedError) continue;
       throw error;
@@ -5603,17 +5611,17 @@ function misplaced(id2, patches2) {
   return failures;
 }
 function merge(delta, given, patches2, board) {
-  const held2 = delta.patches ?? [];
+  const held3 = delta.patches ?? [];
   const fixed2 = (given.patches ?? []).map(({ path }) => segmentsFromPath(path) ?? []);
   const added = [];
   for (const patch2 of patches2) {
     const segments = segmentsFromPath(patch2.path) ?? [];
-    if ([...held2, ...added].some((other) => same(other, patch2))) continue;
+    if ([...held3, ...added].some((other) => same(other, patch2))) continue;
     if (fixed2.some((other) => overlap(other, segments, board))) continue;
     added.push(patch2);
   }
   if (added.length === 0) return delta;
-  return { ...delta, patches: [...held2, ...added] };
+  return { ...delta, patches: [...held3, ...added] };
 }
 function same(a, b) {
   return a.op === b.op && a.path === b.path && jsonEqual(a.value, b.value);
@@ -5622,8 +5630,8 @@ function same(a, b) {
 // srcts/store/lock.ts
 function fixes(board, block, boardLock) {
   if (!boardLock) return false;
-  const held2 = board === void 0 ? void 0 : own(board.blocks, block);
-  return held2?.locked !== false;
+  const held3 = board === void 0 ? void 0 : own(board.blocks, block);
+  return held3?.locked !== false;
 }
 function lockFailures(before, inverse) {
   const failures = [];
@@ -5677,11 +5685,11 @@ function fit(delta, board) {
     delta.links,
     (link) => (link.from === void 0 || holds(link.from)) && (link.to === void 0 || holds(link.to))
   );
-  const held2 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
+  const held3 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
     Object.entries(delta.links?.before ?? {}).flatMap(([id2, named4]) => {
       if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named4]];
-      if (!held2(id2)) return [];
+      if (!held3(id2)) return [];
       return [[id2, named4 !== null && Object.hasOwn(board.links, named4) ? named4 : null]];
     })
   );
@@ -5756,8 +5764,8 @@ function pluginsWithDefaults(kept, app, registeredClass) {
   for (const id2 of Object.keys(app)) {
     const state2 = registeredClass(id2)?.state;
     if (state2 === void 0) continue;
-    const held2 = own(kept, id2);
-    plugins[id2] = held2 === void 0 ? frozenCopy(state2.default) : held2;
+    const held3 = own(kept, id2);
+    plugins[id2] = held3 === void 0 ? frozenCopy(state2.default) : held3;
   }
   return plugins;
 }
@@ -5925,12 +5933,12 @@ function migratedValue(what, fn) {
 function openJsonBoard(json, reply, registrations) {
   const registeredClass = (id2) => registrations.plugin(id2)?.def;
   const read = unversioned(json.board);
-  const held2 = keptPlugins(read.plugins, reply.plugins, registeredClass);
+  const held3 = keptPlugins(read.plugins, reply.plugins, registeredClass);
   const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
     plugin: id2,
     package: packageFromId(id2)
   }));
-  const migrated2 = migrate({ ...read, plugins: held2 }, json.board, reply, registrations);
+  const migrated2 = migrate({ ...read, plugins: held3 }, json.board, reply, registrations);
   const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
   const blocks = gone.map((id2) => {
     const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
@@ -7675,7 +7683,7 @@ function createAdvanced(parts) {
     const { signal: signal5 } = controller;
     let cleanup;
     let pending = false;
-    const gone = () => !signal5.aborted && !pending && !held2(target2);
+    const gone = () => !signal5.aborted && !pending && !held3(target2);
     const offStore = store.subscribe(() => {
       if (gone()) left2();
     });
@@ -7747,9 +7755,9 @@ function createAdvanced(parts) {
     );
   }
   function renders(action2, target2) {
-    return parts.signal?.aborted !== true && held2(target2) && parts.applies(action2, target2);
+    return parts.signal?.aborted !== true && held3(target2) && parts.applies(action2, target2);
   }
-  function held2(target2) {
+  function held3(target2) {
     if (!store.hasBoard()) return false;
     if ("board" in target2) return true;
     const board = store.board();
@@ -7771,7 +7779,7 @@ function createAdvanced(parts) {
       shown2.action,
       target2,
       given,
-      (calls, notifier) => finishShown(shown2, own2, calls, notifier),
+      (calls, notifier) => finishShown(shown2, target2, own2, calls, notifier),
       () => {
         end(shown2);
       }
@@ -7782,14 +7790,14 @@ function createAdvanced(parts) {
       unmount();
     };
   }
-  async function finishShown(shown2, own2, calls, notifier) {
+  async function finishShown(shown2, target2, own2, calls, notifier) {
     if (calls === void 0 || calls.length === 0) {
       end(shown2);
       return;
     }
     const { opening: opening2 } = shown2;
     const triggered = shown2.first && own2;
-    const deltas = await parts.run(calls, {
+    const deltas = await parts.run(shown2.action, target2, calls, {
       ...opening2.call === void 0 ? {} : { call: opening2.call },
       extend: triggered ? opening2.extend : void 0,
       notifier: notifier ?? (triggered ? opening2.notifier : void 0)
@@ -7921,7 +7929,7 @@ function createAdvanced(parts) {
         current2?.();
         current2 = void 0;
         if (stopped) return;
-        if (!held2(target2)) {
+        if (!held3(target2)) {
           stop();
           return;
         }
@@ -7929,7 +7937,7 @@ function createAdvanced(parts) {
       };
       const finish = async (calls, notifier) => {
         if (calls !== void 0 && calls.length > 0) {
-          await parts.run(calls, notifier === void 0 ? {} : { notifier });
+          await parts.run(action2, target2, calls, notifier === void 0 ? {} : { notifier });
         }
         again();
       };
@@ -7966,8 +7974,8 @@ function blockName(board, block) {
   return own(board.blocks, block)?.name ?? block;
 }
 function classInputs(board, registry, block) {
-  const held2 = own(board.blocks, block);
-  return (held2 === void 0 ? void 0 : own(registry, held2.registry_id)?.inputs) ?? [];
+  const held3 = own(board.blocks, block);
+  return (held3 === void 0 ? void 0 : own(registry, held3.registry_id)?.inputs) ?? [];
 }
 function isVariadicBlock(board, registry, block) {
   return classInputs(board, registry, block).includes("...");
@@ -8576,12 +8584,44 @@ function escaped(color2) {
 }
 
 // srcts/actions/targets.ts
+var KINDS2 = {
+  board: true,
+  block: true,
+  link: true,
+  stack: true,
+  option: true,
+  plugin: true,
+  selection: true
+};
+function kindsFailure(on, empty2) {
+  if (!Array.isArray(on)) return "is no array of the kinds of target that it applies to";
+  if (on.length === 0) return empty2;
+  const other = on.find((kind) => typeof kind !== "string" || !Object.hasOwn(KINDS2, kind));
+  return other === void 0 ? void 0 : `names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}`;
+}
+function idOf(target2, kind) {
+  if (kind === "block") return "block" in target2 ? target2.block : void 0;
+  if (kind === "link") return "link" in target2 ? target2.link : void 0;
+  return "stack" in target2 ? target2.stack : void 0;
+}
 function blockOf(target2) {
-  return "block" in target2 ? target2.block : void 0;
+  return idOf(target2, "block");
 }
 function heldBlock(board, target2) {
   const block = blockOf(target2);
   return block !== void 0 && Object.hasOwn(board.blocks, block) ? block : void 0;
+}
+function held2(board, target2, kind) {
+  const objects = "selection" in target2 ? target2.selection : [target2];
+  const kept = { block: board.blocks, link: board.links, stack: board.stacks }[kind];
+  const ids2 = objects.flatMap((object2) => {
+    const id2 = idOf(object2, kind);
+    return id2 !== void 0 && Object.hasOwn(kept, id2) ? [id2] : [];
+  });
+  return [...new Set(ids2)];
+}
+function heldBlocks(board, target2) {
+  return held2(board, target2, "block");
 }
 
 // srcts/actions/add.tsx
@@ -8597,7 +8637,8 @@ function addingBoardActions(registry) {
       category: "add",
       offers: (_board, _target, lock) => !lock.board && adds(false),
       quick: (_board, _target, core) => classLevel(core, false, (entry, block) => [addBlockCall(entry, block)]),
-      advanced: pickerModule(() => ({ kind: "add" }))
+      advanced: pickerModule(() => ({ kind: "add" })),
+      role: "add_block_role"
     },
     {
       id: "blockr.core-append_block_action",
@@ -8610,7 +8651,8 @@ function addingBoardActions(registry) {
         const from = heldBlock(board, target2);
         return from === void 0 ? [] : [addBlockCall(entry, block), addLinkCall(from, block, newBlockInput(entry))];
       }),
-      advanced: pickerModule((target2) => "block" in target2 ? { kind: "after", from: target2.block } : void 0)
+      advanced: pickerModule((target2) => "block" in target2 ? { kind: "after", from: target2.block } : void 0),
+      role: "append_block_role"
     },
     {
       id: "blockr.core-prepend_block_action",
@@ -8623,7 +8665,8 @@ function addingBoardActions(registry) {
         const to = heldBlock(board, target2);
         return to === void 0 ? [] : [addBlockCall(entry, block), addLinkCall(block, to, freeInputOf(board, core.blockRegistry(), target2))];
       }),
-      advanced: pickerModule((target2) => "block" in target2 ? { kind: "before", to: target2.block } : void 0)
+      advanced: pickerModule((target2) => "block" in target2 ? { kind: "before", to: target2.block } : void 0),
+      role: "prepend_block_role"
     },
     {
       id: "blockr.core-insert_block_action",
@@ -8641,7 +8684,8 @@ function addingBoardActions(registry) {
           { id: "blockr.core-change_link", args: { id: id2, from: block } }
         ];
       }),
-      advanced: pickerModule((target2) => "link" in target2 ? { kind: "on", link: target2.link } : void 0)
+      advanced: pickerModule((target2) => "link" in target2 ? { kind: "on", link: target2.link } : void 0),
+      role: "insert_block_role"
     }
   ];
 }
@@ -8915,8 +8959,8 @@ function InputName({
 }) {
   const [text, setText] = useState8(link.input);
   const [error, setError] = useState8(void 0);
-  const [held2, setHeld] = useState8(link.input);
-  if (held2 !== link.input) {
+  const [held3, setHeld] = useState8(link.input);
+  if (held3 !== link.input) {
     setHeld(link.input);
     setText(link.input);
     setError(void 0);
@@ -8994,8 +9038,9 @@ var CHANGE_LINK = "blockr.core-change_link";
 var MOVE_LINK = "blockr.core-move_link";
 var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
-    const start2 = picked === void 0 ? "block" in target2 ? { from: target2.block } : {} : startOf(picked);
-    return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: start2, done }));
+    const fixed2 = "block" in target2 ? target2.block : void 0;
+    const start2 = picked === void 0 ? fixed2 === void 0 ? {} : { from: fixed2 } : startOf(picked);
+    return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: start2, ...fixed2 === void 0 ? {} : { fixed: fixed2 }, done }));
   }
 };
 var editLinkForm = {
@@ -9013,9 +9058,9 @@ function startOf(picked) {
     ...typeof input2 === "string" ? { input: input2 } : {}
   };
 }
-function AddLink({ core, start: start2, done }) {
+function AddLink({ core, start: start2, fixed: fixed2, done }) {
   const board = useBoard3(core);
-  return /* @__PURE__ */ jsx9(LinkForm, { core, board, start: start2, done });
+  return /* @__PURE__ */ jsx9(LinkForm, { core, board, start: start2, ...fixed2 === void 0 ? {} : { fixed: fixed2 }, done });
 }
 function EditLink({ core, id: id2, done }) {
   const board = useBoard3(core);
@@ -9026,6 +9071,7 @@ function LinkForm({
   core,
   board,
   start: start2 = {},
+  fixed: fixed2,
   editing,
   done
 }) {
@@ -9040,9 +9086,9 @@ function LinkForm({
   const [busy, setBusy] = useState9(false);
   const edits = useEdits(core);
   const others = withoutLink(board, except);
-  const held2 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
-  const source = held2(from) ? from : void 0;
-  const target2 = held2(to) ? to : void 0;
+  const held3 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
+  const source = held3(from) ? from : void 0;
+  const target2 = held3(to) ? to : void 0;
   const { fromOptions, toOptions } = ends(others, registry, source, target2);
   const fromSearch = useSearch(fromOptions, blockTexts);
   const toSearch = useSearch(toOptions, blockTexts);
@@ -9058,8 +9104,14 @@ function LinkForm({
     return {
       ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
       ...target2 === void 0 ? { to: "Pick the block that the link goes to." } : {},
-      ...variadic2 ? optional3("input", inputNameError(name3, taken)) : {}
+      ...variadic2 ? optional3("input", inputNameError(name3, taken)) : {},
+      ...unfixed()
     };
+  }
+  function unfixed() {
+    if (fixed2 === void 0 || source === void 0 || target2 === void 0 || source === fixed2 || target2 === fixed2) return {};
+    const end = start2.to === fixed2 ? "to" : "from";
+    return { [end]: `The link starts or ends at "${blockName(board, fixed2)}", since the form was opened on that block.` };
   }
   function batch2(source2, target3) {
     const linkInput = variadic2 ? name3.trim() : chosen;
@@ -9254,7 +9306,8 @@ function createLinkAction(parts) {
       ];
       return rows.length === 0 ? void 0 : { filter: true, rows };
     },
-    advanced: createLinkForm
+    advanced: createLinkForm,
+    role: "add_link_role"
   };
 }
 function editLinkAction(parts) {
@@ -9265,9 +9318,9 @@ function editLinkAction(parts) {
     category: "edit",
     offers: (board, target2, lock) => !lock.board && heldLink(board, target2) !== void 0,
     quick(board, target2) {
-      const held2 = heldLink(board, target2);
-      if (held2 === void 0) return void 0;
-      const [id2, link] = held2;
+      const held3 = heldLink(board, target2);
+      if (held3 === void 0) return void 0;
+      const [id2, link] = held3;
       const registry = parts.blockRegistry();
       const into = blockName(board, link.to);
       const rows = [];
@@ -9283,7 +9336,8 @@ function editLinkAction(parts) {
       }
       return rows.length === 0 ? void 0 : { rows };
     },
-    advanced: editLinkForm
+    advanced: editLinkForm,
+    role: "edit_link_role"
   };
 }
 function newLink(core, parts, from, to) {
@@ -9375,6 +9429,7 @@ function heldLink(board, target2) {
 
 // srcts/actions/stack-form.tsx
 import { useState as useState10 } from "react";
+import { flushSync as flushSync4 } from "react-dom";
 import {
   Checkbox,
   ColorArea,
@@ -9399,14 +9454,14 @@ function suggestedColor(stacks) {
   return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
 }
 function suggestedName(stacks) {
-  const names = new Set(stacks.map((stack) => stack.name));
+  const names2 = new Set(stacks.map((stack) => stack.name));
   let n = 1;
-  while (names.has(`Stack ${String(n)}`)) n++;
+  while (names2.has(`Stack ${String(n)}`)) n++;
   return `Stack ${String(n)}`;
 }
 var createStackForm = {
   render({ el, core, target: target2, done }) {
-    return drawForm(el, /* @__PURE__ */ jsx10(AddStack, { core, given: stackedBlocks(core.store.board(), target2), done }));
+    return drawForm(el, /* @__PURE__ */ jsx10(AddStack, { core, given: heldBlocks(core.store.board(), target2), done }));
   }
 };
 var editStackForm = {
@@ -9415,11 +9470,6 @@ var editStackForm = {
     return drawForm(el, /* @__PURE__ */ jsx10(EditStack, { core, id: target2.stack, done }));
   }
 };
-function stackedBlocks(board, target2) {
-  if ("block" in target2) return Object.hasOwn(board.blocks, target2.block) ? [target2.block] : [];
-  if (!("selection" in target2)) return [];
-  return target2.selection.flatMap((object2) => "block" in object2 && Object.hasOwn(board.blocks, object2.block) ? [object2.block] : []);
-}
 function AddStack({ core, given, done }) {
   const board = useBoard4(core);
   return /* @__PURE__ */ jsx10(StackForm, { core, board, given, done });
@@ -9447,6 +9497,7 @@ function StackForm({
   const [name3, setName] = useState10(editing?.stack.name ?? "");
   const [color2, setColor] = useState10(() => editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
   const [blocks, setBlocks] = useState10(editing?.stack.blocks ?? given);
+  const [lacking, setLacking] = useState10(void 0);
   const [busy, setBusy] = useState10(false);
   const edits = useEdits(core);
   const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
@@ -9483,9 +9534,24 @@ function StackForm({
       ...Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id: id2, ...changed } }]
     ];
   }
+  function leftOut() {
+    const left2 = given.filter((block) => Object.hasOwn(board.blocks, block) && !kept.includes(block));
+    if (left2.length === 0) return void 0;
+    const names2 = quoted(left2.map((block) => blockName(board, block)));
+    return left2.length === 1 ? `The new stack takes the block ${names2}, which the form was opened on.` : `The new stack takes the blocks ${names2}, which the form was opened on.`;
+  }
   async function submit(event) {
     event.preventDefault();
     if (busy) return;
+    const form = event.currentTarget;
+    const why = editing === void 0 ? leftOut() : void 0;
+    if (why !== void 0) {
+      flushSync4(() => {
+        setLacking(why);
+      });
+      focusFirstInvalid(form);
+      return;
+    }
     const title = editing === void 0 ? "Could not add the stack." : `Could not change the stack "${editing.stack.name}".`;
     const calls = batch2();
     setBusy(true);
@@ -9525,8 +9591,11 @@ function StackForm({
             value: kept,
             placeholder: "No blocks",
             description: "A block sits in one stack at most.",
+            isInvalid: lacking !== void 0,
+            errorMessage: lacking,
             onChange: (keys) => {
               setBlocks(keys.map(String));
+              setLacking(void 0);
             },
             children: (section) => /* @__PURE__ */ jsx10(ComboBoxSection2, { id: section.id, title: section.title, items: section.items, children: blockRow })
           }
@@ -9547,8 +9616,8 @@ function StackColor({ color: color2, onChange }) {
         Checkbox,
         {
           isSelected: color2 !== null,
-          onChange: (selected) => {
-            onChange(selected ? last : null);
+          onChange: (selected2) => {
+            onChange(selected2 ? last : null);
           },
           children: "A colour of its own"
         }
@@ -9590,21 +9659,15 @@ function createStackAction() {
     icon: PLUS,
     on: ["block", "selection", "board"],
     category: "add",
-    offers: (board, target2, lock) => !lock.board && ("board" in target2 || stackedBlocks(board, target2).length > 0),
+    offers: (board, target2, lock) => !lock.board && ("board" in target2 || heldBlocks(board, target2).length > 0),
     quick(board, target2, core) {
-      const blocks = stackedBlocks(board, target2);
+      const blocks = heldBlocks(board, target2);
       if (!("board" in target2) && blocks.length === 0) return void 0;
-      const joined = blocks.length === 0 ? [] : Object.entries(board.stacks).filter(([, stack]) => blocks.some((block) => !stack.blocks.includes(block)));
-      const rows = [
-        ...joined.map(([id2, stack]) => ({
-          ...stackRow(stack),
-          pick: () => [{ id: CHANGE_STACK2, args: { id: id2, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }]
-        })),
-        { kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) }
-      ];
+      const rows = [{ kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) }];
       return blocks.length === 0 ? { rows } : { title: `Add ${blocksLabel(board, blocks)} to`, rows };
     },
-    advanced: createStackForm
+    advanced: createStackForm,
+    role: "add_stack_role"
   };
 }
 function editStackAction() {
@@ -9615,9 +9678,9 @@ function editStackAction() {
     category: "edit",
     offers: (board, target2, lock) => !lock.board && heldStack(board, target2) !== void 0,
     quick(board, target2) {
-      const held2 = heldStack(board, target2);
-      if (held2 === void 0) return void 0;
-      const [id2, stack] = held2;
+      const held3 = heldStack(board, target2);
+      if (held3 === void 0) return void 0;
+      const [id2, stack] = held3;
       return {
         rows: [
           levelItem("Colour\u2026", { title: `Colour of ${stack.name}`, rows: colourRows(board, id2, stack) }),
@@ -9625,7 +9688,8 @@ function editStackAction() {
         ]
       };
     },
-    advanced: editStackForm
+    advanced: editStackForm,
+    role: "edit_stack_role"
   };
 }
 function newStack(core, blocks) {
@@ -9674,9 +9738,6 @@ function blocksRow(board, id2, stack) {
     apply: (picked) => [{ id: CHANGE_STACK2, args: { id: id2, blocks: [...picked] } }]
   };
 }
-function stackRow(stack) {
-  return { kind: "item", label: stack.name, icon: swatch(stack.color), detail: count(stack.blocks.length) };
-}
 function count(blocks) {
   return blocks === 1 ? "1 block" : `${String(blocks)} blocks`;
 }
@@ -9720,7 +9781,8 @@ function coreBoardActions(parts) {
             }
           ]
         };
-      }
+      },
+      role: "rename_role"
     },
     editLinkAction(parts),
     {
@@ -9732,7 +9794,8 @@ function coreBoardActions(parts) {
         const block = blockOf(target2);
         return !lock.board && block !== void 0 && classInputs(board, parts.blockRegistry(), block).length > 0;
       },
-      advanced: editInputs
+      advanced: editInputs,
+      role: "edit_inputs_role"
     },
     editStackAction(),
     {
@@ -9762,7 +9825,8 @@ function coreBoardActions(parts) {
       on: ["block"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && heldBlock(board, target2) !== void 0,
-      run: (_board, target2) => removing("blockr.core-remove_block", blockOf(target2))
+      run: (_board, target2) => removing("blockr.core-remove_block", blockOf(target2)),
+      role: "remove_block_role"
     },
     {
       id: "blockr.core-remove_link_action",
@@ -9771,7 +9835,8 @@ function coreBoardActions(parts) {
       on: ["link"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && "link" in target2 && Object.hasOwn(board.links, target2.link),
-      run: (_board, target2) => removing("blockr.core-remove_link", "link" in target2 ? target2.link : void 0)
+      run: (_board, target2) => removing("blockr.core-remove_link", "link" in target2 ? target2.link : void 0),
+      role: "remove_link_role"
     },
     {
       id: "blockr.core-remove_stack_action",
@@ -9780,7 +9845,8 @@ function coreBoardActions(parts) {
       on: ["stack"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && "stack" in target2 && Object.hasOwn(board.stacks, target2.stack),
-      run: (_board, target2) => removing("blockr.core-remove_stack", "stack" in target2 ? target2.stack : void 0)
+      run: (_board, target2) => removing("blockr.core-remove_stack", "stack" in target2 ? target2.stack : void 0),
+      role: "remove_stack_role"
     },
     {
       id: "blockr.core-remove_selected_action",
@@ -9789,7 +9855,8 @@ function coreBoardActions(parts) {
       on: ["selection"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && removals(board, target2).length > 0,
-      run: (board, target2) => removals(board, target2)
+      run: (board, target2) => removals(board, target2),
+      role: "remove_selected_role"
     }
   ];
 }
@@ -9809,49 +9876,382 @@ function removing(command2, id2) {
 }
 function removals(board, target2) {
   if (!("selection" in target2)) return [];
-  const links = [];
-  const blocks = [];
-  const stacks = [];
-  for (const object2 of target2.selection) {
-    if ("link" in object2 && Object.hasOwn(board.links, object2.link)) {
-      links.push({ id: "blockr.core-remove_link", args: { id: object2.link } });
-    } else if ("block" in object2 && Object.hasOwn(board.blocks, object2.block)) {
-      blocks.push({ id: "blockr.core-remove_block", args: { id: object2.block } });
-    } else if ("stack" in object2 && Object.hasOwn(board.stacks, object2.stack)) {
-      stacks.push({ id: "blockr.core-remove_stack", args: { id: object2.stack } });
-    }
-  }
-  return [...links, ...blocks, ...stacks];
+  const removing2 = (kind) => held2(board, target2, kind).map((id2) => ({ id: `blockr.core-remove_${kind}`, args: { id: id2 } }));
+  return [...removing2("link"), ...removing2("block"), ...removing2("stack")];
 }
 var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';
 
+// srcts/actions/roles.ts
+var EACH = ["block", "input", "link", "stack"];
+var ADD_BLOCK = "blockr.core-add_block";
+var RENAME_BLOCK = "blockr.core-rename_block";
+var REMOVE_BLOCK = "blockr.core-remove_block";
+var ADD_LINK3 = "blockr.core-add_link";
+var CHANGE_LINK3 = "blockr.core-change_link";
+var MOVE_LINK2 = "blockr.core-move_link";
+var REMOVE_LINK = "blockr.core-remove_link";
+var ADD_STACK3 = "blockr.core-add_stack";
+var CHANGE_STACK3 = "blockr.core-change_stack";
+var RENAME_STACK2 = "blockr.core-rename_stack";
+var REMOVE_STACK = "blockr.core-remove_stack";
+var CORE_ROLES = [
+  {
+    id: "add_block_role",
+    on: ["board"],
+    default: "blockr.core-add_block_action",
+    advanced: true,
+    commands: [{ id: ADD_BLOCK }]
+  },
+  {
+    id: "append_block_role",
+    on: ["block"],
+    default: "blockr.core-append_block_action",
+    commands: [{ id: ADD_BLOCK }, { id: ADD_LINK3, fixes: names("block", "from") }]
+  },
+  {
+    id: "prepend_block_role",
+    on: ["block"],
+    default: "blockr.core-prepend_block_action",
+    commands: [{ id: ADD_BLOCK }, { id: ADD_LINK3, fixes: names("block", "to") }]
+  },
+  {
+    id: "insert_block_role",
+    on: ["link"],
+    default: "blockr.core-insert_block_action",
+    commands: [{ id: ADD_BLOCK }, { id: ADD_LINK3, fixes: fromSource }, { id: CHANGE_LINK3, fixes: names("link") }]
+  },
+  {
+    id: "add_link_role",
+    on: ["block", "board"],
+    default: "blockr.core-add_link_action",
+    advanced: true,
+    commands: [{ id: ADD_LINK3, fixes: endsAtBlock }]
+  },
+  {
+    id: "add_stack_role",
+    on: ["block", "selection", "board"],
+    default: "blockr.core-add_stack_action",
+    advanced: true,
+    commands: [{ id: ADD_STACK3, fixes: takesBlocks }]
+  },
+  {
+    id: "rename_role",
+    on: ["block", "stack"],
+    default: "blockr.core-rename_action",
+    commands: [
+      { id: RENAME_BLOCK, optional: true, fixes: names("block") },
+      { id: RENAME_STACK2, optional: true, fixes: names("stack") }
+    ]
+  },
+  {
+    id: "edit_link_role",
+    on: ["link"],
+    default: "blockr.core-edit_link_action",
+    commands: [
+      { id: CHANGE_LINK3, optional: true, fixes: names("link") },
+      { id: MOVE_LINK2, optional: true, fixes: names("link") }
+    ]
+  },
+  {
+    id: "edit_inputs_role",
+    on: ["block"],
+    default: "blockr.core-edit_inputs_action",
+    commands: [REMOVE_LINK, CHANGE_LINK3, ADD_LINK3, MOVE_LINK2].map((id2) => ({ id: id2, each: "input", optional: true, fixes: intoBlock }))
+  },
+  {
+    id: "edit_stack_role",
+    on: ["stack"],
+    default: "blockr.core-edit_stack_action",
+    commands: [
+      { id: RENAME_STACK2, optional: true, fixes: names("stack") },
+      { id: CHANGE_STACK3, optional: true, fixes: names("stack") }
+    ]
+  },
+  {
+    id: "remove_block_role",
+    on: ["block"],
+    default: "blockr.core-remove_block_action",
+    commands: [{ id: REMOVE_BLOCK, fixes: names("block") }]
+  },
+  {
+    id: "remove_link_role",
+    on: ["link"],
+    default: "blockr.core-remove_link_action",
+    commands: [{ id: REMOVE_LINK, fixes: names("link") }]
+  },
+  {
+    id: "remove_stack_role",
+    on: ["stack"],
+    default: "blockr.core-remove_stack_action",
+    commands: [{ id: REMOVE_STACK, fixes: names("stack") }]
+  },
+  {
+    id: "remove_selected_role",
+    on: ["selection"],
+    default: "blockr.core-remove_selected_action",
+    commands: [
+      { id: REMOVE_LINK, each: "link", fixes: selected("link") },
+      { id: REMOVE_BLOCK, each: "block", fixes: selected("block") },
+      { id: REMOVE_STACK, each: "stack", fixes: selected("stack") }
+    ]
+  }
+];
+function names(kind, arg = "id") {
+  return (_board, target2, args) => {
+    const id2 = idOf(target2, kind);
+    return id2 !== void 0 && getAt(args, [arg]) === id2;
+  };
+}
+function endsAtBlock(_board, target2, args) {
+  return !("block" in target2) || getAt(args, ["from"]) === target2.block || getAt(args, ["to"]) === target2.block;
+}
+function fromSource(board, target2, args) {
+  const link = "link" in target2 ? own(board.links, target2.link) : void 0;
+  return link !== void 0 && getAt(args, ["from"]) === link.from;
+}
+function takesBlocks(board, target2, args) {
+  const blocks = getAt(args, ["blocks"]);
+  const taken = Array.isArray(blocks) ? blocks : [];
+  return heldBlocks(board, target2).every((block) => taken.includes(block));
+}
+function intoBlock(board, target2, args) {
+  if (!("block" in target2)) return false;
+  const id2 = getAt(args, ["id"]);
+  const link = typeof id2 === "string" ? own(board.links, id2) : void 0;
+  const to = getAt(args, ["to"]);
+  return link === void 0 ? to === target2.block : link.to === target2.block && (to === void 0 || to === target2.block);
+}
+function selected(kind) {
+  return (board, target2, args) => {
+    const id2 = getAt(args, ["id"]);
+    return typeof id2 === "string" && held2(board, target2, kind).includes(id2);
+  };
+}
+function checkedPlayer(role, action2) {
+  if (action2 === void 0) return { why: "no package registers that board action" };
+  if (action2.role !== role.id) {
+    return { why: action2.role === void 0 ? "that board action names no role" : `that board action names the role "${action2.role}"` };
+  }
+  if (action2.on.length !== role.on.length || action2.on.some((kind) => !role.on.includes(kind))) {
+    return { why: `the on of that board action names ${quoted(action2.on)}, where the targets of the role are ${quoted(role.on)}` };
+  }
+  if (role.advanced === true && action2.advanced === void 0) {
+    return { why: "that board action has no advanced action, which callers of the role mount" };
+  }
+  return { player: action2 };
+}
+function batchFailure(role, board, registry, target2, batch2) {
+  let at = 0;
+  for (const command2 of role.commands) {
+    const most = times(command2, board, registry, target2);
+    const least = command2.optional === true ? 0 : Number.isFinite(most) ? most : 1;
+    let count2 = 0;
+    while (count2 < most) {
+      const call = batch2[at];
+      if (call?.id !== command2.id) break;
+      const why = keeps(command2, board, target2, call, at);
+      if (why !== void 0) return why;
+      count2++;
+      at++;
+    }
+    if (count2 >= least) continue;
+    const next = batch2[at];
+    if (command2.each !== void 0) {
+      const calls = `${String(count2)} ${count2 === 1 ? "call" : "calls"}`;
+      const objects = `${String(least)} ${command2.each}${least === 1 ? "" : "s"}`;
+      return `its batch holds ${calls} of "${command2.id}" in a row, where the target holds ${objects}`;
+    }
+    return next === void 0 ? `its batch holds no call of "${command2.id}"` : `its call ${String(at + 1)}, of "${next.id}", comes where the role runs "${command2.id}"`;
+  }
+  const extra = batch2[at];
+  if (extra === void 0) return void 0;
+  return role.commands.some((command2) => command2.id === extra.id) ? `its call ${String(at + 1)}, of "${extra.id}", comes out of the role's order, or more often than the role runs it` : `its call ${String(at + 1)} is of "${extra.id}", which the role does not run`;
+}
+function described(role) {
+  return role.commands.map(({ id: id2, each, optional: optional4 }) => {
+    const often = each === void 0 ? optional4 === true ? " at most once" : "" : `${optional4 === true ? " at most" : ""} once for each ${each}`;
+    return `"${id2}"${often}`;
+  }).join(", then ");
+}
+function times(command2, board, registry, target2) {
+  const { each } = command2;
+  if (each === void 0) return 1;
+  if (each !== "input") return held2(board, target2, each).length;
+  const block = heldBlock(board, target2);
+  if (block === void 0) return 0;
+  const inputs = classInputs(board, registry, block);
+  return inputs.includes("...") ? Infinity : inputs.length;
+}
+function keeps(command2, board, target2, call, at) {
+  if (command2.fixes === void 0) return void 0;
+  const which = `its call ${String(at + 1)}, of "${command2.id}"`;
+  try {
+    return command2.fixes(board, target2, call.args ?? {}) ? void 0 : `the args of ${which}, do not keep what the target fixes`;
+  } catch (error) {
+    return `the fixes of the role failed on ${which}: ${errorMessage(error)}`;
+  }
+}
+function checkedRoles(plugin, given, taken) {
+  const of = `The plugin class "${plugin}"`;
+  if (!Array.isArray(given)) {
+    throw new Error(`${of} gives roles that are no array.`);
+  }
+  const pkg = packageFromId(plugin) ?? plugin;
+  const ids2 = new Map(taken);
+  return given.map((role) => {
+    if (!isObject(role)) {
+      throw new Error(`${of} gives a role that is no object.`);
+    }
+    const { id: id2 } = role;
+    if (typeof id2 !== "string" || id2 === "") {
+      throw new Error(`${of} gives a role whose id ${JSON.stringify(id2)} is no string, as "append_block_role".`);
+    }
+    if (packageFromId(id2) !== null) {
+      throw new Error(`${of} gives the role "${id2}", whose id names a package, while a role's id names none, as "append_block_role".`);
+    }
+    const other = ids2.get(id2);
+    if (other !== void 0) {
+      throw new Error(`${of}, of the package ${pkg}, gives the role "${id2}", which the package ${other} gives already.`);
+    }
+    ids2.set(id2, pkg);
+    const named4 = `${of} gives the role "${id2}"`;
+    const kinds = kindsFailure(role.on, "is empty, so that no board action could play it");
+    if (kinds !== void 0) {
+      throw new Error(`${named4}, whose on ${kinds}.`);
+    }
+    const fallback = role.default;
+    if (typeof fallback !== "string" || !isCommandId(fallback)) {
+      throw new Error(`${named4}, whose default ${JSON.stringify(fallback)} is not named as a board action's id is, "{pkg}-{name}".`);
+    }
+    if (role.advanced !== void 0 && role.advanced !== true) {
+      throw new Error(`${named4}, whose advanced is neither true nor left out.`);
+    }
+    const { commands } = role;
+    if (!Array.isArray(commands)) {
+      throw new Error(`${named4}, whose commands are no array.`);
+    }
+    if (commands.length === 0) {
+      throw new Error(`${named4}, which runs no command.`);
+    }
+    for (const command2 of commands) {
+      const why = commandFailure(command2);
+      if (why !== void 0) throw new Error(`${named4}, ${why}.`);
+    }
+    return role;
+  });
+}
+function commandFailure(command2) {
+  if (!isObject(command2)) return "with a command that is no object";
+  const { id: id2, each, optional: optional4, fixes: fixes2 } = command2;
+  if (typeof id2 !== "string" || !isCommandId(id2)) {
+    return `with a command whose id ${JSON.stringify(id2)} is not named as a command's id is, "{pkg}-{name}"`;
+  }
+  if (each !== void 0 && (typeof each !== "string" || !EACH.includes(each))) {
+    return `whose command "${id2}" has each ${JSON.stringify(each)}, which is none of ${quoted(EACH)}`;
+  }
+  if (optional4 !== void 0 && optional4 !== true) {
+    return `whose command "${id2}" has optional ${JSON.stringify(optional4)}, which is neither true nor left out`;
+  }
+  if (fixes2 !== void 0 && typeof fixes2 !== "function") {
+    return `whose command "${id2}" has a fixes that is no function`;
+  }
+  return void 0;
+}
+
 // srcts/actions/actions.ts
-var KINDS2 = {
-  board: true,
-  block: true,
-  link: true,
-  stack: true,
-  option: true,
-  plugin: true,
-  selection: true
-};
+var CORE2 = "blockr.core";
+var NO_BOARD2 = "Core opens no board, since the blockr option board_actions holds for every board of the app.";
 function createBoardActions(parts) {
   let registered = coreBoardActions(parts);
   const classes2 = /* @__PURE__ */ new Map();
+  const roles = new Map(
+    CORE_ROLES.map((role) => [role.id, { role, plugin: void 0 }])
+  );
+  const players = /* @__PURE__ */ new Map();
+  let offered;
+  function player(role) {
+    const action2 = players.get(role);
+    return action2 !== void 0 && registered.includes(action2) ? action2 : void 0;
+  }
+  function inMenus() {
+    const places = new Map(registered.map(({ id: id2 }, i) => [id2, i]));
+    const placeOf = (action2, i) => {
+      const fallback = action2.role === void 0 ? void 0 : roles.get(action2.role)?.role.default;
+      return (fallback === void 0 ? void 0 : places.get(fallback)) ?? i;
+    };
+    return registered.map((action2, i) => ({ action: action2, at: placeOf(action2, i), i })).filter(({ action: action2 }) => action2.role === void 0 || player(action2.role) === action2).sort((a, b) => a.at - b.at || a.i - b.i).map(({ action: action2 }) => action2);
+  }
   return {
-    register(plugin, given) {
-      if (given === void 0) return () => void 0;
-      const actions = checked2(plugin, given, new Set(registered.map(({ id: id2 }) => id2)));
+    register(plugin, givenActions, givenRoles) {
+      if (givenActions === void 0 && givenRoles === void 0) return () => void 0;
+      const actions = givenActions === void 0 ? [] : checked2(plugin, givenActions, new Set(registered.map(({ id: id2 }) => id2)));
+      const taken = () => new Map([...roles.values()].map(({ role, plugin: by }) => [role.id, by === void 0 ? CORE2 : packageFromId(by) ?? by]));
+      const listed = givenRoles === void 0 ? [] : checkedRoles(plugin, givenRoles, taken());
       registered = [...registered, ...actions];
       for (const { id: id2 } of actions) classes2.set(id2, plugin);
+      for (const role of listed) roles.set(role.id, { role, plugin });
+      offered = void 0;
       return () => {
         registered = registered.filter((action2) => !actions.includes(action2));
         for (const { id: id2 } of actions) classes2.delete(id2);
+        for (const role of listed) {
+          if (roles.get(role.id)?.role === role) roles.delete(role.id);
+          players.delete(role.id);
+        }
+        offered = void 0;
       };
     },
     registered: () => registered,
-    classOf: (id2) => classes2.get(id2)
+    classOf: (id2) => classes2.get(id2),
+    role: (id2) => roles.get(id2)?.role,
+    choosePlayers(value2) {
+      const picks = picksOf(value2);
+      players.clear();
+      offered = void 0;
+      const failures = [];
+      for (const [role, id2] of picks) {
+        if (!roles.has(role)) failures.push(`${picking(id2, role)}, but no package registers that role.`);
+      }
+      for (const { role, plugin } of roles.values()) {
+        const pick2 = picks.get(role.id);
+        const id2 = pick2 ?? role.default;
+        const found = checkedPlayer(role, registered.find((each) => each.id === id2));
+        if ("player" in found) {
+          players.set(role.id, found.player);
+        } else if (pick2 !== void 0) {
+          failures.push(`${picking(id2, role.id)}, but ${found.why}.`);
+        } else {
+          const failure = new Error(`No board action plays the role "${role.id}", since its default is the board action "${id2}", and ${found.why}.`);
+          log.error(failure);
+          parts.raise(
+            coreNotification("module_failed", "error", failure.message, plugin === void 0 ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) })
+          );
+        }
+      }
+      if (failures.length > 0) throw new Error([...failures, NO_BOARD2].join("\n"));
+    },
+    player,
+    offered() {
+      offered ??= inMenus();
+      return offered;
+    }
   };
+}
+function picking(action2, role) {
+  return `The blockr option board_actions picks the board action "${action2}" to play the role "${role}"`;
+}
+function picksOf(value2) {
+  if (value2 === void 0 || Array.isArray(value2) && value2.length === 0) return /* @__PURE__ */ new Map();
+  if (isObject(value2)) {
+    const entries = Object.entries(value2);
+    if (entries.every((entry) => typeof entry[1] === "string")) return new Map(entries);
+  }
+  throw new Error(
+    [
+      `The blockr option board_actions holds ${JSON.stringify(value2)}, where it picks a board action for a role by their ids, as list(append_block_role = "mykit-append_block_action") does in R.`,
+      NO_BOARD2
+    ].join("\n")
+  );
 }
 function checked2(plugin, given, taken) {
   const of = `The plugin class "${plugin}"`;
@@ -9878,16 +10278,9 @@ function checked2(plugin, given, taken) {
     if (action2.icon !== void 0 && typeof action2.icon !== "string") {
       throw new Error(`${named4}, whose icon is no string of SVG markup.`);
     }
-    const on = action2.on;
-    if (!Array.isArray(on)) {
-      throw new Error(`${named4}, whose on is no array of the kinds of target that it applies to.`);
-    }
-    if (on.length === 0) {
-      throw new Error(`${named4}, whose on is empty, so that no menu would offer it.`);
-    }
-    const other = on.find((kind) => typeof kind !== "string" || !Object.hasOwn(KINDS2, kind));
-    if (other !== void 0) {
-      throw new Error(`${named4}, whose on names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}.`);
+    const kinds = kindsFailure(action2.on, "is empty, so that no menu would offer it");
+    if (kinds !== void 0) {
+      throw new Error(`${named4}, whose on ${kinds}.`);
     }
     if (typeof action2.category !== "string" || action2.category === "") {
       throw new Error(`${named4} without a category.`);
@@ -9907,6 +10300,10 @@ function checked2(plugin, given, taken) {
     }
     if (action2.run === void 0 && asks.length === 0) {
       throw new Error(`${named4}, which has none of run, quick and advanced.`);
+    }
+    const { role } = action2;
+    if (role !== void 0 && (typeof role !== "string" || role === "")) {
+      throw new Error(`${named4}, whose role ${JSON.stringify(role)} is no role's id, as "append_block_role".`);
     }
     return action2;
   });
@@ -9934,14 +10331,29 @@ function boardActionsApi(actions, parts) {
   function on(target2) {
     if (!store.hasBoard()) return [];
     const board = store.board();
-    return actions.registered().filter((action2) => applies(action2, board, target2));
+    return actions.offered().filter((action2) => applies(action2, board, target2));
   }
   function registered(id2) {
+    if (typeof id2 === "string" && packageFromId(id2) === null) {
+      if (actions.role(id2) === void 0) throw new Error(`No role "${id2}" is registered.`);
+      return actions.player(id2);
+    }
     const action2 = actions.registered().find((each) => each.id === id2);
     if (action2 === void 0) {
       throw new Error(`No board action "${id2}" is registered.`);
     }
-    return action2;
+    return action2.role === void 0 || actions.player(action2.role) === action2 ? action2 : void 0;
+  }
+  function keepsRole(action2, target2, batch2, notifier) {
+    const role = action2.role === void 0 ? void 0 : actions.role(action2.role);
+    if (role === void 0) return;
+    const why = batchFailure(role, store.board(), parts.core().blockRegistry(), target2, batch2);
+    if (why === void 0) return;
+    throw failed2(
+      action2,
+      new Error(`Core refused the batch of the board action "${action2.id}", which breaks its role "${role.id}": ${why}. The role runs ${described(role)}.`),
+      notifier
+    );
   }
   async function batchOf(action2, target2, notifier) {
     let batch2;
@@ -9979,10 +10391,11 @@ function boardActionsApi(actions, parts) {
       notifier(notifications, action2);
     };
   }
-  async function runBatch(batch2, batching2, planned = false) {
+  async function runBatch(action2, target2, batch2, batching2, planned = false) {
     if (batch2.length === 0) return [];
-    const core = parts.core();
     const { extend, notifier } = batching2;
+    keepsRole(action2, target2, batch2, notifier);
+    const core = parts.core();
     let deltas = [];
     let added = [];
     if (extend !== void 0 || planned) {
@@ -10010,13 +10423,13 @@ function boardActionsApi(actions, parts) {
   }
   async function runOf(action2, target2, given) {
     const batch2 = await batchOf(action2, target2, notifierOf(given, action2));
-    if (batch2 !== void 0) await runBatch(batch2, batching(given, action2));
+    if (batch2 !== void 0) await runBatch(action2, target2, batch2, batching(given, action2));
   }
   const advanced = createAdvanced({
     store,
     core: parts.core,
     applies: (action2, target2) => store.hasBoard() && applies(action2, store.board(), target2),
-    run: (batch2, how) => runBatch(batch2, how, true),
+    run: (action2, target2, batch2, how) => runBatch(action2, target2, batch2, how, true),
     frontend: () => parts.frontend?.(),
     dialog: parts.dialog,
     raise: (notification) => {
@@ -10037,7 +10450,7 @@ function boardActionsApi(actions, parts) {
       core: parts.core,
       applies: (action2) => store.hasBoard() && applies(action2, store.board(), target2),
       run: async (batch2, action2) => {
-        await runBatch(batch2, batching(given, action2));
+        await runBatch(action2, target2, batch2, batching(given, action2));
       },
       trigger: (action2) => runOf(action2, target2, given),
       advanced: (action2, opened) => advanced.open(action2, target2, openingOf(given, action2, opened)),
@@ -10068,7 +10481,7 @@ function boardActionsApi(actions, parts) {
       const checked3 = targetGiven(target2);
       const given = optionsGiven(opts, "trigger()");
       const action2 = registered(id2);
-      if (signal5?.aborted === true || !store.hasBoard() || !applies(action2, store.board(), checked3)) return;
+      if (action2 === void 0 || signal5?.aborted === true || !store.hasBoard() || !applies(action2, store.board(), checked3)) return;
       if (action2.run !== void 0) {
         await runOf(action2, checked3, given);
         return;
@@ -10092,8 +10505,10 @@ function boardActionsApi(actions, parts) {
       }
       const checked3 = targetGiven(target2);
       const action2 = registered(id2);
+      if (action2 === void 0) return () => void 0;
       if (action2.advanced === void 0) {
-        throw new Error(`The board action "${id2}" has no advanced action to mount.`);
+        const playing = action2.id === id2 ? "" : `, which plays the role "${id2}",`;
+        throw new Error(`The board action "${action2.id}"${playing} has no advanced action to mount.`);
       }
       return advanced.mount(given, action2, checked3, picked);
     }
@@ -10143,7 +10558,7 @@ function kindOf(target2) {
 }
 
 // srcts/actions/dialog.tsx
-import { flushSync as flushSync4 } from "react-dom";
+import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
 import { Button as Button2 } from "@blockr/core/react";
 import { Dialog, Heading, Modal } from "@blockr/core/react";
@@ -10165,7 +10580,7 @@ var showDialog = (args, at) => {
     const active = doc.activeElement;
     if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
   }
-  flushSync4(() => {
+  flushSync5(() => {
     root.render(/* @__PURE__ */ jsx11(CoreDialog, { args, onClose: hide }));
   });
   return () => {
@@ -10196,7 +10611,7 @@ var WIDTH = "bc:min-w-[min(420px,100%)]";
 
 // srcts/actions/menu.tsx
 import { useEffect, useRef as useRef3, useSyncExternalStore as useSyncExternalStore2 } from "react";
-import { flushSync as flushSync5 } from "react-dom";
+import { flushSync as flushSync6 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 import { Autocomplete, Input, Separator, Text as Text3, TextField as AriaTextField } from "./vendor-02042ca6.js";
 import { TextField as TextField6 } from "@blockr/core/react";
@@ -10215,7 +10630,7 @@ var showMenu = (menu, at) => {
     void menu.close().catch(() => void 0);
   };
   doc.defaultView?.addEventListener("keydown", tab, true);
-  flushSync5(() => {
+  flushSync6(() => {
     root.render(/* @__PURE__ */ jsx12(CoreMenu, { menu, at, insideRef }));
   });
   return () => {
@@ -11153,14 +11568,14 @@ function createFocus(store, signal5) {
 }
 var NOTHING_SELECTED = Object.freeze([]);
 function createSelection(store, plugins, signal5) {
-  let selected = NOTHING_SELECTED;
+  let selected2 = NOTHING_SELECTED;
   const listeners = /* @__PURE__ */ new Set();
   const holds = (object2, board) => holdsObject(board, object2, plugins.appPlugins());
   const offStore = store.subscribe((_change, board) => {
-    const kept = selected.filter((object2) => holds(object2, board));
-    if (kept.length === selected.length) return;
-    selected = Object.freeze(kept);
-    announceTo(listeners, selected);
+    const kept = selected2.filter((object2) => holds(object2, board));
+    if (kept.length === selected2.length) return;
+    selected2 = Object.freeze(kept);
+    announceTo(listeners, selected2);
   });
   signal5?.addEventListener(
     "abort",
@@ -11171,14 +11586,14 @@ function createSelection(store, plugins, signal5) {
     { once: true }
   );
   return {
-    get: () => selected,
+    get: () => selected2,
     set(objects) {
       const given = selectionGiven(objects);
       const lacking = given.find((object2) => !store.hasBoard() || !holds(object2, store.board()));
       if (lacking !== void 0) throw new Error(unheld(lacking));
-      if (sameIds(selected.map(objectKey), given.map(objectKey))) return;
-      selected = given;
-      announceTo(listeners, selected);
+      if (sameIds(selected2.map(objectKey), given.map(objectKey))) return;
+      selected2 = given;
+      announceTo(listeners, selected2);
     },
     subscribe(fn) {
       const wrapped = (objects) => {
@@ -11385,7 +11800,7 @@ var nothing = () => void 0;
 function createNotifications(store, options = {}) {
   const { signal: signal5 } = options;
   const plugins = options.plugins ?? {};
-  const held2 = /* @__PURE__ */ new Map();
+  const held3 = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
   const again = /* @__PURE__ */ new Map();
   const replacing = /* @__PURE__ */ new Map();
@@ -11396,7 +11811,7 @@ function createNotifications(store, options = {}) {
   let ended = false;
   const stops = [];
   function publish() {
-    all = Object.freeze([...held2.values()]);
+    all = Object.freeze([...held3.values()]);
     announceTo(listeners, all);
   }
   function present(object2) {
@@ -11425,9 +11840,9 @@ function createNotifications(store, options = {}) {
     for (const object2 of gone) left2.add(object2);
     const goes = (object2) => object2 !== void 0 && gone.has(key(object2));
     let moved = false;
-    for (const [id2, notification] of held2) {
+    for (const [id2, notification] of held3) {
       if (!goes(notification.about) && !goes(notification.source.module?.object)) continue;
-      held2.delete(id2);
+      held3.delete(id2);
       raised.delete(id2);
       moved = true;
     }
@@ -11441,8 +11856,8 @@ function createNotifications(store, options = {}) {
     if (ended) return;
     ended = true;
     for (const stop of stops) stop();
-    const had = held2.size > 0;
-    held2.clear();
+    const had = held3.size > 0;
+    held3.clear();
     raised.clear();
     again.clear();
     replacing.clear();
@@ -11455,12 +11870,12 @@ function createNotifications(store, options = {}) {
   function replace(what, object2, next) {
     let moved = false;
     for (const id2 of replacing.get(what)?.ids ?? []) {
-      if (!next.has(id2) && held2.delete(id2)) moved = true;
+      if (!next.has(id2) && held3.delete(id2)) moved = true;
     }
     for (const [id2, notification] of next) {
-      const had = held2.get(id2);
+      const had = held3.get(id2);
       if (had !== void 0 && jsonEqual(had, notification)) continue;
-      held2.set(id2, notification);
+      held3.set(id2, notification);
       moved = true;
     }
     if (next.size === 0) replacing.delete(what);
@@ -11517,15 +11932,15 @@ function createNotifications(store, options = {}) {
     const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
     tokens.add(token);
     raised.set(id2, tokens);
-    if (!held2.has(id2)) {
-      held2.set(id2, frozen(id2, given));
+    if (!held3.has(id2)) {
+      held3.set(id2, frozen(id2, given));
       publish();
     }
     return () => {
       const holding = raised.get(id2);
       if (holding?.delete(token) !== true || holding.size > 0) return;
       raised.delete(id2);
-      if (held2.delete(id2)) publish();
+      if (held3.delete(id2)) publish();
     };
   };
   const raiseAgain = (given, notifier) => {
@@ -11551,7 +11966,7 @@ function createNotifications(store, options = {}) {
       return nothing;
     }
     const id2 = `module-${String(++count2)}`;
-    held2.set(
+    held3.set(
       id2,
       frozen(id2, {
         severity: given.severity,
@@ -11565,7 +11980,7 @@ function createNotifications(store, options = {}) {
     return () => {
       if (withdrawn) return;
       withdrawn = true;
-      if (held2.delete(id2)) publish();
+      if (held3.delete(id2)) publish();
     };
   };
   return {
@@ -11849,11 +12264,22 @@ function start(options) {
       },
       { once: true }
     );
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel2, logger, otelClientEndpoint, otelClientServiceName] = await Promise.all([
+    const [
+      evaluationQueue,
+      backgroundEvaluationDelay,
+      gateVisibility,
+      randId,
+      picks,
+      logLevel2,
+      logger,
+      otelClientEndpoint,
+      otelClientServiceName
+    ] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
       blockrOptions.read("background_evaluation_delay"),
       blockrOptions.read("gate_visibility"),
       blockrOptions.read("rand_id"),
+      blockrOptions.read("board_actions"),
       blockrOptions.read("log_level"),
       blockrOptions.read("logger"),
       blockrOptions.read("otel_client_endpoint"),
@@ -11884,6 +12310,12 @@ function start(options) {
       blockRegistry: () => store.blockRegistry()
     });
     await opening2.step("modules", () => register(reply, store, commands, boardActions, signal5, raise));
+    try {
+      boardActions.choosePlayers(alone ? void 0 : picks);
+    } catch (error) {
+      ending();
+      throw error;
+    }
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -12024,7 +12456,7 @@ function start(options) {
         cls = { ...def, id: id2 };
         const unregister = store.plugins.register(cls);
         try {
-          boardActions.register(id2, cls.boardActions);
+          boardActions.register(id2, cls.boardActions, cls.roles);
         } catch (error) {
           unregister();
           throw error;
@@ -12214,7 +12646,7 @@ function noOtel() {
 
 // srcts/page/card.tsx
 import { useCallback as useCallback3, useSyncExternalStore as useSyncExternalStore3 } from "react";
-import { flushSync as flushSync6 } from "react-dom";
+import { flushSync as flushSync7 } from "react-dom";
 import { createRoot as createRoot4 } from "react-dom/client";
 import { useNotified, useStatus } from "@blockr/core/react";
 import { jsx as jsx13, jsxs as jsxs11 } from "react/jsx-runtime";
@@ -12230,7 +12662,7 @@ function drawCard(el, core, signal5) {
   const demand = core.scheduler.demand(OWNER, [id2]);
   el.replaceChildren();
   const root = createRoot4(el);
-  flushSync6(() => {
+  flushSync7(() => {
     root.render(/* @__PURE__ */ jsx13(AloneCard, { core, id: id2 }));
   });
   signal5.addEventListener(

@@ -239,6 +239,34 @@ describe("Create link", () => {
     });
     expect(optionLabels(labelled(form, "To"))).toEqual(["Bind"]);
   });
+
+  test("on a block, refuses a link that neither starts nor ends at the block, since its role fixes the block at one end, and says so below the end that started there", async () => {
+    const s = await stubbed();
+    const links = Object.keys(s.core.store.board().links);
+    const menu = s.menu({ block: "f" });
+    await menu.pick("Create link");
+    await step(() => {
+      void menu.openAdvanced();
+    });
+    const form = dialogForm(s, "Add link");
+
+    await chosen(form, "From", "Merge");
+    await chosen(form, "To", "Bind");
+    await acting(() => {
+      button(form, "Add link").click();
+    });
+    expect(note(labelled(form, "From"))).toBe('The link starts or ends at "Scatter", since the form was opened on that block.');
+    expect(Object.keys(s.core.store.board().links)).toEqual(links);
+
+    await chosen(form, "From", "Scatter");
+    expect(note(labelled(form, "From"))).toBeUndefined();
+    await acting(() => {
+      button(form, "Add link").click();
+    });
+    expect(s.advanced()).toBeUndefined();
+    const added = Object.keys(s.core.store.board().links).filter((id) => !links.includes(id));
+    expect(added.map((id) => s.core.store.board().links[id])).toEqual([{ from: "f", to: "e", input: "" }]);
+  });
 });
 
 describe("Edit link", () => {

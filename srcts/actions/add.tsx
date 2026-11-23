@@ -13,7 +13,9 @@
 //   between the two blocks that the link joins, with add_block, add_link and
 //   change_link. The link then comes from the new block, and keeps its id,
 //   its input and its place among the links.
-// Their ids keep the names of the dock's actions that they replace.
+// Their ids keep the names of the dock's actions that they replace. Each plays
+// the role named after its id, as Append block plays append_block_role
+// (./roles.ts).
 //
 // The quick action of each is a level with a filter, and a row for each block
 // class that the board action can add, under the heading of its category, with
@@ -85,6 +87,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
       offers: (_board, _target, lock) => !lock.board && adds(false),
       quick: (_board, _target, core) => classLevel(core, false, (entry, block) => [addBlockCall(entry, block)]),
       advanced: pickerModule(() => ({ kind: "add" })),
+      role: "add_block_role",
     },
     {
       id: "blockr.core-append_block_action",
@@ -99,6 +102,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
           return from === undefined ? [] : [addBlockCall(entry, block), addLinkCall(from, block, newBlockInput(entry))];
         }),
       advanced: pickerModule((target) => ("block" in target ? { kind: "after", from: target.block } : undefined)),
+      role: "append_block_role",
     },
     {
       id: "blockr.core-prepend_block_action",
@@ -114,6 +118,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
           return to === undefined ? [] : [addBlockCall(entry, block), addLinkCall(block, to, freeInputOf(board, core.blockRegistry(), target))];
         }),
       advanced: pickerModule((target) => ("block" in target ? { kind: "before", to: target.block } : undefined)),
+      role: "prepend_block_role",
     },
     {
       id: "blockr.core-insert_block_action",
@@ -135,6 +140,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
               ];
         }),
       advanced: pickerModule((target) => ("link" in target ? { kind: "on", link: target.link } : undefined)),
+      role: "insert_block_role",
     },
   ];
 }

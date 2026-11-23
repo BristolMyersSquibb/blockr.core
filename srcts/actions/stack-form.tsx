@@ -18,6 +18,10 @@
 //   "Stack 2" and the first colour of a palette that no stack uses, which the
 //   user may change or, for the colour, leave out. It mints the stack's ID
 //   through CoreApi's mintId() and adds the stack with add_stack.
+//   The new stack takes the blocks that the target names, since Create stack
+//   plays add_stack_role, whose target fixes them (./roles.ts). So the user may
+//   add blocks to them, while the form refuses a stack that leaves one out,
+//   and says why below the blocks.
 // - The form that edits a stack, Edit stack's, renames it with rename_stack
 //   and sets its colour and its blocks with change_stack, each where it
 //   changed. A name that the user leaves empty keeps the stack's name.
@@ -26,6 +30,7 @@
 
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
+import { flushSync } from "react-dom";
 import {
   Checkbox,
   ColorArea,
@@ -45,11 +50,13 @@ import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { blockItem, blockRow, blockTexts, classes, drawForm, Refusal, useEdits, useSearch } from "../ui/index.ts";
+import { focusFirstInvalid } from "../picker/index.ts";
+import { blockItem, blockName, blockRow, blockTexts, classes, drawForm, Refusal, useEdits, useSearch } from "../ui/index.ts";
 import type { BlockItem, Done } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { own, quoted } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
-import type { CommandCall, Target } from "./actions.ts";
+import type { CommandCall } from "./actions.ts";
+import { heldBlocks } from "./targets.ts";
 
 const ADD_STACK = "blockr.core-add_stack";
 const CHANGE_STACK = "blockr.core-change_stack";
@@ -77,7 +84,7 @@ export function suggestedName(stacks: readonly Stack[]): string {
 // Create stack's advanced action.
 export const createStackForm: AdvancedModule = {
   render({ el, core, target, done }) {
-    return drawForm(el, <AddStack core={core} given={stackedBlocks(core.store.board(), target)} done={done} />);
+    return drawForm(el, <AddStack core={core} given={heldBlocks(core.store.board(), target)} done={done} />);
   },
 };
 
@@ -88,15 +95,6 @@ export const editStackForm: AdvancedModule = {
     return drawForm(el, <EditStack core={core} id={target.stack} done={done} />);
   },
 };
-
-// The blocks that Create stack puts in a stack: the block that the target
-// names, or those of a selection, which the board holds, and none on the
-// board.
-export function stackedBlocks(board: Board, target: Target): BlockId[] {
-  if ("block" in target) return Object.hasOwn(board.blocks, target.block) ? [target.block] : [];
-  if (!("selection" in target)) return [];
-  return target.selection.flatMap((object) => ("block" in object && Object.hasOwn(board.blocks, object.block) ? [object.block] : []));
-}
 
 function AddStack({ core, given, done }: { core: CoreApi; given: readonly BlockId[]; done: Done }): ReactElement {
   const board = useBoard(core);
@@ -151,6 +149,8 @@ function StackForm({
   const [name, setName] = useState(editing?.stack.name ?? "");
   const [color, setColor] = useState<Picked | null>(() => (editing === undefined ? suggestedColor(stacks) : editing.stack.color));
   const [blocks, setBlocks] = useState<readonly BlockId[]>(editing?.stack.blocks ?? given);
+  // Why the form refuses the blocks picked, once the user has submitted them.
+  const [lacking, setLacking] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const edits = useEdits(core);
   const fallbackName = editing === undefined ? suggestedName(stacks) : editing.stack.name;
@@ -197,9 +197,29 @@ function StackForm({
     ];
   }
 
+  // Why the new stack leaves out blocks that the form was given, which the
+  // board still holds, or undefined where it takes them all.
+  function leftOut(): string | undefined {
+    const left = given.filter((block) => Object.hasOwn(board.blocks, block) && !kept.includes(block));
+    if (left.length === 0) return undefined;
+    const names = quoted(left.map((block) => blockName(board, block)));
+    return left.length === 1
+      ? `The new stack takes the block ${names}, which the form was opened on.`
+      : `The new stack takes the blocks ${names}, which the form was opened on.`;
+  }
+
   async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy) return;
+    const form = event.currentTarget;
+    const why = editing === undefined ? leftOut() : undefined;
+    if (why !== undefined) {
+      flushSync(() => {
+        setLacking(why);
+      });
+      focusFirstInvalid(form);
+      return;
+    }
     // The sentence that names the edit, which names the stack as its row does
     // where the form changes one.
     const title = editing === undefined ? "Could not add the stack." : `Could not change the stack "${editing.stack.name}".`;
@@ -238,8 +258,11 @@ function StackForm({
         value={kept}
         placeholder="No blocks"
         description="A block sits in one stack at most."
+        isInvalid={lacking !== undefined}
+        errorMessage={lacking}
         onChange={(keys) => {
           setBlocks(keys.map(String));
+          setLacking(undefined);
         }}
       >
         {(section) => (

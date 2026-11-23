@@ -896,6 +896,21 @@
   On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
   The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
   Each edit applies at once, as one step of the user, through `add_link`, `change_link`, `move_link` or `remove_link`, and the advanced action says below the inputs why the store refused one (#747).
+* Roles tie the board action that plays each to the commands that it runs, so that an app may swap one of core's board actions for one drawn with another UI kit, while every caller gets the same edit.
+  A role, of the type `Role`, has an `id` that names no package, as `append_block_role`, its targets in `on`, its `default` board action, `advanced` where callers mount the advanced action of its player, and its `commands` in order, each with `each`, `optional` and `fixes`.
+  Core defines a role for each of its board actions but Copy block ID, which names it in the new member `role` of `BoardAction`, and a plugin class lists roles of its own in the new member `roles`, beside `boardActions`.
+  Core refuses the whole class where one of its roles breaks a rule, as where another package gives a role of its ID, and raises `module_failed` about the class, naming both packages.
+  In each app, one board action plays each role: the one that the blockr option `board_actions` picks for it, as `options(blockr.board_actions = list(append_block_role = "mykit-append_block_action"))` does, or else the role's default.
+  Once every module is registered, core checks the board action that plays each role: it names the role, its `on` names the role's targets alone, and it has an advanced action where the role has `advanced`.
+  Where a pick of `board_actions` fails that check, or names a board action or a role that no package registers, core opens no board and shows why in its place.
+  Where a role's default fails it, no board action plays the role, and core raises `module_failed` about the class that lists the role.
+  A menu offers only the board action that plays a role, in the place of the role's default.
+  The calls `core.boardActions.trigger()` and `mountAdvanced()` take a role's ID in place of a board action's, and act on the board action that plays the role, while they run nothing for the ID of a board action that names a role that it does not play.
+  Core checks each batch of the board action that plays a role before the command registry plans it, under the `CoreApi` for tests too: the batch runs the role's commands alone, in their order, each as often as the role runs it, with args that keep what the target fixes.
+  Core refuses a batch that breaks the role before anything runs, as a fault of the board action's package, with `board_action_failed`, which names the role and the call.
+  The commands of a caller's `extend` come after the batch and fall outside the check.
+  So Create stack's quick action holds New stack alone, and lists no stack that the board holds.
+  The form of Create link refuses a link that neither starts nor ends at the block that it was opened on, and the form of Create stack refuses a stack that leaves out a block that it was opened on (#825).
 
 # blockr.core 0.1.4
 
