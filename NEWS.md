@@ -939,7 +939,7 @@
   The types `MenuModule`, `OpenMenu`, `ShownLevel` and `ShownRow` come from `@blockr/core`.
   The stubs, `@blockr/core/stubs`, give in `menuModuleTests()` the tests that a package runs against its own module.
   Each opens a menu through the module, finds the parts of the menu by their ARIA roles and names, does what a user does, and checks what core ran, and core runs them against its own menu.
-  Compressed, core's runtime shrinks from 102.7 KB to 98.8 KB, since it no longer holds core's menu, whose module takes 5.0 KB (#829).
+  Compressed, core's runtime shrinks from 102.7 KB to 98.9 KB, since it no longer holds core's menu, whose module takes 5.0 KB (#829).
 
 # blockr.core 0.1.4
 
