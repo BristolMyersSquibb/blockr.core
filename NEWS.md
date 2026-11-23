@@ -266,6 +266,9 @@
   Its error names `@blockr/core/react`, from which a package draws React Aria's components.
   A second copy of React Aria would hold React contexts of its own, which the components of the SDK do not read.
   The preset leaves `@internationalized/date` and `@internationalized/number` to the package, since they hold no React context (#754).
+  The preset resolves an import of the React Compiler's runtime, `react-compiler-runtime` or `react/compiler-runtime`, to the runtime of the React that the module imports.
+  So a package can bundle a library that the React Compiler built, such as React Flow 13, and its bundle holds no copy of the runtime.
+  A module that bundled the package `react-compiler-runtime` would fail as the page loads, since the package calls `require("react")` (#836).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a frontend sets them.
   What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
   Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
