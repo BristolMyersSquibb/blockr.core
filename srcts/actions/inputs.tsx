@@ -41,8 +41,8 @@
 // 2. A change_link for each input whose source or name the user changed.
 // 3. An add_link for each input that had no source and got one, and for each
 //    input that the user added, with an ID that CoreApi's mintId() mints.
-// 4. A move_link for each input of a variadic block that has to move, so that
-//    the block takes its inputs in the order that the user dragged them into.
+// 4. Where the user dragged the inputs of a variadic block into another order,
+//    a move_link for each input, which puts it last, in that order.
 // So the user's edits undo together, and the board never evaluates a state
 // that the user only passed through on the way to the one they applied.
 // Where the store or the command registry refuses the batch, the advanced
@@ -488,8 +488,9 @@ function nameError(board: Board, shown: readonly Input[], key: string): string |
 //    the source and the name that changed.
 // 3. An add_link for each input that the user added, in the order shown, with
 //    an ID that CoreApi mints, so that move_link can name the new link.
-// 4. A move_link for each link that has to move to stand in the order shown
-//    (moves()).
+// 4. Where the order shown differs from the order that the links take after
+//    the commands above, a move_link for each link, which puts it last, in the
+//    order shown (moves()).
 function variadicBatch(core: CoreApi, board: Board, block: BlockId, shown: readonly Input[]): CommandCall[] {
   const into = createGraph(board).linksInto(block);
   const minted = new Set<LinkId>();
@@ -519,37 +520,12 @@ function variadicBatch(core: CoreApi, board: Board, block: BlockId, shown: reado
 }
 
 // The calls of move_link that put the links into a variadic block, which
-// stand in the order `from` on the board, in the order `to`, each link at most
-// once. As many links as can stay where they are: the longest run of links
-// that stand in the same order in both (longestRun()). Each other link moves
-// before the link that follows it in `to`, or last where none follows it. The
-// moves run from the last link back to the first, so that the links after each
-// one stand in their order already as it moves.
+// stand in the order `from` on the board, in the order `to`, where the two
+// differ. Each link goes last among the block's links in turn, in the order
+// `to`, so that each moves once.
 function moves(from: readonly LinkId[], to: readonly LinkId[]): CommandCall[] {
-  const staying = longestRun(from, to);
-  const calls: CommandCall[] = [];
-  for (const [i, id] of [...to.entries()].reverse()) {
-    if (staying.has(id)) continue;
-    const before = to[i + 1];
-    calls.push({ id: MOVE_LINK, args: { id, ...(before === undefined ? {} : { before }) } });
-  }
-  return calls;
-}
-
-// The most links of `to` that stand in the same order in `from`, not
-// necessarily next to one another. For each link of `to`, it finds the
-// longest run that ends with the link, from the runs of the links before it
-// that stand before it in `from` too.
-function longestRun(from: readonly LinkId[], to: readonly LinkId[]): ReadonlySet<LinkId> {
-  const longest = (runs: readonly (readonly LinkId[])[]): readonly LinkId[] =>
-    runs.reduce<readonly LinkId[]>((best, run) => (run.length > best.length ? run : best), []);
-  const ends: { readonly place: number; readonly run: readonly LinkId[] }[] = [];
-  for (const id of to) {
-    const place = from.indexOf(id);
-    const before = longest(ends.filter((end) => end.place < place).map(({ run }) => run));
-    ends.push({ place, run: [...before, id] });
-  }
-  return new Set(longest(ends.map(({ run }) => run)));
+  if (from.length === to.length && from.every((id, i) => id === to[i])) return [];
+  return to.map((id): CommandCall => ({ id: MOVE_LINK, args: { id } }));
 }
 
 // What an item of the list says to assistive technology, which React Aria

@@ -11407,24 +11407,8 @@ function variadicBatch(core, board, block, shown2) {
   ];
 }
 function moves(from, to) {
-  const staying = longestRun(from, to);
-  const calls = [];
-  for (const [i, id2] of [...to.entries()].reverse()) {
-    if (staying.has(id2)) continue;
-    const before = to[i + 1];
-    calls.push({ id: MOVE_LINK, args: { id: id2, ...before === void 0 ? {} : { before } } });
-  }
-  return calls;
-}
-function longestRun(from, to) {
-  const longest = (runs) => runs.reduce((best, run) => run.length > best.length ? run : best, []);
-  const ends2 = [];
-  for (const id2 of to) {
-    const place = from.indexOf(id2);
-    const before = longest(ends2.filter((end) => end.place < place).map(({ run }) => run));
-    ends2.push({ place, run: [...before, id2] });
-  }
-  return new Set(longest(ends2.map(({ run }) => run)));
+  if (from.length === to.length && from.every((id2, i) => id2 === to[i])) return [];
+  return to.map((id2) => ({ id: MOVE_LINK, args: { id: id2 } }));
 }
 function inputText(board, { from, input: input2 }, place) {
   const source = blockName(board, from);

@@ -558,15 +558,17 @@ describe("on a variadic block", () => {
       ["c", "m"],
     ]);
     const [iris, , merge] = links.map(([id]) => id);
-    // Merge goes last, as add_link puts it, so de moves before it, and Iris
-    // stays first.
+    // The user changed the order, so each input goes last in turn, in the
+    // order shown.
     expect(batches).toEqual([
       [
         { id: "blockr.core-remove_link", args: { id: "be" } },
         { id: "blockr.core-change_link", args: { id: "de", from: "f", input: "low" } },
         { id: "blockr.core-add_link", args: { id: iris, from: "a", to: "e" } },
         { id: "blockr.core-add_link", args: { id: merge, from: "c", to: "e", input: "m" } },
-        { id: "blockr.core-move_link", args: { id: "de", before: merge } },
+        { id: "blockr.core-move_link", args: { id: iris } },
+        { id: "blockr.core-move_link", args: { id: "de" } },
+        { id: "blockr.core-move_link", args: { id: merge } },
       ],
     ]);
     s.core.store.undo();
