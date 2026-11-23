@@ -14,6 +14,9 @@
 # blockr.core-controls, in the file that the page's import map names
 # `@blockr/core/controls`, so that both reach one copy, and its output
 # families, to which an open family hands its results.
+# It also offers its menu of board actions as blockr.core-board_action_menu,
+# which the blockr option `board_action_menu` names unless an app names
+# another module to draw those menus with.
 core_listing <- function(pkgname = "blockr.core") {
   list(
     blocks = read_blocks_yml(pkgname),
@@ -38,7 +41,10 @@ core_listing <- function(pkgname = "blockr.core") {
       n_rows = list(module = "js/n-rows-option.js"),
       dark_mode = list(module = "js/dark-mode-option.js")
     ),
-    modules = list(controls = "js/blockr-core-controls.js"),
+    modules = list(
+      controls = "js/blockr-core-controls.js",
+      board_action_menu = "js/board-action-menu.js"
+    ),
     families = c("table_output", "text_output", "plot_output")
   )
 }

@@ -13,6 +13,7 @@ export interface PluginClass {
         readonly default: Json;
     };
     update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
+    afterStep?(board: Board, before: Board, plugin: PluginClassId): readonly Patch[];
     migrate?(state: Json, version: number): Json;
     readonly ui?: PluginModule;
     readonly frontend?: FrontendModule;

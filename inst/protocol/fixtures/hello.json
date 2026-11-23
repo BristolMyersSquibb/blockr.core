@@ -316,6 +316,9 @@
         "modules": {
           "blockr.core-controls": {
             "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
+          },
+          "blockr.core-board_action_menu": {
+            "module": "blockr.core/board-action-menu.js?v=e3a7c05b"
           }
         },
         "plugins": {

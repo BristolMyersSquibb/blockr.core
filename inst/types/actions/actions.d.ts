@@ -6,7 +6,7 @@ import type { Lock } from "../protocol/index.ts";
 import type { Refused } from "../util/index.ts";
 import type { AdvancedModule, Place, ShowDialog } from "./advanced.ts";
 import type { CoreParts } from "./core.ts";
-import type { OpenMenu, QuickLevel } from "./quick.ts";
+import type { DrivenMenu, QuickLevel } from "./quick.ts";
 import type { Role } from "./roles.ts";
 export type Target = {
     readonly board: true;
@@ -44,7 +44,7 @@ export interface MenuPlace {
     readonly el: HTMLElement;
     readonly anchor: DOMRect;
 }
-export type ShowMenu = (menu: OpenMenu, at: MenuPlace) => () => void;
+export type ShowMenu = (menu: DrivenMenu, at: MenuPlace) => () => void;
 export interface BoardActionsParts {
     readonly store: Pick<Store, "board" | "hasBoard" | "subscribe">;
     readonly lock: Lock;

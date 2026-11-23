@@ -3,8 +3,9 @@
 // them as `@blockr/core`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#packaging):
 // the hosts that core gives the modules it mounts, `CoreApi`, the module of a
-// plugin, the log that each writes its lines through, and the types of the
-// board, of its updates and of core's outputs.
+// plugin, the module that draws the menus of board actions, the log that each
+// writes its lines through, and the types of the board, of its updates and of
+// core's outputs.
 // A plugin class defines itself as a `PluginClass`, and types the state of its
 // plugins itself, with `type` rather than `interface`, as
 // `type DockState = { views: ... }`, since only such a type is assignable to
@@ -95,7 +96,20 @@ export type {
   StoreError,
 } from "./store/index.ts";
 export type { Command, CommandContext, CommandError, Commands } from "./commands/index.ts";
-export type { AdvancedModule, BoardAction, CommandCall, QuickLevel, QuickRow, Role, RoleCommand, Target } from "./actions/index.ts";
+export type {
+  AdvancedModule,
+  BoardAction,
+  CommandCall,
+  MenuModule,
+  OpenMenu,
+  QuickLevel,
+  QuickRow,
+  Role,
+  RoleCommand,
+  ShownLevel,
+  ShownRow,
+  Target,
+} from "./actions/index.ts";
 export type { BlockStatus, Demand, Scheduler, Status } from "./scheduler/index.ts";
 export type { Condition, Lock, OutputInfo, Phase } from "./protocol/index.ts";
 export type { ModuleError, RequestError } from "./mount/index.ts";

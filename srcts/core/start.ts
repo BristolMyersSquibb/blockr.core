@@ -3,11 +3,12 @@
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
 //    scheduler reads, for rand_id, the shape of the ids that commands mint,
-//    for board_actions, which picks the board action that plays a role, and
-//    for those that set the page's logger up (../log/settings.ts), sets the
-//    logger up, and creates for the board that it opens the store, the
-//    notifications of the board (./notifications.ts) and the command
-//    registry.
+//    for those that set the page's logger up (../log/settings.ts), for
+//    board_actions, which picks the board action that plays a role, and for
+//    board_action_menu, which names the module that draws the menus of board
+//    actions (../actions/module.ts). It sets the logger up, and creates for
+//    the board that it opens the store, the notifications of the board
+//    (./notifications.ts) and the command registry.
 // 3. It imports the module of the class of each of the app's plugins and of
 //    each board option that R's reply names, each once per page, and
 //    registers the default export of each under the id that the reply gives
@@ -16,6 +17,10 @@
 //    whose class or board option the store refuses, and for one whose class
 //    lists a board action or a role that breaks a rule, and carries on, so
 //    that the board opens without what that module defines.
+//    Meanwhile it loads the module that board_action_menu names. Where that
+//    module cannot draw the menus, as where no package offers it, core opens
+//    no board and shows why in its place, since the blockr option is the
+//    app's rather than a board's.
 // 4. Once every module is registered, it chooses the board action that plays
 //    each role: the one that board_actions picks for the role, or else the
 //    role's default (../actions/actions.ts). Where a pick of board_actions
@@ -116,15 +121,16 @@
 // Tracing has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#tracing),
 // `start` and `open`, with a span inside for each step: `hello`, from sending
 // the hello to R's reply, `modules`, importing the modules of the plugin
-// classes and board options that the reply names, `storage.load`, the load()
-// of the storage plugin, `store.open`, each call of the store's open(), and
-// `render`, the frontend's render(). It notes when each step starts and ends,
+// classes and board options that the reply names and the module that draws
+// the menus of board actions, `storage.load`, the load() of the storage
+// plugin, `store.open`, each call of the store's open(), and `render`, the
+// frontend's render(). It notes when each step starts and ends,
 // and records the spans once the opening is done, and once the page's tracing
 // is set up, which it sets up with the page's logger as the first board opens
 // (../trace/settings.ts). The span of a later opening goes under the span that
 // was active as the store's open() was called.
 
-import { createBoardActions, showDialog, showMenu } from "../actions/index.ts";
+import { createBoardActions, MENU_OPTION, menuModule, showDialog } from "../actions/index.ts";
 import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index.ts";
 import { createCommands } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
@@ -221,8 +227,10 @@ export interface StartOptions {
   // draws, but the card that `frontEnds` gives.
   readonly alone?: boolean;
   readonly measure?: Measure;
-  // Draws each menu of board actions that CoreApi opens, core's menu unless
-  // given, as the CoreApi for tests drives each menu without drawing it.
+  // Draws each menu of board actions that CoreApi opens, in place of the module
+  // that the blockr option board_action_menu names, as the CoreApi for tests
+  // records each menu without drawing it. Where it is given, core loads no
+  // module for the menus.
   readonly showMenu?: ShowMenu;
   // Draws core's dialog, which shows each advanced action that neither the
   // caller nor the frontend shows, core's own unless given, as the CoreApi for
@@ -233,8 +241,9 @@ export interface StartOptions {
   // a blockr option that core reads as it starts, or gives one that the
   // scheduler, the command registry or the page's logger does not take, or
   // one in board_actions that picks a board action that cannot play its role,
-  // or why no board is open once another failed to open. Core logs why where
-  // it is not given.
+  // or where the module that board_action_menu names cannot draw the menus of
+  // board actions, or why no board is open once another failed to open. Core
+  // logs why where it is not given.
   readonly fail?: (error: Error) => void;
   // Imports core's OpenTelemetry module, as the page does, where the blockr
   // options have the page send its log records or its spans to a collector
@@ -484,10 +493,9 @@ export function start(options: StartOptions): Started {
     );
 
     // The blockr options that the scheduler reads, rand_id, the shape of the
-    // ids that commands mint, board_actions, which picks the board action that
-    // plays a role, and those that set the page's logger and its tracing up,
-    // asked at once, in one request, before the scheduler starts and the
-    // commands run, and kept for the page.
+    // ids that commands mint, and those that set the page's logger and its
+    // tracing up, asked at once, in one request, before the scheduler starts
+    // and the commands run, and kept for the page.
     // Each goes as R sent it to the scheduler or the command registry, which
     // converts and checks it, and takes its fallback where nothing sets it.
     // CoreApi gets rand_id too. It converts the value as the command registry
@@ -495,26 +503,31 @@ export function start(options: StartOptions): Started {
     // As the first board opens, core sets the page's logger and its tracing up
     // with the other four (../log/settings.ts, ../trace/settings.ts), and the
     // logger writes the lines that core held.
+    // The same request asks for board_actions, which picks the board action
+    // that plays a role, and for board_action_menu, which names the module
+    // that draws the menus of board actions.
     const [
       evaluationQueue,
       backgroundEvaluationDelay,
       gateVisibility,
       randId,
-      picks,
       logLevel,
       logger,
       otelClientEndpoint,
       otelClientServiceName,
+      picks,
+      boardActionMenu,
     ] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
       blockrOptions.read("background_evaluation_delay"),
       blockrOptions.read("gate_visibility"),
       blockrOptions.read("rand_id"),
-      blockrOptions.read("board_actions"),
       blockrOptions.read("log_level"),
       blockrOptions.read("logger"),
       blockrOptions.read("otel_client_endpoint"),
       blockrOptions.read("otel_client_service_name"),
+      blockrOptions.read("board_actions"),
+      blockrOptions.read(MENU_OPTION),
     ]);
     if (!logging) {
       const base = typeof document === "undefined" ? undefined : document.baseURI;
@@ -525,6 +538,12 @@ export function start(options: StartOptions): Started {
       setUpLogging(settings, service, sessionId, options.otel ?? noOtel);
       tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), service, sessionId, options.otel ?? noOtel);
     }
+
+    // The module that draws the menus loads while core imports the modules that
+    // the reply names, once per page, as the loader keeps what it imported.
+    // Its failure fails the opening once those have registered.
+    const drawing = options.showMenu === undefined ? menuModule(loader, boardActionMenu) : Promise.resolve(options.showMenu);
+    drawing.catch(() => undefined);
 
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
     // The notifications of the board, made before core imports the modules
@@ -543,16 +562,14 @@ export function start(options: StartOptions): Started {
       preflight: (id, args) => commands.preflight(id, args),
       blockRegistry: () => store.blockRegistry(),
     });
-    await opening.step("modules", () => register(reply, store, commands, boardActions, signal, raise));
-    // Once every module is registered, the board action that plays each role,
-    // where a wrong pick of board_actions opens no board, which the abort of
-    // the opening ends.
-    try {
-      boardActions.choosePlayers(alone ? undefined : picks);
-    } catch (error) {
-      ending();
-      throw error;
-    }
+    const showMenu = await opening.step("modules", async () => {
+      await register(reply, store, commands, boardActions, signal, raise);
+      return drawing;
+    });
+    // Once every module is registered, the board action that plays each role.
+    // A wrong pick of board_actions opens no board, as a module that cannot
+    // draw the menus does.
+    boardActions.choosePlayers(alone ? undefined : picks);
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;
     const scheduler = createScheduler({
@@ -574,7 +591,7 @@ export function start(options: StartOptions): Started {
       },
       commands,
       boardActions,
-      showMenu: options.showMenu ?? showMenu,
+      showMenu,
       showDialog: options.showDialog ?? showDialog,
       advanced: () => options.frontEnds?.advanced?.(signal),
       scheduler,

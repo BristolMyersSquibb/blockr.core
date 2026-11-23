@@ -263,62 +263,6 @@ function checkRaised(notification) {
   return notification;
 }
 
-// srcts/util/shortcuts.ts
-function matchesShortcut(text, event) {
-  const shortcut = readShortcut(text);
-  const key2 = event.key;
-  if (shortcut === void 0 || typeof key2 !== "string" || key2.toLowerCase() !== shortcut.key.toLowerCase()) {
-    return false;
-  }
-  if (event.altKey !== shortcut.alt || event.shiftKey !== shortcut.shift) return false;
-  if (shortcut.mod) return event.ctrlKey || event.metaKey;
-  return event.ctrlKey === shortcut.ctrl && event.metaKey === shortcut.meta;
-}
-function ariaShortcuts(text) {
-  const shortcut = text === void 0 ? void 0 : readShortcut(text);
-  if (shortcut === void 0) return void 0;
-  const rest = [...shortcut.alt ? ["Alt"] : [], ...shortcut.shift ? ["Shift"] : [], shortcut.key];
-  const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
-  return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
-}
-function shortcutLabel(text, mac) {
-  const shortcut = text === void 0 ? void 0 : readShortcut(text);
-  if (shortcut === void 0) return void 0;
-  const key2 = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
-  if (mac) {
-    const glyphs = [
-      ...shortcut.ctrl ? ["\u2303"] : [],
-      ...shortcut.alt ? ["\u2325"] : [],
-      ...shortcut.mod || shortcut.meta ? ["\u2318"] : [],
-      ...shortcut.shift ? ["\u21E7"] : []
-    ];
-    return [...glyphs, key2].join("");
-  }
-  const words = [
-    ...shortcut.mod || shortcut.ctrl ? ["Ctrl"] : [],
-    ...shortcut.alt ? ["Alt"] : [],
-    ...shortcut.shift ? ["Shift"] : [],
-    ...shortcut.meta ? ["Meta"] : []
-  ];
-  return [...words, key2].join("+");
-}
-function onMac(win) {
-  const nav = win.navigator;
-  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
-}
-var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
-function readShortcut(text) {
-  const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
-  const key2 = text.slice(at + 1);
-  const names2 = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
-  if (key2 === "" || new Set(names2).size < names2.length || !names2.every((name3) => MODIFIERS.includes(name3))) {
-    return void 0;
-  }
-  const has = (name3) => names2.includes(name3);
-  if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
-  return { key: key2, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
-}
-
 // srcts/util/validate.ts
 import { Validator } from "./vendor-c5b8952d.js";
 function compile(what, schema, fails = "fails its schema") {
@@ -5548,7 +5492,7 @@ function expand(delta, board, registrations) {
         failures.push(`The plugin class "${id2}" failed to update the delta for its plugin: ${errorMessage(error)}`);
         continue;
       }
-      const wrong = misplaced(id2, patches2);
+      const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
       if (wrong.length > 0) {
         failures.push(...wrong);
         continue;
@@ -5568,6 +5512,29 @@ function expand(delta, board, registrations) {
     }
   }
   return expanded;
+}
+function afterStep(board, before, registrations) {
+  const patches2 = [];
+  const failures = [];
+  for (const id2 of Object.keys(board.plugins)) {
+    const def = registrations.plugin(id2)?.def;
+    if (def?.afterStep === void 0) continue;
+    let returned;
+    try {
+      returned = def.afterStep(board, before, id2);
+    } catch (error) {
+      failures.push(`The afterStep of the plugin class "${id2}" failed: ${errorMessage(error)}`);
+      continue;
+    }
+    const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
+    if (wrong.length > 0) {
+      failures.push(...wrong);
+      continue;
+    }
+    patches2.push(...returned);
+  }
+  if (failures.length > 0) return { failures };
+  return patches2.length === 0 ? void 0 : { patches: patches2 };
 }
 function expandCore(delta, board) {
   const gone = new Set(delta.blocks?.rm ?? []);
@@ -5592,20 +5559,19 @@ function expandCore(delta, board) {
     ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
   };
 }
-function misplaced(id2, patches2) {
-  const of = `The plugin class "${id2}" updated the delta for its plugin`;
-  if (!Array.isArray(patches2)) return [`${of} with no array of patches.`];
+function misplaced(id2, patches2, of) {
+  if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
   const failures = [];
   for (const patch2 of patches2) {
     const problems = malformed(patch2);
     if (problems.length > 0) {
-      failures.push(`${of} with a patch that ${problems.join(", ")}.`);
+      failures.push(`${of} a patch that ${problems.join(", ")}.`);
       continue;
     }
     const { path } = patch2;
     const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
     if (boardProperty !== "plugins" || plugin !== id2) {
-      failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
+      failures.push(`${of} a patch at "${path}", outside that plugin's state.`);
     }
   }
   return failures;
@@ -5994,7 +5960,7 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" is registered already.`);
     }
     const given = def;
-    for (const [member, article] of [["update", "an"], ["migrate", "a"], ["start", "a"]]) {
+    for (const [member, article] of [["update", "an"], ["afterStep", "an"], ["migrate", "a"], ["start", "a"]]) {
       if (given[member] !== void 0 && typeof given[member] !== "function") {
         throw new Error(`The plugin class "${id2}" has ${article} ${member} that is no function.`);
       }
@@ -6134,21 +6100,18 @@ function createStore(options = {}) {
     const applied = [];
     const inverses = [];
     let current3 = start2;
-    for (const [i, given] of deltas.entries()) {
-      const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
+    function applyOne(given, delta, places, prefix) {
       const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
-      const delta = how.fit === true ? fit(given, current3) : given;
-      if (how.fit === true && isEmpty(delta)) continue;
       const expanded = expand(delta, current3, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
-      const committed = commit(current3, expanded, how.places?.[i]);
+      const committed = commit(current3, expanded, places);
       if ("failures" in committed) throw fail(committed.failures);
       if (hello?.lock.board === true) {
         const locked2 = lockFailures(current3, committed.inverse.delta);
         if (locked2.length > 0) throw fail(locked2);
       }
       const inverse = isEmpty(committed.inverse.delta) ? void 0 : committed.inverse;
-      if (inverse === void 0 && committed.changed.options.size === 0) continue;
+      if (inverse === void 0 && committed.changed.options.size === 0) return;
       const failures = check(
         committed.board,
         registry.value,
@@ -6159,6 +6122,19 @@ function createStore(options = {}) {
       applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
       if (inverse !== void 0 && given.undo !== false) inverses.unshift(inverse);
       current3 = committed.board;
+    }
+    for (const [i, given] of deltas.entries()) {
+      const delta = how.fit === true ? fit(given, current3) : given;
+      if (how.fit === true && isEmpty(delta)) continue;
+      applyOne(given, delta, how.places?.[i], deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "");
+    }
+    if (how.afterStep === true && applied.length > 0) {
+      const after = afterStep(current3, start2, registrations);
+      if (after !== void 0 && "failures" in after) throw new StoreError(refused2, after.failures);
+      if (after !== void 0) {
+        const delta = inverses.length > 0 ? after : { ...after, undo: false };
+        applyOne(delta, delta, void 0, "What afterStep returned: ");
+      }
     }
     return { applied, inverses };
   }
@@ -6199,12 +6175,12 @@ function createStore(options = {}) {
       else edits.delete(key2);
     }
   }
-  function runOnBoard(deltas) {
+  function runOnBoard(deltas, how) {
     const refused2 = "The store rejected the delta";
     const start2 = current2(refused2);
     const failures = named4(deltas);
     if (failures.length > 0) throw new StoreError(refused2, failures);
-    return { start: start2, ...run(start2, deltas, {}, refused2) };
+    return { start: start2, ...run(start2, deltas, how, refused2) };
   }
   function apply(delta, origin = "user", opts = {}) {
     guard2();
@@ -6213,7 +6189,7 @@ function createStore(options = {}) {
     const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
     busy = true;
     try {
-      const { start: start2, applied, inverses } = runOnBoard(deltas);
+      const { start: start2, applied, inverses } = runOnBoard(deltas, { afterStep: true });
       if (applied.length === 0) return false;
       number(applied, applied.at(-1)?.board ?? start2);
       const undoStep = inverses.length > 0;
@@ -6234,7 +6210,7 @@ function createStore(options = {}) {
     const was = busy;
     busy = true;
     try {
-      const { start: start2, applied } = runOnBoard(deltas);
+      const { start: start2, applied } = runOnBoard(deltas, { afterStep: false });
       return applied.at(-1)?.board ?? start2;
     } finally {
       busy = was;
@@ -6253,7 +6229,7 @@ function createStore(options = {}) {
       const { applied, inverses } = run(
         start2,
         step2.inverses.map(({ delta }) => delta),
-        { fit: true, places: step2.inverses.map(({ places }) => places) },
+        { fit: true, places: step2.inverses.map(({ places }) => places), afterStep: true },
         refused2
       );
       number(applied, applied.at(-1)?.board ?? start2);
@@ -6968,8 +6944,8 @@ function command(def) {
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
   failures;
-  // The command's place in the list that run() or plan() was given, counted
-  // from 0, where the command refused as one of a list.
+  // The command's place in the batch that run() or plan() was given, counted
+  // from 0, where the command refused as one of a batch.
   index;
   // False where the command failed its preflight, its preflight() answering
   // false, and left out otherwise, as a command's `undo` is false only where it
@@ -7088,13 +7064,13 @@ function createCommands(store, options = {}) {
       throw failed(command2, error);
     }
   }
-  async function planned(list, then) {
+  async function planned(batch2, then) {
     const within = keepContext();
-    const checked3 = list.map(({ id: id2, args }, index) => {
+    const checked3 = batch2.map(({ id: id2, args }, index) => {
       try {
         return lookup(id2, args);
       } catch (error) {
-        throw inList(index, id2, error);
+        throw inBatch(index, id2, error);
       }
     });
     const [first] = checked3;
@@ -7109,7 +7085,7 @@ function createCommands(store, options = {}) {
       try {
         start2 = current2(first.item.command.id);
       } catch (error) {
-        throw inList(0, first.item.command.id, error);
+        throw inBatch(0, first.item.command.id, error);
       }
       let board = start2;
       for (const [index, { item, args }] of checked3.entries()) {
@@ -7127,18 +7103,18 @@ function createCommands(store, options = {}) {
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
           board = store.dryRun(built);
         } catch (error) {
-          throw inList(index, command2.id, error);
+          throw inBatch(index, command2.id, error);
         }
       }
     }
     return within(() => then(built));
   }
-  function runList(list, origin) {
-    const ids2 = list.map(({ id: id2 }) => id2);
+  function runBatch(batch2, origin) {
+    const ids2 = batch2.map(({ id: id2 }) => id2);
     return traced(
-      "command list",
+      "command batch",
       { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(list, (built) => store.apply(built, origin))
+      () => planned(batch2, (built) => store.apply(built, origin))
     );
   }
   async function traced(name3, attributes, run) {
@@ -7190,11 +7166,11 @@ function createCommands(store, options = {}) {
         return false;
       }
     },
-    // A list comes with its origin second, in place of the args, and its
+    // A batch comes with its origin second, in place of the args, and its
     // options third, in place of the origin. The command registry ignores the
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(target2, given, third) {
-      if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
+      if (typeof target2 !== "string") return runBatch(target2, typeof given === "string" ? given : "user");
       const origin = typeof third === "string" ? third : "user";
       return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
@@ -7223,10 +7199,10 @@ var loggedErrors = /* @__PURE__ */ new WeakSet();
 function isLogged(error) {
   return error instanceof CommandError && loggedErrors.has(error);
 }
-function inList(index, id2, error) {
+function inBatch(index, id2, error) {
   const named4 = error instanceof CommandError || error instanceof StoreError;
   const refused2 = new CommandError(
-    `The list of commands was refused at command ${String(index + 1)}, "${id2}"`,
+    `The batch was refused at command ${String(index + 1)}, "${id2}"`,
     named4 ? error.failures : [errorMessage(error)],
     { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
   );
@@ -10466,7 +10442,13 @@ function boardActionsApi(actions, parts) {
     });
     if (menu.closed()) return;
     shown2 = menu;
-    hide = parts.show(menu, { el: given.el, anchor: given.anchor ?? given.el.getBoundingClientRect() });
+    try {
+      hide = parts.show(menu, { el: given.el, anchor: given.anchor ?? given.el.getBoundingClientRect() });
+    } catch (error) {
+      log.error(asError(error));
+      raiseAgain(coreNotification("module_failed", "error", errorMessage(error)));
+      menu.drop();
+    }
   }
   return {
     on: (target2) => on(targetGiven(target2)),
@@ -10609,384 +10591,88 @@ function CoreDialog({ args, onClose }) {
 }
 var WIDTH = "bc:min-w-[min(420px,100%)]";
 
-// srcts/actions/menu.tsx
-import { useEffect, useRef as useRef3, useSyncExternalStore as useSyncExternalStore2 } from "react";
-import { flushSync as flushSync5 } from "react-dom";
-import { createRoot as createRoot3 } from "react-dom/client";
-import { Autocomplete, Input, Separator, Text as Text3, TextField as AriaTextField } from "./vendor-c5b8952d.js";
-import { TextField as TextField6 } from "@blockr/core/react";
-import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
-import { Fragment as Fragment3, jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
-var showMenu = (menu, at) => {
-  const doc = at.el.ownerDocument;
-  const host = doc.createElement("div");
-  doc.body.append(host);
-  const root = createRoot3(host);
-  const insideRef = { current: null };
-  const tab = (event) => {
-    if (event.key !== "Tab" || event.isComposing || !(event.target instanceof Node) || insideRef.current?.contains(event.target) !== true) return;
-    event.preventDefault();
-    event.stopPropagation();
-    void menu.close().catch(() => void 0);
-  };
-  doc.defaultView?.addEventListener("keydown", tab, true);
-  flushSync5(() => {
-    root.render(/* @__PURE__ */ jsx12(CoreMenu, { menu, at, insideRef }));
-  });
-  return () => {
-    doc.defaultView?.removeEventListener("keydown", tab, true);
-    const active = doc.activeElement;
-    const lost = active === null || active === doc.body || (insideRef.current?.contains(active) ?? false);
-    root.unmount();
-    host.remove();
-    if (lost && at.el.isConnected) at.el.focus({ preventScroll: true });
-  };
-};
-function CoreMenu({ menu, at, insideRef }) {
-  const level = useSyncExternalStore2(menu.subscribe, menu.get);
-  const anchor = useRef3(null);
-  const { x, y, width, height } = at.anchor;
-  const tip = openTip(at.el.ownerDocument.defaultView ?? window);
-  return /* @__PURE__ */ jsxs10(Fragment3, { children: [
-    /* @__PURE__ */ jsx12("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
-    /* @__PURE__ */ jsx12(
-      Popover,
-      {
-        triggerRef: anchor,
-        isOpen: true,
-        placement: "bottom start",
-        isKeyboardDismissDisabled: true,
-        onOpenChange: (open) => {
-          if (!open) void menu.close().catch(() => void 0);
-        },
-        className: "bc:max-w-80 bc:min-w-45",
-        children: /* @__PURE__ */ jsx12(
-          "div",
-          {
-            ref: (el) => {
-              insideRef.current = el;
-            },
-            role: "dialog",
-            "aria-label": level.title ?? level.label,
-            tabIndex: -1,
-            className: "bc:grid bc:gap-1 bc:outline-none",
-            onKeyDownCapture: (event) => {
-              if (event.nativeEvent.isComposing) return;
-              if (event.key === "Escape") {
-                event.preventDefault();
-                event.stopPropagation();
-                menu.escape();
-              } else if (level.advanced && matchesShortcut(OPEN_KEY, event.nativeEvent)) {
-                event.preventDefault();
-                event.stopPropagation();
-                void menu.openAdvanced(openRow(event.target)).catch(() => void 0);
-              } else if (event.key === "Enter" && isFilter(event.target) && !event.target.hasAttribute("aria-activedescendant")) {
-                event.preventDefault();
-                event.stopPropagation();
-                void menu.pick().catch(() => void 0);
-              }
-            },
-            children: /* @__PURE__ */ jsx12(Level, { menu, level, insideRef, tip }, level.id)
-          }
-        )
-      }
-    )
-  ] });
-}
-function Level({
-  menu,
-  level,
-  insideRef,
-  tip
-}) {
-  const texts = level.rows.flatMap((row, i) => row.kind === "text" ? [{ row, i }] : []);
-  const listed = level.rows.flatMap((row, i) => row.kind === "text" ? [] : [{ row, i }]);
-  const rows = level.rows.length > 0;
-  useEffect(() => {
-    let frames = 0;
-    let frame;
-    const place = () => {
-      const el = insideRef.current;
-      if (el === null) return;
-      const field = el.querySelector("input:not([data-filter])") ?? el.querySelector("input[data-filter]");
-      const first = field ?? el.querySelector("[role=menuitem][data-key], [role=menuitemcheckbox][data-key]");
-      if (first === null && rows && frames++ < 10) {
-        frame = requestAnimationFrame(place);
-        return;
-      }
-      (first ?? el).focus({ preventScroll: true });
-      if (field !== null && !field.hasAttribute("data-filter")) field.select();
-    };
-    place();
-    return () => {
-      if (frame !== void 0) cancelAnimationFrame(frame);
-    };
-  }, [insideRef, rows]);
-  const pick2 = (i) => {
-    void menu.pick(i).catch(() => void 0);
-  };
-  const openAdvanced = (i) => {
-    void menu.openAdvanced(i).catch(() => void 0);
-  };
-  const grouped = groups(listed);
-  const list = /* @__PURE__ */ jsx12(Menu, { "aria-label": level.label, renderEmptyState: () => /* @__PURE__ */ jsx12("p", { className: NOTE, children: "No matches" }), children: grouped.map((group, g) => {
-    const divider = g > 0 && group.category !== grouped[g - 1]?.category;
-    const section = group.kind === "multi" ? /* @__PURE__ */ jsx12(
-      MenuSection,
-      {
-        id: `multi-${String(group.i)}`,
-        title: group.row.label,
-        selectionMode: "multiple",
-        selectedKeys: group.row.choices.filter((choice) => choice.picked).map(({ id: id2 }) => choiceKey(group.i, id2)),
-        onSelectionChange: (keys) => {
-          for (const choice of group.row.choices) {
-            const ticked = keys === "all" || keys.has(choiceKey(group.i, choice.id));
-            if (ticked !== choice.picked) menu.tick(group.i, choice.id);
-          }
-        },
-        children: group.row.choices.map((choice) => /* @__PURE__ */ jsx12(MenuItem, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
-      },
-      `multi-${String(group.i)}`
-    ) : /* @__PURE__ */ jsx12(
-      MenuSection,
-      {
-        id: `items-${String(group.items[0]?.i ?? g)}`,
-        title: group.continues ? void 0 : group.heading,
-        ...group.checks ? { selectionMode: "multiple", selectedKeys: group.items.filter(({ row }) => row.checked === true).map(({ i }) => itemKey(i)) } : {},
-        children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx12(
-          Item,
-          {
-            row,
-            index: i,
-            tip,
-            onPick: () => {
-              pick2(i);
-            },
-            onOpen: () => {
-              openAdvanced(i);
-            }
-          },
-          i
-        ))
-      },
-      `items-${String(group.items[0]?.i ?? g)}`
+// srcts/actions/module.ts
+var MENU_OPTION = "board_action_menu";
+var CORE_MENU = "blockr.core-board_action_menu";
+async function menuModule(loader, value2) {
+  if (value2 !== void 0 && (typeof value2 !== "string" || value2 === "")) {
+    throw new Error(
+      `Core opens no board, since the blockr option ${MENU_OPTION} names no module by its id, as "${CORE_MENU}", but holds ${JSON.stringify(value2)}.`
     );
-    return divider ? [/* @__PURE__ */ jsx12(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
-  }) });
-  return /* @__PURE__ */ jsxs10(Fragment3, { children: [
-    level.advanced ? /* @__PURE__ */ jsxs10("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
-      level.title === void 0 ? null : /* @__PURE__ */ jsx12("p", { className: `${TITLE} bc:min-w-0 bc:flex-1`, children: level.title }),
-      /* @__PURE__ */ jsx12(
-        "button",
-        {
-          type: "button",
-          "aria-label": OPEN_NAME,
-          "aria-keyshortcuts": ariaShortcuts(OPEN_KEY),
-          title: tip,
-          className: OPEN,
-          onClick: () => {
-            openAdvanced();
-          },
-          children: /* @__PURE__ */ jsx12(OpenIcon, {})
-        }
-      )
-    ] }) : level.title === void 0 ? null : /* @__PURE__ */ jsx12("p", { className: TITLE, children: level.title }),
-    level.loading ? /* @__PURE__ */ jsx12("p", { role: "status", className: `${NOTE} bc:animate-[bc-appear_300ms_ease-out_300ms_both]`, children: "Loading\u2026" }) : level.error === void 0 ? /* @__PURE__ */ jsxs10(Fragment3, { children: [
-      texts.map(({ row, i }) => /* @__PURE__ */ jsx12(
-        TextRow,
-        {
-          row,
-          onType: (value2) => {
-            menu.type(value2, i);
-          },
-          onSubmit: () => {
-            pick2(i);
-          }
-        },
-        i
-      )),
-      level.filter === void 0 ? listed.length === 0 ? null : list : /* @__PURE__ */ jsxs10(
-        Autocomplete,
-        {
-          inputValue: level.filter,
-          onInputChange: (value2) => {
-            menu.type(value2);
-          },
-          children: [
-            /* @__PURE__ */ jsx12(AriaTextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx12(
-              Input,
-              {
-                "data-filter": "",
-                placeholder: "Filter",
-                spellCheck: "false",
-                "aria-keyshortcuts": level.advanced ? ariaShortcuts(OPEN_KEY) : void 0,
-                className: FILTER
-              }
-            ) }),
-            list
-          ]
-        }
-      )
-    ] }) : /* @__PURE__ */ jsx12("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger", children: level.error })
-  ] });
-}
-function groups(listed) {
-  const all = [];
-  for (const { row, i } of listed) {
-    if (row.kind === "text") continue;
-    if (row.kind === "multi") {
-      all.push({ kind: "multi", row, i });
-      continue;
-    }
-    const last = all.at(-1);
-    const checks = row.checked !== void 0;
-    const under = last?.kind === "items" && last.heading === row.heading && last.category === row.category;
-    if (under && last.checks === checks) {
-      last.items.push({ row, i });
-    } else {
-      all.push({
-        kind: "items",
-        ...row.heading === void 0 ? {} : { heading: row.heading },
-        ...row.category === void 0 ? {} : { category: row.category },
-        checks,
-        continues: under,
-        items: [{ row, i }]
-      });
-    }
   }
-  return all;
+  const id2 = value2 ?? CORE_MENU;
+  let module;
+  try {
+    module = mountableModule(await loader.module(id2), id2, packageFromId(id2));
+  } catch (error) {
+    throw new Error(
+      `Core opens no board, since it cannot draw the menus of board actions with the module "${id2}" that the blockr option ${MENU_OPTION} names. ${errorMessage(error)}`,
+      { cause: error }
+    );
+  }
+  return drawWith(module, id2);
 }
-function Item({
-  row,
-  index,
-  tip,
-  onPick,
-  onOpen
-}) {
-  const { label, icon, detail } = row;
-  const removes = row.category === "remove";
-  return /* @__PURE__ */ jsxs10(
-    MenuItem,
-    {
-      id: itemKey(index),
-      textValue: label,
-      "aria-label": detail === void 0 ? label : `${label}, ${detail}`,
-      onAction: onPick,
-      className: removes ? REMOVES : void 0,
-      children: [
-        /* @__PURE__ */ jsxs10(
-          "span",
-          {
-            className: `bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${removes ? "bc:group-data-focused:text-text-danger bc:group-data-hovered:text-text-danger" : ""}`,
-            children: [
-              icon === void 0 ? null : /* @__PURE__ */ jsx12(
-                "span",
-                {
-                  "aria-hidden": "true",
-                  className: "bc:flex bc:size-4 bc:shrink-0 bc:[&>svg]:size-full",
-                  dangerouslySetInnerHTML: { __html: icon }
-                }
-              ),
-              /* @__PURE__ */ jsx12("span", { className: "bc:min-w-0 bc:truncate", children: label })
-            ]
-          }
-        ),
-        detail === void 0 ? null : /* @__PURE__ */ jsx12("span", { className: "bc:text-xs bc:text-text-muted", children: detail }),
-        row.advanced === true ? /* @__PURE__ */ jsxs10(Fragment3, { children: [
-          /* @__PURE__ */ jsx12(
-            "span",
-            {
-              "aria-hidden": "true",
-              "data-open-row": index,
-              title: tip,
-              className: `${OPEN} bc:-my-1`,
-              onPointerDown: (event) => {
-                event.stopPropagation();
-              },
-              onClick: (event) => {
-                event.stopPropagation();
-                onOpen();
-              },
-              children: /* @__PURE__ */ jsx12(OpenIcon, {})
-            }
-          ),
-          /* @__PURE__ */ jsx12(Text3, { slot: "description", className: "bc:sr-only", children: tip })
-        ] }) : null
-      ]
+function drawWith(module, id2) {
+  const named4 = id2 === void 0 ? "The module" : `The module "${id2}"`;
+  return (menu, at) => {
+    const doc = at.el.ownerDocument;
+    let cleanup;
+    try {
+      cleanup = module.render({ menu: forModule(menu), el: at.el, anchor: at.anchor });
+    } catch (error) {
+      throw new Error(`${named4} failed to draw a menu of board actions: ${errorMessage(error)}`, { cause: error });
     }
-  );
-}
-function OpenIcon() {
-  return /* @__PURE__ */ jsxs10(
-    "svg",
-    {
-      "aria-hidden": "true",
-      width: "14",
-      height: "14",
-      viewBox: "0 0 16 16",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.25,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: [
-        /* @__PURE__ */ jsx12("path", { d: "M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" }),
-        /* @__PURE__ */ jsx12("path", { d: "M10 2.5h3.5V6M13.5 2.5 8 8" })
-      ]
-    }
-  );
-}
-function openRow(target2) {
-  if (!(target2 instanceof Element)) return void 0;
-  const active = isFilter(target2) ? target2.getAttribute("aria-activedescendant") : null;
-  const item = active === null ? target2.closest('[role="menuitem"], [role="menuitemcheckbox"]') : target2.ownerDocument.getElementById(active);
-  const marked = item?.querySelector("[data-open-row]")?.getAttribute("data-open-row");
-  return marked === void 0 || marked === null ? void 0 : Number(marked);
-}
-function TextRow({
-  row,
-  onType,
-  onSubmit
-}) {
-  return /* @__PURE__ */ jsx12(
-    TextField6,
-    {
-      label: row.label,
-      value: row.value,
-      spellCheck: "false",
-      isInvalid: row.refusal !== void 0,
-      ...row.refusal === void 0 ? {} : { errorMessage: row.refusal },
-      className: "bc:px-1 bc:pt-1",
-      onChange: onType,
-      onKeyDown: (event) => {
-        if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-          event.preventDefault();
-          onSubmit();
-        } else event.continuePropagation();
+    return () => {
+      try {
+        if (typeof cleanup === "function") cleanup();
+      } catch (error) {
+        log.error(new Error(`${named4} failed as a menu of board actions closed: ${errorMessage(error)}`, { cause: error }));
       }
+      const active = doc.activeElement;
+      const lost = active === null || active === doc.body || !active.isConnected;
+      if (lost && at.el.isConnected) at.el.focus({ preventScroll: true });
+    };
+  };
+}
+function forModule(menu) {
+  const settled2 = (ran) => {
+    ran.catch(() => void 0);
+  };
+  return Object.freeze({
+    get: () => menu.get(),
+    subscribe: (fn) => {
+      if (typeof fn !== "function") throw new TypeError("The subscribe() of an open menu takes a function, which it calls as the menu changes.");
+      return menu.subscribe(fn);
+    },
+    pick: (row) => {
+      settled2(menu.pick(row === void 0 ? void 0 : rowGiven(row, "pick()")));
+    },
+    openAdvanced: (row) => {
+      settled2(menu.openAdvanced(row === void 0 ? void 0 : rowGiven(row, "openAdvanced()")));
+    },
+    tick: (row, choice) => {
+      const index = rowGiven(row, "tick()");
+      if (typeof choice !== "string") throw new TypeError(`The tick() of an open menu takes the id of a choice, not ${JSON.stringify(choice)}.`);
+      menu.tick(index, choice);
+    },
+    type: (value2, row) => {
+      if (typeof value2 !== "string") throw new TypeError(`The type() of an open menu takes the text that the user typed, not ${JSON.stringify(value2)}.`);
+      menu.type(value2, row === void 0 ? void 0 : rowGiven(row, "type()"));
+    },
+    escape: () => {
+      menu.escape();
+    },
+    close: () => {
+      settled2(menu.close());
     }
-  );
+  });
 }
-function itemKey(row) {
-  return String(row);
+function rowGiven(row, member) {
+  if (typeof row !== "number" || !Number.isInteger(row) || row < 0) {
+    throw new TypeError(`The ${member} of an open menu takes the index of a row in the rows of the level, not ${JSON.stringify(row)}.`);
+  }
+  return row;
 }
-function choiceKey(row, choice) {
-  return `${String(row)}:${choice}`;
-}
-function isFilter(target2) {
-  return target2 instanceof HTMLInputElement && target2.hasAttribute("data-filter");
-}
-var TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
-var OPEN = "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:focus-visible:ring-2 bc:focus-visible:ring-border-accent";
-var OPEN_NAME = "Show all options";
-var OPEN_KEY = "Mod+Enter";
-function openTip(win) {
-  return `${OPEN_NAME} (${shortcutLabel(OPEN_KEY, onMac(win)) ?? OPEN_KEY})`;
-}
-var NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";
-var FILTER = "bc:box-border bc:w-full bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-text-default bc:outline-none";
-var DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border-default";
-var REMOVES = "bc:group bc:data-hovered:bg-bg-danger! bc:data-focused:bg-bg-danger!";
 
 // srcts/core/plugins.ts
 var NONE = Object.freeze({});
@@ -11460,15 +11146,15 @@ function refusing(store, commands, refused2) {
     },
     commands: {
       ...commands,
-      // A list comes with its origin second, in place of the args, and its
+      // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
       run(target2, given, third, fourth) {
         if (typeof target2 === "string") {
           const origin = typeof third === "string" ? third : void 0;
           return ran(fourth, () => commands.run(target2, given, origin));
         }
-        const listed = typeof given === "string" ? given : void 0;
-        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, listed));
+        const batchOrigin = typeof given === "string" ? given : void 0;
+        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, batchOrigin));
       }
     }
   };
@@ -12286,21 +11972,23 @@ function start(options) {
       backgroundEvaluationDelay,
       gateVisibility,
       randId,
-      picks,
       logLevel2,
       logger,
       otelClientEndpoint,
-      otelClientServiceName
+      otelClientServiceName,
+      picks,
+      boardActionMenu
     ] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
       blockrOptions.read("background_evaluation_delay"),
       blockrOptions.read("gate_visibility"),
       blockrOptions.read("rand_id"),
-      blockrOptions.read("board_actions"),
       blockrOptions.read("log_level"),
       blockrOptions.read("logger"),
       blockrOptions.read("otel_client_endpoint"),
-      blockrOptions.read("otel_client_service_name")
+      blockrOptions.read("otel_client_service_name"),
+      blockrOptions.read("board_actions"),
+      blockrOptions.read(MENU_OPTION)
     ]);
     if (!logging2) {
       const base = typeof document === "undefined" ? void 0 : document.baseURI;
@@ -12311,6 +11999,8 @@ function start(options) {
       setUpLogging(settings, service, sessionId, options.otel ?? noOtel);
       tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), service, sessionId, options.otel ?? noOtel);
     }
+    const drawing = options.showMenu === void 0 ? menuModule(loader, boardActionMenu) : Promise.resolve(options.showMenu);
+    drawing.catch(() => void 0);
     const store = createStore({ hello: reply, signal: signal5, migration: (id2) => migrations.get(id2) });
     const notifications = createNotifications(store, { signal: signal5, plugins: reply.plugins });
     const { raise } = notifications;
@@ -12326,13 +12016,11 @@ function start(options) {
       preflight: (id2, args) => commands.preflight(id2, args),
       blockRegistry: () => store.blockRegistry()
     });
-    await opening2.step("modules", () => register(reply, store, commands, boardActions, signal5, raise));
-    try {
-      boardActions.choosePlayers(alone ? void 0 : picks);
-    } catch (error) {
-      ending();
-      throw error;
-    }
+    const showMenu = await opening2.step("modules", async () => {
+      await register(reply, store, commands, boardActions, signal5, raise);
+      return drawing;
+    });
+    boardActions.choosePlayers(alone ? void 0 : picks);
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -12353,7 +12041,7 @@ function start(options) {
       },
       commands,
       boardActions,
-      showMenu: options.showMenu ?? showMenu,
+      showMenu,
       showDialog: options.showDialog ?? showDialog,
       advanced: () => options.frontEnds?.advanced?.(signal5),
       scheduler,
@@ -12667,11 +12355,11 @@ function noOtel() {
 }
 
 // srcts/page/card.tsx
-import { useCallback as useCallback3, useSyncExternalStore as useSyncExternalStore3 } from "react";
-import { flushSync as flushSync6 } from "react-dom";
-import { createRoot as createRoot4 } from "react-dom/client";
+import { useCallback as useCallback3, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { flushSync as flushSync5 } from "react-dom";
+import { createRoot as createRoot3 } from "react-dom/client";
 import { useNotified, useStatus } from "@blockr/core/react";
-import { jsx as jsx13, jsxs as jsxs11 } from "react/jsx-runtime";
+import { jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
 var OWNER = "blockr.core";
 function drawCard(el, core, signal5) {
   if (signal5.aborted) return;
@@ -12683,9 +12371,9 @@ function drawCard(el, core, signal5) {
   }
   const demand = core.scheduler.demand(OWNER, [id2]);
   el.replaceChildren();
-  const root = createRoot4(el);
-  flushSync6(() => {
-    root.render(/* @__PURE__ */ jsx13(AloneCard, { core, id: id2 }));
+  const root = createRoot3(el);
+  flushSync5(() => {
+    root.render(/* @__PURE__ */ jsx12(AloneCard, { core, id: id2 }));
   });
   signal5.addEventListener(
     "abort",
@@ -12707,20 +12395,20 @@ function AloneCard({ core, id: id2 }) {
   const mountOutput2 = useCallback3((el) => core.mountOutput(el, id2), [core, id2]);
   const inputs = !core.store.locked(id2);
   const current2 = status?.status === "ready" && !status.running;
-  return /* @__PURE__ */ jsxs11(
+  return /* @__PURE__ */ jsxs10(
     "article",
     {
       "aria-label": name3,
       className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
       children: [
-        /* @__PURE__ */ jsx13("header", { children: /* @__PURE__ */ jsx13("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
-        inputs ? /* @__PURE__ */ jsx13(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
-        /* @__PURE__ */ jsxs11(
+        /* @__PURE__ */ jsx12("header", { children: /* @__PURE__ */ jsx12("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
+        inputs ? /* @__PURE__ */ jsx12(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsxs10(
           "div",
           {
             className: `bc:min-w-0 ${sized ? "bc:flex bc:h-104 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
-              /* @__PURE__ */ jsx13(
+              /* @__PURE__ */ jsx12(
                 Mounted,
                 {
                   mount: mountOutput2,
@@ -12729,12 +12417,12 @@ function AloneCard({ core, id: id2 }) {
                   className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              sized ? /* @__PURE__ */ jsx13(Footer, { ...footer }) : null
+              sized ? /* @__PURE__ */ jsx12(Footer, { ...footer }) : null
             ]
           }
         ),
-        /* @__PURE__ */ jsx13(Pills, { ...footer }),
-        /* @__PURE__ */ jsx13(Banners, { ...footer })
+        /* @__PURE__ */ jsx12(Pills, { ...footer }),
+        /* @__PURE__ */ jsx12(Banners, { ...footer })
       ]
     }
   );
@@ -12746,7 +12434,7 @@ function useBlockName(core, id2) {
     }),
     [core]
   );
-  return useSyncExternalStore3(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
+  return useSyncExternalStore2(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
 }
 
 // srcts/page/page.ts

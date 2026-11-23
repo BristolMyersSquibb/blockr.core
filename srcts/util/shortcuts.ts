@@ -6,7 +6,7 @@
 // names each modifier once, and names neither Ctrl nor Meta beside Mod. Core
 // binds no shortcut that it cannot read. Core's basic frontend binds the
 // shortcuts of its buttons (../modules/basic/shortcuts.ts), and core's menu
-// the key that opens an advanced action (../actions/menu.tsx).
+// the key that opens an advanced action (../modules/board-action-menu).
 
 // Whether the key press is the one that the shortcut names.
 export function matchesShortcut(text: string, event: KeyboardEvent): boolean {

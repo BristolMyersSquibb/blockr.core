@@ -36,9 +36,13 @@
 // come after the batch, and fall outside the check.
 // A call of menu() opens the menu of a target, with a row for each board
 // action that on() gives the target, which core runs by the rules of a quick
-// action (./quick.ts) and draws at the anchor (./menu.tsx). Picking a row
-// closes the menu and runs the board action's run as trigger() does, or opens
-// its quick action as the menu's next level.
+// action (./quick.ts).
+// The module that the blockr option board_action_menu names draws the menu at
+// the anchor (./module.ts).
+// Where that module fails to draw it, core closes the menu, logs why, and
+// tells the user through a notification of the code `module_failed`.
+// Picking a row closes the menu and runs the board action's run as trigger()
+// does, or opens its quick action as the menu's next level.
 // A call of trigger() runs a board action that asks the user nothing in these
 // steps:
 // 1. Core looks the board action up by its id, or by the id of the role that
@@ -87,7 +91,7 @@ import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
 import { log } from "../log/index.ts";
-import { coreNotification, errorMessage, isObject, packageFromId, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, isObject, packageFromId, sourceModule } from "../util/index.ts";
 import type { Refused } from "../util/index.ts";
 import { createAdvanced } from "./advanced.ts";
 import type { AdvancedModule, Batching, Opening, Place, ShowDialog } from "./advanced.ts";
@@ -95,7 +99,7 @@ import { coreBoardActions } from "./core.ts";
 import type { CoreParts } from "./core.ts";
 import { isElement, targetGiven } from "./given.ts";
 import { isBatch, openMenu } from "./quick.ts";
-import type { MenuStart, OpenMenu, QuickLevel } from "./quick.ts";
+import type { DrivenMenu, MenuStart, QuickLevel } from "./quick.ts";
 import { batchFailure, checkedPlayer, checkedRoles, CORE_ROLES, described } from "./roles.ts";
 import type { Role } from "./roles.ts";
 import { kindsFailure } from "./targets.ts";
@@ -397,8 +401,10 @@ export interface MenuPlace {
 }
 
 // Draws an open menu at its place, until the function that it returns runs,
-// which core calls as the menu closes.
-export type ShowMenu = (menu: OpenMenu, at: MenuPlace) => () => void;
+// which core calls as the menu closes: the module that the blockr option
+// board_action_menu names (./module.ts), or what the CoreApi for tests
+// records each menu with in place of drawing it.
+export type ShowMenu = (menu: DrivenMenu, at: MenuPlace) => () => void;
 
 // What CoreApi's `boardActions` reads.
 export interface BoardActionsParts {
@@ -418,8 +424,9 @@ export interface BoardActionsParts {
   // notifier, as core raises a refusal: here, that a board action's `run`
   // failed, or that its advanced action failed in render().
   readonly raiseAgain: (notification: Omit<Notification, "id">, notifier?: Notifier) => void;
-  // Draws each menu that menu() and trigger() open: core's menu on the page
-  // (./menu.tsx).
+  // Draws each menu that menu() and trigger() open: the module that the
+  // blockr option board_action_menu names on the page, core's menu unless the
+  // app names another (./module.ts).
   readonly show: ShowMenu;
   // The place of the frontend that draws the board, where the frontend's
   // module gives `advanced`, in which core shows each advanced action that
@@ -456,7 +463,7 @@ interface Given {
 export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts): CoreApi["boardActions"] {
   const { store, lock, refused, raiseAgain, signal } = parts;
   // The menu that is open, of which core shows one at a time.
-  let shown: OpenMenu | undefined;
+  let shown: DrivenMenu | undefined;
   signal?.addEventListener(
     "abort",
     () => {
@@ -682,7 +689,17 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     });
     if (menu.closed()) return;
     shown = menu;
-    hide = parts.show(menu, { el: given.el, anchor: given.anchor ?? given.el.getBoundingClientRect() });
+    try {
+      hide = parts.show(menu, { el: given.el, anchor: given.anchor ?? given.el.getBoundingClientRect() });
+    } catch (error) {
+      // The module that draws the menu failed, a fault of its package. Core
+      // logs why and tells the user through a notification of the code
+      // module_failed, about the board. Then it closes the menu, which draws
+      // nothing, so that a call of trigger() that waits for it resolves.
+      log.error(asError(error));
+      raiseAgain(coreNotification("module_failed", "error", errorMessage(error)));
+      menu.drop();
+    }
   }
 
   return {

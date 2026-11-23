@@ -117,6 +117,25 @@ const dag: PluginClass = {
   },
 };
 
+// The afterStep of the DAG's class: it places each block that the step adds
+// and that has no position yet. A block goes one rank after the first block
+// that it reads from, by the links of the board that the step leaves, and to
+// the origin where it reads from none.
+function placeAdded(board: Board, before: Board, plugin: string): Patch[] {
+  const { positions } = pluginState(board, plugin) as DagState;
+  return Object.keys(board.blocks)
+    .filter((id) => !Object.hasOwn(before.blocks, id) && !Object.hasOwn(positions, id))
+    .map((id) => {
+      const from = Object.values(board.links).find((link) => link.to === id)?.from;
+      const at = from === undefined ? undefined : positions[from];
+      return {
+        op: "add",
+        path: `/plugins/${plugin}/positions/${id}`,
+        value: at === undefined ? { x: 0, y: 0 } : { x: at.x + 100, y: at.y },
+      };
+    });
+}
+
 // A class of notes on blocks, by block id, a removed block's note going with
 // it.
 const noted: PluginClass = {
@@ -210,23 +229,45 @@ const docking: HelloReply = withPlugins(
   },
 );
 
-// The plugin classes of the dock app.
-function dockClasses(store: Store): void {
+// The plugin classes of the dock app, with the DAG's class given.
+function dockClasses(store: Store, dagClass: PluginClass = dag): void {
   store.plugins.register(dock);
-  store.plugins.register(dag);
+  store.plugins.register(dagClass);
 }
 
 // A store that holds the board of a dock app, once the classes of the dock
-// app and what `setup` registers are registered.
-function docked(setup?: (store: Store) => void): Promise<Store> {
+// app, with the DAG's class given, and what `setup` registers are registered,
+// opened with the reply given.
+function docked(
+  setup?: (store: Store) => void,
+  dagClass: PluginClass = dag,
+  replied: HelloReply = docking,
+): Promise<Store> {
   return opened(
     (store) => {
-      dockClasses(store);
+      dockClasses(store, dagClass);
       setup?.(store);
     },
-    docking,
+    replied,
   );
 }
+
+// A store that holds the board of a dock app whose DAG places what each step
+// adds, through the afterStep given, as docked() opens it.
+function placing(
+  afterStep: NonNullable<PluginClass["afterStep"]> = placeAdded,
+  setup?: (store: Store) => void,
+  replied: HelloReply = docking,
+): Promise<Store> {
+  return docked(setup, { ...dag, afterStep }, replied);
+}
+
+// The deltas of a batch that adds block g and then links block b to it, as
+// Append block does.
+const appended: readonly Delta[] = [
+  { blocks: { add: { g: head(3) } } },
+  { links: { add: { bg: { from: "b", to: "g", input: "data" } } } },
+];
 
 function changes(store: Store): Change[] {
   const seen: Change[] = [];
@@ -1977,8 +2018,231 @@ describe("applying a delta", () => {
   });
 });
 
+describe("the afterStep of a plugin's class", () => {
+  test("is called once the last delta of a step is in, with the board that the step leaves and the board that it started from, and its patches apply as one more delta of the step, which one undo takes back", async () => {
+    const afterStep = vi.fn(placeAdded);
+    const store = await placing(afterStep);
+    const before = store.board();
+    const seen = changes(store);
+
+    store.apply(appended, "assistant");
+
+    expect(afterStep).toHaveBeenCalledTimes(1);
+    const [left, startedFrom, id] = afterStep.mock.calls[0] ?? [];
+    expect(left?.links.bg).toEqual({ from: "b", to: "g", input: "data" });
+    expect(startedFrom).toBe(before);
+    expect(id).toBe(dag.id);
+    // Block g takes its place by the link from b, which the delta that adds
+    // g does not hold.
+    expect(dagPositions(store.board()).g).toEqual({ x: 101, y: 1 });
+    expect(seen).toHaveLength(3);
+    expect(seen[2]).toEqual({
+      delta: { patches: [{ op: "add", path: "/plugins/blockr.dag-dag_plugin/positions/g", value: { x: 101, y: 1 } }] },
+      origin: "assistant",
+    });
+    expect(store.editId({ plugin: dag.id })).toBe(store.editId({ block: "g" }));
+
+    store.undo();
+    expect(store.board()).toEqual(before);
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("gives every class the board that the step's own deltas leave, and applies the patches of all of them as one delta, in the order of the board's plugins", async () => {
+    const given: Board[] = [];
+    // Notes each block that the step adds.
+    const noting: PluginClass = {
+      ...noted,
+      afterStep(board, before, plugin) {
+        given.push(board);
+        return Object.keys(board.blocks)
+          .filter((id) => !Object.hasOwn(before.blocks, id))
+          .map((id) => ({ op: "add", path: `/plugins/${plugin}/notes/${id}`, value: "Added" }));
+      },
+    };
+    const store = await placing(
+      (board, before, plugin) => {
+        given.push(board);
+        return placeAdded(board, before, plugin);
+      },
+      (store) => store.plugins.register(noting),
+      withPlugins(plugin(noting, "Notes", { notes: {} }), docking),
+    );
+    const before = store.board();
+    const seen = changes(store);
+
+    store.apply(appended);
+
+    // Each is given the same board, which holds none of the other's patches.
+    expect(given).toHaveLength(2);
+    expect(given[1]).toBe(given[0]);
+    expect(given[0]?.plugins).toBe(before.plugins);
+    expect(seen).toHaveLength(3);
+    expect(seen[2]).toEqual({
+      delta: {
+        patches: [
+          { op: "add", path: "/plugins/blockr.dag-dag_plugin/positions/g", value: { x: 101, y: 1 } },
+          { op: "add", path: "/plugins/blockr.notes-notes_plugin/notes/g", value: "Added" },
+        ],
+      },
+      origin: "user",
+    });
+    expect(pluginNotes(store.board())).toEqual({ g: "Added" });
+  });
+
+  test("has its delta expanded through the update of each plugin's class, as any other delta", async () => {
+    // The DAG's class keeps how far right its blocks reach, which its update
+    // brings in line with each position that a delta adds, whoever adds it.
+    const reaching: PluginClass = {
+      ...dag,
+      afterStep: placeAdded,
+      update(delta, board, plugin) {
+        const prefix = `/plugins/${plugin}/positions/`;
+        const added = (delta.patches ?? []).filter((patch) => patch.op === "add" && patch.path.startsWith(prefix));
+        if (added.length === 0) return [];
+        const xs = [...Object.values(dagPositions(board)), ...added.map((patch) => patch.value as unknown as Position)];
+        return [{ op: "add", path: `/plugins/${plugin}/right`, value: Math.max(...xs.map(({ x }) => x)) }];
+      },
+    };
+    const store = await docked(undefined, reaching);
+    const seen = changes(store);
+
+    store.apply(appended);
+
+    expect(pluginState(store.board(), dag.id)).toMatchObject({ right: 101 });
+    expect(seen).toHaveLength(3);
+    expect(seen[2]).toEqual({
+      delta: {
+        patches: [
+          { op: "add", path: "/plugins/blockr.dag-dag_plugin/positions/g", value: { x: 101, y: 1 } },
+          { op: "add", path: "/plugins/blockr.dag-dag_plugin/right", value: 101 },
+        ],
+      },
+      origin: "user",
+    });
+  });
+
+  const failures: [string, NonNullable<PluginClass["afterStep"]>, string | RegExp][] = [
+    [
+      "throws",
+      () => {
+        throw new Error("No room.");
+      },
+      'The afterStep of the plugin class "blockr.dag-dag_plugin" failed: No room.',
+    ],
+    [
+      "returns no array of patches",
+      () => ({}) as unknown as Patch[],
+      'The afterStep of the plugin class "blockr.dag-dag_plugin" returned no array of patches.',
+    ],
+    [
+      "returns a patch without a value",
+      (_board, _before, plugin) => [{ op: "add", path: `/plugins/${plugin}/positions/g` }],
+      'The afterStep of the plugin class "blockr.dag-dag_plugin" returned a patch that has no value.',
+    ],
+    [
+      "returns a patch outside the state of its plugin",
+      () => [{ op: "replace", path: "/plugins/blockr.dock-dock_plugin/views", value: {} }],
+      'The afterStep of the plugin class "blockr.dag-dag_plugin" returned a patch at "/plugins/blockr.dock-dock_plugin/views", outside that plugin\'s state.',
+    ],
+    [
+      "returns a patch that the schema of its plugin's state refuses",
+      (_board, _before, plugin) => [{ op: "add", path: `/plugins/${plugin}/positions/g`, value: { x: "left" } }],
+      /- What afterStep returned: The state of the plugin "blockr\.dag-dag_plugin" fails its schema/,
+    ],
+    [
+      "returns a patch that does not find its path",
+      (_board, _before, plugin) => [{ op: "add", path: `/plugins/${plugin}/spots/g`, value: { x: 0, y: 0 } }],
+      /- What afterStep returned: The patch 1, add at "\/plugins\/blockr\.dag-dag_plugin\/spots\/g", finds no "spots"/,
+    ],
+  ];
+
+  test.each(failures)("refuses the whole step where it %s, changing nothing", async (_, afterStep, failure) => {
+    const store = await placing(afterStep);
+    const board = store.board();
+    const seen = changes(store);
+
+    expect(() => {
+      store.apply(appended);
+    }).toThrow(failure);
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("is called after an undo and a redo too, whose steps take its patches back and apply them again, over what another origin changed since", async () => {
+    // Keeps the number of blocks on the board.
+    const afterStep = vi.fn<NonNullable<PluginClass["afterStep"]>>((board, _before, plugin) => {
+      const blocks = Object.keys(board.blocks).length;
+      return (pluginState(board, plugin) as { readonly blocks: number }).blocks === blocks
+        ? []
+        : [{ op: "replace", path: `/plugins/${plugin}/blocks`, value: blocks }];
+    });
+    const tally: PluginClass = {
+      id: "blockr.tally-tally_plugin",
+      state: {
+        schema: { type: "object", properties: { blocks: { type: "integer" } }, required: ["blocks"] },
+        default: { blocks: 0 },
+      },
+      afterStep,
+    };
+    const store = await opened(
+      (store) => store.plugins.register(tally),
+      withPlugins(plugin(tally, "Tally", { blocks: 6 })),
+    );
+    const tallied = () => (pluginState(store.board(), tally.id) as { readonly blocks: number }).blocks;
+
+    store.apply({ blocks: { add: { g: head() } } });
+    store.apply({ blocks: { add: { h: head() } } }, "assistant");
+    expect(tallied()).toBe(8);
+    const before = store.board();
+    afterStep.mockClear();
+
+    // The undo takes back the user's step, past the assistant's, and so sets
+    // the tally back to 6, which afterStep brings in line with the 7 blocks.
+    store.undo("user");
+    expect(afterStep).toHaveBeenCalledTimes(1);
+    expect(afterStep.mock.calls[0]?.[1]).toBe(before);
+    expect(Object.keys(store.board().blocks)).toEqual(["a", "b", "c", "d", "e", "f", "h"]);
+    expect(tallied()).toBe(7);
+
+    store.redo();
+    expect(afterStep).toHaveBeenCalledTimes(2);
+    expect(Object.keys(store.board().blocks)).toHaveLength(8);
+    expect(tallied()).toBe(8);
+
+    store.undo();
+    store.undo();
+    expect(Object.keys(store.board().blocks)).toHaveLength(6);
+    expect(tallied()).toBe(6);
+  });
+
+  test("returns patches that take no undo step where the step's own deltas take none, and its delta is announced with undo: false", async () => {
+    const store = await placing();
+    const seen = changes(store);
+
+    expect(store.apply(appended, "user", { undo: false })).toBe(false);
+
+    expect(dagPositions(store.board()).g).toEqual({ x: 101, y: 1 });
+    expect(seen[2]).toEqual({
+      delta: { patches: [{ op: "add", path: "/plugins/blockr.dag-dag_plugin/positions/g", value: { x: 101, y: 1 } }], undo: false },
+      origin: "user",
+    });
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("is not called for a step that changes nothing", async () => {
+    const afterStep = vi.fn(placeAdded);
+    const store = await placing(afterStep);
+
+    expect(store.apply([])).toBe(false);
+    expect(store.apply({ name: store.board().name })).toBe(false);
+    store.undo();
+    expect(afterStep).not.toHaveBeenCalled();
+  });
+});
+
 describe("a dry run", () => {
-  test("gives the board that apply() would leave, and commits, announces and numbers nothing", async () => {
+  test("gives the board that the deltas leave as apply() applies them, and commits, announces and numbers nothing", async () => {
     const store = await opened();
     const board = store.board();
     const b = store.editId({ block: "b" });
@@ -2031,6 +2295,17 @@ describe("a dry run", () => {
     const store = await opened();
     expect(store.dryRun([])).toBe(store.board());
     expect(store.dryRun({ name: "Iris review" })).toBe(store.board());
+  });
+
+  test("calls no afterStep, so that it gives the board between the deltas of a step, on which a batch plans its next command", async () => {
+    const afterStep = vi.fn(placeAdded);
+    const store = await placing(afterStep);
+
+    const after = store.dryRun(appended);
+
+    expect(after.links.bg).toEqual({ from: "b", to: "g", input: "data" });
+    expect(dagPositions(after).g).toBeUndefined();
+    expect(afterStep).not.toHaveBeenCalled();
   });
 
   test("runs while the store announces a change, after which the store refuses a subscriber's delta still", async () => {
@@ -2774,6 +3049,7 @@ describe("registering", () => {
     const id = "blockr.dock-dock_plugin";
 
     expect(() => register({ id, update: "views" })).toThrow(`The plugin class "${id}" has an update that is no function.`);
+    expect(() => register({ id, afterStep: [] })).toThrow(`The plugin class "${id}" has an afterStep that is no function.`);
     expect(() => register({ id, migrate: 3 })).toThrow(`The plugin class "${id}" has a migrate that is no function.`);
     expect(() => register({ id, start: {} })).toThrow(`The plugin class "${id}" has a start that is no function.`);
     expect(() => register({ id, ui: "blockr.dock-dock" })).toThrow(`The plugin class "${id}" has a ui without a render() function.`);

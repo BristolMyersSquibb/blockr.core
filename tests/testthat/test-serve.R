@@ -934,6 +934,7 @@ test_that("the page imports the modules of plugins, options and blocks", {
     c(
       chr_xtr(lst_xtr(plugins, "module"), "path"),
       chr_xtr(lst_xtr(app_options(), "module"), "path"),
+      "js/board-action-menu.js",
       "js/dataset-block.js",
       "js/head-block.js",
       "js/basic-table.js"
@@ -941,6 +942,35 @@ test_that("the page imports the modules of plugins, options and blocks", {
   )
   # The dataset block and the head block share their renderer.
   expect_length(modules, length(unique(chr_xtr(modules, "path"))))
+})
+
+test_that("the page imports the module that board_action_menu names", {
+
+  board <- encode_message(blockr_ser(served_board()))
+  registry <- app_block_registry(board = served_board())
+  paths <- function() chr_xtr(page_modules(board, registry), "path")
+
+  # Core's own menu, unless the app names another module
+  expect_true("js/board-action-menu.js" %in% paths())
+
+  withr::local_options(blockr.board_action_menu = "blockr.core-controls")
+  expect_true("js/blockr-core-controls.js" %in% paths())
+  expect_false("js/board-action-menu.js" %in% paths())
+
+  # The client says why it opens no board where no package offers the module,
+  # or where the option holds no ID
+  withr::local_options(blockr.board_action_menu = "mykit-menu")
+  expect_false("js/board-action-menu.js" %in% paths())
+
+  withr::local_options(blockr.board_action_menu = 3)
+  expect_false("js/board-action-menu.js" %in% paths())
+
+  # Set twice, as an R option and as an environment variable
+  withr::local_options(
+    blockr.board_action_menu = "blockr.core-board_action_menu"
+  )
+  withr::local_envvar(BLOCKR_BOARD_ACTION_MENU = "mykit-menu")
+  expect_false("js/board-action-menu.js" %in% paths())
 })
 
 test_that("an app holds the output families that serve() read", {
