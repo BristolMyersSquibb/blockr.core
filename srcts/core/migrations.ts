@@ -1,9 +1,9 @@
 // The migrations of block classes' states, which each class's UI module
 // exports as `migrate`, as Board updates has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#plugins):
-// 1. Before the store opens or checks a board, core reads the version of
-//    each block that the board holds, and of the block's class, from the block
-//    registry of R's reply to `hello`.
+// 1. Before the store opens, checks or reads a board, core reads the version
+//    of each block that the board holds, and of the block's class, from the
+//    block registry of R's reply to `hello`.
 // 2. For each class of which the board holds a block below the class's
 //    version, core imports the class's UI module, without its stylesheet,
 //    which loads as core mounts a block of the class.

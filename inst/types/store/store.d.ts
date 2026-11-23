@@ -26,6 +26,10 @@ export interface Store {
         notifier?(notifications: readonly Notification[]): void;
     }): Promise<Dropped[]>;
     check(text: string): Promise<Dropped[]>;
+    read(text: string): Promise<{
+        board: Board;
+        dropped: Dropped[];
+    }>;
     jsonBoard(): JsonBoard;
     save(): string;
     undo(origin?: Origin, opts?: {
