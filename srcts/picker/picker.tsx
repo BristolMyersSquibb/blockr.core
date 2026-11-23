@@ -21,7 +21,10 @@
 //   add_link from that block to the new one. The new block's class needs an
 //   input for that.
 // - Before a block, feeding an input of that block that no link feeds, with a
-//   batch of add_block and add_link from the new block to that block.
+//   batch of add_block and add_link from the new block to that block. Where
+//   the mode names the input, as Prepend block's on an input does, the link
+//   goes into that input, which the form names in a line in place of the
+//   field of the input.
 // - On a link, between the two blocks that it joins, with a batch of
 //   add_block, add_link from the block that the link comes from to the new
 //   block, and change_link, which has the link come from the new block. So
@@ -60,11 +63,12 @@ import type { Done } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 
 // Where the new block goes: on its own, after a block, before a block, or on
-// a link.
+// a link. Before a block, it may feed the input given, "" for the next place
+// of a variadic block, where its link goes without a name.
 export type AddMode =
   | { readonly kind: "add" }
   | { readonly kind: "after"; readonly from: BlockId }
-  | { readonly kind: "before"; readonly to: BlockId }
+  | { readonly kind: "before"; readonly to: BlockId; readonly input?: string }
   | { readonly kind: "on"; readonly link: LinkId };
 
 export interface PickerProps {
@@ -144,6 +148,7 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
     const into: Record<string, Json> = {
       ...(chosen === undefined ? {} : { input: chosen }),
       ...(link.kind === "name" ? filled("input", inputName) : {}),
+      ...(link.kind === "fixed" ? { input: link.input } : {}),
     };
     setBusy(true);
     // Once the batch has run, core ends the advanced action, and renders it
@@ -225,6 +230,7 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
           }}
         />
       ) : null}
+      {link.kind === "fixed" ? <p className={styles.hint}>{link.line}</p> : null}
       {link.kind === "no_free_inputs" ? <p className={styles.alert}>{link.why}</p> : null}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
@@ -266,16 +272,20 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
 // - "pick": the input among several, where the input is fixed.
 // - "name": an optional name, where the input is variadic, which the variadic
 //   block's other links take in `taken`.
+// - "fixed": nothing, before a block where the mode names the input, which
+//   the form names in `line` instead.
 // - "none": nothing, where the mode adds no link, where the user has not
 //   picked the class of a block added after another or on a link yet, or
 //   where the link has one input to go into, which the command then finds.
 // - "no_free_inputs": nothing, before a block whose inputs all take a link
-//   already. The form shows `why` instead, and adds no block.
+//   already, or where a link feeds the input that the mode names. The form
+//   shows `why` instead, and adds no block.
 // After a block and on a link alike, the link goes into an input of the new
 // block, of which no link feeds any.
 type LinkChoice =
   | { readonly kind: "pick"; readonly label: string; readonly inputs: readonly string[] }
   | { readonly kind: "name"; readonly label: string; readonly taken: readonly string[] }
+  | { readonly kind: "fixed"; readonly input: string; readonly line: string }
   | { readonly kind: "none" }
   | { readonly kind: "no_free_inputs"; readonly why: string };
 
@@ -288,7 +298,9 @@ function linkChoice(
   if (mode.kind === "before") {
     const target = own(board.blocks, mode.to);
     const free = freeInputs(board, registry, mode.to) ?? [];
-    const of = `of "${target?.name ?? mode.to}"`;
+    const name = target?.name ?? mode.to;
+    const of = `of "${name}"`;
+    if (mode.input !== undefined) return fixedInput(free, mode.input, name);
     if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
     if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
     return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
@@ -298,6 +310,18 @@ function linkChoice(
     if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
   }
   return { kind: "none" };
+}
+
+// What the form asks about a link into the input given, of the block of the
+// name given, whose free inputs are those given. It asks nothing either way:
+// - While no link feeds the input, the form names the input in a line.
+// - Once a link feeds it, the form says why it adds no block.
+// The input "" is the next place of a variadic block, into which the link
+// goes without a name.
+function fixedInput(free: readonly string[], input: string, name: string): LinkChoice {
+  const named = input === "" ? `"${name}"` : `the input "${input}" of "${name}"`;
+  if (free.includes(input)) return { kind: "fixed", input, line: `The new block feeds ${named}.` };
+  return { kind: "no_free_inputs", why: input === "" ? `"${name}" takes no link without a name.` : `A link feeds ${named} already.` };
 }
 
 // The batch that adds the block of the mode in one step: add_block, and for a

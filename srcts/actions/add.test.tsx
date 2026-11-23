@@ -227,6 +227,64 @@ describe("Prepend block", () => {
     const upload = added(s.core.store.board()).find(([, block]) => block.registry_id === "blockr.core-upload_block");
     expect(linksOf(s.core.store.board(), upload?.[0] ?? "").map(([, link]) => link)).toEqual([{ from: upload?.[0], to: "e", input: "" }]);
   });
+
+  test("applies to an input that no link feeds, and adds a block that feeds that input, or the next place of a variadic block without a name, each in one step of the user", async () => {
+    const s = await stubbed();
+    const on = (target: Target): boolean => s.core.boardActions.on(target).some(({ id }) => id === PREPEND);
+    expect(on({ block: "c", input: "y" })).toBe(false);
+
+    // With no link into x or y, the merge block takes one into y, the input
+    // that the target names, rather than x, its first free one.
+    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
+    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    const board = s.core.store.board();
+    expect(on({ block: "c", input: "y" })).toBe(true);
+    await triggered(s, PREPEND, { block: "c", input: "y" }).menu.pick("dataset block");
+    const [first] = added(s.core.store.board());
+    expect(linksOf(s.core.store.board(), first?.[0] ?? "").map(([, link]) => link)).toEqual([{ from: first?.[0], to: "c", input: "y" }]);
+    expect(on({ block: "c", input: "y" })).toBe(false);
+    expect(on({ block: "c", input: "x" })).toBe(true);
+    s.core.store.undo();
+    expect(s.core.store.board()).toEqual(board);
+
+    await triggered(s, PREPEND, { block: "e", input: "" }).menu.pick("data upload block");
+    const [upload] = added(s.core.store.board());
+    expect(linksOf(s.core.store.board(), upload?.[0] ?? "").map(([, link]) => link)).toEqual([{ from: upload?.[0], to: "e", input: "" }]);
+
+    // Merge has no next place, Bind no input but its next place, and neither
+    // an input z.
+    for (const target of [{ block: "c", input: "" }, { block: "e", input: "x" }, { block: "c", input: "z" }]) expect(on(target)).toBe(false);
+  });
+
+  test("on an input, has the command refuse a row that the user picks once a link has come to feed the input, rather than feed another input", async () => {
+    const s = await stubbed();
+    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
+    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    const { menu, done } = triggered(s, PREPEND, { block: "c", input: "y" });
+    await s.core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" });
+    const board = s.core.store.board();
+
+    await expect(menu.pick("dataset block")).rejects.toThrow("refused");
+    await expect(done).rejects.toThrow("refused");
+    expect(s.core.store.board()).toBe(board);
+    expect(held(s.core).map(({ source, message }) => [source.kind === "core" ? source.code : undefined, message])).toEqual([
+      ["board_edit_failed", expect.stringContaining('feeds the input "y" of block "c" already') as string],
+    ]);
+  });
+
+  test("plays prepend_block_role on an input, so that a caller that triggers the role on an input feeds that input", async () => {
+    const s = await stubbed();
+    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
+    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+
+    const { menu, done } = triggered(s, "prepend_block_role", { block: "c", input: "y" });
+    expect(menu.level()).toMatchObject({ label: "Prepend block" });
+    await menu.pick("dataset block");
+    await done;
+
+    const [first] = added(s.core.store.board());
+    expect(linksOf(s.core.store.board(), first?.[0] ?? "").map(([, link]) => link)).toEqual([{ from: first?.[0], to: "c", input: "y" }]);
+  });
 });
 
 describe("Insert block", () => {
@@ -258,6 +316,7 @@ describe("under the board lock", () => {
 
     expect(ids({ board: true })).toEqual([]);
     expect(ids({ block: "e" })).toEqual(["blockr.core-copy_block_id_action"]);
+    expect(ids({ block: "e", input: "" })).toEqual([]);
     expect(ids({ link: "ab" })).toEqual([]);
     await s.core.boardActions.trigger(ADD, { board: true }, { el });
     expect(s.menu()).toBeUndefined();
@@ -374,6 +433,49 @@ describe("the block picker, their advanced action,", () => {
     });
     await click(form, "Add block");
     expect(linksOf(s.core.store.board(), "second").map(([, link]) => link)).toEqual([{ from: "second", to: "c", input: "x" }]);
+  });
+
+  test("before an input, takes the link into that input, or without a name into the next place of a variadic block, which it names in a line in place of the field of the input", async () => {
+    const s = await stubbed();
+    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
+    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+
+    let form = await picker(s, PREPEND, { block: "c", input: "y" });
+    expect(s.advanced()).toMatchObject({ id: PREPEND, title: "Prepend block", target: { block: "c", input: "y" } });
+    expect(form.textContent).toContain('The new block feeds the input "y" of "Merge".');
+    expect(() => selectButton(form, 'Input of "Merge"')).toThrow();
+    await chosen(form, "dataset", "dataset block");
+    await step(() => {
+      type(labelled(form, "ID"), "first");
+    });
+    await click(form, "Add block");
+    expect(linksOf(s.core.store.board(), "first").map(([, link]) => link)).toEqual([{ from: "first", to: "c", input: "y" }]);
+
+    form = await picker(s, PREPEND, { block: "e", input: "" });
+    expect(form.textContent).toContain('The new block feeds "Bind".');
+    expect(() => labelled(form, 'Input name of "Bind"')).toThrow();
+    await chosen(form, "dataset", "dataset block");
+    await step(() => {
+      type(labelled(form, "ID"), "second");
+    });
+    await click(form, "Add block");
+    expect(linksOf(s.core.store.board(), "second").map(([, link]) => link)).toEqual([{ from: "second", to: "e", input: "" }]);
+  });
+
+  test("before an input, says why it adds none where another edit feeds the input meanwhile", async () => {
+    const s = await stubbed();
+    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
+    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    const form = await picker(s, PREPEND, { block: "c", input: "y" });
+    await chosen(form, "dataset", "dataset block");
+
+    // A link into y, while x stays free.
+    await act(() => s.core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" }));
+
+    expect(form.textContent).toContain('A link feeds the input "y" of "Merge" already.');
+    const submit = find(form, 'button[type="submit"]', HTMLButtonElement);
+    expect(submit.disabled).toBe(true);
+    expect(added(s.core.store.board())).toEqual([]);
   });
 
   test("before a block, says why it adds none where another edit feeds the block's last free input meanwhile", async () => {

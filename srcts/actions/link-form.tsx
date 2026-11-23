@@ -31,6 +31,12 @@
 //   select of the other end alone. The block is the link's target where the
 //   open icon of a "Take from" row handed it as the target, as "A link into
 //   "Merge".", and its source otherwise.
+//   On an input, the link goes into that input, as add_link_role has it too.
+//   So the form names the block and the input in the line, as "A link into
+//   the input "y" of "Merge".", in place of the selects of the target and of
+//   the input, and offers a select of the source alone. Into the next place of
+//   a variadic block, the input "", the link goes without a name, and the line
+//   names the block alone, as "A link into "Bind".".
 // - The form that edits a link, Edit link's, changes it with change_link, and
 //   moves it with move_link to the place that the user picks among the links
 //   into a variadic block, which keeps its ID and its ends.
@@ -81,10 +87,15 @@ interface Start {
 
 // Create link's advanced action, which keeps the block that its target names
 // at one end of the link: its target where the open icon handed the block as
-// the target, and else its source.
+// the target, and else its source. On an input, it keeps the block as the
+// link's target, and the input as the link's input.
 export const createLinkForm: AdvancedModule = {
   render({ el, core, target, picked, done }) {
     const given = picked === undefined ? {} : startOf(picked);
+    if ("input" in target) {
+      const start = { ...given, to: target.block, input: target.input };
+      return drawForm(el, <AddLink core={core} start={start} fixed="to" input={target.input} done={done} />);
+    }
     if (!("block" in target)) return drawForm(el, <AddLink core={core} start={given} done={done} />);
     const { block } = target;
     const fixed = given.to === block ? "to" : "from";
@@ -114,19 +125,30 @@ function startOf(picked: Json): Start {
   };
 }
 
-function AddLink({ core, start, fixed, done }: { core: CoreApi; start: Start; fixed?: End; done: Done }): ReactElement {
+function AddLink({ core, start, fixed, input, done }: { core: CoreApi; start: Start; fixed?: End; input?: string; done: Done }): ReactElement {
   const board = useBoard(core);
-  return <LinkForm core={core} board={board} start={start} {...(fixed === undefined ? {} : { fixed })} done={done} />;
+  return (
+    <LinkForm
+      core={core}
+      board={board}
+      start={start}
+      {...(fixed === undefined ? {} : { fixed })}
+      {...(input === undefined ? {} : { fixedInput: input })}
+      done={done}
+    />
+  );
 }
 
 // An end of a link, which the target of Create link may fix.
 type End = "from" | "to";
 
 // The line that names the block at the end of the link that the target
-// fixes.
-function fixedEnd(board: Board, end: End, block: BlockId | undefined): string {
+// fixes, and the input that it fixes, where it fixes one other than the next
+// place of a variadic block.
+function fixedEnd(board: Board, end: End, block: BlockId | undefined, input: string | undefined): string {
   const name = block === undefined ? "" : blockName(board, block);
-  return end === "from" ? `A link from "${name}".` : `A link into "${name}".`;
+  if (end === "from") return `A link from "${name}".`;
+  return input === undefined || input === "" ? `A link into "${name}".` : `A link into the input "${input}" of "${name}".`;
 }
 
 // The form that edits the link, which draws nothing once the board no longer
@@ -143,12 +165,15 @@ type Errors = Partial<Record<"from" | "to" | "input", string>>;
 // only links that the store takes (above). Where it changes a link into a
 // variadic block, it offers the link's place among the block's links as
 // well. Where it adds a link with an end `fixed`, it names the block of that
-// end in a line in place of the end's select.
+// end in a line in place of the end's select. Where it adds a link into the
+// input `fixedInput` too, the line names that input, and the form asks for no
+// input.
 function LinkForm({
   core,
   board,
   start = {},
   fixed,
+  fixedInput,
   editing,
   done,
 }: {
@@ -156,6 +181,7 @@ function LinkForm({
   board: Board;
   start?: Start;
   fixed?: End;
+  fixedInput?: string;
   editing?: { readonly id: LinkId; readonly link: Link };
   done: Done;
 }): ReactElement {
@@ -201,7 +227,7 @@ function LinkForm({
     return {
       ...(source === undefined ? { from: "Pick the block that the link comes from." } : {}),
       ...(target === undefined ? { to: "Pick the block that the link goes to." } : {}),
-      ...(variadic ? optional("input", inputNameError(name, taken)) : {}),
+      ...(variadic && fixedInput === undefined ? optional("input", inputNameError(name, taken)) : {}),
     };
   }
 
@@ -210,7 +236,7 @@ function LinkForm({
   // among the links into a variadic block. The place counts the other links
   // into the block, which change_link leaves where they are.
   function batch(source: BlockId, target: BlockId): CommandCall[] {
-    const linkInput = variadic ? name.trim() : chosen;
+    const linkInput = fixedInput ?? (variadic ? name.trim() : chosen);
     const link: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
     if (editing === undefined) {
       return [{ id: ADD_LINK, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
@@ -255,7 +281,7 @@ function LinkForm({
         void submit(event);
       }}
     >
-      {fixed === undefined ? null : <p className={styles.hint}>{fixedEnd(board, fixed, fixed === "from" ? from : to)}</p>}
+      {fixed === undefined ? null : <p className={styles.hint}>{fixedEnd(board, fixed, fixed === "from" ? from : to, fixedInput)}</p>}
       <div className={fixed === undefined ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid"}>
         {fixed === "from" ? null : (
           <ComboBox
@@ -293,7 +319,7 @@ function LinkForm({
           </ComboBox>
         )}
       </div>
-      {target === undefined ? null : variadic ? (
+      {target === undefined || fixedInput !== undefined ? null : variadic ? (
         <div className={among === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>
           <TextField
             label="Input name"

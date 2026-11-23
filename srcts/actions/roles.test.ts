@@ -183,7 +183,7 @@ describe("the roles that a plugin class lists", () => {
     [
       "names what is no kind of target in on",
       [{ ...notesRole, on: ["blocks"] }],
-      'gives the role "notes_role", whose on names "blocks", which is none of the kinds of target, "board", "block", "link", "stack", "option", "plugin" and "selection".',
+      'gives the role "notes_role", whose on names "blocks", which is none of the kinds of target, "board", "block", "input", "link", "stack", "option", "plugin" and "selection".',
     ],
     [
       "has a default that is not named as a board action's id is",

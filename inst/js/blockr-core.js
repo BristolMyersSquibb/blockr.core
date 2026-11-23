@@ -7228,8 +7228,12 @@ function targetGiven(given) {
     }
     if (isBoardObject(given)) return Object.freeze({ ...given });
   }
+  if (isObject(given) && Object.keys(given).length === 2 && Object.hasOwn(given, "block") && Object.hasOwn(given, "input")) {
+    const { block, input: input2 } = given;
+    if (typeof block === "string" && block !== "" && typeof input2 === "string") return Object.freeze({ block, input: input2 });
+  }
   throw new TypeError(
-    `A board action acts on the board, as { board: true }, on a board object, as { block: "a" }, or on a selection of them, as { selection: [{ block: "a" }, { link: "ab" }] }, not ${JSON.stringify(given)}.`
+    `A board action acts on the board, as { board: true }, on a board object, as { block: "a" }, on an input of a block, as { block: "a", input: "x" }, or on a selection of board objects, as { selection: [{ block: "a" }, { link: "ab" }] }, not ${JSON.stringify(given)}.`
   );
 }
 function isElement(value2) {
@@ -7743,7 +7747,7 @@ function createAdvanced(parts) {
     if ("board" in target2) return true;
     const board = store.board();
     const plugins = parts.core().plugins.appPlugins();
-    const objects = "selection" in target2 ? target2.selection : [target2];
+    const objects = "selection" in target2 ? target2.selection : ["input" in target2 ? { block: target2.block } : target2];
     return objects.every((object2) => holdsObject(board, object2, plugins));
   }
   function mountIn(shown2, el, other) {
@@ -8349,7 +8353,8 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
     };
     const into = {
       ...chosen === void 0 ? {} : { input: chosen },
-      ...link.kind === "name" ? filled("input", inputName) : {}
+      ...link.kind === "name" ? filled("input", inputName) : {},
+      ...link.kind === "fixed" ? { input: link.input } : {}
     };
     setBusy(true);
     await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into), done);
@@ -8420,6 +8425,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
             }
           }
         ) : null,
+        link.kind === "fixed" ? /* @__PURE__ */ jsx6("p", { className: styles.hint, children: link.line }) : null,
         link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx6("p", { className: styles.alert, children: link.why }) : null,
         /* @__PURE__ */ jsxs5("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx6(
@@ -8463,7 +8469,9 @@ function linkChoice(mode, board, registry, entry) {
   if (mode.kind === "before") {
     const target2 = own(board.blocks, mode.to);
     const free = freeInputs(board, registry, mode.to) ?? [];
-    const of = `of "${target2?.name ?? mode.to}"`;
+    const name3 = target2?.name ?? mode.to;
+    const of = `of "${name3}"`;
+    if (mode.input !== void 0) return fixedInput(free, mode.input, name3);
     if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
     if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
     return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
@@ -8473,6 +8481,11 @@ function linkChoice(mode, board, registry, entry) {
     if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
   }
   return { kind: "none" };
+}
+function fixedInput(free, input2, name3) {
+  const named4 = input2 === "" ? `"${name3}"` : `the input "${input2}" of "${name3}"`;
+  if (free.includes(input2)) return { kind: "fixed", input: input2, line: `The new block feeds ${named4}.` };
+  return { kind: "no_free_inputs", why: input2 === "" ? `"${name3}" takes no link without a name.` : `A link feeds ${named4} already.` };
 }
 function pickedBatch(core, mode, on, args, into) {
   const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
@@ -8568,6 +8581,7 @@ function escaped(color2) {
 var KINDS2 = {
   board: true,
   block: true,
+  input: true,
   link: true,
   stack: true,
   option: true,
@@ -8587,6 +8601,9 @@ function idOf(target2, kind) {
 }
 function blockOf(target2) {
   return idOf(target2, "block");
+}
+function inputOf(target2) {
+  return "input" in target2 ? target2.input : void 0;
 }
 function heldBlock(board, target2) {
   const block = blockOf(target2);
@@ -8639,14 +8656,19 @@ function addingBoardActions(registry) {
       id: "blockr.core-prepend_block_action",
       label: "Prepend block",
       icon: PLUS,
-      on: ["block"],
+      on: ["block", "input"],
       category: "add",
       offers: (board, target2, lock) => !lock.board && freeInputOf(board, registry(), target2) !== void 0 && adds(false),
       quick: (_board, target2, core) => classLevel(core, false, (entry, block, board) => {
         const to = heldBlock(board, target2);
-        return to === void 0 ? [] : [addBlockCall(entry, block), addLinkCall(block, to, freeInputOf(board, core.blockRegistry(), target2))];
+        const input2 = inputOf(target2) ?? freeInputOf(board, core.blockRegistry(), target2);
+        return to === void 0 ? [] : [addBlockCall(entry, block), addLinkCall(block, to, input2)];
       }),
-      advanced: pickerModule((target2) => "block" in target2 ? { kind: "before", to: target2.block } : void 0),
+      advanced: pickerModule((target2) => {
+        if (!("block" in target2)) return void 0;
+        const input2 = inputOf(target2);
+        return { kind: "before", to: target2.block, ...input2 === void 0 ? {} : { input: input2 } };
+      }),
       role: "prepend_block_role"
     },
     {
@@ -8704,7 +8726,10 @@ function newBlockInput(entry) {
 }
 function freeInputOf(board, registry, target2) {
   const block = heldBlock(board, target2);
-  return block === void 0 ? void 0 : freeInputs(board, registry, block)?.[0];
+  const free = block === void 0 ? void 0 : freeInputs(board, registry, block);
+  const input2 = inputOf(target2);
+  if (input2 === void 0) return free?.[0];
+  return free?.includes(input2) === true ? input2 : void 0;
 }
 function pickerModule(mode) {
   const focused = /* @__PURE__ */ new WeakSet();
@@ -9162,6 +9187,10 @@ var MOVE_LINK2 = "blockr.core-move_link";
 var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
     const given = picked === void 0 ? {} : startOf(picked);
+    if ("input" in target2) {
+      const start3 = { ...given, to: target2.block, input: target2.input };
+      return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: start3, fixed: "to", input: target2.input, done }));
+    }
     if (!("block" in target2)) return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: given, done }));
     const { block } = target2;
     const fixed2 = given.to === block ? "to" : "from";
@@ -9184,13 +9213,24 @@ function startOf(picked) {
     ...typeof input2 === "string" ? { input: input2 } : {}
   };
 }
-function AddLink({ core, start: start2, fixed: fixed2, done }) {
+function AddLink({ core, start: start2, fixed: fixed2, input: input2, done }) {
   const board = useBoard3(core);
-  return /* @__PURE__ */ jsx9(LinkForm, { core, board, start: start2, ...fixed2 === void 0 ? {} : { fixed: fixed2 }, done });
+  return /* @__PURE__ */ jsx9(
+    LinkForm,
+    {
+      core,
+      board,
+      start: start2,
+      ...fixed2 === void 0 ? {} : { fixed: fixed2 },
+      ...input2 === void 0 ? {} : { fixedInput: input2 },
+      done
+    }
+  );
 }
-function fixedEnd(board, end, block) {
+function fixedEnd(board, end, block, input2) {
   const name3 = block === void 0 ? "" : blockName(board, block);
-  return end === "from" ? `A link from "${name3}".` : `A link into "${name3}".`;
+  if (end === "from") return `A link from "${name3}".`;
+  return input2 === void 0 || input2 === "" ? `A link into "${name3}".` : `A link into the input "${input2}" of "${name3}".`;
 }
 function EditLink({ core, id: id2, done }) {
   const board = useBoard3(core);
@@ -9202,6 +9242,7 @@ function LinkForm({
   board,
   start: start2 = {},
   fixed: fixed2,
+  fixedInput: fixedInput2,
   editing,
   done
 }) {
@@ -9234,11 +9275,11 @@ function LinkForm({
     return {
       ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
       ...target2 === void 0 ? { to: "Pick the block that the link goes to." } : {},
-      ...variadic2 ? optional3("input", inputNameError(name3, taken)) : {}
+      ...variadic2 && fixedInput2 === void 0 ? optional3("input", inputNameError(name3, taken)) : {}
     };
   }
   function batch2(source2, target3) {
-    const linkInput = variadic2 ? name3.trim() : chosen;
+    const linkInput = fixedInput2 ?? (variadic2 ? name3.trim() : chosen);
     const link = { from: source2, to: target3, ...linkInput === void 0 ? {} : { input: linkInput } };
     if (editing === void 0) {
       return [{ id: ADD_LINK2, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
@@ -9275,7 +9316,7 @@ function LinkForm({
         void submit(event);
       },
       children: [
-        fixed2 === void 0 ? null : /* @__PURE__ */ jsx9("p", { className: styles.hint, children: fixedEnd(board, fixed2, fixed2 === "from" ? from : to) }),
+        fixed2 === void 0 ? null : /* @__PURE__ */ jsx9("p", { className: styles.hint, children: fixedEnd(board, fixed2, fixed2 === "from" ? from : to, fixedInput2) }),
         /* @__PURE__ */ jsxs7("div", { className: fixed2 === void 0 ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid", children: [
           fixed2 === "from" ? null : /* @__PURE__ */ jsx9(
             ComboBox3,
@@ -9313,7 +9354,7 @@ function LinkForm({
             }
           )
         ] }),
-        target2 === void 0 ? null : variadic2 ? /* @__PURE__ */ jsxs7("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+        target2 === void 0 || fixedInput2 !== void 0 ? null : variadic2 ? /* @__PURE__ */ jsxs7("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx9(
             TextField4,
             {
@@ -9408,19 +9449,29 @@ function createLinkAction(parts) {
     id: CREATE_LINK,
     label: "Create link",
     icon: PLUS,
-    on: ["block", "board"],
+    on: ["block", "input", "board"],
     category: "add",
     offers(board, target2, lock) {
       if (lock.board) return false;
       const joining = joiningOn(board, parts);
       if ("board" in target2) return [...joining.takers].some((to) => fedBy(joining, to, true).length > 0);
       const block = heldBlock(board, target2);
-      return block !== void 0 && (feeds(joining, block, true).length > 0 || fedBy(joining, block, true).length > 0);
+      if (block === void 0) return false;
+      const input2 = inputOf(target2);
+      if (input2 !== void 0) return fedBy(joining, block, true, input2).length > 0;
+      return feeds(joining, block, true).length > 0 || fedBy(joining, block, true).length > 0;
     },
     quick(board, target2, core) {
       const block = heldBlock(board, target2);
       if (block === void 0) return void 0;
       const joining = joiningOn(board, parts);
+      const input2 = inputOf(target2);
+      if (input2 !== void 0) {
+        const rows2 = fedBy(joining, block, false, input2).map(
+          (from) => ({ ...quickBlock(board, joining.registry, from), heading: "Take from", pick: () => newLink(core, parts, from, block, input2) })
+        );
+        return rows2.length === 0 ? void 0 : { filter: true, rows: rows2 };
+      }
       const rows = [
         ...feeds(joining, block).map(
           (to) => ({ ...quickBlock(board, joining.registry, to), heading: "Send to", pick: () => newLink(core, parts, block, to) })
@@ -9465,20 +9516,21 @@ function editLinkAction(parts) {
     role: "edit_link_role"
   };
 }
-function newLink(core, parts, from, to) {
+function newLink(core, parts, from, to, input2) {
   const board = core.store.board();
-  const free = freeInputs(board, parts.blockRegistry(), to) ?? [];
-  const adding = (input2) => [
+  const adding = (into) => [
     {
       id: ADD_LINK3,
-      args: { id: core.mintId((id2) => Object.hasOwn(core.store.board().links, id2)), from, to, ...input2 === void 0 ? {} : { input: input2 } }
+      args: { id: core.mintId((id2) => Object.hasOwn(core.store.board().links, id2)), from, to, ...into === void 0 ? {} : { input: into } }
     }
   ];
+  if (input2 !== void 0) return adding(input2);
+  const free = freeInputs(board, parts.blockRegistry(), to) ?? [];
   if (free.length < 2) return adding();
   return {
     title: `Into which input of ${blockName(board, to)}?`,
     picked: { from, to },
-    rows: free.filter((input2) => parts.preflight(ADD_LINK3, { from, to, input: input2 })).map((input2) => ({ kind: "item", label: input2, pick: () => adding(input2) }))
+    rows: free.filter((input3) => parts.preflight(ADD_LINK3, { from, to, input: input3 })).map((input3) => ({ kind: "item", label: input3, pick: () => adding(input3) }))
   };
 }
 function joiningOn(board, parts) {
@@ -9499,12 +9551,13 @@ function feeds(joining, block, first = false) {
     first
   );
 }
-function fedBy(joining, block, first = false) {
-  if (!joining.takers.has(block)) return [];
+function fedBy(joining, block, first = false, input2) {
+  const takes = input2 === void 0 ? joining.takers.has(block) : freeInputs(joining.board, joining.registry, block)?.includes(input2) === true;
+  if (!takes) return [];
   const downstream = joining.graph.withDownstream([block]);
   return passing(
     Object.keys(joining.board.blocks).filter((from) => !downstream.has(from)),
-    (from) => joining.preflight(ADD_LINK3, { from, to: block }),
+    (from) => joining.preflight(ADD_LINK3, { from, to: block, ...input2 === void 0 ? {} : { input: input2 } }),
     first
   );
 }
@@ -9999,12 +10052,16 @@ var CORE_ROLES = [
   // Adds a block that takes the result of the block, through a link from it.
   { id: "append_block_role", on: ["block"], default: "blockr.core-append_block_action" },
   // Adds a block that feeds the block, through a link into one of its inputs.
-  { id: "prepend_block_role", on: ["block"], default: "blockr.core-prepend_block_action" },
+  // On an input, the link goes into that input, and into the next place of a
+  // variadic block without a name.
+  { id: "prepend_block_role", on: ["block", "input"], default: "blockr.core-prepend_block_action" },
   // Adds a block on the link, which then comes from the new block, while a
   // new link feeds the new block from the block that the link came from.
   { id: "insert_block_role", on: ["link"], default: "blockr.core-insert_block_action" },
   // Adds a link that starts or ends at the block, or any link on the board.
-  { id: "add_link_role", on: ["block", "board"], default: "blockr.core-add_link_action", advanced: true },
+  // On an input, the link goes into that input, and into the next place of a
+  // variadic block without a name.
+  { id: "add_link_role", on: ["block", "input", "board"], default: "blockr.core-add_link_action", advanced: true },
   // Adds a stack of exactly the blocks that the target holds, or of any
   // blocks on the board.
   { id: "add_stack_role", on: ["block", "selection", "board"], default: "blockr.core-add_stack_action", advanced: true },
@@ -10461,6 +10518,7 @@ function isRect(value2) {
 function kindOf(target2) {
   if ("board" in target2) return "board";
   if ("selection" in target2) return "selection";
+  if ("input" in target2) return "input";
   if ("block" in target2) return "block";
   if ("link" in target2) return "link";
   if ("stack" in target2) return "stack";

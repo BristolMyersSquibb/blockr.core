@@ -593,6 +593,25 @@ describe("ending an advanced action", () => {
     s.stop();
   });
 
+  test("ends it on an input as the input's block leaves the board, and not as a link comes to feed the input", async () => {
+    const shown = form();
+    const edit = asking("Edit form", ["input"], shown.module);
+    const s = await stubbed([listing([edit])]);
+
+    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
+    const opened = s.core.boardActions.trigger(edit.id, { block: "c", input: "x" }, { el });
+    expect(shown.last().target).toEqual({ block: "c", input: "x" });
+    // The board still holds the block, so the advanced action stays open, as
+    // a form says itself that a link feeds the input now.
+    await s.core.commands.run("blockr.core-add_link", { from: "a", to: "c", input: "x" });
+    expect(shown.last().signal.aborted).toBe(false);
+    await s.core.commands.run("blockr.core-remove_block", { id: "c" });
+    await opened;
+    expect(s.advanced()).toBeUndefined();
+    expect(shown.last().signal.aborted).toBe(true);
+    s.stop();
+  });
+
   test("leaves it open where a done() runs a batch that removes its target, and tells the place the batch's deltas", async () => {
     const shown = form();
     const edit = asking("Edit form", ["block"], shown.module);

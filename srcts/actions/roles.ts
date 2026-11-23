@@ -53,21 +53,23 @@ export interface Role {
 
 // Core's roles, from the table of Roles, each with one of core's board actions
 // as its default, and with the edit that the board action that plays it makes,
-// which is the role's contract. A target names no input of a block yet, so
-// that prepend_block_role and add_link_role leave out the inputs that the
-// table gives them as targets.
+// which is the role's contract.
 export const CORE_ROLES: readonly Role[] = [
   // Adds a block on its own.
   { id: "add_block_role", on: ["board"], default: "blockr.core-add_block_action", advanced: true },
   // Adds a block that takes the result of the block, through a link from it.
   { id: "append_block_role", on: ["block"], default: "blockr.core-append_block_action" },
   // Adds a block that feeds the block, through a link into one of its inputs.
-  { id: "prepend_block_role", on: ["block"], default: "blockr.core-prepend_block_action" },
+  // On an input, the link goes into that input, and into the next place of a
+  // variadic block without a name.
+  { id: "prepend_block_role", on: ["block", "input"], default: "blockr.core-prepend_block_action" },
   // Adds a block on the link, which then comes from the new block, while a
   // new link feeds the new block from the block that the link came from.
   { id: "insert_block_role", on: ["link"], default: "blockr.core-insert_block_action" },
   // Adds a link that starts or ends at the block, or any link on the board.
-  { id: "add_link_role", on: ["block", "board"], default: "blockr.core-add_link_action", advanced: true },
+  // On an input, the link goes into that input, and into the next place of a
+  // variadic block without a name.
+  { id: "add_link_role", on: ["block", "input", "board"], default: "blockr.core-add_link_action", advanced: true },
   // Adds a stack of exactly the blocks that the target holds, or of any
   // blocks on the board.
   { id: "add_stack_role", on: ["block", "selection", "board"], default: "blockr.core-add_stack_action", advanced: true },

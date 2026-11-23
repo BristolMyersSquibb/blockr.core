@@ -1,16 +1,19 @@
 // Core's board actions that create and edit a link, from the table of Core's
 // board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions):
-// - Create link, on a block that a new link can join to another, or on the
-//   board, where it holds such a block. On a block, its quick action lists the
-//   blocks that the block can feed, under "Send to", and those that can feed
-//   it, under "Take from", each by its name, with its ID at its end. Picking
-//   one adds the link, or first asks for the input, where the block that the
-//   link goes into has several free ones, as blockr.dock#549 had them. On the
+// - Create link, on a block that a new link can join to another, on an input
+//   that no link feeds, or on the board, where it holds such a block. On a
+//   block, its quick action lists the blocks that the block can feed, under
+//   "Send to", and those that can feed it, under "Take from", each by its
+//   name, with its ID at its end. Picking one adds the link, or first asks for
+//   the input, where the block that the link goes into has several free ones,
+//   as blockr.dock#549 had them. On an input, it lists the blocks that can
+//   feed the input, under "Take from", and picking one adds the link into that
+//   input, or without a name into the next place of a variadic block. On the
 //   board, its quick action gives no level, since a link from no block takes
 //   three picks, so that its row opens the advanced action at once. Its
 //   advanced action is the form of a link (./link-form.tsx), starting from the
-//   block, or from no block on the board.
+//   block or the input, or from no block on the board.
 // - Edit link, on a link. Its quick action offers Change source…, which lists
 //   the blocks that can feed the link's input instead, Move to input…, which
 //   lists the other inputs of the block that the link goes into, and Rename
@@ -24,7 +27,8 @@
 // blockr.core-add_link or blockr.core-change_link passes, so that a menu offers
 // no link that would close a cycle, join a block to itself or feed an input
 // that a link feeds already. Create link fails its offers() where no row would
-// be left, and Edit link leaves out a row that would lead to no row.
+// be left, as on an input that a link feeds or that the block's class lacks,
+// and Edit link leaves out a row that would lead to no row.
 // A row that adds a link mints the link's ID with CoreApi's mintId() as the
 // user picks it.
 // Under the board lock, both fail their offers(), since the store refuses
@@ -45,7 +49,7 @@ import { PLUS } from "./icons.ts";
 import { createLinkForm, editLinkForm } from "./link-form.tsx";
 import { levelItem } from "./quick.ts";
 import type { QuickLevel, QuickRow } from "./quick.ts";
-import { heldBlock } from "./targets.ts";
+import { heldBlock, inputOf } from "./targets.ts";
 
 const CREATE_LINK = "blockr.core-add_link_action";
 const EDIT_LINK = "blockr.core-edit_link_action";
@@ -59,19 +63,29 @@ export function createLinkAction(parts: CoreParts): BoardAction {
     id: CREATE_LINK,
     label: "Create link",
     icon: PLUS,
-    on: ["block", "board"],
+    on: ["block", "input", "board"],
     category: "add",
     offers(board, target, lock) {
       if (lock.board) return false;
       const joining = joiningOn(board, parts);
       if ("board" in target) return [...joining.takers].some((to) => fedBy(joining, to, true).length > 0);
       const block = heldBlock(board, target);
-      return block !== undefined && (feeds(joining, block, true).length > 0 || fedBy(joining, block, true).length > 0);
+      if (block === undefined) return false;
+      const input = inputOf(target);
+      if (input !== undefined) return fedBy(joining, block, true, input).length > 0;
+      return feeds(joining, block, true).length > 0 || fedBy(joining, block, true).length > 0;
     },
     quick(board, target, core) {
       const block = heldBlock(board, target);
       if (block === undefined) return undefined;
       const joining = joiningOn(board, parts);
+      const input = inputOf(target);
+      if (input !== undefined) {
+        const rows = fedBy(joining, block, false, input).map(
+          (from): QuickRow => ({ ...quickBlock(board, joining.registry, from), heading: "Take from", pick: () => newLink(core, parts, from, block, input) }),
+        );
+        return rows.length === 0 ? undefined : { filter: true, rows };
+      }
       const rows = [
         ...feeds(joining, block).map(
           (to): QuickRow => ({ ...quickBlock(board, joining.registry, to), heading: "Send to", pick: () => newLink(core, parts, block, to) }),
@@ -121,18 +135,20 @@ export function editLinkAction(parts: CoreParts): BoardAction {
 }
 
 // The batch that adds a link from block `from` to block `to`, under an ID that
-// CoreApi mints, or the level that asks for the input first, where the block
-// that the link goes into takes each input by its name and several are free.
-// The level hands the advanced action the two blocks, through its open icon.
-function newLink(core: CoreApi, parts: CoreParts, from: BlockId, to: BlockId): readonly CommandCall[] | QuickLevel {
+// CoreApi mints, into the input given, where the target names one. Otherwise
+// it is the level that asks for the input first, where the block that the
+// link goes into takes each input by its name and several are free. The level
+// hands the advanced action the two blocks, through its open icon.
+function newLink(core: CoreApi, parts: CoreParts, from: BlockId, to: BlockId, input?: string): readonly CommandCall[] | QuickLevel {
   const board = core.store.board();
-  const free = freeInputs(board, parts.blockRegistry(), to) ?? [];
-  const adding = (input?: string): CommandCall[] => [
+  const adding = (into?: string): CommandCall[] => [
     {
       id: ADD_LINK,
-      args: { id: core.mintId((id) => Object.hasOwn(core.store.board().links, id)), from, to, ...(input === undefined ? {} : { input }) },
+      args: { id: core.mintId((id) => Object.hasOwn(core.store.board().links, id)), from, to, ...(into === undefined ? {} : { input: into }) },
     },
   ];
+  if (input !== undefined) return adding(input);
+  const free = freeInputs(board, parts.blockRegistry(), to) ?? [];
   if (free.length < 2) return adding();
   return {
     title: `Into which input of ${blockName(board, to)}?`,
@@ -181,14 +197,18 @@ function feeds(joining: Joining, block: BlockId, first = false): BlockId[] {
 }
 
 // The blocks from which a new link can go to the block, where the block takes
-// a link: each that is not downstream of it, where the preflight of add_link
-// passes. With `first`, it stops at the first.
-function fedBy(joining: Joining, block: BlockId, first = false): BlockId[] {
-  if (!joining.takers.has(block)) return [];
+// a link, or into the input given, where no link feeds it: each that is not
+// downstream of the block, where the preflight of add_link passes. The input
+// "" is the next place of a variadic block. With `first`, it stops at the
+// first.
+function fedBy(joining: Joining, block: BlockId, first = false, input?: string): BlockId[] {
+  const takes =
+    input === undefined ? joining.takers.has(block) : freeInputs(joining.board, joining.registry, block)?.includes(input) === true;
+  if (!takes) return [];
   const downstream = joining.graph.withDownstream([block]);
   return passing(
     Object.keys(joining.board.blocks).filter((from) => !downstream.has(from)),
-    (from) => joining.preflight(ADD_LINK, { from, to: block }),
+    (from) => joining.preflight(ADD_LINK, { from, to: block, ...(input === undefined ? {} : { input }) }),
     first,
   );
 }

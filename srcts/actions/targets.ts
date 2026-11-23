@@ -1,8 +1,9 @@
 // The kinds of target, which the `on` of a board action and of a role names,
 // and what core's board actions and roles read off a target: the block, the
 // link or the stack that it names, which core's board actions share
-// (./core.ts, ./add.tsx), and the board objects of a kind that it holds, as
-// Remove on a selection removes them and Create stack takes its blocks.
+// (./core.ts, ./add.tsx), the input that an input's target names, and the
+// board objects of a kind that it holds, as Remove on a selection removes them
+// and Create stack takes its blocks.
 
 import type { BlockId, Board } from "../types/board.ts";
 import { quoted } from "../util/index.ts";
@@ -13,6 +14,7 @@ import type { BoardAction, Target } from "./actions.ts";
 export const KINDS: Readonly<Record<BoardAction["on"][number], true>> = {
   board: true,
   block: true,
+  input: true,
   link: true,
   stack: true,
   option: true,
@@ -31,7 +33,8 @@ export function kindsFailure(on: unknown, empty: string): string | undefined {
 }
 
 // The id of the block, the link or the stack that the target names, or
-// undefined where it names none of the kind given.
+// undefined where it names none of the kind given. An input's target names
+// the block of the input.
 export function idOf(target: Target, kind: "block" | "link" | "stack"): string | undefined {
   if (kind === "block") return "block" in target ? target.block : undefined;
   if (kind === "link") return "link" in target ? target.link : undefined;
@@ -39,9 +42,15 @@ export function idOf(target: Target, kind: "block" | "link" | "stack"): string |
 }
 
 // The block that the target names, for a board action on blocks alone, which
-// core hands no other target.
+// core hands no other target, or the block of an input's target.
 export function blockOf(target: Target): BlockId | undefined {
   return idOf(target, "block");
+}
+
+// The input that an input's target names, "" for the next place of a variadic
+// block, or undefined for any other target.
+export function inputOf(target: Target): string | undefined {
+  return "input" in target ? target.input : undefined;
 }
 
 // The block that the target names, where the board holds it.

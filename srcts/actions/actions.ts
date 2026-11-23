@@ -1,11 +1,11 @@
 // Board actions, as Board actions has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#a-board-action):
 // what a user triggers from a menu, a button or a gesture, on the board, on one
-// of its board objects or on a selection of them. A board action changes the
-// board only through commands, core's and any package's, and runs each batch as
-// one undo step of the user. It is no command: a command reads the board,
-// returns deltas and asks nobody anything, while a board action is the part
-// with a UI, which runs commands.
+// of its board objects, on an input of a block or on a selection of board
+// objects. A board action changes the board only through commands, core's and
+// any package's, and runs each batch as one undo step of the user. It is no
+// command: a command reads the board, returns deltas and asks nobody
+// anything, while a board action is the part with a UI, which runs commands.
 //
 // Core registers the board actions for each board that opens: its own, in the
 // order of their table (./core.ts), then those that each plugin class lists in
@@ -79,7 +79,7 @@
 import { isCommandId } from "../commands/index.ts";
 import { REPLACED } from "../mount/index.ts";
 import type { Delta, Store } from "../store/index.ts";
-import type { Board, PluginClassId } from "../types/board.ts";
+import type { BlockId, Board, PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
@@ -105,11 +105,19 @@ const CORE = "blockr.core";
 const NO_BOARD = "Core opens no board, since the blockr option board_actions holds for every board of the app.";
 
 // What a board action acts on: the board, as the DAG's canvas offers it, one
-// board object, as a notification names one, or several, as the DAG's
-// selection holds them. A target names no input of a block.
+// board object, as a notification names one, an input of a block, as the
+// DAG's handle of an input offers it, or several board objects, as the DAG's
+// selection holds them.
+// An input is no board object, since the store holds no inputs: it is a slot
+// that the block's class declares. So its target names the block and the
+// input, as { block: "b", input: "y" }.
+// A variadic block's places are its links, which a target names as it names
+// any link. Its next place is the input "", as { block: "b", input: "" },
+// since a link with an empty input takes the next place of a variadic block.
 export type Target =
   | { readonly board: true }
   | BoardObject
+  | { readonly block: BlockId; readonly input: string }
   | { readonly selection: readonly BoardObject[] };
 
 // A command of any package, by its id, with its args: one entry of the batch
@@ -133,8 +141,8 @@ export interface BoardAction {
   // block ID shows the block's id.
   detail?(board: Board, target: Target): string | undefined;
   // The kinds of target that it applies to, which name the menus that offer
-  // it.
-  readonly on: readonly ("board" | "block" | "link" | "stack" | "option" | "plugin" | "selection")[];
+  // it. Core hands it an input's target only where it names "input".
+  readonly on: readonly ("board" | "block" | "input" | "link" | "stack" | "option" | "plugin" | "selection")[];
   // What a menu may order and divide its rows by: core's "add", "edit",
   // "clipboard" or "remove", or one that packages name, as "export".
   readonly category: string;
@@ -767,10 +775,12 @@ function isRect(value: unknown): value is DOMRect {
   return isObject(value) && ["x", "y", "width", "height"].every((key) => typeof value[key] === "number");
 }
 
-// The kind of a target, which the `on` of a board action names.
+// The kind of a target, which the `on` of a board action names. An input's
+// target names a block too, so kindOf() checks for an input before a block.
 function kindOf(target: Target): BoardAction["on"][number] {
   if ("board" in target) return "board";
   if ("selection" in target) return "selection";
+  if ("input" in target) return "input";
   if ("block" in target) return "block";
   if ("link" in target) return "link";
   if ("stack" in target) return "stack";

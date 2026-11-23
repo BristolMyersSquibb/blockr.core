@@ -39,9 +39,14 @@ export interface CoreApi {
   // notification, as for the store.
   readonly commands: Commands;
   // The board actions: what users trigger from menus, buttons and gestures, on
-  // the board, on one of its board objects or on a selection of them, which
-  // run commands of any package, each batch as one undo step of the user
+  // the board, on one of its board objects, on an input of a block or on a
+  // selection of board objects, which run commands of any package, each batch
+  // as one undo step of the user
   // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#a-board-action).
+  // An input's target names the block and the input, as
+  // { block: "b", input: "y" }, with the input "" for the next place of a
+  // variadic block. Core hands it only to a board action whose `on` names
+  // inputs.
   // Core registers its own and those that the classes of the app's plugins
   // list in `boardActions`, for each board that opens.
   readonly boardActions: {
