@@ -97,6 +97,11 @@ function note(field: HTMLElement): string | undefined {
   return texts.length === 0 ? undefined : texts.join(" ");
 }
 
+// The line above a form's fields that names what its target fixes.
+function hint(form: HTMLFormElement): string | undefined {
+  return form.querySelector("p")?.textContent;
+}
+
 // What a form says of why the store refused an edit, banner by banner.
 function refusals(el: ParentNode): string[][] {
   return [...el.querySelectorAll('[role="alert"]')].map((alert) => [...alert.querySelectorAll("p, li")].map((line) => line.textContent));
@@ -171,12 +176,15 @@ describe("Create link", () => {
     expect(shown(menu.level())).toEqual([["x"], ["y"]]);
 
     // The open icon opens the form on Head and Merge, with Merge's free
-    // inputs.
+    // inputs. The menu was opened on Head, which the form names in place of
+    // the select of the link's source.
     await step(() => {
       void menu.openAdvanced();
     });
     const form = dialogForm(s, "Add link");
-    expect([labelled(form, "From").value, labelled(form, "To").value]).toEqual(["Head", "Merge"]);
+    expect(hint(form)).toBe('A link from "Head".');
+    expect(() => labelled(form, "From")).toThrow("Found no text field labelled From.");
+    expect(labelled(form, "To").value).toBe("Merge");
     expect(await listed(selectButton(form, "Input"), step)).toEqual(["x", "y"]);
     await step(() => {
       s.advanced()?.close();
@@ -225,19 +233,47 @@ describe("Create link", () => {
     expect(added.map((id) => s.core.store.board().links[id])).toEqual([{ from: "f", to: "e", input: "" }]);
   });
 
-  test("on a block, opens the form from the block, as the link's source", async () => {
+  test("on a block, opens the form from the block, which it names in place of the select of the link's source, since the link starts or ends at the block", async () => {
     const s = await stubbed();
+    const links = Object.keys(s.core.store.board().links);
     const menu = s.menu({ block: "f" });
     await menu.pick("Create link");
     await step(() => {
       void menu.openAdvanced();
     });
     const form = dialogForm(s, "Add link");
-    expect([labelled(form, "From").value, labelled(form, "To").value]).toEqual(["Scatter", ""]);
+    expect(hint(form)).toBe('A link from "Scatter".');
+    expect(() => labelled(form, "From")).toThrow("Found no text field labelled From.");
     await step(() => {
       labelled(form, "To").click();
     });
     expect(optionLabels(labelled(form, "To"))).toEqual(["Bind"]);
+
+    await chosen(form, "To", "Bind");
+    await acting(() => {
+      button(form, "Add link").click();
+    });
+    expect(s.advanced()).toBeUndefined();
+    const added = Object.keys(s.core.store.board().links).filter((id) => !links.includes(id));
+    expect(added.map((id) => s.core.store.board().links[id])).toEqual([{ from: "f", to: "e", input: "" }]);
+  });
+
+  test("on a block, from the open icon of a row that takes from another block, names the block as the link's target in place of the select of that end", async () => {
+    const s = await stubbed();
+    await edited(s, ["blockr.core-remove_link", { id: "ac" }], ["blockr.core-remove_link", { id: "bc" }]);
+    const menu = s.menu({ block: "c" });
+    await menu.pick("Create link");
+    await menu.pick("Head");
+    expect(menu.level()).toMatchObject({ title: "Into which input of Merge?", advanced: true });
+    await step(() => {
+      void menu.openAdvanced();
+    });
+
+    const form = dialogForm(s, "Add link");
+    expect(hint(form)).toBe('A link into "Merge".');
+    expect(() => labelled(form, "To")).toThrow("Found no text field labelled To.");
+    expect(labelled(form, "From").value).toBe("Head");
+    expect(await listed(selectButton(form, "Input"), step)).toEqual(["x", "y"]);
   });
 });
 

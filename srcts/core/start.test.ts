@@ -121,8 +121,9 @@ function playedR() {
       const asked = last("hello");
       heard().received({ ...reply, id: asked.id ?? "" }, null);
     },
-    // Answers the latest blockr options request.
-    options(values: Readonly<Record<string, number | string | boolean | null>> = {}): void {
+    // Answers the latest blockr options request, with the value of each
+    // blockr option as R writes it, as JSON.
+    options(values: Readonly<Record<string, Json>> = {}): void {
       const asked = last("blockr_options");
       answering = true;
       heard().received({ id: asked.id ?? "", status: "ok", values }, null);
@@ -284,7 +285,7 @@ afterEach(() => {
 });
 
 describe("starting the page", () => {
-  test("asks for the blockr options the scheduler reads, rand_id, those of the page's logger and board_action_menu in one request, as soon as R answers hello", async () => {
+  test("asks for the blockr options the scheduler reads, rand_id, those of the page's logger, board_actions and board_action_menu in one request, as soon as R answers hello", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
@@ -301,6 +302,7 @@ describe("starting the page", () => {
         "logger",
         "otel_client_endpoint",
         "otel_client_service_name",
+        "board_actions",
         "board_action_menu",
       ],
     });
@@ -369,9 +371,34 @@ describe("starting the page", () => {
 
     await expect(s.started.ready).rejects.toThrow("Conflicting options set for evaluation_queue");
     expect(failed).toEqual([
-      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id", "log_level", "logger", "otel_client_endpoint", "otel_client_service_name" and "board_action_menu": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
+      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id", "log_level", "logger", "otel_client_endpoint", "otel_client_service_name", "board_actions" and "board_action_menu": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
     ]);
     expect(s.r.kinds()).toEqual(["hello", "blockr_options"]);
+  });
+
+  test("does not start where the blockr option board_actions picks a board action that cannot play its role, and shows why, naming the pick, the role and what failed", async () => {
+    const basic = frontEnd();
+    const failed: string[] = [];
+    const s = setup(
+      { [BASIC]: basic.exports },
+      {
+        fail(error) {
+          failed.push(error.message);
+        },
+      },
+    );
+    s.r.session();
+    await tick();
+    s.r.options({ board_actions: { append_block_role: "blockr.core-prepend_block_action" } });
+
+    const why = [
+      'The blockr option board_actions picks the board action "blockr.core-prepend_block_action" to play the role "append_block_role", but that board action names the role "prepend_block_role".',
+      "Core opens no board, since the blockr option board_actions holds for every board of the app.",
+    ].join("\n");
+    await expect(s.started.ready).rejects.toThrow(why);
+    expect(failed).toEqual([why]);
+    expect(s.started.core()).toBeUndefined();
+    expect(basic.renders).toHaveLength(0);
   });
 
   test("does not start where the blockr option rand_id names no shape", async () => {
@@ -2275,6 +2302,29 @@ describe("a block that serve() serves alone", () => {
     // The board takes dark_mode, which switches the page's theme, as every
     // board does.
     expect(Object.keys(core.store.board().options).sort()).toEqual(["dark_mode", "n_rows"]);
+  });
+
+  test("takes no pick of board_actions, which names board actions of plugins that do not run, so that core's own play core's roles", async () => {
+    const s = setup(
+      {},
+      {
+        alone: true,
+        frontEnds: {
+          prepare: () => undefined,
+          render: () => Promise.resolve(),
+          show: () => Promise.resolve(),
+          card: () => undefined,
+        },
+      },
+    );
+    s.r.session(helloBlock);
+    await tick();
+    s.r.options({ board_actions: { append_block_role: "blockr.dock-append_block_action" } });
+    const core = await s.started.ready;
+
+    expect(core.boardActions.on({ block: Object.keys(core.store.board().blocks)[0] ?? "" }).map(({ id }) => id)).toContain(
+      "blockr.core-append_block_action",
+    );
   });
 });
 

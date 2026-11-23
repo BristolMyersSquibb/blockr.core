@@ -87,41 +87,30 @@ describe("Create stack", () => {
     expect(on({ board: true })).toContain(CREATE_STACK);
   });
 
-  test("on a block, lists the stacks that the block joins and New stack, which adds a stack of the block with a name and a colour that no other stack has, in one step", async () => {
+  test("on a block, offers New stack alone, which adds a stack of the block with a name and a colour that no other stack has, in one step", async () => {
     const s = await stubbed();
     const menu = s.menu({ block: "c" });
     await menu.pick("Create stack");
     expect(menu.level()).toMatchObject({ title: "Add Merge to", advanced: true });
-    expect(shown(menu.level())).toEqual([["Input", "2 blocks"], ["New stack"]]);
-    // Each stack shows its colour, as a square, the outline of one where it
-    // has none.
-    expect(menu.level()?.rows[0]).toMatchObject({ icon: expect.stringContaining('fill="none"') as string });
+    // It lists no stack that the board holds, since it plays add_stack_role,
+    // which adds a stack.
+    expect(shown(menu.level())).toEqual([["New stack"]]);
 
     await menu.pick("New stack");
     expect(added(s)).toEqual([{ id: expect.stringMatching(/^[a-z]+_[a-z]+$/) as string, name: "Stack 1", blocks: ["c"], color: "#66c2a5" }]);
     s.core.store.undo();
     expect(added(s)).toEqual([]);
-
-    // A block that joins a stack goes last, and leaves the stack that held it.
-    const join = s.menu({ block: "c" });
-    await join.pick("Create stack");
-    await join.pick("Input");
-    expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b", "c"]);
   });
 
-  test("on a selection, takes its blocks alone, and leaves out a stack that holds every one of them", async () => {
+  test("on a selection, adds a stack of its blocks alone, which leave the stack that held them", async () => {
     const s = await stubbed();
-    await act(() => s.core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"], color: "#fc8d62" }));
-
     const menu = s.menu({ selection: [{ block: "a" }, { link: "ab" }, { block: "b" }] });
     await menu.pick("Create stack");
-    // Input holds Iris and Head already.
     expect(menu.level()).toMatchObject({ title: "Add 2 blocks to" });
-    expect(shown(menu.level())).toEqual([["Plots", "1 block"], ["New stack"]]);
-    expect(menu.level()?.rows[0]).toMatchObject({ icon: expect.stringContaining('fill="#fc8d62"') as string });
-    await menu.pick("Plots");
+    expect(shown(menu.level())).toEqual([["New stack"]]);
+    await menu.pick("New stack");
 
-    expect(s.core.store.board().stacks.plots?.blocks).toEqual(["f", "a", "b"]);
+    expect(added(s)).toMatchObject([{ name: "Stack 1", blocks: ["a", "b"] }]);
     expect(s.core.store.board().stacks.s1?.blocks).toEqual([]);
     s.core.store.undo();
     expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
@@ -137,7 +126,7 @@ describe("Create stack", () => {
     expect(added(s)).toMatchObject([{ name: "Stack 1", blocks: [], color: "#66c2a5" }]);
   });
 
-  test("opens the form of a stack with the blocks given, which adds the stack once the user submits it and closes", async () => {
+  test("opens the form of a stack with the blocks given, which it names in place of the select of blocks, since the new stack takes exactly those, and which adds the stack once the user submits it and closes", async () => {
     const s = await stubbed();
     const menu = s.menu({ selection: [{ block: "c" }, { block: "f" }] });
     await menu.pick("Create stack");
@@ -145,7 +134,8 @@ describe("Create stack", () => {
     expect(s.advanced()).toMatchObject({ id: CREATE_STACK, title: "Create stack", target: { selection: [{ block: "c" }, { block: "f" }] } });
     const form = dialogForm(s, "Add stack");
     expect(labelled(form, "Name").placeholder).toBe("Stack 1");
-    expect(chipLabels(labelled(form, "Blocks"))).toEqual(["Merge", "Scatter"]);
+    expect(form.querySelector("p")?.textContent).toBe('A stack of the blocks "Merge" and "Scatter".');
+    expect(() => labelled(form, "Blocks")).toThrow("Found no text field labelled Blocks.");
 
     // It runs nothing before the user submits it.
     await step(() => {
@@ -158,6 +148,23 @@ describe("Create stack", () => {
 
     expect(s.advanced()).toBeUndefined();
     expect(added(s)).toMatchObject([{ name: "Outputs", blocks: ["c", "f"], color: "#66c2a5" }]);
+  });
+
+  test("names a block that it was opened on in the same way, and opened on the board, offers the select of blocks", async () => {
+    const s = await stubbed();
+    const menu = s.menu({ block: "c" });
+    await menu.pick("Create stack");
+    await opened(menu);
+    expect(dialogForm(s, "Add stack").querySelector("p")?.textContent).toBe('A stack of the block "Merge".');
+    s.advanced()?.close();
+
+    const room = document.createElement("div");
+    const unmount = s.core.boardActions.mountAdvanced(room, CREATE_STACK, { board: true });
+    await step(() => undefined);
+    const form = find(room, 'form[aria-label="Add stack"]', HTMLFormElement);
+    expect(form.querySelector("p")).toBeNull();
+    expect(chipLabels(labelled(form, "Blocks"))).toEqual([]);
+    act(unmount);
   });
 });
 

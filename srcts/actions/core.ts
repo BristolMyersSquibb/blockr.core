@@ -28,6 +28,9 @@
 //   what they act on.
 // - Remove on a selection removes every block, link and stack of the
 //   selection in one step, and leaves out what else the selection holds.
+// Each but Copy block ID plays the role named after its id, as Create link,
+// blockr.core-add_link_action, plays add_link_role (./roles.ts). Copy block ID
+// plays none, since it runs no command.
 // Copy block ID and those that remove act at once, through their run(). Those
 // that add carry a plus as their icon, in the shape of blockr.ui's `plus`
 // (./icons.ts), and those that remove the bin of a row that destroys
@@ -53,7 +56,7 @@ import { copyText } from "./clipboard.ts";
 import { editInputs } from "./inputs.tsx";
 import { createLinkAction, editLinkAction } from "./links.ts";
 import { createStackAction, editStackAction } from "./stacks.ts";
-import { blockOf, heldBlock } from "./targets.ts";
+import { blockOf, held, heldBlock } from "./targets.ts";
 
 // What core's board actions read beyond what their functions get: what raises
 // their notifications, the preflights of the command registry, and the block
@@ -97,6 +100,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
           ],
         };
       },
+      role: "rename_role",
     },
     editLinkAction(parts),
     {
@@ -109,6 +113,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
         return !lock.board && block !== undefined && classInputs(board, parts.blockRegistry(), block).length > 0;
       },
       advanced: editInputs,
+      role: "edit_inputs_role",
     },
     editStackAction(),
     {
@@ -139,6 +144,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
       category: "remove",
       offers: (board, target, lock) => !lock.board && heldBlock(board, target) !== undefined,
       run: (_board, target) => removing("blockr.core-remove_block", blockOf(target)),
+      role: "remove_block_role",
     },
     {
       id: "blockr.core-remove_link_action",
@@ -149,6 +155,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
       offers: (board, target, lock) =>
         !lock.board && "link" in target && Object.hasOwn(board.links, target.link),
       run: (_board, target) => removing("blockr.core-remove_link", "link" in target ? target.link : undefined),
+      role: "remove_link_role",
     },
     {
       id: "blockr.core-remove_stack_action",
@@ -159,6 +166,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
       offers: (board, target, lock) =>
         !lock.board && "stack" in target && Object.hasOwn(board.stacks, target.stack),
       run: (_board, target) => removing("blockr.core-remove_stack", "stack" in target ? target.stack : undefined),
+      role: "remove_stack_role",
     },
     {
       id: "blockr.core-remove_selected_action",
@@ -168,6 +176,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
       category: "remove",
       offers: (board, target, lock) => !lock.board && removals(board, target).length > 0,
       run: (board, target) => removals(board, target),
+      role: "remove_selected_role",
     },
   ];
 }
@@ -193,24 +202,14 @@ function removing(command: string, id: string | undefined): CommandCall[] | unde
 }
 
 // The batch that removes the blocks, the links and the stacks of a selection
-// that the board holds. The links come first, since removing a block takes its
-// links along, and a command that removed a link that the board no longer
-// holds would refuse the batch.
+// that the board holds, each once. The links come first, since removing a
+// block takes its links along, and a command that removed a link that the
+// board no longer holds would refuse the batch.
 function removals(board: Board, target: Target): CommandCall[] {
   if (!("selection" in target)) return [];
-  const links: CommandCall[] = [];
-  const blocks: CommandCall[] = [];
-  const stacks: CommandCall[] = [];
-  for (const object of target.selection) {
-    if ("link" in object && Object.hasOwn(board.links, object.link)) {
-      links.push({ id: "blockr.core-remove_link", args: { id: object.link } });
-    } else if ("block" in object && Object.hasOwn(board.blocks, object.block)) {
-      blocks.push({ id: "blockr.core-remove_block", args: { id: object.block } });
-    } else if ("stack" in object && Object.hasOwn(board.stacks, object.stack)) {
-      stacks.push({ id: "blockr.core-remove_stack", args: { id: object.stack } });
-    }
-  }
-  return [...links, ...blocks, ...stacks];
+  const removing = (kind: "block" | "link" | "stack"): CommandCall[] =>
+    held(board, target, kind).map((id) => ({ id: `blockr.core-remove_${kind}`, args: { id } }));
+  return [...removing("link"), ...removing("block"), ...removing("stack")];
 }
 
 // The bin of a row that destroys something, in the shape of blockr.ui's

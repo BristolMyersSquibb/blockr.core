@@ -120,6 +120,11 @@ describe("the board actions that core registers", () => {
       { run: undefined, advanced: { draw: () => undefined } as unknown as BoardAction["advanced"] },
       'gives the board action "blockr.test-faulty_action", whose advanced has no render() function.',
     ],
+    [
+      "has a role that is no string",
+      { role: 3 as unknown as string },
+      'gives the board action "blockr.test-faulty_action", whose role 3 is no role\'s id, as "append_block_role".',
+    ],
   ])("refuse the whole class where one of its board actions %s, with module_failed about the class", async (_rule, given, message) => {
     const fine = action("fine", ["board"]);
     const faulty = { ...action("faulty", ["block"]), ...given };

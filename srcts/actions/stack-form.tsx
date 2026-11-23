@@ -19,6 +19,11 @@
 //   "Stack 2" and the first colour of a palette that no stack uses, which the
 //   user may change or, for the colour, leave out. It mints the stack's ID
 //   through CoreApi's mintId() and adds the stack with add_stack.
+//   On a block or a selection, the new stack takes exactly the blocks that
+//   the target names, as add_stack_role has it (./roles.ts). So the form
+//   names those blocks in a line above its fields, as "A stack of the blocks
+//   "Merge" and "Scatter".", in place of the select of its blocks, which it
+//   shows on the board alone.
 // - The form that edits a stack, Edit stack's, renames it with rename_stack
 //   and sets its colour and its blocks with change_stack, each where it
 //   changed. A name that the user leaves empty keeps the stack's name.
@@ -46,11 +51,12 @@ import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { blockItem, blockRow, blockTexts, classes, drawForm, Refusal, useEdits, useSearch } from "../ui/index.ts";
+import { blockItem, blockName, blockRow, blockTexts, classes, drawForm, Refusal, useEdits, useSearch } from "../ui/index.ts";
 import type { BlockItem, Done } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { own, quoted } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
-import type { CommandCall, Target } from "./actions.ts";
+import type { CommandCall } from "./actions.ts";
+import { heldBlocks } from "./targets.ts";
 
 const ADD_STACK = "blockr.core-add_stack";
 const CHANGE_STACK = "blockr.core-change_stack";
@@ -78,7 +84,7 @@ export function suggestedName(stacks: readonly Stack[]): string {
 // Create stack's advanced action.
 export const createStackForm: AdvancedModule = {
   render({ el, core, target, done }) {
-    return drawForm(el, <AddStack core={core} given={stackedBlocks(core.store.board(), target)} done={done} />);
+    return drawForm(el, <AddStack core={core} given={heldBlocks(core.store.board(), target)} done={done} />);
   },
 };
 
@@ -89,15 +95,6 @@ export const editStackForm: AdvancedModule = {
     return drawForm(el, <EditStack core={core} id={target.stack} done={done} />);
   },
 };
-
-// The blocks that Create stack puts in a stack: the block that the target
-// names, or those of a selection, which the board holds, and none on the
-// board.
-export function stackedBlocks(board: Board, target: Target): BlockId[] {
-  if ("block" in target) return Object.hasOwn(board.blocks, target.block) ? [target.block] : [];
-  if (!("selection" in target)) return [];
-  return target.selection.flatMap((object) => ("block" in object && Object.hasOwn(board.blocks, object.block) ? [object.block] : []));
-}
 
 function AddStack({ core, given, done }: { core: CoreApi; given: readonly BlockId[]; done: Done }): ReactElement {
   const board = useBoard(core);
@@ -152,6 +149,9 @@ function StackForm({
   const [name, setName] = useState(editing?.stack.name ?? "");
   const [color, setColor] = useState<Picked | null>(() => (editing === undefined ? suggestedColor(stacks) : editing.stack.color));
   const [blocks, setBlocks] = useState<readonly BlockId[]>(editing?.stack.blocks ?? given);
+  // Whether the target fixes the new stack's blocks, as on a block or a
+  // selection, so that the form names them in place of their select.
+  const fixed = editing === undefined && given.length > 0;
   const [busy, setBusy] = useState(false);
   const edits = useEdits(core);
   const fallbackName = editing === undefined ? suggestedName(stacks) : editing.stack.name;
@@ -220,6 +220,7 @@ function StackForm({
         void submit(event);
       }}
     >
+      {fixed ? <p className={styles.hint}>{stackOf(board, kept)}</p> : null}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
           label="Name"
@@ -231,24 +232,26 @@ function StackForm({
         />
         <StackColor color={color} onChange={setColor} />
       </div>
-      <ComboBox
-        selectionMode="multiple"
-        label="Blocks"
-        {...search}
-        items={sections}
-        value={kept}
-        placeholder="No blocks"
-        description="A block sits in one stack at most."
-        onChange={(keys) => {
-          setBlocks(keys.map(String));
-        }}
-      >
-        {(section) => (
-          <ComboBoxSection id={section.id} title={section.title} items={section.items}>
-            {blockRow}
-          </ComboBoxSection>
-        )}
-      </ComboBox>
+      {fixed ? null : (
+        <ComboBox
+          selectionMode="multiple"
+          label="Blocks"
+          {...search}
+          items={sections}
+          value={kept}
+          placeholder="No blocks"
+          description="A block sits in one stack at most."
+          onChange={(keys) => {
+            setBlocks(keys.map(String));
+          }}
+        >
+          {(section) => (
+            <ComboBoxSection id={section.id} title={section.title} items={section.items}>
+              {blockRow}
+            </ComboBoxSection>
+          )}
+        </ComboBox>
+      )}
       <div className="bc:flex bc:gap-2">
         <button type="submit" className={classes.primary} disabled={busy}>
           {editing === undefined ? "Add stack" : "Apply"}
@@ -304,6 +307,13 @@ function StackColor({ color, onChange }: { color: Picked | null; onChange: (colo
       </div>
     </fieldset>
   );
+}
+
+// The line that names the blocks of the new stack, where the target fixes
+// them.
+function stackOf(board: Board, blocks: readonly BlockId[]): string {
+  const names = quoted(blocks.map((block) => blockName(board, block)));
+  return blocks.length === 1 ? `A stack of the block ${names}.` : `A stack of the blocks ${names}.`;
 }
 
 function sameBlocks(a: readonly BlockId[], b: readonly BlockId[]): boolean {

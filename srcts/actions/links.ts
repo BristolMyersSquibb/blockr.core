@@ -29,6 +29,7 @@
 // user picks it.
 // Under the board lock, both fail their offers(), since the store refuses
 // what they run.
+// Create link plays add_link_role, and Edit link edit_link_role (./roles.ts).
 
 import { freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
@@ -82,6 +83,7 @@ export function createLinkAction(parts: CoreParts): BoardAction {
       return rows.length === 0 ? undefined : { filter: true, rows };
     },
     advanced: createLinkForm,
+    role: "add_link_role",
   };
 }
 
@@ -114,6 +116,7 @@ export function editLinkAction(parts: CoreParts): BoardAction {
       return rows.length === 0 ? undefined : { rows };
     },
     advanced: editLinkForm,
+    role: "edit_link_role",
   };
 }
 

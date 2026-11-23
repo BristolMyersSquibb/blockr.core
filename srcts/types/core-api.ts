@@ -49,8 +49,11 @@ export interface CoreApi {
     // names the kind of the target, and whose `offers` passes for it or which
     // has none. Core's come first, in the order of their table, then each
     // package's, in the order of the app's plugins and as its class lists
-    // them. It throws for what is no target, and gives none while the store
-    // holds no board.
+    // them. Of the board actions that name a role, it gives only the one that
+    // plays the role in the app, in the place of the role's default
+    // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#roles).
+    // It throws for what is no target, and gives none while the store holds
+    // no board.
     on(target: Target): readonly BoardAction[];
     // Opens the menu of the target at the anchor, with a row for each board
     // action that on() gives the target, showing its label, its icon, its
@@ -93,9 +96,12 @@ export interface CoreApi {
       },
     ): void;
     // Triggers the board action with the id given on the target, as a button
-    // or a gesture does. It runs nothing where on() leaves the board action
-    // out for the target, as under the board lock for every board action of
-    // core's but Copy block ID. Otherwise:
+    // or a gesture does, or the one that plays the role with the id given, as
+    // "append_block_role", so that a caller that relies on what a board action
+    // does meets the app's pick. It runs nothing where on() leaves the board
+    // action out for the target, as under the board lock for every board
+    // action of core's but Copy block ID, and nothing for the id of a board
+    // action that names a role that it does not play. Otherwise:
     // - Where the board action asks the user nothing, it runs the batch that
     //   its `run` returns, or that a promise of its `run` resolves with, with
     //   the commands that `extend` returns at its end, as one step of the user.
@@ -121,8 +127,8 @@ export interface CoreApi {
     // action open, whose done() rejects with the refusal. The caller's
     // `extend` and notifier take part until then, on the target that the
     // advanced action opened on, as menu() has it. It rejects for an id
-    // that no board action has, for what is no target, and for options
-    // without `el`.
+    // that no board action or role has, for what is no target, and for
+    // options without `el`.
     trigger(
       id: string,
       target: Target,
@@ -138,16 +144,19 @@ export interface CoreApi {
       },
     ): Promise<void>;
     // Renders the advanced action of the board action with the id given on
-    // the target in the element, which a plugin gives as room of its own, as
-    // the Edit board plugin shows the advanced action of Add block, until the
-    // function that it returns runs. The advanced action gets `picked` where
+    // the target in the element, or of the one that plays the role with the
+    // id given, which a plugin gives as room of its own, as the Edit board
+    // plugin shows the advanced action of Add block, until the function that
+    // it returns runs. The advanced action gets `picked` where
     // given. There its done() runs the batch as one step of the user, and core
     // renders the advanced action again, so that it is ready for the next
     // edit. Where a board object that the target names leaves the board, core
     // unmounts it and leaves the element empty. It renders nothing where on()
-    // leaves the board action out for the target. It throws for an id that no
-    // board action has, for a board action without an advanced action, for
-    // what is no target or no element, and once the next board has opened.
+    // leaves the board action out for the target, and nothing for the id of a
+    // board action that names a role that it does not play. It throws for an
+    // id that no board action or role has, for a board action without an
+    // advanced action, for what is no target or no element, and once the
+    // next board has opened.
     mountAdvanced(el: HTMLElement, id: string, target: Target, picked?: Json): () => void;
   };
   // The scheduler's methods for frontends and plugins. Core alone calls

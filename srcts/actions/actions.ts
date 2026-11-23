@@ -10,14 +10,26 @@
 // Core registers the board actions for each board that opens: its own, in the
 // order of their table (./core.ts), then those that each plugin class lists in
 // `boardActions`, as it registers the class with its commands
-// (../core/start.ts). It refuses the whole class where one of its board actions
-// breaks a rule (register(), below).
+// (../core/start.ts). It registers the roles beside them, its own and those
+// that each class lists in `roles` (./roles.ts). It refuses the whole class
+// where one of its board actions or its roles breaks a rule (register(),
+// below).
+// Once every module is registered, core chooses the board action that plays
+// each role: the one that the blockr option `board_actions` picks for the
+// role, or else the role's default (choosePlayers(), below).
 //
 // CoreApi's `boardActions` gives the board actions that apply to a target,
-// opens the menu of a target, and triggers a board action by its id
-// (boardActionsApi(), below). Core hands a board action only targets of the
-// kinds that its `on` names, so that a kind added later reaches no board
-// action that does not name it.
+// opens the menu of a target, and triggers a board action by its id or by the
+// id of the role that it plays (boardActionsApi(), below). Core hands a board
+// action only targets of the kinds that its `on` names, so that a kind added
+// later reaches no board action that does not name it.
+// Of the board actions that name a role, a menu offers only the one that plays
+// the role, in the place of the role's default, so that the app's pick of
+// another changes no menu's order. A board action that names a role that it
+// does not play is in no menu, and trigger() and mountAdvanced() run nothing
+// for its id, so that every caller meets one board action for the role.
+// What that board action does is the role's contract, which core trusts and
+// does not check (./roles.ts).
 // A call of menu() opens the menu of a target, with a row for each board
 // action that on() gives the target, which core runs by the rules of a quick
 // action (./quick.ts).
@@ -29,7 +41,8 @@
 // does, or opens its quick action as the menu's next level.
 // A call of trigger() runs a board action that asks the user nothing in these
 // steps:
-// 1. Core looks the board action up by its id.
+// 1. Core looks the board action up by its id, or by the id of the role that
+//    it plays.
 // 2. Core runs nothing where on() leaves the board action out for the target,
 //    as under the board lock, where every board action of core's but Copy
 //    block ID fails its `offers`.
@@ -71,7 +84,7 @@ import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
 import { log } from "../log/index.ts";
-import { asError, coreNotification, errorMessage, isObject, packageFromId, quoted, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, isObject, packageFromId, sourceModule } from "../util/index.ts";
 import type { Refused } from "../util/index.ts";
 import { createAdvanced } from "./advanced.ts";
 import type { AdvancedModule, Batching, Opening, Place, ShowDialog } from "./advanced.ts";
@@ -80,6 +93,16 @@ import type { CoreParts } from "./core.ts";
 import { isElement, targetGiven } from "./given.ts";
 import { isBatch, openMenu } from "./quick.ts";
 import type { DrivenMenu, MenuStart, QuickLevel } from "./quick.ts";
+import { checkedPlayer, checkedRoles, CORE_ROLES } from "./roles.ts";
+import type { Role } from "./roles.ts";
+import { kindsFailure } from "./targets.ts";
+
+// The package of core's own board actions and roles.
+const CORE = "blockr.core";
+
+// What the page shows in place of the board where the blockr option
+// board_actions fails, after why.
+const NO_BOARD = "Core opens no board, since the blockr option board_actions holds for every board of the app.";
 
 // What a board action acts on: the board, as the DAG's canvas offers it, one
 // board object, as a notification names one, or several, as the DAG's
@@ -133,66 +156,174 @@ export interface BoardAction {
   // Its advanced action, which holds every option of the board action, and
   // which core shows in a place with enough room (./advanced.ts).
   readonly advanced?: AdvancedModule;
+  // The role that it plays, as "append_block_role", which ties it to the
+  // commands that the role names (./roles.ts). It plays the role only where
+  // the app picks it for the role, or where it is the role's default and the
+  // app picks none.
+  readonly role?: string;
 }
-
-// The kinds of target, each of which names the menus that offer a board
-// action.
-const KINDS: Readonly<Record<BoardAction["on"][number], true>> = {
-  board: true,
-  block: true,
-  link: true,
-  stack: true,
-  option: true,
-  plugin: true,
-  selection: true,
-};
 
 // The board actions that core registers for the open board, core's own first,
 // in the order of their table, then those of each plugin class, in the order
-// in which core registers the classes and as each class lists them.
+// in which core registers the classes and as each class lists them, with the
+// roles beside them and the board action that plays each role.
 export interface BoardActions {
-  // Registers the board actions that a plugin class lists, and returns what
-  // unregisters them. A class that lists none registers none. It registers
-  // all of them or none: it throws where one is not a board action, as a
-  // package that writes its JS without types may give, or breaks a rule,
-  // naming the class. A board action breaks a rule where:
+  // Registers the board actions and the roles that a plugin class lists, and
+  // returns what unregisters them. A class that lists none registers none. It
+  // registers all of them or none: it throws where one is not a board action
+  // or not a role, as a package that writes its JS without types may give, or
+  // breaks a rule, naming the class. A board action breaks a rule where:
   // - It has the id of another, core's, another class's or one that the class
   //   lists before it.
   // - Its `on` is empty.
   // - It has `run` beside `quick` or `advanced`, since `run` is for a board
   //   action that asks the user nothing.
   // - It has none of the three, so that nothing would run.
-  register(plugin: PluginClassId, actions: readonly BoardAction[] | undefined): () => void;
+  // - Its `role` is no string.
+  // A role breaks the rules that checkedRoles() in ./roles.ts names, as where
+  // another role has its id, which names the packages of both, or where its
+  // default is no board action of the class that can play it.
+  register(plugin: PluginClassId, actions: readonly BoardAction[] | undefined, roles?: readonly Role[]): () => void;
   registered(): readonly BoardAction[];
   // The plugin class that lists the board action with the id given, or
   // undefined for one of core's own.
   classOf(id: string): PluginClassId | undefined;
+  // The role with the id given, or undefined where none is registered.
+  role(id: string): Role | undefined;
+  // Chooses the board action that plays each role, once every module is
+  // registered, from the blockr option board_actions as R sent it: the board
+  // action that it picks for the role, or else the role's default, which
+  // register() checked. It checks each pick (checkedPlayer() in ./roles.ts).
+  // Where a pick fails the check, or no package registers it, or it names a
+  // role that no package registers, or the blockr option holds no picks, it
+  // throws, naming the pick, the role and what failed, so that core opens no
+  // board. The blockr option is the app's rather than a board's, so a wrong
+  // pick would break every board that the app opens.
+  choosePlayers(picks: Json | undefined): void;
+  // The board action that plays the role with the id given, or undefined
+  // where none does.
+  player(role: string): BoardAction | undefined;
+  // The board actions that menus offer, in their order: each that names no
+  // role, and the one that plays each role, in the place of the role's
+  // default. A board action that names a role that it does not play is in
+  // none.
+  offered(): readonly BoardAction[];
 }
 
-// The board actions of an open board, with core's own, whose notifications,
-// as of a copy that the browser refuses, core raises through the `raise` of
-// `parts`, and which read the preflights of the command registry and the
-// board's block registry through it, as Add block lists its classes.
+// The board actions of an open board, with core's own and core's roles, whose
+// notifications, as of a copy that the browser refuses, core raises through
+// the `raise` of `parts`, and which read the preflights of the command
+// registry and the board's block registry through it, as Add block lists its
+// classes. No board action plays a role before choosePlayers() has run.
 export function createBoardActions(parts: CoreParts): BoardActions {
   let registered: readonly BoardAction[] = coreBoardActions(parts);
   // The plugin class that lists each board action that a class lists, by the
   // board action's id.
   const classes = new Map<string, PluginClassId>();
+  // The roles, core's first, then those of each class as it lists them, each
+  // with the plugin class that lists it, which core's have none of.
+  const roles = new Map<string, { readonly role: Role; readonly plugin: PluginClassId | undefined }>(
+    CORE_ROLES.map((role) => [role.id, { role, plugin: undefined }]),
+  );
+  // The board action that plays each role, by the role's id.
+  const players = new Map<string, BoardAction>();
+  // What menus offer, until what is registered or who plays a role changes.
+  let offered: readonly BoardAction[] | undefined;
+
+  function player(role: string): BoardAction | undefined {
+    const action = players.get(role);
+    return action !== undefined && registered.includes(action) ? action : undefined;
+  }
+
+  // What menus offer, in their order (offered(), above). A board action that
+  // plays a role takes the place of the role's default, where the board
+  // actions hold it, and keeps its own place otherwise.
+  function inMenus(): readonly BoardAction[] {
+    const places = new Map(registered.map(({ id }, i) => [id, i]));
+    const placeOf = (action: BoardAction, i: number): number => {
+      const fallback = action.role === undefined ? undefined : roles.get(action.role)?.role.default;
+      return (fallback === undefined ? undefined : places.get(fallback)) ?? i;
+    };
+    return registered
+      .map((action, i) => ({ action, at: placeOf(action, i), i }))
+      .filter(({ action }) => action.role === undefined || player(action.role) === action)
+      .sort((a, b) => a.at - b.at || a.i - b.i)
+      .map(({ action }) => action);
+  }
 
   return {
-    register(plugin, given) {
-      if (given === undefined) return () => undefined;
-      const actions = checked(plugin, given, new Set(registered.map(({ id }) => id)));
+    register(plugin, givenActions, givenRoles) {
+      if (givenActions === undefined && givenRoles === undefined) return () => undefined;
+      const actions = givenActions === undefined ? [] : checked(plugin, givenActions, new Set(registered.map(({ id }) => id)));
+      // The package of each role registered already, by the role's id.
+      const taken = (): Map<string, string> =>
+        new Map([...roles.values()].map(({ role, plugin: by }) => [role.id, by === undefined ? CORE : (packageFromId(by) ?? by)]));
+      const listed = givenRoles === undefined ? [] : checkedRoles(plugin, givenRoles, taken(), actions);
       registered = [...registered, ...actions];
       for (const { id } of actions) classes.set(id, plugin);
+      for (const role of listed) roles.set(role.id, { role, plugin });
+      offered = undefined;
       return () => {
         registered = registered.filter((action) => !actions.includes(action));
         for (const { id } of actions) classes.delete(id);
+        for (const role of listed) {
+          if (roles.get(role.id)?.role === role) roles.delete(role.id);
+          players.delete(role.id);
+        }
+        offered = undefined;
       };
     },
     registered: () => registered,
     classOf: (id) => classes.get(id),
+    role: (id) => roles.get(id)?.role,
+    choosePlayers(value) {
+      const picks = picksOf(value);
+      players.clear();
+      offered = undefined;
+      const failures: string[] = [];
+      for (const [role, id] of picks) {
+        if (!roles.has(role)) failures.push(`${picking(id, role)}, but no package registers that role.`);
+      }
+      for (const { role } of roles.values()) {
+        const pick = picks.get(role.id);
+        const id = pick ?? role.default;
+        const found = checkedPlayer(role, registered.find((each) => each.id === id));
+        if ("player" in found) players.set(role.id, found.player);
+        else if (pick !== undefined) failures.push(`${picking(id, role.id)}, but ${found.why}.`);
+      }
+      if (failures.length > 0) throw new Error([...failures, NO_BOARD].join("\n"));
+    },
+    player,
+    offered() {
+      offered ??= inMenus();
+      return offered;
+    },
   };
+}
+
+// The sentence of a failed pick up to what failed, which names the pick and the
+// role.
+function picking(action: string, role: string): string {
+  return `The blockr option board_actions picks the board action "${action}" to play the role "${role}"`;
+}
+
+// The picks that the blockr option board_actions holds, as R sent it: the id
+// of a board action by the id of each role whose player the app picks, as an
+// R option gives them, since an environment variable holds no list. R sends an
+// empty list as an empty array, and nothing where nothing sets the option. It
+// throws for anything else, as for the string of an environment variable.
+function picksOf(value: Json | undefined): ReadonlyMap<string, string> {
+  if (value === undefined || (Array.isArray(value) && value.length === 0)) return new Map();
+  if (isObject(value)) {
+    const entries = Object.entries(value);
+    if (entries.every((entry): entry is [string, string] => typeof entry[1] === "string")) return new Map(entries);
+  }
+  throw new Error(
+    [
+      `The blockr option board_actions holds ${JSON.stringify(value)}, where it picks a board action for a role by their ids, as list(append_block_role = "mykit-append_block_action") does in R.`,
+      NO_BOARD,
+    ].join("\n"),
+  );
 }
 
 // The board actions that a plugin class lists, once each is a board action that
@@ -223,16 +354,9 @@ function checked(plugin: PluginClassId, given: unknown, taken: ReadonlySet<strin
     if (action.icon !== undefined && typeof action.icon !== "string") {
       throw new Error(`${named}, whose icon is no string of SVG markup.`);
     }
-    const on: unknown = action.on;
-    if (!Array.isArray(on)) {
-      throw new Error(`${named}, whose on is no array of the kinds of target that it applies to.`);
-    }
-    if (on.length === 0) {
-      throw new Error(`${named}, whose on is empty, so that no menu would offer it.`);
-    }
-    const other: unknown = on.find((kind) => typeof kind !== "string" || !Object.hasOwn(KINDS, kind));
-    if (other !== undefined) {
-      throw new Error(`${named}, whose on names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS))}.`);
+    const kinds = kindsFailure(action.on, "is empty, so that no menu would offer it");
+    if (kinds !== undefined) {
+      throw new Error(`${named}, whose on ${kinds}.`);
     }
     if (typeof action.category !== "string" || action.category === "") {
       throw new Error(`${named} without a category.`);
@@ -252,6 +376,10 @@ function checked(plugin: PluginClassId, given: unknown, taken: ReadonlySet<strin
     }
     if (action.run === undefined && asks.length === 0) {
       throw new Error(`${named}, which has none of run, quick and advanced.`);
+    }
+    const { role } = action;
+    if (role !== undefined && (typeof role !== "string" || role === "")) {
+      throw new Error(`${named}, whose role ${JSON.stringify(role)} is no role's id, as "append_block_role".`);
     }
     return action as unknown as BoardAction;
   });
@@ -355,18 +483,27 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
   function on(target: Target): BoardAction[] {
     if (!store.hasBoard()) return [];
     const board = store.board();
-    return actions.registered().filter((action) => applies(action, board, target));
+    return actions.offered().filter((action) => applies(action, board, target));
   }
 
-  // The board action with the id given, which trigger() and mountAdvanced()
-  // look up.
-  function registered(id: string): BoardAction {
+  // The board action that trigger() and mountAdvanced() act on for the id
+  // given: the board action with that id, or the one that plays the role with
+  // that id, since a board action's id names a package and a role's names
+  // none. It is undefined where no board action plays the role, and for a
+  // board action that names a role that it does not play, for which they run
+  // nothing. It throws for an id that no board action or role has.
+  function registered(id: string): BoardAction | undefined {
+    if (typeof id === "string" && packageFromId(id) === null) {
+      if (actions.role(id) === undefined) throw new Error(`No role "${id}" is registered.`);
+      return actions.player(id);
+    }
     const action = actions.registered().find((each) => each.id === id);
     if (action === undefined) {
       throw new Error(`No board action "${id}" is registered.`);
     }
-    return action;
+    return action.role === undefined || actions.player(action.role) === action ? action : undefined;
   }
+
 
   // The batch that the board action's `run` returns, which it calls at once,
   // so that a copy that needs the user's click or key press, as Copy block ID's
@@ -547,7 +684,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       const checked = targetGiven(target);
       const given = optionsGiven(opts, "trigger()");
       const action = registered(id);
-      if (signal?.aborted === true || !store.hasBoard() || !applies(action, store.board(), checked)) return;
+      if (action === undefined || signal?.aborted === true || !store.hasBoard() || !applies(action, store.board(), checked)) return;
       if (action.run !== undefined) {
         await runOf(action, checked, given);
         return;
@@ -571,8 +708,10 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       }
       const checked = targetGiven(target);
       const action = registered(id);
+      if (action === undefined) return () => undefined;
       if (action.advanced === undefined) {
-        throw new Error(`The board action "${id}" has no advanced action to mount.`);
+        const playing = action.id === id ? "" : `, which plays the role "${id}",`;
+        throw new Error(`The board action "${action.id}"${playing} has no advanced action to mount.`);
       }
       return advanced.mount(given, action, checked, picked);
     },

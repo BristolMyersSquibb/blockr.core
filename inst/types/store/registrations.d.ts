@@ -1,4 +1,4 @@
-import type { BoardAction } from "../actions/index.ts";
+import type { BoardAction, Role } from "../actions/index.ts";
 import type { Command } from "../commands/index.ts";
 import type { Block, Board, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, PluginModule, Raised } from "../types/core-api.ts";
@@ -20,6 +20,7 @@ export interface PluginClass {
     readonly storage?: Storage;
     readonly commands?: readonly Command<Json, unknown>[];
     readonly boardActions?: readonly BoardAction[];
+    readonly roles?: readonly Role[];
     start?(args: {
         readonly core: CoreApi;
         readonly plugin: PluginClassId;

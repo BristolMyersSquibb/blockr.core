@@ -951,6 +951,19 @@
   The stubs, `@blockr/core/stubs`, give in `menuModuleTests()` the tests that a package runs against its own module.
   Each opens a menu through the module, finds the parts of the menu by their ARIA roles and names, does what a user does, and checks what core ran, and core runs them against its own menu.
   Core's runtime no longer holds core's menu, whose module takes 5.0 KB compressed (#829).
+* Roles name the edits that callers rely on, each of which one board action plays in each app, so that an app may swap one of core's board actions for one drawn with another UI kit, and every caller that triggers or mounts the role meets the app's pick.
+  A role, of the type `Role`, has an `id` that names no package, as `append_block_role`, its targets in `on`, its `default` board action, one of the board actions of the role's class, and `advanced` where callers mount the advanced action of the board action that plays it.
+  What that board action does is the role's contract, which core trusts and does not check.
+  Core defines a role for each of its board actions but Copy block ID, which names it in the new member `role` of `BoardAction`, and a plugin class lists roles of its own in the new member `roles`, beside `boardActions`.
+  In each app, one board action plays each role: the one that the blockr option `board_actions` picks for it, as `options(blockr.board_actions = list(append_block_role = "mykit-append_block_action"))` does, or else the role's default.
+  Core checks that board action: it names the role, its `on` names the role's targets alone, and it has an advanced action where the role has `advanced`.
+  Core refuses the whole class where one of its roles breaks a rule, as where another package gives a role of its ID, naming both packages, or where the role's default fails that check, and raises `module_failed` about the class.
+  Once every module is registered, core checks the app's picks, and where a pick of `board_actions` fails the check, or names a board action or a role that no package registers, core opens no board and shows why in its place.
+  A menu offers only the board action that plays a role, in the place of the role's default.
+  The calls `core.boardActions.trigger()` and `mountAdvanced()` take a role's ID in place of a board action's, and act on the board action that plays the role, while they run nothing for the ID of a board action that names a role that it does not play.
+  Create stack's quick action holds New stack alone, and lists no stack that the board holds, since Create stack plays `add_stack_role`, which adds a stack.
+  Opened on a block, the form of Create link names that block in a line, as `A link from "Scatter".`, in place of the select of the end at that block, and offers a select of the other end alone.
+  Opened on a block or a selection, the form of Create stack names their blocks in a line in place of the select of blocks, since the new stack takes exactly those blocks (#825).
 
 # blockr.core 0.1.4
 

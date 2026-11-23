@@ -9,7 +9,7 @@
 // which core imports as a board that needs them opens (../core/migrations.ts).
 
 import { computed, signal } from "@preact/signals-core";
-import type { BoardAction } from "../actions/index.ts";
+import type { BoardAction, Role } from "../actions/index.ts";
 import type { Command } from "../commands/index.ts";
 import type {
   Block,
@@ -101,6 +101,11 @@ export interface PluginClass {
   // order given (../actions/actions.ts). Core refuses the whole class where
   // one of them breaks a rule of board actions.
   readonly boardActions?: readonly BoardAction[];
+  // The edits that callers rely on, each of which one board action plays in
+  // each app, which core registers as it registers the class
+  // (../actions/roles.ts). Core refuses the whole class where one of them
+  // breaks a rule of roles, as where another package gives a role of its id.
+  readonly roles?: readonly Role[];
   // What runs while the plugin runs on the open board, until the signal
   // aborts, which it does as the next board opens. Core calls it once the
   // frontend has drawn the board, with the id of the class, which names the

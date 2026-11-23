@@ -104,6 +104,7 @@ export type {
   OpenMenu,
   QuickLevel,
   QuickRow,
+  Role,
   ShownLevel,
   ShownRow,
   Target,

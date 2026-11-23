@@ -990,7 +990,7 @@ function createClient(transport, options) {
   let stopped;
   let shared = /* @__PURE__ */ new Set();
   const waiting2 = /* @__PURE__ */ new Map();
-  let held4 = [];
+  let held5 = [];
   const sending = /* @__PURE__ */ new Set();
   let ends2 = 0;
   function mint2() {
@@ -1042,9 +1042,9 @@ function createClient(transport, options) {
     quietly(transport.send([{ kind: "cancel", request: call2.id }], /* @__PURE__ */ new Map()));
   }
   function abort(entry, call2) {
-    const index = held4.indexOf(entry);
+    const index = held5.indexOf(entry);
     if (index >= 0) {
-      held4.splice(index, 1);
+      held5.splice(index, 1);
       call2.settle(cancelled(call2.id));
     } else if (call2.sent) {
       cancel(call2);
@@ -1058,7 +1058,7 @@ function createClient(transport, options) {
     } else if (state2 === "ready") {
       dispatch([entry]);
     } else {
-      held4.push(entry);
+      held5.push(entry);
     }
   }
   function end() {
@@ -1076,8 +1076,8 @@ function createClient(transport, options) {
       `R speaks version ${theirs} of the wire protocol, where the client speaks ${ours}, so the client sends R nothing.`
     );
     end();
-    const lost = held4;
-    held4 = [];
+    const lost = held5;
+    held5 = [];
     for (const { call: call2 } of lost) {
       call2?.settle({ error: stopped });
     }
@@ -1102,8 +1102,8 @@ function createClient(transport, options) {
             const theirs = new Set(reply.capabilities);
             shared = new Set(named5.capabilities.filter((c) => theirs.has(c)));
             state2 = "ready";
-            const outbound = held4;
-            held4 = [];
+            const outbound = held5;
+            held5 = [];
             dispatch(outbound);
           } else {
             stop(reply.protocol, named5.protocol);
@@ -1198,8 +1198,8 @@ function createClient(transport, options) {
     hello() {
       if (stopped !== void 0) return;
       const runs = state2 !== "none";
-      const lost = held4;
-      held4 = [];
+      const lost = held5;
+      held5 = [];
       end();
       for (const { call: call2 } of lost) {
         call2?.settle({ error: new SessionEndedError(call2.id) });
@@ -3090,7 +3090,7 @@ function mountOutput(deps, el, block) {
   const ready = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
-  let held4;
+  let held5;
   let asking;
   let error = null;
   let drawing;
@@ -3166,9 +3166,9 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     const want = wanted();
     if (want !== void 0) {
-      if (held4 !== void 0 && fits2(held4.asked, want.asked, want.ids)) {
+      if (held5 !== void 0 && fits2(held5.asked, want.asked, want.ids)) {
         stopAsking();
-      } else if (shelf.last !== void 0 && shelf.last !== held4 && fits2(shelf.last.asked, want.asked, want.ids)) {
+      } else if (shelf.last !== void 0 && shelf.last !== held5 && fits2(shelf.last.asked, want.asked, want.ids)) {
         stopAsking();
         take(shelf.last);
       } else {
@@ -3293,7 +3293,7 @@ function mountOutput(deps, el, block) {
     deps.raise(coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) }));
   }
   function take(next) {
-    held4 = next;
+    held5 = next;
     error = null;
     const named6 = next.output.renderer;
     expect(named6);
@@ -3303,11 +3303,11 @@ function mountOutput(deps, el, block) {
     wake();
   }
   function draw() {
-    if (held4 === void 0 || drawing !== void 0 || !onScreen()) return;
-    const named6 = held4.output.renderer;
+    if (held5 === void 0 || drawing !== void 0 || !onScreen()) return;
+    const named6 = held5.output.renderer;
     prepare(named6).then(
       (prepared) => {
-        if (ended() || drawing !== void 0 || held4?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
+        if (ended() || drawing !== void 0 || held5?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
         mountRenderer(prepared);
       },
       (failure) => {
@@ -3393,8 +3393,8 @@ function mountOutput(deps, el, block) {
           );
           return true;
         }
-        if (status.status === "ready" && held4?.asked.revision === status.revision) {
-          resolve(held4);
+        if (status.status === "ready" && held5?.asked.revision === status.revision) {
+          resolve(held5);
           return true;
         }
         return false;
@@ -3471,18 +3471,18 @@ function mountOutput(deps, el, block) {
     const module = rendererModule(prepared.renderer);
     return {
       block,
-      output: () => held4?.output ?? null,
-      body: () => held4?.body ?? null,
-      params: () => held4?.asked.params ?? EMPTY,
+      output: () => held5?.output ?? null,
+      body: () => held5?.body ?? null,
+      params: () => held5?.asked.params ?? EMPTY,
       option(id2) {
         let memo2 = named6;
-        if (memo2 === void 0 || memo2.for !== held4) {
+        if (memo2 === void 0 || memo2.for !== held5) {
           const read = optionReader(
-            optionsFor(held4?.asked),
+            optionsFor(held5?.asked),
             outputOptions,
             (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
           );
-          memo2 = { for: held4, read };
+          memo2 = { for: held5, read };
           named6 = memo2;
         }
         return memo2.read(id2);
@@ -5856,17 +5856,17 @@ function misplaced(id2, patches2, of) {
   return failures;
 }
 function merge(delta, given, patches2, board) {
-  const held4 = delta.patches ?? [];
+  const held5 = delta.patches ?? [];
   const fixed2 = (given.patches ?? []).map(({ path }) => segmentsFromPath(path) ?? []);
   const added = [];
   for (const patch2 of patches2) {
     const segments = segmentsFromPath(patch2.path) ?? [];
-    if ([...held4, ...added].some((other) => same(other, patch2))) continue;
+    if ([...held5, ...added].some((other) => same(other, patch2))) continue;
     if (fixed2.some((other) => overlap(other, segments, board))) continue;
     added.push(patch2);
   }
   if (added.length === 0) return delta;
-  return { ...delta, patches: [...held4, ...added] };
+  return { ...delta, patches: [...held5, ...added] };
 }
 function same(a, b) {
   return a.op === b.op && a.path === b.path && jsonEqual(a.value, b.value);
@@ -5875,8 +5875,8 @@ function same(a, b) {
 // srcts/store/lock.ts
 function fixes(board, block, boardLock) {
   if (!boardLock) return false;
-  const held4 = board === void 0 ? void 0 : own(board.blocks, block);
-  return held4?.locked !== false;
+  const held5 = board === void 0 ? void 0 : own(board.blocks, block);
+  return held5?.locked !== false;
 }
 function lockFailures(before, inverse) {
   const failures = [];
@@ -5930,11 +5930,11 @@ function fit(delta, board) {
     delta.links,
     (link) => (link.from === void 0 || holds2(link.from)) && (link.to === void 0 || holds2(link.to))
   );
-  const held4 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
+  const held5 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
     Object.entries(delta.links?.before ?? {}).flatMap(([id2, named5]) => {
       if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named5]];
-      if (!held4(id2)) return [];
+      if (!held5(id2)) return [];
       return [[id2, named5 !== null && Object.hasOwn(board.links, named5) ? named5 : null]];
     })
   );
@@ -6009,8 +6009,8 @@ function pluginsWithDefaults(kept, app, registeredClass) {
   for (const id2 of Object.keys(app)) {
     const state2 = registeredClass(id2)?.state;
     if (state2 === void 0) continue;
-    const held4 = own(kept, id2);
-    plugins[id2] = held4 === void 0 ? frozenCopy(state2.default) : held4;
+    const held5 = own(kept, id2);
+    plugins[id2] = held5 === void 0 ? frozenCopy(state2.default) : held5;
   }
   return plugins;
 }
@@ -6178,12 +6178,12 @@ function migratedValue(what, fn) {
 function openJsonBoard(json, reply, registrations) {
   const registeredClass = (id2) => registrations.plugin(id2)?.def;
   const read = unversioned(json.board);
-  const held4 = keptPlugins(read.plugins, reply.plugins, registeredClass);
+  const held5 = keptPlugins(read.plugins, reply.plugins, registeredClass);
   const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
     plugin: id2,
     package: packageFromId(id2)
   }));
-  const migrated2 = migrate({ ...read, plugins: held4 }, json.board, reply, registrations);
+  const migrated2 = migrate({ ...read, plugins: held5 }, json.board, reply, registrations);
   const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
   const blocks = gone.map((id2) => {
     const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
@@ -7951,7 +7951,7 @@ function createAdvanced(parts) {
     const { signal: signal5 } = controller;
     let cleanup;
     let pending = false;
-    const gone = () => !signal5.aborted && !pending && !held4(target2);
+    const gone = () => !signal5.aborted && !pending && !held5(target2);
     const offStore = store.subscribe(() => {
       if (gone()) left2();
     });
@@ -8023,9 +8023,9 @@ function createAdvanced(parts) {
     );
   }
   function renders(action3, target2) {
-    return parts.signal?.aborted !== true && held4(target2) && parts.applies(action3, target2);
+    return parts.signal?.aborted !== true && held5(target2) && parts.applies(action3, target2);
   }
-  function held4(target2) {
+  function held5(target2) {
     if (!store.hasBoard()) return false;
     if ("board" in target2) return true;
     const board = store.board();
@@ -8197,7 +8197,7 @@ function createAdvanced(parts) {
         current2?.();
         current2 = void 0;
         if (stopped) return;
-        if (!held4(target2)) {
+        if (!held5(target2)) {
           stop();
           return;
         }
@@ -8229,7 +8229,7 @@ var PAUSE = 500;
 function bind(host, key2, next, last, given) {
   const [change, show2, options] = typeof key2 === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
   const source = createSource(host);
-  const held4 = source.value(key2, change);
+  const held5 = source.value(key2, change);
   const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
   let shown2;
   let typed;
@@ -8237,7 +8237,7 @@ function bind(host, key2, next, last, given) {
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
-    const value2 = held4.get();
+    const value2 = held5.get();
     if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
     shown2 = { value: value2 };
     show2(value2);
@@ -8255,7 +8255,7 @@ function bind(host, key2, next, last, given) {
   const submit = async (value2) => {
     let submitted;
     try {
-      submitted = held4.submit(value2, submitting);
+      submitted = held5.submit(value2, submitting);
     } catch (error) {
       unbuild(error);
       options.settled?.(error);
@@ -8288,7 +8288,7 @@ function bind(host, key2, next, last, given) {
   });
   display(true);
   return {
-    get: () => held4.get(),
+    get: () => held5.get(),
     async commit(value2) {
       const took = await submit(value2);
       if (!took) display(true);
@@ -9361,7 +9361,7 @@ function BoundSeveral({
   ...props
 }) {
   const items = props.items ?? props.defaultItems;
-  const held4 = strings(bound.value);
+  const held5 = strings(bound.value);
   const [picks, setPicks] = useState7(null);
   const pending = useRef5(null);
   const submit = (next, opened) => {
@@ -9377,10 +9377,10 @@ function BoundSeveral({
         selectionMode: "multiple",
         outdated,
         marking: !outdated && known(props),
-        value: picks ?? held4,
+        value: picks ?? held5,
         onOpenChange: (isOpen, trigger) => {
           if (isOpen) {
-            pending.current ??= { picks: held4, opened: held4 };
+            pending.current ??= { picks: held5, opened: held5 };
             setPicks(pending.current.picks);
           } else {
             const left2 = pending.current;
@@ -9394,7 +9394,7 @@ function BoundSeveral({
           if (!Array.isArray(keys)) return;
           const next = keys.map(String);
           if (pending.current === null) {
-            submit(next, held4);
+            submit(next, held5);
             return;
           }
           pending.current = { ...pending.current, picks: next };
@@ -9677,11 +9677,11 @@ function BoundNumber({
   validationBehavior = "aria",
   ...props
 }) {
-  const held4 = typeof bound.value === "number" ? bound.value : NaN;
+  const held5 = typeof bound.value === "number" ? bound.value : NaN;
   const [kept, setKept] = useState8(null);
-  const [seen, setSeen] = useState8(held4);
-  if (!Object.is(seen, held4)) {
-    setSeen(held4);
+  const [seen, setSeen] = useState8(held5);
+  if (!Object.is(seen, held5)) {
+    setSeen(held5);
     if (kept !== null && !kept.typing) setKept(null);
   }
   const fits2 = (value2) => inRange(value2, props.minValue, props.maxValue, props.step);
@@ -9692,9 +9692,9 @@ function BoundNumber({
         ...props,
         commitBehavior,
         validationBehavior,
-        value: kept?.value ?? held4,
+        value: kept?.value ?? held5,
         onInput: (event) => {
-          setKept((now) => now?.typing === true ? now : { value: now?.value ?? held4, typing: true });
+          setKept((now) => now?.typing === true ? now : { value: now?.value ?? held5, typing: true });
           onInput?.(event);
         },
         onChange: (value2) => {
@@ -9703,7 +9703,7 @@ function BoundNumber({
           } else if (kept?.typing === true) {
             bound.type(value2);
             bound.flush();
-            setKept(Object.is(value2, held4) ? null : { value: value2, typing: false });
+            setKept(Object.is(value2, held5) ? null : { value: value2, typing: false });
           } else {
             setKept({ value: value2, typing: false });
             void bound.commit(value2).then((took) => {
@@ -10346,8 +10346,8 @@ function blockName(board, block) {
   return own(board.blocks, block)?.name ?? block;
 }
 function classInputs(board, registry, block) {
-  const held4 = own(board.blocks, block);
-  return (held4 === void 0 ? void 0 : own(registry, held4.registry_id)?.inputs) ?? [];
+  const held5 = own(board.blocks, block);
+  return (held5 === void 0 ? void 0 : own(registry, held5.registry_id)?.inputs) ?? [];
 }
 function isVariadicBlock(board, registry, block) {
   return classInputs(board, registry, block).includes("...");
@@ -11070,12 +11070,44 @@ function escaped(color2) {
 }
 
 // srcts/actions/targets.ts
+var KINDS2 = {
+  board: true,
+  block: true,
+  link: true,
+  stack: true,
+  option: true,
+  plugin: true,
+  selection: true
+};
+function kindsFailure(on, empty2) {
+  if (!Array.isArray(on)) return "is no array of the kinds of target that it applies to";
+  if (on.length === 0) return empty2;
+  const other = on.find((kind) => typeof kind !== "string" || !Object.hasOwn(KINDS2, kind));
+  return other === void 0 ? void 0 : `names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}`;
+}
+function idOf(target2, kind) {
+  if (kind === "block") return "block" in target2 ? target2.block : void 0;
+  if (kind === "link") return "link" in target2 ? target2.link : void 0;
+  return "stack" in target2 ? target2.stack : void 0;
+}
 function blockOf(target2) {
-  return "block" in target2 ? target2.block : void 0;
+  return idOf(target2, "block");
 }
 function heldBlock(board, target2) {
   const block = blockOf(target2);
   return block !== void 0 && Object.hasOwn(board.blocks, block) ? block : void 0;
+}
+function held4(board, target2, kind) {
+  const objects = "selection" in target2 ? target2.selection : [target2];
+  const kept = { block: board.blocks, link: board.links, stack: board.stacks }[kind];
+  const ids3 = objects.flatMap((object2) => {
+    const id2 = idOf(object2, kind);
+    return id2 !== void 0 && Object.hasOwn(kept, id2) ? [id2] : [];
+  });
+  return [...new Set(ids3)];
+}
+function heldBlocks(board, target2) {
+  return held4(board, target2, "block");
 }
 
 // srcts/actions/add.tsx
@@ -11091,7 +11123,8 @@ function addingBoardActions(registry) {
       category: "add",
       offers: (_board, _target, lock) => !lock.board && adds(false),
       quick: (_board, _target, core) => classLevel(core, false, (entry, block) => [addBlockCall(entry, block)]),
-      advanced: pickerModule(() => ({ kind: "add" }))
+      advanced: pickerModule(() => ({ kind: "add" })),
+      role: "add_block_role"
     },
     {
       id: "blockr.core-append_block_action",
@@ -11104,7 +11137,8 @@ function addingBoardActions(registry) {
         const from = heldBlock(board, target2);
         return from === void 0 ? [] : [addBlockCall(entry, block), addLinkCall(from, block, newBlockInput(entry))];
       }),
-      advanced: pickerModule((target2) => "block" in target2 ? { kind: "after", from: target2.block } : void 0)
+      advanced: pickerModule((target2) => "block" in target2 ? { kind: "after", from: target2.block } : void 0),
+      role: "append_block_role"
     },
     {
       id: "blockr.core-prepend_block_action",
@@ -11117,7 +11151,8 @@ function addingBoardActions(registry) {
         const to = heldBlock(board, target2);
         return to === void 0 ? [] : [addBlockCall(entry, block), addLinkCall(block, to, freeInputOf(board, core.blockRegistry(), target2))];
       }),
-      advanced: pickerModule((target2) => "block" in target2 ? { kind: "before", to: target2.block } : void 0)
+      advanced: pickerModule((target2) => "block" in target2 ? { kind: "before", to: target2.block } : void 0),
+      role: "prepend_block_role"
     },
     {
       id: "blockr.core-insert_block_action",
@@ -11135,7 +11170,8 @@ function addingBoardActions(registry) {
           { id: "blockr.core-change_link", args: { id: id2, from: block } }
         ];
       }),
-      advanced: pickerModule((target2) => "link" in target2 ? { kind: "on", link: target2.link } : void 0)
+      advanced: pickerModule((target2) => "link" in target2 ? { kind: "on", link: target2.link } : void 0),
+      role: "insert_block_role"
     }
   ];
 }
@@ -11456,15 +11492,15 @@ function VariadicInputs(parts) {
 }
 function shownInputs(board, block, changes2) {
   const removed = new Set(changes2.removed);
-  const held4 = (from) => from !== void 0 && Object.hasOwn(board.blocks, from);
+  const held5 = (from) => from !== void 0 && Object.hasOwn(board.blocks, from);
   const links = createGraph(board).linksInto(block).flatMap((id2) => {
     const link = own(board.links, id2);
     if (link === void 0 || removed.has(id2)) return [];
     const change = own(changes2.links, id2);
     const from = change?.from;
-    return [{ key: id2, from: held4(from) ? from : link.from, input: change?.input ?? link.input }];
+    return [{ key: id2, from: held5(from) ? from : link.from, input: change?.input ?? link.input }];
   });
-  const inputs = [...links, ...changes2.added.filter(({ from }) => held4(from))];
+  const inputs = [...links, ...changes2.added.filter(({ from }) => held5(from))];
   const { order } = changes2;
   if (order === void 0) return inputs;
   const place = ({ key: key2 }) => {
@@ -11628,8 +11664,12 @@ var CHANGE_LINK2 = "blockr.core-change_link";
 var MOVE_LINK2 = "blockr.core-move_link";
 var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
-    const start3 = picked === void 0 ? "block" in target2 ? { from: target2.block } : {} : startOf(picked);
-    return drawForm(el, /* @__PURE__ */ jsx54(AddLink, { core, start: start3, done }));
+    const given = picked === void 0 ? {} : startOf(picked);
+    if (!("block" in target2)) return drawForm(el, /* @__PURE__ */ jsx54(AddLink, { core, start: given, done }));
+    const { block } = target2;
+    const fixed2 = given.to === block ? "to" : "from";
+    const start3 = fixed2 === "to" ? { ...given, to: block } : { ...given, from: block };
+    return drawForm(el, /* @__PURE__ */ jsx54(AddLink, { core, start: start3, fixed: fixed2, done }));
   }
 };
 var editLinkForm = {
@@ -11647,9 +11687,13 @@ function startOf(picked) {
     ...typeof input2 === "string" ? { input: input2 } : {}
   };
 }
-function AddLink({ core, start: start3, done }) {
+function AddLink({ core, start: start3, fixed: fixed2, done }) {
   const board = useBoard(core);
-  return /* @__PURE__ */ jsx54(LinkForm, { core, board, start: start3, done });
+  return /* @__PURE__ */ jsx54(LinkForm, { core, board, start: start3, ...fixed2 === void 0 ? {} : { fixed: fixed2 }, done });
+}
+function fixedEnd(board, end, block) {
+  const name2 = block === void 0 ? "" : blockName(board, block);
+  return end === "from" ? `A link from "${name2}".` : `A link into "${name2}".`;
 }
 function EditLink({ core, id: id2, done }) {
   const board = useBoard(core);
@@ -11660,6 +11704,7 @@ function LinkForm({
   core,
   board,
   start: start3 = {},
+  fixed: fixed2,
   editing,
   done
 }) {
@@ -11674,9 +11719,9 @@ function LinkForm({
   const [busy, setBusy] = useState19(false);
   const edits = useEdits(core);
   const others = withoutLink(board, except);
-  const held4 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
-  const source = held4(from) ? from : void 0;
-  const target2 = held4(to) ? to : void 0;
+  const held5 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
+  const source = held5(from) ? from : void 0;
+  const target2 = held5(to) ? to : void 0;
   const { fromOptions, toOptions } = ends(others, registry, source, target2);
   const fromSearch = useSearch(fromOptions, blockTexts);
   const toSearch = useSearch(toOptions, blockTexts);
@@ -11733,8 +11778,9 @@ function LinkForm({
         void submit(event);
       },
       children: [
-        /* @__PURE__ */ jsxs42("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx54(
+        fixed2 === void 0 ? null : /* @__PURE__ */ jsx54("p", { className: styles.hint, children: fixedEnd(board, fixed2, fixed2 === "from" ? from : to) }),
+        /* @__PURE__ */ jsxs42("div", { className: fixed2 === void 0 ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid", children: [
+          fixed2 === "from" ? null : /* @__PURE__ */ jsx54(
             ComboBox2,
             {
               label: "From",
@@ -11750,7 +11796,7 @@ function LinkForm({
               children: blockRow
             }
           ),
-          /* @__PURE__ */ jsx54(
+          fixed2 === "to" ? null : /* @__PURE__ */ jsx54(
             ComboBox2,
             {
               label: "To",
@@ -11888,7 +11934,8 @@ function createLinkAction(parts) {
       ];
       return rows.length === 0 ? void 0 : { filter: true, rows };
     },
-    advanced: createLinkForm
+    advanced: createLinkForm,
+    role: "add_link_role"
   };
 }
 function editLinkAction(parts) {
@@ -11899,9 +11946,9 @@ function editLinkAction(parts) {
     category: "edit",
     offers: (board, target2, lock) => !lock.board && heldLink(board, target2) !== void 0,
     quick(board, target2) {
-      const held4 = heldLink(board, target2);
-      if (held4 === void 0) return void 0;
-      const [id2, link] = held4;
+      const held5 = heldLink(board, target2);
+      if (held5 === void 0) return void 0;
+      const [id2, link] = held5;
       const registry = parts.blockRegistry();
       const into = blockName(board, link.to);
       const rows = [];
@@ -11917,7 +11964,8 @@ function editLinkAction(parts) {
       }
       return rows.length === 0 ? void 0 : { rows };
     },
-    advanced: editLinkForm
+    advanced: editLinkForm,
+    role: "edit_link_role"
   };
 }
 function newLink(core, parts, from, to) {
@@ -12026,7 +12074,7 @@ function suggestedName(stacks) {
 }
 var createStackForm = {
   render({ el, core, target: target2, done }) {
-    return drawForm(el, /* @__PURE__ */ jsx55(AddStack, { core, given: stackedBlocks(core.store.board(), target2), done }));
+    return drawForm(el, /* @__PURE__ */ jsx55(AddStack, { core, given: heldBlocks(core.store.board(), target2), done }));
   }
 };
 var editStackForm = {
@@ -12035,11 +12083,6 @@ var editStackForm = {
     return drawForm(el, /* @__PURE__ */ jsx55(EditStack, { core, id: target2.stack, done }));
   }
 };
-function stackedBlocks(board, target2) {
-  if ("block" in target2) return Object.hasOwn(board.blocks, target2.block) ? [target2.block] : [];
-  if (!("selection" in target2)) return [];
-  return target2.selection.flatMap((object2) => "block" in object2 && Object.hasOwn(board.blocks, object2.block) ? [object2.block] : []);
-}
 function AddStack({ core, given, done }) {
   const board = useBoard(core);
   return /* @__PURE__ */ jsx55(StackForm, { core, board, given, done });
@@ -12067,6 +12110,7 @@ function StackForm({
   const [name2, setName] = useState20(editing?.stack.name ?? "");
   const [color2, setColor] = useState20(() => editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
   const [blocks, setBlocks] = useState20(editing?.stack.blocks ?? given);
+  const fixed2 = editing === void 0 && given.length > 0;
   const [busy, setBusy] = useState20(false);
   const edits = useEdits(core);
   const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
@@ -12121,6 +12165,7 @@ function StackForm({
         void submit(event);
       },
       children: [
+        fixed2 ? /* @__PURE__ */ jsx55("p", { className: styles.hint, children: stackOf(board, kept) }) : null,
         /* @__PURE__ */ jsxs43("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx55(
             TextField2,
@@ -12135,7 +12180,7 @@ function StackForm({
           ),
           /* @__PURE__ */ jsx55(StackColor, { color: color2, onChange: setColor })
         ] }),
-        /* @__PURE__ */ jsx55(
+        fixed2 ? null : /* @__PURE__ */ jsx55(
           ComboBox2,
           {
             selectionMode: "multiple",
@@ -12194,6 +12239,10 @@ function StackColor({ color: color2, onChange }) {
     ] })
   ] });
 }
+function stackOf(board, blocks) {
+  const names = quoted(blocks.map((block) => blockName(board, block)));
+  return blocks.length === 1 ? `A stack of the block ${names}.` : `A stack of the blocks ${names}.`;
+}
 function sameBlocks(a, b) {
   return a.length === b.length && a.every((block, i) => block === b[i]);
 }
@@ -12210,21 +12259,15 @@ function createStackAction() {
     icon: PLUS,
     on: ["block", "selection", "board"],
     category: "add",
-    offers: (board, target2, lock) => !lock.board && ("board" in target2 || stackedBlocks(board, target2).length > 0),
+    offers: (board, target2, lock) => !lock.board && ("board" in target2 || heldBlocks(board, target2).length > 0),
     quick(board, target2, core) {
-      const blocks = stackedBlocks(board, target2);
+      const blocks = heldBlocks(board, target2);
       if (!("board" in target2) && blocks.length === 0) return void 0;
-      const joined = blocks.length === 0 ? [] : Object.entries(board.stacks).filter(([, stack]) => blocks.some((block) => !stack.blocks.includes(block)));
-      const rows = [
-        ...joined.map(([id2, stack]) => ({
-          ...stackRow(stack),
-          pick: () => [{ id: CHANGE_STACK2, args: { id: id2, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }]
-        })),
-        { kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) }
-      ];
+      const rows = [{ kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) }];
       return blocks.length === 0 ? { rows } : { title: `Add ${blocksLabel(board, blocks)} to`, rows };
     },
-    advanced: createStackForm
+    advanced: createStackForm,
+    role: "add_stack_role"
   };
 }
 function editStackAction() {
@@ -12235,9 +12278,9 @@ function editStackAction() {
     category: "edit",
     offers: (board, target2, lock) => !lock.board && heldStack(board, target2) !== void 0,
     quick(board, target2) {
-      const held4 = heldStack(board, target2);
-      if (held4 === void 0) return void 0;
-      const [id2, stack] = held4;
+      const held5 = heldStack(board, target2);
+      if (held5 === void 0) return void 0;
+      const [id2, stack] = held5;
       return {
         rows: [
           levelItem("Colour\u2026", { title: `Colour of ${stack.name}`, rows: colourRows(board, id2, stack) }),
@@ -12245,7 +12288,8 @@ function editStackAction() {
         ]
       };
     },
-    advanced: editStackForm
+    advanced: editStackForm,
+    role: "edit_stack_role"
   };
 }
 function newStack(core, blocks) {
@@ -12294,9 +12338,6 @@ function blocksRow(board, id2, stack) {
     apply: (picked) => [{ id: CHANGE_STACK2, args: { id: id2, blocks: [...picked] } }]
   };
 }
-function stackRow(stack) {
-  return { kind: "item", label: stack.name, icon: swatch(stack.color), detail: count(stack.blocks.length) };
-}
 function count(blocks) {
   return blocks === 1 ? "1 block" : `${String(blocks)} blocks`;
 }
@@ -12340,7 +12381,8 @@ function coreBoardActions(parts) {
             }
           ]
         };
-      }
+      },
+      role: "rename_role"
     },
     editLinkAction(parts),
     {
@@ -12352,7 +12394,8 @@ function coreBoardActions(parts) {
         const block = blockOf(target2);
         return !lock.board && block !== void 0 && classInputs(board, parts.blockRegistry(), block).length > 0;
       },
-      advanced: editInputs
+      advanced: editInputs,
+      role: "edit_inputs_role"
     },
     editStackAction(),
     {
@@ -12382,7 +12425,8 @@ function coreBoardActions(parts) {
       on: ["block"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && heldBlock(board, target2) !== void 0,
-      run: (_board, target2) => removing("blockr.core-remove_block", blockOf(target2))
+      run: (_board, target2) => removing("blockr.core-remove_block", blockOf(target2)),
+      role: "remove_block_role"
     },
     {
       id: "blockr.core-remove_link_action",
@@ -12391,7 +12435,8 @@ function coreBoardActions(parts) {
       on: ["link"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && "link" in target2 && Object.hasOwn(board.links, target2.link),
-      run: (_board, target2) => removing("blockr.core-remove_link", "link" in target2 ? target2.link : void 0)
+      run: (_board, target2) => removing("blockr.core-remove_link", "link" in target2 ? target2.link : void 0),
+      role: "remove_link_role"
     },
     {
       id: "blockr.core-remove_stack_action",
@@ -12400,7 +12445,8 @@ function coreBoardActions(parts) {
       on: ["stack"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && "stack" in target2 && Object.hasOwn(board.stacks, target2.stack),
-      run: (_board, target2) => removing("blockr.core-remove_stack", "stack" in target2 ? target2.stack : void 0)
+      run: (_board, target2) => removing("blockr.core-remove_stack", "stack" in target2 ? target2.stack : void 0),
+      role: "remove_stack_role"
     },
     {
       id: "blockr.core-remove_selected_action",
@@ -12409,7 +12455,8 @@ function coreBoardActions(parts) {
       on: ["selection"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && removals(board, target2).length > 0,
-      run: (board, target2) => removals(board, target2)
+      run: (board, target2) => removals(board, target2),
+      role: "remove_selected_role"
     }
   ];
 }
@@ -12429,49 +12476,188 @@ function removing(command2, id2) {
 }
 function removals(board, target2) {
   if (!("selection" in target2)) return [];
-  const links = [];
-  const blocks = [];
-  const stacks = [];
-  for (const object2 of target2.selection) {
-    if ("link" in object2 && Object.hasOwn(board.links, object2.link)) {
-      links.push({ id: "blockr.core-remove_link", args: { id: object2.link } });
-    } else if ("block" in object2 && Object.hasOwn(board.blocks, object2.block)) {
-      blocks.push({ id: "blockr.core-remove_block", args: { id: object2.block } });
-    } else if ("stack" in object2 && Object.hasOwn(board.stacks, object2.stack)) {
-      stacks.push({ id: "blockr.core-remove_stack", args: { id: object2.stack } });
-    }
-  }
-  return [...links, ...blocks, ...stacks];
+  const removing2 = (kind) => held4(board, target2, kind).map((id2) => ({ id: `blockr.core-remove_${kind}`, args: { id: id2 } }));
+  return [...removing2("link"), ...removing2("block"), ...removing2("stack")];
 }
 var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';
 
+// srcts/actions/roles.ts
+var CORE_ROLES = [
+  // Adds a block on its own.
+  { id: "add_block_role", on: ["board"], default: "blockr.core-add_block_action", advanced: true },
+  // Adds a block that takes the result of the block, through a link from it.
+  { id: "append_block_role", on: ["block"], default: "blockr.core-append_block_action" },
+  // Adds a block that feeds the block, through a link into one of its inputs.
+  { id: "prepend_block_role", on: ["block"], default: "blockr.core-prepend_block_action" },
+  // Adds a block on the link, which then comes from the new block, while a
+  // new link feeds the new block from the block that the link came from.
+  { id: "insert_block_role", on: ["link"], default: "blockr.core-insert_block_action" },
+  // Adds a link that starts or ends at the block, or any link on the board.
+  { id: "add_link_role", on: ["block", "board"], default: "blockr.core-add_link_action", advanced: true },
+  // Adds a stack of exactly the blocks that the target holds, or of any
+  // blocks on the board.
+  { id: "add_stack_role", on: ["block", "selection", "board"], default: "blockr.core-add_stack_action", advanced: true },
+  // Renames the block or the stack.
+  { id: "rename_role", on: ["block", "stack"], default: "blockr.core-rename_action" },
+  // Changes the link, its ends, its input or its place among the links into
+  // its block.
+  { id: "edit_link_role", on: ["link"], default: "blockr.core-edit_link_action" },
+  // Changes the links into the block's inputs: removes, changes, adds and
+  // moves any number of them.
+  { id: "edit_inputs_role", on: ["block"], default: "blockr.core-edit_inputs_action" },
+  // Changes the stack, its name, its colour or its blocks.
+  { id: "edit_stack_role", on: ["stack"], default: "blockr.core-edit_stack_action" },
+  // Removes the block, the link or the stack.
+  { id: "remove_block_role", on: ["block"], default: "blockr.core-remove_block_action" },
+  { id: "remove_link_role", on: ["link"], default: "blockr.core-remove_link_action" },
+  { id: "remove_stack_role", on: ["stack"], default: "blockr.core-remove_stack_action" },
+  // Removes every link, block and stack of the selection.
+  { id: "remove_selected_role", on: ["selection"], default: "blockr.core-remove_selected_action" }
+];
+function checkedPlayer(role, action3) {
+  if (action3 === void 0) return { why: "no package registers that board action" };
+  if (action3.role !== role.id) {
+    return { why: action3.role === void 0 ? "that board action names no role" : `that board action names the role "${action3.role}"` };
+  }
+  if (action3.on.length !== role.on.length || action3.on.some((kind) => !role.on.includes(kind))) {
+    return { why: `the on of that board action names ${quoted(action3.on)}, where the targets of the role are ${quoted(role.on)}` };
+  }
+  if (role.advanced === true && action3.advanced === void 0) {
+    return { why: "that board action has no advanced action, which callers of the role mount" };
+  }
+  return { player: action3 };
+}
+function checkedRoles(plugin, given, taken, actions) {
+  const of = `The plugin class "${plugin}"`;
+  if (!Array.isArray(given)) {
+    throw new Error(`${of} gives roles that are no array.`);
+  }
+  const pkg = packageFromId(plugin) ?? plugin;
+  const ids3 = new Map(taken);
+  return given.map((role) => {
+    if (!isObject(role)) {
+      throw new Error(`${of} gives a role that is no object.`);
+    }
+    const { id: id2 } = role;
+    if (typeof id2 !== "string" || id2 === "") {
+      throw new Error(`${of} gives a role whose id ${JSON.stringify(id2)} is no string, as "append_block_role".`);
+    }
+    if (packageFromId(id2) !== null) {
+      throw new Error(`${of} gives the role "${id2}", whose id names a package, while a role's id names none, as "append_block_role".`);
+    }
+    const other = ids3.get(id2);
+    if (other !== void 0) {
+      throw new Error(`${of}, of the package ${pkg}, gives the role "${id2}", which the package ${other} gives already.`);
+    }
+    ids3.set(id2, pkg);
+    const named5 = `${of} gives the role "${id2}"`;
+    const kinds = kindsFailure(role.on, "is empty, so that no board action could play it");
+    if (kinds !== void 0) {
+      throw new Error(`${named5}, whose on ${kinds}.`);
+    }
+    const fallback = role.default;
+    if (typeof fallback !== "string" || !isCommandId(fallback)) {
+      throw new Error(`${named5}, whose default ${JSON.stringify(fallback)} is not named as a board action's id is, "{pkg}-{name}".`);
+    }
+    if (role.advanced !== void 0 && role.advanced !== true) {
+      throw new Error(`${named5}, whose advanced is neither true nor left out.`);
+    }
+    const checked4 = role;
+    const listed = actions.find((action3) => action3.id === fallback);
+    const found = checkedPlayer(checked4, listed);
+    if ("why" in found) {
+      const why = listed === void 0 ? "it is no board action that the class lists" : found.why;
+      throw new Error(`${named5}, whose default "${fallback}" cannot play it, since ${why}.`);
+    }
+    return checked4;
+  });
+}
+
 // srcts/actions/actions.ts
-var KINDS2 = {
-  board: true,
-  block: true,
-  link: true,
-  stack: true,
-  option: true,
-  plugin: true,
-  selection: true
-};
+var CORE2 = "blockr.core";
+var NO_BOARD2 = "Core opens no board, since the blockr option board_actions holds for every board of the app.";
 function createBoardActions(parts) {
   let registered = coreBoardActions(parts);
   const classes2 = /* @__PURE__ */ new Map();
+  const roles2 = new Map(
+    CORE_ROLES.map((role) => [role.id, { role, plugin: void 0 }])
+  );
+  const players = /* @__PURE__ */ new Map();
+  let offered;
+  function player(role) {
+    const action3 = players.get(role);
+    return action3 !== void 0 && registered.includes(action3) ? action3 : void 0;
+  }
+  function inMenus() {
+    const places = new Map(registered.map(({ id: id2 }, i) => [id2, i]));
+    const placeOf = (action3, i) => {
+      const fallback = action3.role === void 0 ? void 0 : roles2.get(action3.role)?.role.default;
+      return (fallback === void 0 ? void 0 : places.get(fallback)) ?? i;
+    };
+    return registered.map((action3, i) => ({ action: action3, at: placeOf(action3, i), i })).filter(({ action: action3 }) => action3.role === void 0 || player(action3.role) === action3).sort((a, b) => a.at - b.at || a.i - b.i).map(({ action: action3 }) => action3);
+  }
   return {
-    register(plugin, given) {
-      if (given === void 0) return () => void 0;
-      const actions = checked2(plugin, given, new Set(registered.map(({ id: id2 }) => id2)));
+    register(plugin, givenActions, givenRoles) {
+      if (givenActions === void 0 && givenRoles === void 0) return () => void 0;
+      const actions = givenActions === void 0 ? [] : checked2(plugin, givenActions, new Set(registered.map(({ id: id2 }) => id2)));
+      const taken = () => new Map([...roles2.values()].map(({ role, plugin: by }) => [role.id, by === void 0 ? CORE2 : packageFromId(by) ?? by]));
+      const listed = givenRoles === void 0 ? [] : checkedRoles(plugin, givenRoles, taken(), actions);
       registered = [...registered, ...actions];
       for (const { id: id2 } of actions) classes2.set(id2, plugin);
+      for (const role of listed) roles2.set(role.id, { role, plugin });
+      offered = void 0;
       return () => {
         registered = registered.filter((action3) => !actions.includes(action3));
         for (const { id: id2 } of actions) classes2.delete(id2);
+        for (const role of listed) {
+          if (roles2.get(role.id)?.role === role) roles2.delete(role.id);
+          players.delete(role.id);
+        }
+        offered = void 0;
       };
     },
     registered: () => registered,
-    classOf: (id2) => classes2.get(id2)
+    classOf: (id2) => classes2.get(id2),
+    role: (id2) => roles2.get(id2)?.role,
+    choosePlayers(value2) {
+      const picks = picksOf(value2);
+      players.clear();
+      offered = void 0;
+      const failures = [];
+      for (const [role, id2] of picks) {
+        if (!roles2.has(role)) failures.push(`${picking(id2, role)}, but no package registers that role.`);
+      }
+      for (const { role } of roles2.values()) {
+        const pick2 = picks.get(role.id);
+        const id2 = pick2 ?? role.default;
+        const found = checkedPlayer(role, registered.find((each) => each.id === id2));
+        if ("player" in found) players.set(role.id, found.player);
+        else if (pick2 !== void 0) failures.push(`${picking(id2, role.id)}, but ${found.why}.`);
+      }
+      if (failures.length > 0) throw new Error([...failures, NO_BOARD2].join("\n"));
+    },
+    player,
+    offered() {
+      offered ??= inMenus();
+      return offered;
+    }
   };
+}
+function picking(action3, role) {
+  return `The blockr option board_actions picks the board action "${action3}" to play the role "${role}"`;
+}
+function picksOf(value2) {
+  if (value2 === void 0 || Array.isArray(value2) && value2.length === 0) return /* @__PURE__ */ new Map();
+  if (isObject(value2)) {
+    const entries2 = Object.entries(value2);
+    if (entries2.every((entry) => typeof entry[1] === "string")) return new Map(entries2);
+  }
+  throw new Error(
+    [
+      `The blockr option board_actions holds ${JSON.stringify(value2)}, where it picks a board action for a role by their ids, as list(append_block_role = "mykit-append_block_action") does in R.`,
+      NO_BOARD2
+    ].join("\n")
+  );
 }
 function checked2(plugin, given, taken) {
   const of = `The plugin class "${plugin}"`;
@@ -12498,16 +12684,9 @@ function checked2(plugin, given, taken) {
     if (action3.icon !== void 0 && typeof action3.icon !== "string") {
       throw new Error(`${named5}, whose icon is no string of SVG markup.`);
     }
-    const on = action3.on;
-    if (!Array.isArray(on)) {
-      throw new Error(`${named5}, whose on is no array of the kinds of target that it applies to.`);
-    }
-    if (on.length === 0) {
-      throw new Error(`${named5}, whose on is empty, so that no menu would offer it.`);
-    }
-    const other = on.find((kind) => typeof kind !== "string" || !Object.hasOwn(KINDS2, kind));
-    if (other !== void 0) {
-      throw new Error(`${named5}, whose on names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}.`);
+    const kinds = kindsFailure(action3.on, "is empty, so that no menu would offer it");
+    if (kinds !== void 0) {
+      throw new Error(`${named5}, whose on ${kinds}.`);
     }
     if (typeof action3.category !== "string" || action3.category === "") {
       throw new Error(`${named5} without a category.`);
@@ -12527,6 +12706,10 @@ function checked2(plugin, given, taken) {
     }
     if (action3.run === void 0 && asks.length === 0) {
       throw new Error(`${named5}, which has none of run, quick and advanced.`);
+    }
+    const { role } = action3;
+    if (role !== void 0 && (typeof role !== "string" || role === "")) {
+      throw new Error(`${named5}, whose role ${JSON.stringify(role)} is no role's id, as "append_block_role".`);
     }
     return action3;
   });
@@ -12554,14 +12737,18 @@ function boardActionsApi(actions, parts) {
   function on(target2) {
     if (!store.hasBoard()) return [];
     const board = store.board();
-    return actions.registered().filter((action3) => applies(action3, board, target2));
+    return actions.offered().filter((action3) => applies(action3, board, target2));
   }
   function registered(id2) {
+    if (typeof id2 === "string" && packageFromId(id2) === null) {
+      if (actions.role(id2) === void 0) throw new Error(`No role "${id2}" is registered.`);
+      return actions.player(id2);
+    }
     const action3 = actions.registered().find((each) => each.id === id2);
     if (action3 === void 0) {
       throw new Error(`No board action "${id2}" is registered.`);
     }
-    return action3;
+    return action3.role === void 0 || actions.player(action3.role) === action3 ? action3 : void 0;
   }
   async function batchOf(action3, target2, notifier) {
     let batch2;
@@ -12694,7 +12881,7 @@ function boardActionsApi(actions, parts) {
       const checked4 = targetGiven(target2);
       const given = optionsGiven(opts, "trigger()");
       const action3 = registered(id2);
-      if (signal5?.aborted === true || !store.hasBoard() || !applies(action3, store.board(), checked4)) return;
+      if (action3 === void 0 || signal5?.aborted === true || !store.hasBoard() || !applies(action3, store.board(), checked4)) return;
       if (action3.run !== void 0) {
         await runOf(action3, checked4, given);
         return;
@@ -12718,8 +12905,10 @@ function boardActionsApi(actions, parts) {
       }
       const checked4 = targetGiven(target2);
       const action3 = registered(id2);
+      if (action3 === void 0) return () => void 0;
       if (action3.advanced === void 0) {
-        throw new Error(`The board action "${id2}" has no advanced action to mount.`);
+        const playing = action3.id === id2 ? "" : `, which plays the role "${id2}",`;
+        throw new Error(`The board action "${action3.id}"${playing} has no advanced action to mount.`);
       }
       return advanced.mount(given, action3, checked4, picked);
     }
@@ -13730,7 +13919,7 @@ var nothing = () => void 0;
 function createNotifications(store, options = {}) {
   const { signal: signal5 } = options;
   const plugins = options.plugins ?? {};
-  const held4 = /* @__PURE__ */ new Map();
+  const held5 = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
   const again = /* @__PURE__ */ new Map();
   const replacing = /* @__PURE__ */ new Map();
@@ -13741,7 +13930,7 @@ function createNotifications(store, options = {}) {
   let ended = false;
   const stops = [];
   function publish() {
-    all = Object.freeze([...held4.values()]);
+    all = Object.freeze([...held5.values()]);
     announceTo(listeners, all);
   }
   function present(object2) {
@@ -13770,9 +13959,9 @@ function createNotifications(store, options = {}) {
     for (const object2 of gone) left2.add(object2);
     const goes = (object2) => object2 !== void 0 && gone.has(key(object2));
     let moved = false;
-    for (const [id2, notification] of held4) {
+    for (const [id2, notification] of held5) {
       if (!goes(notification.about) && !goes(notification.source.module?.object)) continue;
-      held4.delete(id2);
+      held5.delete(id2);
       raised.delete(id2);
       moved = true;
     }
@@ -13786,8 +13975,8 @@ function createNotifications(store, options = {}) {
     if (ended) return;
     ended = true;
     for (const stop of stops) stop();
-    const had = held4.size > 0;
-    held4.clear();
+    const had = held5.size > 0;
+    held5.clear();
     raised.clear();
     again.clear();
     replacing.clear();
@@ -13800,12 +13989,12 @@ function createNotifications(store, options = {}) {
   function replace(what, object2, next) {
     let moved = false;
     for (const id2 of replacing.get(what)?.ids ?? []) {
-      if (!next.has(id2) && held4.delete(id2)) moved = true;
+      if (!next.has(id2) && held5.delete(id2)) moved = true;
     }
     for (const [id2, notification] of next) {
-      const had = held4.get(id2);
+      const had = held5.get(id2);
       if (had !== void 0 && jsonEqual(had, notification)) continue;
-      held4.set(id2, notification);
+      held5.set(id2, notification);
       moved = true;
     }
     if (next.size === 0) replacing.delete(what);
@@ -13862,15 +14051,15 @@ function createNotifications(store, options = {}) {
     const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
     tokens.add(token);
     raised.set(id2, tokens);
-    if (!held4.has(id2)) {
-      held4.set(id2, frozen(id2, given));
+    if (!held5.has(id2)) {
+      held5.set(id2, frozen(id2, given));
       publish();
     }
     return () => {
       const holding = raised.get(id2);
       if (holding?.delete(token) !== true || holding.size > 0) return;
       raised.delete(id2);
-      if (held4.delete(id2)) publish();
+      if (held5.delete(id2)) publish();
     };
   };
   const raiseAgain = (given, notifier) => {
@@ -13896,7 +14085,7 @@ function createNotifications(store, options = {}) {
       return nothing;
     }
     const id2 = `module-${String(++count2)}`;
-    held4.set(
+    held5.set(
       id2,
       frozen(id2, {
         severity: given.severity,
@@ -13910,7 +14099,7 @@ function createNotifications(store, options = {}) {
     return () => {
       if (withdrawn) return;
       withdrawn = true;
-      if (held4.delete(id2)) publish();
+      if (held5.delete(id2)) publish();
     };
   };
   return {
@@ -14203,6 +14392,7 @@ function start2(options) {
       logger,
       otelClientEndpoint,
       otelClientServiceName,
+      picks,
       boardActionMenu
     ] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
@@ -14213,6 +14403,7 @@ function start2(options) {
       blockrOptions.read("logger"),
       blockrOptions.read("otel_client_endpoint"),
       blockrOptions.read("otel_client_service_name"),
+      blockrOptions.read("board_actions"),
       blockrOptions.read(MENU_OPTION)
     ]);
     if (!logging2) {
@@ -14245,6 +14436,7 @@ function start2(options) {
       await register(reply, store, commands, boardActions, signal5, raise);
       return drawing;
     });
+    boardActions.choosePlayers(alone ? void 0 : picks);
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -14387,7 +14579,7 @@ function start2(options) {
         cls = { ...def, id: id2 };
         const unregister = store.plugins.register(cls);
         try {
-          boardActions.register(id2, cls.boardActions);
+          boardActions.register(id2, cls.boardActions, cls.roles);
         } catch (error) {
           unregister();
           throw error;
@@ -15415,7 +15607,7 @@ function show({ object: object2, el }) {
       front.sections.collapse(object2.plugin, false);
       return;
     }
-    const stack = Object.entries(front.core.store.board().stacks).find(([, held4]) => held4.blocks.includes(object2.block));
+    const stack = Object.entries(front.core.store.board().stacks).find(([, held5]) => held5.blocks.includes(object2.block));
     if (stack !== void 0) front.groups.collapse(stack[0], false);
   });
   const into = "plugin" in object2 ? target2.closest("section") ?? target2 : target2;
@@ -15733,18 +15925,18 @@ function useSelected(core) {
   return useSyncExternalStore5(subscribe, () => core.selection.get());
 }
 function selectedIds(selected, kind) {
-  return new Set(selected.flatMap((object2) => idOf(object2, kind) ?? []));
+  return new Set(selected.flatMap((object2) => idOf2(object2, kind) ?? []));
 }
 function tickRows(core, kind, shown2, keys) {
   const ticked2 = (id2) => keys === "all" || keys.has(id2);
   const rows = new Set(shown2);
   const current2 = core.selection.get();
   const kept = current2.filter((object2) => {
-    const id2 = idOf(object2, kind);
+    const id2 = idOf2(object2, kind);
     return id2 === void 0 || !rows.has(id2) || ticked2(id2);
   });
-  const held4 = selectedIds(current2, kind);
-  const added = shown2.filter((id2) => ticked2(id2) && !held4.has(id2)).map((id2) => objectOf(kind, id2));
+  const held5 = selectedIds(current2, kind);
+  const added = shown2.filter((id2) => ticked2(id2) && !held5.has(id2)).map((id2) => objectOf(kind, id2));
   core.selection.set([...kept, ...added]);
 }
 function objectOf(kind, id2) {
@@ -15752,7 +15944,7 @@ function objectOf(kind, id2) {
   if (kind === "link") return { link: id2 };
   return { stack: id2 };
 }
-function idOf(object2, kind) {
+function idOf2(object2, kind) {
   if (kind === "block") return "block" in object2 ? object2.block : void 0;
   if (kind === "link") return "link" in object2 ? object2.link : void 0;
   return "stack" in object2 ? object2.stack : void 0;
@@ -17281,12 +17473,12 @@ function fixtureR(hello, options) {
         return [reply];
       }
       case "output": {
-        const held4 = results.get(request.block);
-        if (held4?.revision !== request.revision) {
+        const held5 = results.get(request.block);
+        if (held5?.revision !== request.revision) {
           return [{ id: id2, status: "missing", missing: [{ block: request.block, revision: request.revision }] }];
         }
         const given = options.output?.(request);
-        const made = given ?? sample(held4.registry_id);
+        const made = given ?? sample(held5.registry_id);
         if (made === void 0) return [failed2(id2, "output", `The fixtures hold no output of block "${request.block}".`)];
         const reply = { id: id2, status: "ok", output: made.output, conditions: [...given?.conditions ?? []] };
         return made.body === void 0 ? [reply] : [{ ...reply, body: { type: made.body.type } }, made.body];

@@ -3,7 +3,8 @@
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
 //    scheduler reads, for rand_id, the shape of the ids that commands mint,
-//    for those that set the page's logger up (../log/settings.ts), and for
+//    for those that set the page's logger up (../log/settings.ts), for
+//    board_actions, which picks the board action that plays a role, and for
 //    board_action_menu, which names the module that draws the menus of board
 //    actions (../actions/module.ts). It sets the logger up, and creates for
 //    the board that it opens the store, the notifications of the board
@@ -11,51 +12,60 @@
 // 3. It imports the module of the class of each of the app's plugins and of
 //    each board option that R's reply names, each once per page, and
 //    registers the default export of each under the id that the reply gives
-//    it, with the commands and the board actions of each plugin class. It
-//    raises a notification for a module that fails to load, for one whose
-//    class or board option the store refuses, and for one whose class lists a
-//    board action that breaks a rule, and carries on, so that the board opens
-//    without what that module defines.
+//    it, with the commands, the board actions and the roles of each plugin
+//    class. It raises a notification for a module that fails to load, for one
+//    whose class or board option the store refuses, and for one whose class
+//    lists a board action or a role that breaks a rule, and carries on, so
+//    that the board opens without what that module defines.
 //    Meanwhile it loads the module that board_action_menu names. Where that
 //    module cannot draw the menus, as where no package offers it, core opens
 //    no board and shows why in its place, since the blockr option is the
 //    app's rather than a board's.
-// 4. It creates the scheduler and CoreApi.
-// 5. Unless the load lock is on, it calls the load() of the storage of the
+// 4. Once every module is registered, it chooses the board action that plays
+//    each role: the one that board_actions picks for the role, or else the
+//    role's default (../actions/actions.ts). Where a pick of board_actions
+//    fails the check of a player, or names a board action or a role that no
+//    package registers, core opens no board, and the page shows why in its
+//    place, since board_actions holds for every board of the app.
+// 5. It creates the scheduler and CoreApi.
+// 6. Unless the load lock is on, it calls the load() of the storage of the
 //    app's storage plugin, where it has one, which may resolve with the text of
 //    a board to open in place of the one that R sent, such as the board that
 //    the page's URL names. Where it rejects, or resolves with no JSON board,
 //    or that board fails to open, core raises a notification of why and opens
 //    R's.
-// 6. It imports the UI module of each block class of which that board holds a
+// 7. It imports the UI module of each block class of which that board holds a
 //    block below the class's version, for the class's migration
 //    (./migrations.ts).
-// 7. It opens the board that R sent, or the one that load() named in its
+// 8. It opens the board that R sent, or the one that load() named in its
 //    place, and either runs the app's plugins, which R names in its reply, each
 //    with the state that the board holds for it. Where the store dropped
 //    anything as the board opened, core raises a notification that names it.
-// 8. As the store opens the board, core adds to it the board options that the
+// 9. As the store opens the board, core adds to it the board options that the
 //    classes of the app's plugins require (./plugins.ts).
-// 9. Once the board options that the app's frontend requires are on the
+// 10. Once the board options that the app's frontend requires are on the
 //    board, core calls the render() of the frontend, the plugin that runs whose
 //    class has `frontend`, such as core's basic frontend, with what R's reply
 //    holds in `frontend`, and starts the scheduler once render() has returned,
 //    so that the scheduler sends R nothing before. Where the app runs no
 //    frontend, the page shows why in place of the board.
-// 10. Core then calls the start of each plugin whose class has one, so that
+// 11. Core then calls the start of each plugin whose class has one, so that
 //    what the frontend first shows comes before what the plugins ask for as
 //    they start.
 //
 // A block that serve() serves alone comes as a board of one block, which no
 // frontend draws, as Data passed to serve() has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve).
-// Core then starts in the same order, with three differences:
-// - In step 5, it calls no load(), since R names no plugin for a block that
+// Core then starts in the same order, with four differences:
+// - In step 4, it takes no picks of board_actions, so that core's own board
+//   actions play core's roles, since no menu of board actions shows and R
+//   names no plugin whose board action a pick could name.
+// - In step 6, it calls no load(), since R names no plugin for a block that
 //   serve() serves alone, and opens the board that R sent.
-// - In step 8, it adds no board options for plugins. The board still takes
+// - In step 9, it adds no board options for plugins. The board still takes
 //   dark_mode, as every board does, since its onChange() switches the page's
 //   theme (./core.ts).
-// - In step 9, it draws no frontend, but the block in its card, which demands
+// - In step 10, it draws no frontend, but the block in its card, which demands
 //   the block, and starts the scheduler once the card has mounted the block.
 //
 // A board opened later, through the store's open() that CoreApi gives, starts
@@ -230,7 +240,8 @@ export interface StartOptions {
   // major of the protocol in the first session or a later one, or cannot give
   // a blockr option that core reads as it starts, or gives one that the
   // scheduler, the command registry or the page's logger does not take, or
-  // where the module that board_action_menu names cannot draw the menus of
+  // one in board_actions that picks a board action that cannot play its role,
+  // or where the module that board_action_menu names cannot draw the menus of
   // board actions, or why no board is open once another failed to open. Core
   // logs why where it is not given.
   readonly fail?: (error: Error) => void;
@@ -492,8 +503,9 @@ export function start(options: StartOptions): Started {
     // As the first board opens, core sets the page's logger and its tracing up
     // with the other four (../log/settings.ts, ../trace/settings.ts), and the
     // logger writes the lines that core held.
-    // The same request asks for board_action_menu, which names the module that
-    // draws the menus of board actions.
+    // The same request asks for board_actions, which picks the board action
+    // that plays a role, and for board_action_menu, which names the module
+    // that draws the menus of board actions.
     const [
       evaluationQueue,
       backgroundEvaluationDelay,
@@ -503,6 +515,7 @@ export function start(options: StartOptions): Started {
       logger,
       otelClientEndpoint,
       otelClientServiceName,
+      picks,
       boardActionMenu,
     ] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
@@ -513,6 +526,7 @@ export function start(options: StartOptions): Started {
       blockrOptions.read("logger"),
       blockrOptions.read("otel_client_endpoint"),
       blockrOptions.read("otel_client_service_name"),
+      blockrOptions.read("board_actions"),
       blockrOptions.read(MENU_OPTION),
     ]);
     if (!logging) {
@@ -552,6 +566,10 @@ export function start(options: StartOptions): Started {
       await register(reply, store, commands, boardActions, signal, raise);
       return drawing;
     });
+    // Once every module is registered, the board action that plays each role.
+    // A wrong pick of board_actions opens no board, as a module that cannot
+    // draw the menus does.
+    boardActions.choosePlayers(alone ? undefined : picks);
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;
     const scheduler = createScheduler({
@@ -668,12 +686,12 @@ export function start(options: StartOptions): Started {
 
   // Registers in the store the class of each of the app's plugins and each
   // board option that the reply names, from the module that R serves for it,
-  // which the loader imports once per page, with the board actions of each
-  // plugin class, and its commands in the command registry. It refuses the
-  // whole class, with its board actions and its commands, where the store
-  // refuses the class or one of its board actions breaks a rule
-  // (../actions/actions.ts), while it only logs a command that the command
-  // registry refuses, naming the class. It raises a notification for a module
+  // which the loader imports once per page, with the board actions and the
+  // roles of each plugin class, and its commands in the command registry. It
+  // refuses the whole class, with its board actions, its roles and its
+  // commands, where the store refuses the class or one of its board actions or
+  // its roles breaks a rule (../actions/actions.ts), while it only logs a
+  // command that the command registry refuses, naming the class. It raises a notification for a module
   // that fails to load and for a default export that it refuses, which
   // concerns the plugin class or the board option, with the module's package,
   // and carries on, so that the board opens without them.
@@ -723,7 +741,7 @@ export function start(options: StartOptions): Started {
         cls = { ...(def as unknown as PluginClass), id };
         const unregister = store.plugins.register(cls);
         try {
-          boardActions.register(id, cls.boardActions);
+          boardActions.register(id, cls.boardActions, cls.roles);
         } catch (error) {
           unregister();
           throw error;

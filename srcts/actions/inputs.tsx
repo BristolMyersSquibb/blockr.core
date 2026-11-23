@@ -35,8 +35,7 @@
 // edits on top. So an edit from elsewhere, such as an undo, shows in the
 // inputs that the user left alone.
 // The Apply button below the inputs hands done() one batch, which runs as one
-// step of the user. The batch holds its commands in the order that the role
-// edit_inputs_role names, each at most once for each input:
+// step of the user. The batch holds its commands in this order:
 // 1. A remove_link for each input whose source the user removed.
 // 2. A change_link for each input whose source or name the user changed.
 // 3. An add_link for each input that had no source and got one, and for each

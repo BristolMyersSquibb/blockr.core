@@ -13,7 +13,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
 import { fieldError, find, pressAndRelease, texts, type } from "../testing/inputs.ts";
-import { held } from "../testing/notifications.ts";
+import { held, notificationCode } from "../testing/notifications.ts";
 import { step } from "../testing/react.ts";
 import { rows } from "../testing/rows.ts";
 import { labelled, listed, picked } from "../testing/select.ts";
@@ -577,6 +577,32 @@ describe("on a variadic block", () => {
       ["de", "d", ""],
     ]);
     expect(s.core.store.canUndo()).toBe(false);
+  });
+
+  test("through its board action, in core's dialog, adds an input and reorders the inputs in one batch, which moves the added input too", async () => {
+    const s = await stubbed();
+    const menu = s.menu({ block: "e" });
+    await step(() => {
+      void menu.pick("Edit inputs");
+    });
+    const el = s.advanced()?.el ?? document;
+    await acting(() => {
+      void picked(labelled(el, "Add input"), step, "Iris");
+    });
+    await named(el, "Name of input 3", "iris");
+    // Head goes after Wide sepals. So the batch moves each input last in
+    // turn, Iris too, whose link the batch adds itself.
+    await dragged(el, 1, ["ArrowDown", "Enter"]);
+    expect(inputs(el)).toEqual(["Input 1, from Wide sepals", "Input 2, from Head", "Input 3, iris, from Iris"]);
+    await apply(el);
+
+    expect(s.advanced()).toBeUndefined();
+    expect(into(s.core.store.board(), "e").map(([, from, input]) => [from, input])).toEqual([
+      ["d", ""],
+      ["b", ""],
+      ["a", "iris"],
+    ]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_action_failed")).toEqual([]);
   });
 
   test("shows a link that joins the block while it is open, which applying the edits leaves in place", async () => {
