@@ -94,17 +94,20 @@ export interface PluginClass {
   // starts.
   readonly storage?: Storage;
   // The commands that change the state of the class's plugin, which core
-  // registers as it registers the class.
+  // registers as it registers the class. Where the command registry refuses
+  // one of them, core refuses the whole class, and then opens no board
+  // (../core/start.ts).
   readonly commands?: readonly Command<Json, unknown>[];
   // What users trigger from menus, buttons and gestures, which core registers
   // as it registers the class, and which menus offer after core's own, in the
   // order given (../actions/actions.ts). Core refuses the whole class where
-  // one of them breaks a rule of board actions.
+  // one of them breaks a rule of board actions, and then opens no board.
   readonly boardActions?: readonly BoardAction[];
   // The edits that callers rely on, each of which one board action plays in
   // each app, which core registers as it registers the class
   // (../actions/roles.ts). Core refuses the whole class where one of them
-  // breaks a rule of roles, as where another package gives a role of its id.
+  // breaks a rule of roles, as where another package gives a role of its id,
+  // and then opens no board.
   readonly roles?: readonly Role[];
   // What runs while the plugin runs on the open board, until the signal
   // aborts, which it does as the next board opens. Core calls it once the

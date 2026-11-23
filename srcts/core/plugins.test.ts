@@ -18,7 +18,7 @@ import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
 import { held } from "../testing/notifications.ts";
-import { classModule, listedModules, pluginUi } from "../testing/plugins.ts";
+import { classModule, listedModules, noBoard, pluginUi, refusedClass } from "../testing/plugins.ts";
 import { logged } from "../testing/logged.ts";
 import { withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
@@ -80,27 +80,20 @@ async function reopen(s: Awaited<ReturnType<typeof stubCore>>): Promise<CoreApi>
 }
 
 describe("the plugins that run", () => {
-  test("are the app's plugins that the reply names, each of a class whose module loads, which pluginClass() gives", async () => {
+  test("are the app's plugins that the reply names, which pluginClass() gives", async () => {
     const ui = pluginUi();
     const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: ui.ui };
     // A class whose plugin draws with the ui of the notes' class.
     const report: PluginClass = { id: "blockr.test-report_plugin", ui: ui.ui };
-    const reported = logged();
     const s = await stubbed([notes, report, saving], {
       [notes.id]: { name: "Notes" },
       [report.id]: { name: "Report" },
       [saving.id]: { name: "Session" },
-      "blockr.gone-gone_plugin": { name: "Gone" },
     });
-    reported.restore();
     const { core } = s;
 
-    // In the order of the reply, core's own first, but for the plugin whose
-    // class's module fails to load, which core names.
+    // In the order of the reply, core's own first.
     expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT, notes.id, report.id, saving.id]);
-    expect(reported.errors().map((line) => line.message)).toEqual([
-      "The module blockr.gone/blockr.gone-gone_plugin.js of blockr.gone failed to load: The test gives no module blockr.gone/blockr.gone-gone_plugin.js.",
-    ]);
     expect(core.plugins.appPlugins()[report.id]).toEqual({ name: "Report" });
     expect(core.plugins.appPlugins()[BASIC]).toEqual({ name: "Basic frontend" });
     expect(core.plugins.appPlugins()[EDIT]).toEqual({ name: "Edit board" });
@@ -144,6 +137,22 @@ describe("the plugins that run", () => {
     s.stop();
   });
 
+  test("open no board where the command registry refuses commands of their class, naming each in the line of the class's module", async () => {
+    const clashing: PluginClass = {
+      id: "blockr.test-clashing_plugin",
+      commands: [
+        { id: "blockr.core-remove_block", label: "Remove block", run: () => ({}) },
+        { id: "blockr.test-fine", label: "Fine", run: () => ({}) },
+        { id: "blockr.test-unlabelled", label: "", run: () => ({}) },
+      ],
+    };
+    const reported = logged();
+    await expect(stubbed([clashing], { [clashing.id]: { name: "Clashing" } })).rejects.toThrow(
+      noBoard(refusedClass(clashing.id, 'The command "blockr.core-remove_block" is registered already. The command "blockr.test-unlabelled" has no label.')),
+    );
+    reported.restore();
+  });
+
   test("hand the commands of their classes the app's locks, the blockr options that R gives and ids in the shape that rand_id names", async () => {
     const got: { lock?: Lock; limit?: unknown } = {};
     const notes: PluginClass = {
@@ -182,23 +191,28 @@ describe("the plugins that run", () => {
     s.stop();
   });
 
-  test("leave out a class whose module declares another major of core's JS API, or whose class the store refuses", async () => {
+  test("open no board where the module of their class fails to load, declares another major of core's JS API, or gives a class that the store refuses, naming each module with its package", async () => {
     const reported = logged();
-    const s = await stubCore({
-      hello: withPlugins({ "blockr.test-old_plugin": { name: "Old" }, "blockr.test-bad_plugin": { name: "Bad" } }),
+    const starting = stubCore({
+      hello: withPlugins({
+        "blockr.gone-gone_plugin": { name: "Gone" },
+        "blockr.test-old_plugin": { name: "Old" },
+        "blockr.test-bad_plugin": { name: "Bad" },
+      }),
       modules: {
         "blockr.test-old_plugin": { api: 2, default: {} },
         "blockr.test-bad_plugin": classModule({ start: "now" } as unknown as Omit<PluginClass, "id">),
       },
     });
+    const why = noBoard(
+      "The module blockr.gone/blockr.gone-gone_plugin.js of blockr.gone failed to load: The test gives no module blockr.gone/blockr.gone-gone_plugin.js.",
+      "The module blockr.test/blockr.test-old_plugin.js of blockr.test was built against major 2 of core's JS API, where core's is 1.",
+      refusedClass("blockr.test-bad_plugin", 'The plugin class "blockr.test-bad_plugin" has a start that is no function.'),
+    );
+    await expect(starting).rejects.toThrow(why);
     reported.restore();
 
-    expect(Object.keys(s.core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT]);
-    expect(reported.errors().map((line) => line.message)).toEqual([
-      "The module blockr.test/blockr.test-old_plugin.js of blockr.test was built against major 2 of core's JS API, where core's is 1.",
-      'The plugin class "blockr.test-bad_plugin" has a start that is no function.',
-    ]);
-    s.stop();
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
   });
 
   test("are the reply's plugins, whatever the opening board holds the state of", async () => {
