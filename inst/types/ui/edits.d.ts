@@ -1,4 +1,4 @@
-import type { CoreApi } from "../types/core-api.ts";
+import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 interface Listed {
     readonly id: string;
@@ -20,4 +20,5 @@ export interface Refused {
     readonly reasons: readonly string[];
 }
 export declare function useEdits(core: Pick<CoreApi, "commands">): Edits;
+export declare function notifiedReasons(notifications: readonly Pick<Notification, "message">[]): readonly string[];
 export {};

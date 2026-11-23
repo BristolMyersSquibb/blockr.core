@@ -1,19 +1,20 @@
 // The pieces that core's basic frontend, its Edit board plugin and the forms
 // of core's board actions draw with: the classes of their buttons, lists and
-// surfaces, an inline field that renames, what the text fields of their forms
-// take where they hold an identifier, the banner that says why an edit was
-// refused, and what draws a form in a React root of its own.
+// surfaces, an inline field that renames, the button that opens the menu of a
+// board object, what the text fields of their forms take where they hold an
+// identifier, the banner that says why an edit was refused, and what draws a
+// form in a React root of its own.
 // They are styled with Tailwind CSS under core's prefix. Their colours, fonts
 // and radii come from the variables of core's theme. Core's stylesheet leaves
 // out Tailwind's reset of the page, and a browser passes its font and colour
 // on to no button, so each piece sets them itself.
 
 import { useRef, useState } from "react";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { MARKS, SeverityIcon } from "../card/index.ts";
-import { TextField } from "../react/index.ts";
+import { Button, TextField } from "../react/index.ts";
 import { buttons } from "../styles/index.ts";
 import type { Refused } from "./edits.ts";
 
@@ -36,20 +37,17 @@ export const classes = {
 // leaving the field submits what it holds, unless it is empty or unchanged,
 // and Escape gives up.
 // It has the focus as it is drawn, with the name selected.
-// It is at least 10rem wide, or with `fill` as wide as its container, as the
-// cell of a table that it must not spill out of.
+// It is at least 10rem wide.
 export function NameField({
   label,
   name,
   onSubmit,
   onDone,
-  fill = false,
 }: {
   label: string;
   name: string;
   onSubmit: (name: string) => void;
   onDone: () => void;
-  fill?: boolean;
 }): ReactElement {
   const [text, setText] = useState(name);
   const done = useRef(false);
@@ -68,7 +66,7 @@ export function NameField({
       value={text}
       autoFocus
       spellCheck="false"
-      className={fill ? "bc:w-full" : "bc:min-w-40"}
+      className="bc:min-w-40"
       onChange={setText}
       onFocus={(event) => {
         event.target.select();
@@ -82,6 +80,29 @@ export function NameField({
         finish(true);
       }}
     />
+  );
+}
+
+// The "…" button that opens the menu of board actions of a board object, as
+// a card of the basic frontend and a row of the Edit board plugin draw it,
+// named by the label given, as "Actions of Head". It is a Button of the SDK,
+// which a row of React Aria's Table hears no press of, so that pressing it in
+// a row does not tick the row.
+export function ActionsButton({
+  ref,
+  label,
+  onPress,
+}: {
+  ref: RefObject<HTMLButtonElement | null>;
+  label: string;
+  onPress: () => void;
+}): ReactElement {
+  return (
+    <Button ref={ref} variant="quiet" aria-label={label} aria-haspopup="menu" onPress={onPress}>
+      <span aria-hidden="true" className="bc:text-base bc:leading-none">
+        ⋯
+      </span>
+    </Button>
   );
 }
 

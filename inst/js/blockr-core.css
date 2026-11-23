@@ -722,10 +722,6 @@
   width: calc(var(--bc-spacing) * 24);
 }
 
-.bc\:w-28 {
-  width: calc(var(--bc-spacing) * 28);
-}
-
 .bc\:w-36 {
   width: calc(var(--bc-spacing) * 36);
 }
@@ -836,10 +832,6 @@
 
 .bc\:shrink-0 {
   flex-shrink: 0;
-}
-
-.bc\:table-fixed {
-  table-layout: fixed;
 }
 
 .bc\:border-collapse {
@@ -1529,10 +1521,6 @@
   vertical-align: text-bottom;
 }
 
-.bc\:align-top {
-  vertical-align: top;
-}
-
 .bc\:font-mono {
   font-family: var(--bc-font-mono);
 }
@@ -1620,6 +1608,14 @@
 
 .bc\:break-all {
   word-break: break-all;
+}
+
+.bc\:whitespace-normal {
+  white-space: normal;
+}
+
+.bc\:whitespace-normal\! {
+  white-space: normal !important;
 }
 
 .bc\:whitespace-nowrap {

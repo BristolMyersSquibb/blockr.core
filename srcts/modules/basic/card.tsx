@@ -54,10 +54,10 @@
 import { memo, useCallback, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { Banners, Footer, Mounted, Pills, useFooter, useSized } from "../../card/index.ts";
-import { Button, Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "../../react/index.ts";
+import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "../../react/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack, StackId } from "../../types/board.ts";
-import { classes } from "../../ui/index.ts";
+import { ActionsButton, classes } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
 
@@ -106,20 +106,14 @@ export const BlockCard = memo(function BlockCard({ id, block }: CardProps): Reac
         <StatusBadge status={status} />
         {offered ? (
           <div className="bc:ml-auto bc:flex bc:items-center bc:gap-1">
-            <Button
+            <ActionsButton
               ref={actions}
-              variant="quiet"
-              aria-label={`Actions of ${block.name}`}
-              aria-haspopup="menu"
+              label={`Actions of ${block.name}`}
               onPress={() => {
                 const el = actions.current;
                 if (el !== null) core.boardActions.menu({ block: id }, { el, anchor: el.getBoundingClientRect() });
               }}
-            >
-              <span aria-hidden="true" className="bc:text-base bc:leading-none">
-                ⋯
-              </span>
-            </Button>
+            />
           </div>
         ) : null}
       </header>
