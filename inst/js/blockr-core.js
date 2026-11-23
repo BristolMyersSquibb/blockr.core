@@ -10489,15 +10489,15 @@ function Item({
             ]
           }
         ),
-        detail === void 0 ? null : /* @__PURE__ */ jsx12("span", { className: "bc:text-xs bc:text-text-muted", children: detail }),
-        row.advanced === true ? /* @__PURE__ */ jsxs10(Fragment3, { children: [
-          /* @__PURE__ */ jsx12(
+        detail === void 0 && row.advanced !== true ? null : /* @__PURE__ */ jsxs10("span", { className: "bc:-my-1 bc:flex bc:items-center bc:gap-2", children: [
+          detail === void 0 ? null : /* @__PURE__ */ jsx12("span", { className: "bc:min-w-0 bc:truncate bc:text-xs bc:text-text-muted", children: detail }),
+          row.advanced === true ? /* @__PURE__ */ jsx12(
             "span",
             {
               "aria-hidden": "true",
               "data-open-row": index,
               title: tip,
-              className: `${OPEN} bc:-my-1`,
+              className: OPEN,
               onPointerDown: (event) => {
                 event.stopPropagation();
               },
@@ -10507,9 +10507,9 @@ function Item({
               },
               children: /* @__PURE__ */ jsx12(OpenIcon, {})
             }
-          ),
-          /* @__PURE__ */ jsx12(Text3, { slot: "description", className: "bc:sr-only", children: tip })
-        ] }) : null
+          ) : null
+        ] }),
+        row.advanced === true ? /* @__PURE__ */ jsx12(Text3, { slot: "description", className: "bc:sr-only", children: tip }) : null
       ]
     }
   );

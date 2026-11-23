@@ -415,6 +415,47 @@ describe("core's menu", () => {
     expect(onItem.ran).toEqual([]);
   });
 
+  test("draws the detail and the open icon of an item in one span after its label, which the SDK's item holds on the label's line", async () => {
+    await drawn({
+      action: action("Append block", {
+        advanced: { render: () => undefined },
+        quick: () => ({
+          title: "Append",
+          rows: [
+            item("Head", { detail: "first rows", advanced: { class: "head" } }),
+            item("Filter", { advanced: { class: "filter" } }),
+            item("Tail", { detail: "last rows" }),
+            item("Arrange"),
+          ],
+        }),
+      }),
+    });
+
+    // The SDK's item lays out a grid of two columns: the label's, and one at
+    // its right. A third child of the grid would go to a second line. Each
+    // child gives its text and whether it holds the open icon. The
+    // description that only assistive technology reads takes no place.
+    const menu = shownMenu("Append");
+    const cells = (name: string): [string, boolean][] =>
+      [...row(menu, name).querySelectorAll(".bc\\:grid > :not([slot=description])")].map((cell) => [
+        cell.textContent,
+        cell.querySelector("[data-open-row]") !== null,
+      ]);
+    expect(cells("Head, first rows")).toEqual([
+      ["Head", false],
+      ["first rows", true],
+    ]);
+    expect(cells("Filter")).toEqual([
+      ["Filter", false],
+      ["", true],
+    ]);
+    expect(cells("Tail, last rows")).toEqual([
+      ["Tail", false],
+      ["last rows", false],
+    ]);
+    expect(cells("Arrange")).toEqual([["Arrange", false]]);
+  });
+
   test("draws no open icon where the board action has no advanced action", async () => {
     await drawn({ action: action("Rename", { quick: () => ({ title: "Rename", rows: [item("Head", { advanced: { class: "head" } })] }) }) });
 
