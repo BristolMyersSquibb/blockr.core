@@ -416,7 +416,7 @@ describe("menu()", () => {
     s.core.store.undo();
     expect(s.core.store.board()).toEqual(board);
 
-    await expect(s.menu({ block: "b" }, opts).pick("Break")).rejects.toThrow('The list of commands was refused at command 1, "blockr.core-remove_link"');
+    await expect(s.menu({ block: "b" }, opts).pick("Break")).rejects.toThrow('The batch was refused at command 1, "blockr.core-remove_link"');
     expect(handed).toEqual([[["board_edit_failed"], breaks.id]]);
     expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
     s.stop();
@@ -654,12 +654,12 @@ describe("trigger()", () => {
     const refusals = () => held(s.core, (n) => notificationCode(n) === "board_edit_failed");
 
     await expect(s.core.boardActions.trigger(id, { block: "b" }, { el })).rejects.toThrow(
-      'The list of commands was refused at command 2, "blockr.core-remove_link"',
+      'The batch was refused at command 2, "blockr.core-remove_link"',
     );
     expect(refusals()).toEqual([
       {
         severity: "error",
-        message: expect.stringContaining('The list of commands was refused at command 2, "blockr.core-remove_link"') as string,
+        message: expect.stringContaining('The batch was refused at command 2, "blockr.core-remove_link"') as string,
         source: { kind: "core", code: "board_edit_failed" },
       },
     ]);
@@ -673,7 +673,7 @@ describe("trigger()", () => {
           handed.push(notifications);
         },
       }),
-    ).rejects.toThrow('The list of commands was refused at command 2, "blockr.core-remove_link"');
+    ).rejects.toThrow('The batch was refused at command 2, "blockr.core-remove_link"');
     expect(handed.map((notifications) => notifications.map(notificationCode))).toEqual([["board_edit_failed"]]);
     // The refusal before still holds, and the notifier took the second.
     expect(refusals()).toHaveLength(1);
@@ -697,7 +697,7 @@ describe("trigger()", () => {
           handed.push(notifications);
         },
       }),
-    ).rejects.toThrow('The list of commands was refused at command 1, "blockr.core-remove_link"');
+    ).rejects.toThrow('The batch was refused at command 1, "blockr.core-remove_link"');
 
     expect(extended).toBe(false);
     expect(handed.map((notifications) => notifications.map(notificationCode))).toEqual([["board_edit_failed"]]);
@@ -854,7 +854,7 @@ describe("trigger()", () => {
       },
     });
     await expect(s.menu()?.pick("Break")).rejects.toThrow("refused");
-    await expect(triggered).rejects.toThrow('The list of commands was refused at command 1, "blockr.core-remove_link"');
+    await expect(triggered).rejects.toThrow('The batch was refused at command 1, "blockr.core-remove_link"');
 
     expect(handed).toEqual([[["board_edit_failed"], asks.id]]);
     s.stop();

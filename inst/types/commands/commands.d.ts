@@ -27,14 +27,14 @@ export interface Commands {
     run(id: string, args?: Json, origin?: Origin, opts?: {
         notifier?(notifications: readonly Notification[]): void;
     }): Promise<boolean>;
-    run(list: readonly {
+    run(batch: readonly {
         readonly id: string;
         readonly args?: Json;
     }[], origin?: Origin, opts?: {
         notifier?(notifications: readonly Notification[]): void;
     }): Promise<boolean>;
     plan(id: string, args?: Json): Promise<Delta[]>;
-    plan(list: readonly {
+    plan(batch: readonly {
         readonly id: string;
         readonly args?: Json;
     }[]): Promise<Delta[]>;

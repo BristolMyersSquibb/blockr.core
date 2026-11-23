@@ -33,8 +33,8 @@ export interface CoreApi {
   // (Notifier, below).
   readonly store: Store;
   // The command registry, for menus and shortcuts. Where it or the store
-  // refuses a command, or a list of commands, of whatever origin, core tells
-  // the user why through a notification of the code `board_edit_failed`, and
+  // refuses a command, or a batch, of whatever origin, core tells the user
+  // why through a notification of the code `board_edit_failed`, and
   // run() still rejects with the reason, unless the call's notifier takes the
   // notification, as for the store.
   readonly commands: Commands;

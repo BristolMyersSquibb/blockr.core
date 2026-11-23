@@ -5540,7 +5540,7 @@ function expand(delta, board, registrations) {
         failures.push(`The plugin class "${id2}" failed to update the delta for its plugin: ${errorMessage(error)}`);
         continue;
       }
-      const wrong = misplaced(id2, patches2);
+      const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
       if (wrong.length > 0) {
         failures.push(...wrong);
         continue;
@@ -5560,6 +5560,29 @@ function expand(delta, board, registrations) {
     }
   }
   return expanded;
+}
+function afterStep(board, before, registrations) {
+  const patches2 = [];
+  const failures = [];
+  for (const id2 of Object.keys(board.plugins)) {
+    const def = registrations.plugin(id2)?.def;
+    if (def?.afterStep === void 0) continue;
+    let returned;
+    try {
+      returned = def.afterStep(board, before, id2);
+    } catch (error) {
+      failures.push(`The afterStep of the plugin class "${id2}" failed: ${errorMessage(error)}`);
+      continue;
+    }
+    const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
+    if (wrong.length > 0) {
+      failures.push(...wrong);
+      continue;
+    }
+    patches2.push(...returned);
+  }
+  if (failures.length > 0) return { failures };
+  return patches2.length === 0 ? void 0 : { patches: patches2 };
 }
 function expandCore(delta, board) {
   const gone = new Set(delta.blocks?.rm ?? []);
@@ -5584,20 +5607,19 @@ function expandCore(delta, board) {
     ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
   };
 }
-function misplaced(id2, patches2) {
-  const of = `The plugin class "${id2}" updated the delta for its plugin`;
-  if (!Array.isArray(patches2)) return [`${of} with no array of patches.`];
+function misplaced(id2, patches2, of) {
+  if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
   const failures = [];
   for (const patch2 of patches2) {
     const problems = malformed(patch2);
     if (problems.length > 0) {
-      failures.push(`${of} with a patch that ${problems.join(", ")}.`);
+      failures.push(`${of} a patch that ${problems.join(", ")}.`);
       continue;
     }
     const { path } = patch2;
     const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
     if (boardProperty !== "plugins" || plugin !== id2) {
-      failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
+      failures.push(`${of} a patch at "${path}", outside that plugin's state.`);
     }
   }
   return failures;
@@ -5986,7 +6008,7 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" is registered already.`);
     }
     const given = def;
-    for (const [member, article] of [["update", "an"], ["migrate", "a"], ["start", "a"]]) {
+    for (const [member, article] of [["update", "an"], ["afterStep", "an"], ["migrate", "a"], ["start", "a"]]) {
       if (given[member] !== void 0 && typeof given[member] !== "function") {
         throw new Error(`The plugin class "${id2}" has ${article} ${member} that is no function.`);
       }
@@ -6126,21 +6148,18 @@ function createStore(options = {}) {
     const applied = [];
     const inverses = [];
     let current3 = start2;
-    for (const [i, given] of deltas.entries()) {
-      const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
+    function applyOne(given, delta, places, prefix) {
       const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
-      const delta = how.fit === true ? fit(given, current3) : given;
-      if (how.fit === true && isEmpty(delta)) continue;
       const expanded = expand(delta, current3, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
-      const committed = commit(current3, expanded, how.places?.[i]);
+      const committed = commit(current3, expanded, places);
       if ("failures" in committed) throw fail(committed.failures);
       if (hello?.lock.board === true) {
         const locked2 = lockFailures(current3, committed.inverse.delta);
         if (locked2.length > 0) throw fail(locked2);
       }
       const inverse = isEmpty(committed.inverse.delta) ? void 0 : committed.inverse;
-      if (inverse === void 0 && committed.changed.options.size === 0) continue;
+      if (inverse === void 0 && committed.changed.options.size === 0) return;
       const failures = check(
         committed.board,
         registry.value,
@@ -6151,6 +6170,19 @@ function createStore(options = {}) {
       applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
       if (inverse !== void 0 && given.undo !== false) inverses.unshift(inverse);
       current3 = committed.board;
+    }
+    for (const [i, given] of deltas.entries()) {
+      const delta = how.fit === true ? fit(given, current3) : given;
+      if (how.fit === true && isEmpty(delta)) continue;
+      applyOne(given, delta, how.places?.[i], deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "");
+    }
+    if (how.afterStep === true && applied.length > 0) {
+      const after = afterStep(current3, start2, registrations);
+      if (after !== void 0 && "failures" in after) throw new StoreError(refused2, after.failures);
+      if (after !== void 0) {
+        const delta = inverses.length > 0 ? after : { ...after, undo: false };
+        applyOne(delta, delta, void 0, "What afterStep returned: ");
+      }
     }
     return { applied, inverses };
   }
@@ -6191,12 +6223,12 @@ function createStore(options = {}) {
       else edits.delete(key2);
     }
   }
-  function runOnBoard(deltas) {
+  function runOnBoard(deltas, how) {
     const refused2 = "The store rejected the delta";
     const start2 = current2(refused2);
     const failures = named4(deltas);
     if (failures.length > 0) throw new StoreError(refused2, failures);
-    return { start: start2, ...run(start2, deltas, {}, refused2) };
+    return { start: start2, ...run(start2, deltas, how, refused2) };
   }
   function apply(delta, origin = "user", opts = {}) {
     guard2();
@@ -6205,7 +6237,7 @@ function createStore(options = {}) {
     const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
     busy = true;
     try {
-      const { start: start2, applied, inverses } = runOnBoard(deltas);
+      const { start: start2, applied, inverses } = runOnBoard(deltas, { afterStep: true });
       if (applied.length === 0) return false;
       number(applied, applied.at(-1)?.board ?? start2);
       const undoStep = inverses.length > 0;
@@ -6226,7 +6258,7 @@ function createStore(options = {}) {
     const was = busy;
     busy = true;
     try {
-      const { start: start2, applied } = runOnBoard(deltas);
+      const { start: start2, applied } = runOnBoard(deltas, { afterStep: false });
       return applied.at(-1)?.board ?? start2;
     } finally {
       busy = was;
@@ -6245,7 +6277,7 @@ function createStore(options = {}) {
       const { applied, inverses } = run(
         start2,
         step2.inverses.map(({ delta }) => delta),
-        { fit: true, places: step2.inverses.map(({ places }) => places) },
+        { fit: true, places: step2.inverses.map(({ places }) => places), afterStep: true },
         refused2
       );
       number(applied, applied.at(-1)?.board ?? start2);
@@ -6960,8 +6992,8 @@ function command(def) {
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
   failures;
-  // The command's place in the list that run() or plan() was given, counted
-  // from 0, where the command refused as one of a list.
+  // The command's place in the batch that run() or plan() was given, counted
+  // from 0, where the command refused as one of a batch.
   index;
   // False where the command failed its preflight, its preflight() answering
   // false, and left out otherwise, as a command's `undo` is false only where it
@@ -7080,13 +7112,13 @@ function createCommands(store, options = {}) {
       throw failed(command2, error);
     }
   }
-  async function planned(list, then) {
+  async function planned(batch2, then) {
     const within = keepContext();
-    const checked3 = list.map(({ id: id2, args }, index) => {
+    const checked3 = batch2.map(({ id: id2, args }, index) => {
       try {
         return lookup(id2, args);
       } catch (error) {
-        throw inList(index, id2, error);
+        throw inBatch(index, id2, error);
       }
     });
     const [first] = checked3;
@@ -7101,7 +7133,7 @@ function createCommands(store, options = {}) {
       try {
         start2 = current2(first.item.command.id);
       } catch (error) {
-        throw inList(0, first.item.command.id, error);
+        throw inBatch(0, first.item.command.id, error);
       }
       let board = start2;
       for (const [index, { item, args }] of checked3.entries()) {
@@ -7119,18 +7151,18 @@ function createCommands(store, options = {}) {
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
           board = store.dryRun(built);
         } catch (error) {
-          throw inList(index, command2.id, error);
+          throw inBatch(index, command2.id, error);
         }
       }
     }
     return within(() => then(built));
   }
-  function runList(list, origin) {
-    const ids2 = list.map(({ id: id2 }) => id2);
+  function runBatch(batch2, origin) {
+    const ids2 = batch2.map(({ id: id2 }) => id2);
     return traced(
-      "command list",
+      "command batch",
       { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(list, (built) => store.apply(built, origin))
+      () => planned(batch2, (built) => store.apply(built, origin))
     );
   }
   async function traced(name3, attributes, run) {
@@ -7182,11 +7214,11 @@ function createCommands(store, options = {}) {
         return false;
       }
     },
-    // A list comes with its origin second, in place of the args, and its
+    // A batch comes with its origin second, in place of the args, and its
     // options third, in place of the origin. The command registry ignores the
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(target2, given, third) {
-      if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
+      if (typeof target2 !== "string") return runBatch(target2, typeof given === "string" ? given : "user");
       const origin = typeof third === "string" ? third : "user";
       return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
@@ -7215,10 +7247,10 @@ var loggedErrors = /* @__PURE__ */ new WeakSet();
 function isLogged(error) {
   return error instanceof CommandError && loggedErrors.has(error);
 }
-function inList(index, id2, error) {
+function inBatch(index, id2, error) {
   const named4 = error instanceof CommandError || error instanceof StoreError;
   const refused2 = new CommandError(
-    `The list of commands was refused at command ${String(index + 1)}, "${id2}"`,
+    `The batch was refused at command ${String(index + 1)}, "${id2}"`,
     named4 ? error.failures : [errorMessage(error)],
     { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
   );
@@ -11058,15 +11090,15 @@ function refusing(store, commands, refused2) {
     },
     commands: {
       ...commands,
-      // A list comes with its origin second, in place of the args, and its
+      // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
       run(target2, given, third, fourth) {
         if (typeof target2 === "string") {
           const origin = typeof third === "string" ? third : void 0;
           return ran(fourth, () => commands.run(target2, given, origin));
         }
-        const listed = typeof given === "string" ? given : void 0;
-        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, listed));
+        const batchOrigin = typeof given === "string" ? given : void 0;
+        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, batchOrigin));
       }
     }
   };

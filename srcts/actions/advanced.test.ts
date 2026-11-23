@@ -74,7 +74,7 @@ function stubbed(classes: readonly PluginClass[], options: StubCoreOptions = {},
 
 const rename = (name: string): CommandCall[] => [{ id: "blockr.core-rename_block", args: { id: "b", name } }];
 const refused: CommandCall[] = [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }];
-const REFUSAL = 'The list of commands was refused at command 1, "blockr.core-remove_link"';
+const REFUSAL = 'The batch was refused at command 1, "blockr.core-remove_link"';
 
 // A place of the test's, which records what core hands it and each time core
 // calls what it returned, with the deltas, and mounts the advanced action
