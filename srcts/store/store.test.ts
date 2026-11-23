@@ -919,6 +919,60 @@ describe("opening a board", () => {
     expect(migrating.hasBoard()).toBe(false);
   });
 
+  test("reads the board that opening a JSON board's text would give, and what it would drop, holding nothing", async () => {
+    const store = await docked();
+    const board = store.board();
+    const seen = changes(store);
+
+    const read = await store.read(
+      file(
+        {
+          plugins: { [dock.id]: { views: { main: { panels: ["b", "x"] } } } },
+          blocks: { b: head(), x: { registry_id: "blockr.dplyr-filter_block", state: {}, name: "Filter", locked: null } },
+          links: { bx: { from: "b", to: "x", input: "data" } },
+          stacks: { s1: { name: "Input", blocks: ["b", "x"], color: null } },
+        },
+        { "blockr.core": "0.2.0", "blockr.dplyr": "0.3.0" },
+      ),
+    );
+
+    // Opening the text would drop the filter block, with its link, its place
+    // in the stack and its panel.
+    // The text holds no state of the DAG, so the DAG holds its class's default
+    // state.
+    expect(read.dropped).toEqual([
+      { package: "blockr.dplyr", version: "0.3.0" },
+      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+    ]);
+    expect(read.board.blocks).toEqual({ b: head() });
+    expect(read.board.links).toEqual({});
+    expect(read.board.stacks).toEqual({ s1: { name: "Input", blocks: ["b"], color: null } });
+    expect(dockViews(read.board)).toEqual({ main: { panels: ["b"] } });
+    expect(dagPositions(read.board)).toEqual({});
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+
+    await expect(store.read("{")).rejects.toThrow(StoreError);
+    await expect(store.read(file({ plugins: { [dock.id]: { views: [] } } }))).rejects.toThrow(
+      'The state of the plugin "blockr.dock-dock_plugin" fails its schema',
+    );
+    expect(store.board()).toBe(board);
+  });
+
+  test("reads a JSON board's text under the load lock, which fixes only which board the app shows, but not before R has answered hello", async () => {
+    const store = unopened(undefined, reply("hello-locked") as HelloReply);
+
+    const { board, dropped } = await store.read(file({}));
+    expect(board.name).toBe("Cars");
+    expect(Object.keys(board.blocks)).toEqual(["a", "b"]);
+    expect(dropped).toEqual([]);
+    expect(store.hasBoard()).toBe(false);
+
+    await expect(createStoreWithCoreOptions().read(file({}))).rejects.toThrow(
+      /The store opens a JSON board only once R has answered `hello`/,
+    );
+  });
+
   test("holds no board until it opens one", async () => {
     const store = createStoreWithCoreOptions();
     expect(store.hasBoard()).toBe(false);
@@ -957,6 +1011,7 @@ describe("a store that ends", () => {
     }).toThrow(`The store refused to undo the step\n- ${ended}`);
     await expect(store.open(file({}))).rejects.toThrow(ended);
     await expect(store.check(file({}))).rejects.toThrow(ended);
+    await expect(store.read(file({}))).rejects.toThrow(ended);
     expect(store.board().name).toBe("Renamed");
     expect(seen).toEqual([]);
     expect(late).toEqual([]);
@@ -1114,6 +1169,25 @@ describe("migrations", () => {
     expect(recordedVersions(saved)).toEqual({ "blockr.dock-dock_plugin": 3, "blockr.dag-dag_plugin": 1 });
     expect(saved.board.blocks.b?.version).toBe(2);
     expect(saved.board.blocks.a?.version).toBe(1);
+  });
+
+  test("reads a JSON board of an older version migrated, as it would open it, holding nothing", async () => {
+    const head = vi.fn<Migration>((state) => ({ ...state, n: Number(state.n) }));
+    const reading = store(head);
+    const { board, dropped } = await reading.read(old);
+
+    expect(head).toHaveBeenCalledOnce();
+    expect(dockViews(board)).toEqual({ main: { panels: ["a", "b"] } });
+    expect(board.blocks.b?.state).toEqual({ n: 6, direction: "head" });
+    expect(dropped).toEqual([]);
+    expect(reading.hasBoard()).toBe(false);
+
+    const failing = store(() => {
+      throw new Error("The n is unreadable.");
+    });
+    await expect(failing.read(old)).rejects.toThrow(
+      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
+    );
   });
 
   test("migrates a plugin's state, given frozen, by the version that the app's plugin of its class carries, and keeps the state of a class without a migration", async () => {

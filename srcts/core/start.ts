@@ -80,6 +80,11 @@
 // locks, the migrations that core imported, and the revisions given, so that
 // the next scheduler gives a block id a revision above any it had.
 //
+// Before the store's check() or read() that CoreApi gives, core imports the
+// UI modules of the block classes whose older states the text holds, as it
+// does before an opening.
+// So both migrate those states as opening the text would.
+//
 // Core takes a later reply to hello, as of a later session or of the hello with
 // which core starts again, in one of three ways:
 // 1. Where R speaks another major of the protocol in it, the protocol's client
@@ -533,6 +538,8 @@ export function start(options: StartOptions): Started {
       store: {
         ...store,
         open: (given, opts) => reopen(given, controller, opts),
+        check: (text) => afterMigrations(text, store, () => store.check(text)),
+        read: (text) => afterMigrations(text, store, () => store.read(text)),
       },
       commands,
       boardActions,
@@ -776,6 +783,14 @@ export function start(options: StartOptions): Started {
     return { text, plugin };
   }
 
+  // What the store's check() or read() resolves with, once core has imported
+  // the UI modules of the block classes whose older states the text holds, as
+  // it does before an opening.
+  async function afterMigrations<T>(text: string, store: Store, run: () => Promise<T>): Promise<T> {
+    await migrations.prepare(text, store.blockRegistry());
+    return run();
+  }
+
   // Openings run one at a time.
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -814,9 +829,8 @@ export function start(options: StartOptions): Started {
 
     let before: string;
     try {
-      await migrations.prepare(text, current.store.blockRegistry());
       try {
-        await current.store.check(text);
+        await afterMigrations(text, current.store, () => current.store.check(text));
       } catch (error) {
         // The board on the page stays open. Core tells the user why the store
         // refused the board, anew for each refusal, so that no caller of

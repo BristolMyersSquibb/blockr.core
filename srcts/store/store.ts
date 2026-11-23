@@ -114,6 +114,19 @@ export interface Store {
   // before an opening, so that core checks a board this way before it stops the
   // core on the page for it.
   check(text: string): Promise<Dropped[]>;
+  // The board that opening a JSON board given as its text would give, and
+  // what opening it would drop, as the DAG's Paste reads a copied board.
+  // It opens the text as check() does, and holds nothing.
+  // The board it resolves with is migrated by the versions that the text
+  // records, and lacks what opening would drop.
+  // It rejects with the StoreError that would refuse the board, having
+  // changed nothing.
+  // Unlike check(), it reads a text under the load lock as well.
+  // The load lock fixes only which board the app shows, and reading a board
+  // replaces none.
+  // So the DAG pastes in an app with the load lock alone, whose board a user
+  // may still edit.
+  read(text: string): Promise<{ board: Board; dropped: Dropped[] }>;
   // The board as a JSON board, as a file holds it.
   // It records the version of each package that the board's content comes
   // from, as the reply to `hello` gives it: the package of the class of each
@@ -199,9 +212,9 @@ export interface StoreOptions {
   // nothing changes or follows the board before.
   readonly signal?: AbortSignal;
   // A block class's one migration of its state, by its registry id, which the
-  // store reads as it opens or checks a board, and which core takes from the
-  // class's UI module before then (../core/migrations.ts). A class without one
-  // keeps the state that a board holds.
+  // store reads as it opens, checks or reads a board, and which core takes from
+  // the class's UI module before then (../core/migrations.ts). A class without
+  // one keeps the state that a board holds.
   readonly migration?: (registryId: RegistryId) => Migration | undefined;
 }
 
@@ -537,15 +550,21 @@ export function createStore(options: StoreOptions = {}): Store {
       packages.value = given.packages;
       return { json: checkJsonBoard(given.board), reply: given };
     }
-    if (hello === undefined) {
-      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
-    }
-    if (hello.lock.load) {
+    const reply = lastHello();
+    if (reply.lock.load) {
       throw new StoreError(refusedOpen, [
         "The load lock fixes the app to its opening board, so the store opens no other board.",
       ]);
     }
-    return { json: checkJsonBoard(parse(given)), reply: hello };
+    return { json: checkJsonBoard(parse(given)), reply };
+  }
+
+  // The last reply to `hello`, with which the store opens a JSON board's text.
+  function lastHello(): HelloReply {
+    if (hello === undefined) {
+      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
+    }
+    return hello;
   }
 
   // The board that a JSON board opens to, as openJsonBoard() migrates it and
@@ -601,6 +620,16 @@ export function createStore(options: StoreOptions = {}): Store {
       stillOpen();
       const { json, reply } = prepareOpen(text);
       return build(json, reply).dropped;
+    });
+  }
+
+  // Opens the text as checkText() does, without holding it, but under the
+  // load lock as well, and resolves with the board and what it dropped.
+  function readText(text: string): Promise<{ board: Board; dropped: Dropped[] }> {
+    return settled(() => {
+      stillOpen();
+      const reply = lastHello();
+      return build(checkJsonBoard(parse(text)), reply);
     });
   }
 
@@ -688,6 +717,7 @@ export function createStore(options: StoreOptions = {}): Store {
     dryRun,
     open,
     check: checkText,
+    read: readText,
     undo: (origin) => {
       revert(true, origin);
     },

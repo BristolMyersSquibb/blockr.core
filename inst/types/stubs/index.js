@@ -6527,15 +6527,19 @@ function createStore(options = {}) {
       packages.value = given.packages;
       return { json: checkJsonBoard(given.board), reply: given };
     }
-    if (hello === void 0) {
-      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
-    }
-    if (hello.lock.load) {
+    const reply = lastHello();
+    if (reply.lock.load) {
       throw new StoreError(refusedOpen, [
         "The load lock fixes the app to its opening board, so the store opens no other board."
       ]);
     }
-    return { json: checkJsonBoard(parse(given)), reply: hello };
+    return { json: checkJsonBoard(parse(given)), reply };
+  }
+  function lastHello() {
+    if (hello === void 0) {
+      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
+    }
+    return hello;
   }
   function build(json, reply) {
     guard2();
@@ -6583,6 +6587,13 @@ function createStore(options = {}) {
       stillOpen();
       const { json, reply } = prepareOpen(text);
       return build(json, reply).dropped;
+    });
+  }
+  function readText(text) {
+    return settled(() => {
+      stillOpen();
+      const reply = lastHello();
+      return build(checkJsonBoard(parse(text)), reply);
     });
   }
   function jsonBoard() {
@@ -6666,6 +6677,7 @@ function createStore(options = {}) {
     dryRun,
     open,
     check: checkText,
+    read: readText,
     undo: (origin) => {
       revert(true, origin);
     },
@@ -7647,7 +7659,7 @@ function openMenu(start3, parts) {
   }
   function shownRow(current2, { row, index, choices }) {
     if (row.kind === "item") {
-      const { label, heading, icon, detail, category } = row;
+      const { label, heading, icon, detail, category, checked: checked4 } = row;
       return {
         kind: "item",
         label,
@@ -7655,6 +7667,7 @@ function openMenu(start3, parts) {
         ...icon === void 0 ? {} : { icon },
         ...detail === void 0 ? {} : { detail },
         ...category === void 0 ? {} : { category },
+        ...checked4 === void 0 ? {} : { checked: checked4 },
         ...row.advanced !== void 0 && current2.action?.advanced !== void 0 ? { advanced: true } : {}
       };
     }
@@ -7896,7 +7909,7 @@ function isRow(row) {
   if (!isObject(row) || typeof row.label !== "string" || row.label === "") return false;
   switch (row.kind) {
     case "item":
-      return typeof row.pick === "function" && [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string"));
+      return typeof row.pick === "function" && [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string")) && optional(row.checked, "boolean");
     case "multi":
       return typeof row.apply === "function" && Array.isArray(row.choices) && row.choices.every(
         (choice) => isObject(choice) && typeof choice.id === "string" && typeof choice.label === "string" && typeof choice.picked === "boolean"
@@ -12795,21 +12808,30 @@ function Level({
         children: group.row.choices.map((choice) => /* @__PURE__ */ jsx57(MenuItem2, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
       },
       `multi-${String(group.i)}`
-    ) : /* @__PURE__ */ jsx57(MenuSection2, { id: `items-${String(group.items[0]?.i ?? g)}`, title: group.heading, children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx57(
-      Item,
+    ) : /* @__PURE__ */ jsx57(
+      MenuSection2,
       {
-        row,
-        index: i,
-        tip,
-        onPick: () => {
-          pick2(i);
-        },
-        onOpen: () => {
-          openAdvanced(i);
-        }
+        id: `items-${String(group.items[0]?.i ?? g)}`,
+        title: group.continues ? void 0 : group.heading,
+        ...group.checks ? { selectionMode: "multiple", selectedKeys: group.items.filter(({ row }) => row.checked === true).map(({ i }) => itemKey(i)) } : {},
+        children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx57(
+          Item,
+          {
+            row,
+            index: i,
+            tip,
+            onPick: () => {
+              pick2(i);
+            },
+            onOpen: () => {
+              openAdvanced(i);
+            }
+          },
+          i
+        ))
       },
-      i
-    )) }, `items-${String(group.items[0]?.i ?? g)}`);
+      `items-${String(group.items[0]?.i ?? g)}`
+    );
     return divider ? [/* @__PURE__ */ jsx57(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
   }) });
   return /* @__PURE__ */ jsxs45(Fragment28, { children: [
@@ -12878,13 +12900,17 @@ function groups(listed) {
       continue;
     }
     const last = all.at(-1);
-    if (last?.kind === "items" && last.heading === row.heading && last.category === row.category) {
+    const checks = row.checked !== void 0;
+    const under = last?.kind === "items" && last.heading === row.heading && last.category === row.category;
+    if (under && last.checks === checks) {
       last.items.push({ row, i });
     } else {
       all.push({
         kind: "items",
         ...row.heading === void 0 ? {} : { heading: row.heading },
         ...row.category === void 0 ? {} : { category: row.category },
+        checks,
+        continues: under,
         items: [{ row, i }]
       });
     }
@@ -12903,6 +12929,7 @@ function Item({
   return /* @__PURE__ */ jsxs45(
     MenuItem2,
     {
+      id: itemKey(index),
       textValue: label,
       "aria-label": detail === void 0 ? label : `${label}, ${detail}`,
       onAction: onPick,
@@ -12973,7 +13000,7 @@ function OpenIcon() {
 function openRow(target2) {
   if (!(target2 instanceof Element)) return void 0;
   const active = isFilter(target2) ? target2.getAttribute("aria-activedescendant") : null;
-  const item = active === null ? target2.closest('[role="menuitem"]') : target2.ownerDocument.getElementById(active);
+  const item = active === null ? target2.closest('[role="menuitem"], [role="menuitemcheckbox"]') : target2.ownerDocument.getElementById(active);
   const marked = item?.querySelector("[data-open-row]")?.getAttribute("data-open-row");
   return marked === void 0 || marked === null ? void 0 : Number(marked);
 }
@@ -13000,6 +13027,9 @@ function TextRow({
       }
     }
   );
+}
+function itemKey(row) {
+  return String(row);
 }
 function choiceKey(row, choice) {
   return `${String(row)}:${choice}`;
@@ -14361,7 +14391,9 @@ function start2(options) {
     const { api: core, plugins } = createCore({
       store: {
         ...store,
-        open: (given, opts) => reopen(given, controller, opts)
+        open: (given, opts) => reopen(given, controller, opts),
+        check: (text) => afterMigrations(text, store, () => store.check(text)),
+        read: (text) => afterMigrations(text, store, () => store.read(text))
       },
       commands,
       boardActions,
@@ -14554,6 +14586,10 @@ function start2(options) {
     }
     return { text, plugin };
   }
+  async function afterMigrations(text, store, run) {
+    await migrations.prepare(text, store.blockRegistry());
+    return run();
+  }
   let queue = Promise.resolve();
   function reopen(given, of, opts) {
     let notifier;
@@ -14583,9 +14619,8 @@ function start2(options) {
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
     let before;
     try {
-      await migrations.prepare(text, current2.store.blockRegistry());
       try {
-        await current2.store.check(text);
+        await afterMigrations(text, current2.store, () => current2.store.check(text));
       } catch (error) {
         const why = errorMessage(error);
         log.debug(why);

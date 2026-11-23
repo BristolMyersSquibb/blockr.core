@@ -81,8 +81,10 @@ import type { RunningPlugins } from "./plugins.ts";
 import { pluginRequest } from "./requests.ts";
 
 export interface CoreParts {
-  // The store as frontends and plugins see it, whose open() starts core
-  // again for the board it opens (./start.ts), and the command registry.
+  // The store as frontends and plugins see it, and the command registry.
+  // The store's open() starts core again for the board it opens, and its
+  // check() and read() first import the migrations that the text needs
+  // (./start.ts).
   // CoreApi hands out both with what tells the user why they refused an edit
   // (refusing(), below).
   readonly store: Store;

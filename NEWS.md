@@ -266,6 +266,9 @@
   Its error names `@blockr/core/react`, from which a package draws React Aria's components.
   A second copy of React Aria would hold React contexts of its own, which the components of the SDK do not read.
   The preset leaves `@internationalized/date` and `@internationalized/number` to the package, since they hold no React context (#754).
+  The preset resolves an import of the React Compiler's runtime, `react-compiler-runtime` or `react/compiler-runtime`, to the runtime of the React that the module imports.
+  So a package can bundle a library that the React Compiler built, such as React Flow 13, and its bundle holds no copy of the runtime.
+  A module that bundled the package `react-compiler-runtime` would fail as the page loads, since the package calls `require("react")` (#836).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a frontend sets them.
   What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
   Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
@@ -909,6 +912,20 @@
   Where the store refuses a board action that one of these menus ran, the plugin says why in a banner below the table or the bar, until the user opens one of the menus there again.
   The reason starts with a sentence that names the edit: in the plugin's own words for core's board actions, as `Could not remove the stack "Input".`, and by its label for another package's, as `Add to document failed for the block "Filter".`
   The tables draw with the `Table` of core's React SDK (#783).
+* An item of a quick action takes `checked`.
+  It is true for the current pick and for a toggle that is on, and false for another pick and for a toggle that is off.
+  So a quick action shows which direction a layout runs in, or whether snapping is on.
+  Core's menu draws a tick at the start of the item while `checked` is true, in a slot that the item keeps while `checked` is false, as it draws the choices of a multi.
+  Assistive technology hears an item that gives `checked` as a checkbox of the menu, checked or not.
+  Picking the item runs its `pick()`, as for any item.
+  The `level()` of a `StubMenu` gives the item's `checked`, so that a test reads which item is checked (#837).
+* The store's `read()` gives the board that opening a JSON board's text would give, and what opening it would drop, as the DAG's Paste reads a copied board.
+  It opens the text as `check()` does and holds nothing, so the board on the page stays as it is.
+  The board it gives is migrated by the versions that the text records, and lacks what opening would drop.
+  It rejects with the `StoreError` that would refuse the board.
+  Unlike `check()`, it reads a text under the load lock as well, since the load lock fixes only which board the app shows.
+  Through `CoreApi`, core first imports the migrations of the block classes whose older states the text holds, as it does before it opens a board.
+  It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
 * A plugin class may give `afterStep(board, before, plugin)`, which returns the patches to its plugin's state that follow from a step as a whole.
   The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.
   It gets the board that the step leaves and the board that the step started from.
