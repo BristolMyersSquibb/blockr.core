@@ -13,6 +13,7 @@ export interface RoleCommand {
     readonly id: string;
     readonly each?: "block" | "input" | "link" | "stack";
     readonly optional?: true;
+    readonly repeats?: true;
     fixes?(board: Board, target: Target, args: Json): boolean;
 }
 export declare const CORE_ROLES: readonly Role[];

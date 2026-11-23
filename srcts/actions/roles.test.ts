@@ -215,6 +215,16 @@ describe("the roles that a plugin class lists", () => {
       'gives the role "notes_role", whose command "blockr.core-rename_block" has optional false, which is neither true nor left out.',
     ],
     [
+      "has a command whose repeats is not true",
+      [{ ...notesRole, commands: [{ id: "blockr.core-rename_block", repeats: 1 }] }],
+      'gives the role "notes_role", whose command "blockr.core-rename_block" has repeats 1, which is neither true nor left out.',
+    ],
+    [
+      "has a command with more than one of optional, each and repeats",
+      [{ ...notesRole, commands: [{ id: "blockr.core-rename_block", optional: true, each: "block" }] }],
+      'gives the role "notes_role", whose command "blockr.core-rename_block" has optional and each, while a command takes at most one of optional, each and repeats.',
+    ],
+    [
       "has a command whose fixes is no function",
       [{ ...notesRole, commands: [{ id: "blockr.core-rename_block", fixes: "b" }] }],
       'gives the role "notes_role", whose command "blockr.core-rename_block" has a fixes that is no function.',
@@ -664,6 +674,33 @@ describe("the check of a batch against one of core's roles", () => {
     const s = await stubCore();
 
     expect(batchFailure(role(id), s.core.store.board(), s.core.blockRegistry(), target, batch)).toBe(why);
+    s.stop();
+  });
+
+  test("of a command with each input counts the inputs of the block's class, and the links into a variadic block, each of which is one of its inputs", async () => {
+    const s = await stubCore();
+    const inputs: Role = {
+      id: "inputs_role",
+      on: ["block"],
+      default: "blockr.test-inputs_action",
+      commands: [{ id: "blockr.core-remove_link", each: "input" }],
+    };
+    const check = (target: Target, links: readonly string[]) =>
+      batchFailure(
+        inputs,
+        s.core.store.board(),
+        s.core.blockRegistry(),
+        target,
+        links.map((id) => call("remove_link", { id })),
+      );
+
+    // Merge takes x and y, and Bind the links be and de.
+    expect(check({ block: "c" }, ["ac", "bc"])).toBeUndefined();
+    expect(check({ block: "c" }, ["ac"])).toBe('its batch holds 1 call of "blockr.core-remove_link" in a row, where the target holds 2 inputs');
+    expect(check({ block: "e" }, ["be", "de"])).toBeUndefined();
+    expect(check({ block: "e" }, ["be", "de", "be"])).toBe(
+      'its call 3, of "blockr.core-remove_link", comes out of the role\'s order, or more often than the role runs it',
+    );
     s.stop();
   });
 });

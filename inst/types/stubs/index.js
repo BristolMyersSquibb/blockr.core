@@ -12422,7 +12422,7 @@ var CORE_ROLES = [
     id: "edit_inputs_role",
     on: ["block"],
     default: "blockr.core-edit_inputs_action",
-    commands: [REMOVE_LINK, CHANGE_LINK3, ADD_LINK3, MOVE_LINK2].map((id2) => ({ id: id2, each: "input", optional: true, fixes: intoBlock }))
+    commands: [REMOVE_LINK, CHANGE_LINK3, ADD_LINK3, MOVE_LINK2].map((id2) => ({ id: id2, repeats: true, fixes: intoBlock }))
   },
   {
     id: "edit_stack_role",
@@ -12511,8 +12511,8 @@ function checkedPlayer(role, action3) {
 function batchFailure(role, board, registry, target2, batch2) {
   let at = 0;
   for (const command2 of role.commands) {
-    const most = times(command2, board, registry, target2);
-    const least = command2.optional === true ? 0 : Number.isFinite(most) ? most : 1;
+    const most = command2.repeats === true ? Infinity : times(command2, board, registry, target2);
+    const least = command2.optional === true || command2.repeats === true ? 0 : most;
     let count2 = 0;
     while (count2 < most) {
       const call2 = batch2[at];
@@ -12536,8 +12536,8 @@ function batchFailure(role, board, registry, target2, batch2) {
   return role.commands.some((command2) => command2.id === extra.id) ? `its call ${String(at + 1)}, of "${extra.id}", comes out of the role's order, or more often than the role runs it` : `its call ${String(at + 1)} is of "${extra.id}", which the role does not run`;
 }
 function described(role) {
-  return role.commands.map(({ id: id2, each, optional: optional4 }) => {
-    const often = each === void 0 ? optional4 === true ? " at most once" : "" : `${optional4 === true ? " at most" : ""} once for each ${each}`;
+  return role.commands.map(({ id: id2, each, optional: optional4, repeats }) => {
+    const often = each !== void 0 ? ` once for each ${each}` : optional4 === true ? " at most once" : repeats === true ? " any number of times" : "";
     return `"${id2}"${often}`;
   }).join(", then ");
 }
@@ -12548,7 +12548,7 @@ function times(command2, board, registry, target2) {
   const block = heldBlock(board, target2);
   if (block === void 0) return 0;
   const inputs = classInputs(board, registry, block);
-  return inputs.includes("...") ? Infinity : inputs.length;
+  return inputs.includes("...") ? Object.values(board.links).filter((link) => link.to === block).length : inputs.length;
 }
 function keeps(command2, board, target2, call2, at) {
   if (command2.fixes === void 0) return void 0;
@@ -12616,7 +12616,7 @@ function checkedRoles(plugin, given, taken, actions) {
 }
 function commandFailure(command2) {
   if (!isObject(command2)) return "with a command that is no object";
-  const { id: id2, each, optional: optional4, fixes: fixes2 } = command2;
+  const { id: id2, each, optional: optional4, repeats, fixes: fixes2 } = command2;
   if (typeof id2 !== "string" || !isCommandId(id2)) {
     return `with a command whose id ${JSON.stringify(id2)} is not named as a command's id is, "{pkg}-{name}"`;
   }
@@ -12625,6 +12625,13 @@ function commandFailure(command2) {
   }
   if (optional4 !== void 0 && optional4 !== true) {
     return `whose command "${id2}" has optional ${JSON.stringify(optional4)}, which is neither true nor left out`;
+  }
+  if (repeats !== void 0 && repeats !== true) {
+    return `whose command "${id2}" has repeats ${JSON.stringify(repeats)}, which is neither true nor left out`;
+  }
+  const often = ["optional", "each", "repeats"].filter((member) => command2[member] !== void 0);
+  if (often.length > 1) {
+    return `whose command "${id2}" has ${listing([...often])}, while a command takes at most one of optional, each and repeats`;
   }
   if (fixes2 !== void 0 && typeof fixes2 !== "function") {
     return `whose command "${id2}" has a fixes that is no function`;

@@ -27,20 +27,23 @@
 //
 // Core checks each batch of the board action that plays a role before the
 // command registry plans it (batchFailure(), below). The batch holds the
-// role's commands alone, in their order:
-// - A command comes exactly once, or at most once where it has `optional`.
-// - A command with `each` comes that often for each board object or input of
-//   its kind that the target holds, as a selection holds blocks and a block
-//   its inputs. A variadic block takes any number of inputs, so that a command
-//   for each of its inputs may come any number of times.
-// - Each call has args that pass the `fixes` of its command.
+// role's commands alone, in their order, and each call has args that pass the
+// `fixes` of its command. How often a command comes depends on its members:
+// - Without `optional`, `each` and `repeats`, it comes exactly once, as
+//   add_block in Append block's role.
+// - With `optional`, it comes at most once, as move_link in Edit link's role.
+// - With `each`, it comes exactly once for each board object or input of its
+//   kind that the target holds, as remove_block in the role of Remove on a
+//   selection, so that the batch removes every block that the user selected.
+// - With `repeats`, it comes any number of times, as each command of Edit
+//   inputs' role, since the user may change any number of the block's inputs.
 
 import { isCommandId } from "../commands/index.ts";
 import type { BlockRegistry } from "../types/core-api.ts";
 import type { Board, PluginClassId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import { classInputs } from "../ui/index.ts";
-import { errorMessage, getAt, isObject, own, packageFromId, quoted } from "../util/index.ts";
+import { errorMessage, getAt, isObject, listing, own, packageFromId, quoted } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { held, heldBlock, heldBlocks, idOf, kindsFailure } from "./targets.ts";
 
@@ -62,11 +65,16 @@ export interface Role {
 export interface RoleCommand {
   // A command of any package, as "blockr.core-add_link".
   readonly id: string;
-  // Once for each board object or input of this kind that the target holds,
-  // as a selection holds blocks and a block its inputs.
+  // Exactly once for each board object or input of this kind that the target
+  // holds, as a selection holds blocks and a block its inputs: the inputs of
+  // its class, or the links into a variadic block, each of which is one of
+  // its inputs.
   readonly each?: "block" | "input" | "link" | "stack";
-  // At most once, rather than exactly once, and for each where it has `each`.
+  // At most once, rather than exactly once.
   readonly optional?: true;
+  // Any number of times, each call checked by `fixes`. A command takes at
+  // most one of `optional`, `each` and `repeats`.
+  readonly repeats?: true;
   // Whether the args of a call of the command keep what the target fixes, as
   // the `from` of add_link on Append block.
   fixes?(board: Board, target: Target, args: Json): boolean;
@@ -94,6 +102,9 @@ const REMOVE_STACK = "blockr.core-remove_stack";
 // Edit stack's form renames the stack too, so that edit_stack_role runs
 // rename_stack before change_stack, each at most once, where the table names
 // change_stack alone.
+// Edit inputs' role runs each of its commands any number of times, where the
+// table says at most once for each of the block's inputs, since the user may
+// change any number of them.
 // On a block or a selection, add_stack_role has the new stack take exactly
 // the blocks that the target holds, so that Create stack's form names them in
 // place of a select (./stack-form.tsx).
@@ -159,7 +170,7 @@ export const CORE_ROLES: readonly Role[] = [
     id: "edit_inputs_role",
     on: ["block"],
     default: "blockr.core-edit_inputs_action",
-    commands: [REMOVE_LINK, CHANGE_LINK, ADD_LINK, MOVE_LINK].map((id) => ({ id, each: "input", optional: true, fixes: intoBlock })),
+    commands: [REMOVE_LINK, CHANGE_LINK, ADD_LINK, MOVE_LINK].map((id) => ({ id, repeats: true, fixes: intoBlock })),
   },
   {
     id: "edit_stack_role",
@@ -276,8 +287,8 @@ export function checkedPlayer(role: Role, action: BoardAction | undefined): { re
 export function batchFailure(role: Role, board: Board, registry: BlockRegistry, target: Target, batch: readonly CommandCall[]): string | undefined {
   let at = 0;
   for (const command of role.commands) {
-    const most = times(command, board, registry, target);
-    const least = command.optional === true ? 0 : Number.isFinite(most) ? most : 1;
+    const most = command.repeats === true ? Infinity : times(command, board, registry, target);
+    const least = command.optional === true || command.repeats === true ? 0 : most;
     let count = 0;
     while (count < most) {
       const call = batch[at];
@@ -307,17 +318,17 @@ export function batchFailure(role: Role, board: Board, registry: BlockRegistry, 
 // command, then how often.
 export function described(role: Role): string {
   return role.commands
-    .map(({ id, each, optional }) => {
-      const often = each === undefined ? (optional === true ? " at most once" : "") : `${optional === true ? " at most" : ""} once for each ${each}`;
+    .map(({ id, each, optional, repeats }) => {
+      const often = each !== undefined ? ` once for each ${each}` : optional === true ? " at most once" : repeats === true ? " any number of times" : "";
       return `"${id}"${often}`;
     })
     .join(", then ");
 }
 
-// How often a command of the role may come in a batch on the target: once, or
-// for a command with `each`, once for each board object or input of its kind
-// that the target holds. A variadic block takes any number of inputs, so a
-// command for each of its inputs may come any number of times.
+// How often a command of the role may come in a batch on the target, where
+// it has no `repeats`: once, or for a command with `each`, once for each
+// board object or input of its kind that the target holds. A block holds the
+// inputs of its class, and a variadic block one input for each link into it.
 function times(command: RoleCommand, board: Board, registry: BlockRegistry, target: Target): number {
   const { each } = command;
   if (each === undefined) return 1;
@@ -325,7 +336,7 @@ function times(command: RoleCommand, board: Board, registry: BlockRegistry, targ
   const block = heldBlock(board, target);
   if (block === undefined) return 0;
   const inputs = classInputs(board, registry, block);
-  return inputs.includes("...") ? Infinity : inputs.length;
+  return inputs.includes("...") ? Object.values(board.links).filter((link) => link.to === block).length : inputs.length;
 }
 
 // Why the call at the index given does not keep what the target fixes, or
@@ -355,8 +366,9 @@ function keeps(command: RoleCommand, board: Board, target: Target, call: Command
 // - Its `advanced` is neither true nor left out.
 // - It runs no command, or a command of it breaks a rule of its own: its id
 //   is not named as a command's id is, its `each` names no kind that `each`
-//   takes, its `optional` is neither true nor left out, or its `fixes` is no
-//   function.
+//   takes, its `optional` or its `repeats` is neither true nor left out, it
+//   has more than one of `optional`, `each` and `repeats`, or its `fixes` is
+//   no function.
 // - Its default is no board action that the class lists, or one that cannot
 //   play the role (checkedPlayer(), above).
 export function checkedRoles(
@@ -424,7 +436,7 @@ export function checkedRoles(
 // them.
 function commandFailure(command: unknown): string | undefined {
   if (!isObject(command)) return "with a command that is no object";
-  const { id, each, optional, fixes } = command;
+  const { id, each, optional, repeats, fixes } = command;
   if (typeof id !== "string" || !isCommandId(id)) {
     return `with a command whose id ${JSON.stringify(id)} is not named as a command's id is, "{pkg}-{name}"`;
   }
@@ -433,6 +445,13 @@ function commandFailure(command: unknown): string | undefined {
   }
   if (optional !== undefined && optional !== true) {
     return `whose command "${id}" has optional ${JSON.stringify(optional)}, which is neither true nor left out`;
+  }
+  if (repeats !== undefined && repeats !== true) {
+    return `whose command "${id}" has repeats ${JSON.stringify(repeats)}, which is neither true nor left out`;
+  }
+  const often = (["optional", "each", "repeats"] as const).filter((member) => command[member] !== undefined);
+  if (often.length > 1) {
+    return `whose command "${id}" has ${listing([...often])}, while a command takes at most one of optional, each and repeats`;
   }
   if (fixes !== undefined && typeof fixes !== "function") {
     return `whose command "${id}" has a fixes that is no function`;

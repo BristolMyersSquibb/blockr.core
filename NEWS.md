@@ -950,7 +950,8 @@
   Each opens a menu through the module, finds the parts of the menu by their ARIA roles and names, does what a user does, and checks what core ran, and core runs them against its own menu.
   Core's runtime no longer holds core's menu, whose module takes 5.0 KB compressed (#829).
 * Roles tie the board action that plays each to the commands that it runs, so that an app may swap one of core's board actions for one drawn with another UI kit, while every caller gets the same edit.
-  A role, of the type `Role`, has an `id` that names no package, as `append_block_role`, its targets in `on`, its `default` board action, `advanced` where callers mount the advanced action of its player, and its `commands` in order, each with `each`, `optional` and `fixes`.
+  A role, of the type `Role`, has an `id` that names no package, as `append_block_role`, its targets in `on`, its `default` board action, `advanced` where callers mount the advanced action of its player, and its `commands` in order.
+  Each command comes exactly once, or at most once with `optional`, once for each block, input, link or stack that the target holds with `each`, or any number of times with `repeats`, and its `fixes` checks the args that the target fixes.
   Core defines a role for each of its board actions but Copy block ID, which names it in the new member `role` of `BoardAction`, and a plugin class lists roles of its own in the new member `roles`, beside `boardActions`.
   In each app, one board action plays each role: the one that the blockr option `board_actions` picks for it, as `options(blockr.board_actions = list(append_block_role = "mykit-append_block_action"))` does, or else the role's default, one of the board actions of the role's class.
   Core checks the board action that plays a role: it names the role, its `on` names the role's targets alone, and it has an advanced action where the role has `advanced`.
