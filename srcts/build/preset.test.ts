@@ -12,10 +12,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
+import { createElement } from "react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost, stubOutputHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
-import { mountReact } from "../testing/react.ts";
+import { draw, mountReact } from "../testing/react.ts";
 import type { OutputFixtures, TextOutput } from "../types/outputs.ts";
 import { IMPORTS } from "../import-map/index.ts";
 import type * as Build from "./index.ts";
@@ -170,6 +172,76 @@ test("refuses an entry point of React that the import map does not name", async 
     bundle(`import { renderToString } from "react-dom/server";\n\nexport const html = renderToString(null);\n`),
   ).rejects.toThrow("A module imports react-dom/server, which the page's import map does not name.");
 });
+
+// The React Compiler's runtime as npm installs it beside a library that the
+// compiler built for React 17 and 18 as well, such as React Flow 13.
+// Like the real package, it calls `require("react")`.
+const compilerRuntime: Record<string, string> = {
+  "node_modules/react-compiler-runtime/package.json": '{ "name": "react-compiler-runtime", "main": "index.js" }\n',
+  "node_modules/react-compiler-runtime/index.js": 'const React = require("react");\nexports.c = (size) => React.__COMPILER_RUNTIME.c(size);\n',
+};
+
+// A component as the React Compiler writes it, which imports the runtime from
+// `runtime`.
+// It keeps the element that it draws in the cache that the runtime's `c` gives
+// it, and makes the element again only when its text changes.
+// It counts in `made` how often it made one.
+const compiledLabel = (runtime: string) => `import { c as _c } from "${runtime}";
+import { jsx } from "react/jsx-runtime";
+
+export let made = 0;
+
+export default function Label({ text }: { text: string }) {
+  const $ = _c(2);
+  let t0;
+  if ($[0] !== text) {
+    made += 1;
+    t0 = jsx("span", { children: text });
+    $[0] = text;
+    $[1] = t0;
+  } else {
+    t0 = $[1];
+  }
+  return t0;
+}
+`;
+
+// A library that the compiler built for React 17 and 18 as well imports the
+// package react-compiler-runtime.
+// One built for React 19 alone imports React's entry point
+// react/compiler-runtime.
+test.each(["react-compiler-runtime", "react/compiler-runtime"])(
+  "resolves the React Compiler's runtime, %s, to that of the React that the module imports, and bundles none of it",
+  async (runtime) => {
+    for (const [path, content] of Object.entries(compilerRuntime)) {
+      await mkdir(dirname(join(root, path)), { recursive: true });
+      await writeFile(join(root, path), content);
+    }
+    const file = await bundle(compiledLabel(runtime));
+    const code = await readFile(file, "utf8");
+
+    // The module imports the runtime from React, which the import map names.
+    // It holds neither the runtime's package nor React.
+    // So it holds no call of `require("react")`, which fails as the page loads.
+    expect(importedPackages(code)).toEqual(["react", "react/jsx-runtime"]);
+    expect(code).not.toContain("node_modules/react-compiler-runtime");
+    expect(code).not.toContain('require("react")');
+    expect(code).not.toContain("react.transitional.element");
+
+    // Drawn again with the same text, the component keeps the element that it
+    // made, in the cache of the React that draws it.
+    const module = (await import(pathToFileURL(file).href)) as { default: (props: { text: string }) => ReactElement; made: number };
+    const view = draw(createElement(module.default, { text: "a" }));
+    view.redraw(createElement(module.default, { text: "a" }));
+    expect(view.el.textContent).toBe("a");
+    expect(module.made).toBe(1);
+
+    view.redraw(createElement(module.default, { text: "b" }));
+    expect(view.el.textContent).toBe("b");
+    expect(module.made).toBe(2);
+    view.unmount();
+  },
+);
 
 // The preset refuses each import before esbuild resolves it.
 // So the scoped packages fail alike, though npm does not install them with
