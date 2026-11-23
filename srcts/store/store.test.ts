@@ -2015,36 +2015,35 @@ describe("the afterStep of a plugin's class", () => {
     expect(pluginNotes(store.board())).toEqual({ g: "Added" });
   });
 
-  test("has its delta expanded through the update of each plugin's class, so that a class follows what another class's afterStep returns", async () => {
-    // Notes each block that a patch places in the DAG.
-    const following: PluginClass = {
-      ...noted,
-      update: (delta, _board, plugin) =>
-        (delta.patches ?? []).flatMap((patch): Patch[] => {
-          const [, , cls, , block] = patch.path.split("/");
-          return cls === dag.id && patch.op === "add" && block !== undefined
-            ? [{ op: "add", path: `/plugins/${plugin}/notes/${block}`, value: "Placed" }]
-            : [];
-        }),
+  test("has its delta expanded through the update of each plugin's class, as any other delta", async () => {
+    // The DAG's class keeps how far right its blocks reach, which its update
+    // brings in line with each position that a delta adds, whoever adds it.
+    const reaching: PluginClass = {
+      ...dag,
+      afterStep: placeAdded,
+      update(delta, board, plugin) {
+        const prefix = `/plugins/${plugin}/positions/`;
+        const added = (delta.patches ?? []).filter((patch) => patch.op === "add" && patch.path.startsWith(prefix));
+        if (added.length === 0) return [];
+        const xs = [...Object.values(dagPositions(board)), ...added.map((patch) => patch.value as unknown as Position)];
+        return [{ op: "add", path: `/plugins/${plugin}/right`, value: Math.max(...xs.map(({ x }) => x)) }];
+      },
     };
-    const store = await placing(
-      placeAdded,
-      (store) => store.plugins.register(following),
-      withPlugins(plugin(following, "Notes", { notes: {} }), docking),
-    );
+    const store = await docked(undefined, reaching);
     const seen = changes(store);
 
     store.apply(appended);
 
-    expect(pluginNotes(store.board())).toEqual({ g: "Placed" });
+    expect(pluginState(store.board(), dag.id)).toMatchObject({ right: 101 });
     expect(seen).toHaveLength(3);
-    expect(seen[2]).toMatchObject({
+    expect(seen[2]).toEqual({
       delta: {
         patches: [
-          { op: "add", path: "/plugins/blockr.dag-dag_plugin/positions/g" },
-          { op: "add", path: "/plugins/blockr.notes-notes_plugin/notes/g", value: "Placed" },
+          { op: "add", path: "/plugins/blockr.dag-dag_plugin/positions/g", value: { x: 101, y: 1 } },
+          { op: "add", path: "/plugins/blockr.dag-dag_plugin/right", value: 101 },
         ],
       },
+      origin: "user",
     });
   });
 

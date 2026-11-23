@@ -73,7 +73,8 @@ export interface PluginClass {
   // expands and checks as any other, so that the patches are undone, saved and
   // announced with the step.
   // It reads only the two boards, so that every peer computes the same
-  // patches.
+  // patches. Every class gets the same two boards, so none sees what another
+  // class's afterStep returns.
   afterStep?(board: Board, before: Board, plugin: PluginClassId): readonly Patch[];
   // Converts the plugin's state, as a JSON board holds it, from the version of
   // the class that the board records to the one that R's `plugin_version()`

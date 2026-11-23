@@ -75,10 +75,11 @@ export function expand(
 // plugin, in the order of the board's plugins, or undefined where none
 // returns any.
 // Every class gets the same two boards: the board that the step's own deltas
-// leave and the board that the step started from. So what one class returns
-// does not depend on the order of the app's plugins. A class that follows
-// another plugin's state still sees the other class's patches, in its
-// `update`, since the store expands this delta as any other.
+// leave and the board that the step started from. So no `afterStep` sees
+// what another returns, and the order of the app's plugins does not matter.
+// No order could be right, since plugins know nothing about each other. The
+// state of a plugin is its own, and no other plugin's `afterStep` relies on
+// it.
 // The store calls each `afterStep` once in a step, and not again on what the
 // others return, so that every step ends.
 export function afterStep(
