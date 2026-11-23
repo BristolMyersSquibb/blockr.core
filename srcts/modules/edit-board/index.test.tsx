@@ -438,7 +438,7 @@ describe("the links", () => {
     expect(into).toEqual(["No namePosition 1", "No namePosition 2", "plottedPosition 3", "No namePosition 4"]);
   });
 
-  test("are changed in their row, through the form of Edit link, once the user saves the edit, and the row closes on Close or Escape, the focus back on the row's Edit button", async () => {
+  test("are changed in their row, through the form of Edit link, once the user applies the edit, and the row closes on Close or Escape, the focus back on the row's Edit button", async () => {
     const { el, board } = await mounted();
     const links = section(el, "Links");
 
@@ -469,7 +469,7 @@ describe("the links", () => {
       type(labelled(edit(), "Input name"), "left");
     });
     expect(board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
     expect(board().links.ac).toEqual({ from: "a", to: "e", input: "left" });
     expect([labelled(edit(), "To").value, labelled(edit(), "Input name").value]).toEqual(["Bind", "left"]);
     await click(button(row(links, "Iris → Bind"), "Close"));
@@ -485,8 +485,8 @@ describe("the links", () => {
     await click(button(links, "Edit the link from Iris to Merge"));
     expect(note(selectButton(edit(), "Input"))).toBeUndefined();
     await picked(selectButton(edit(), "Input"), step, "y");
-    expect(note(selectButton(edit(), "Input"))).toBe('The link from "Head" feeds "y". Saving gives that link "x", so the two links swap their inputs.');
-    await click(button(edit(), "Save"));
+    expect(note(selectButton(edit(), "Input"))).toBe('The link from "Head" feeds "y". Applying gives that link "x", so the two links swap their inputs.');
+    await click(button(edit(), "Apply"));
     expect([board().links.ac, board().links.bc]).toEqual([
       { from: "a", to: "c", input: "y" },
       { from: "b", to: "c", input: "x" },
@@ -522,7 +522,7 @@ describe("the links", () => {
     expect(await listed(selectButton(edit(), "Position"), step)).toEqual(["1", "2"]);
     expect(selectShows(selectButton(edit(), "Position"))).toBe("2");
     await picked(selectButton(edit(), "Position"), step, "1");
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
 
     expect(into()).toEqual(["de", "be"]);
     expect(board().links.de).toBe(ends);
@@ -552,7 +552,7 @@ describe("the links", () => {
     expect(await listed(selectButton(edit(), "Position"), step)).toEqual(["1", "2", "3"]);
     expect(selectShows(selectButton(edit(), "Position"))).toBe("1");
     await picked(selectButton(edit(), "Position"), step, "3");
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
     expect(into()).toEqual(["be", "de", "ac"]);
     expect(board().links.ac).toEqual({ from: "a", to: "e", input: "" });
 
@@ -706,7 +706,7 @@ describe("the stacks", () => {
     ]);
   });
 
-  test("are changed in their row, through the form of Edit stack, once the user saves it: renamed, coloured and given other blocks, one of which leaves its stack, in one step", async () => {
+  test("are changed in their row, through the form of Edit stack, once the user applies it: renamed, coloured and given other blocks, one of which leaves its stack, in one step", async () => {
     const { el, core, board } = await mounted();
     await act(() => core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"] }));
     const stacks = section(el, "Stacks");
@@ -724,7 +724,7 @@ describe("the stacks", () => {
     // Escape closes the list, and leaves the form open.
     await picked(labelled(edit(), "Blocks"), step, "Head", "Scatter");
     expect(chipLabels(labelled(edit(), "Blocks"))).toEqual(["Iris", "Scatter"]);
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
 
     expect(board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "f"], color: "#66c2a5" });
     expect(board().stacks.plots?.blocks).toEqual([]);
@@ -891,13 +891,13 @@ describe("each edit", () => {
 
     await click(button(links, "Edit the link from Iris to Merge"));
     await chosen(edit(), "From", "Bind");
-    // Another edit links Merge to Bind before the user saves, so that the link
-    // from Bind would close a cycle.
+    // Another edit links Merge to Bind before the user applies the form, so
+    // that the link from Bind would close a cycle.
     await act(() => core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
-    await click(button(edit(), "Save"));
+    await click(button(edit(), "Apply"));
 
     expect(refusals(edit())).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
-    expect(find(edit(), '[role="alert"]').previousElementSibling?.contains(button(edit(), "Save"))).toBe(true);
+    expect(find(edit(), '[role="alert"]').previousElementSibling?.contains(button(edit(), "Apply"))).toBe(true);
     expect(row(links, "Iris → Merge").contains(edit())).toBe(true);
     expect(labelled(edit(), "From").value).toBe("Bind");
     expect(belowTable(links)).toEqual([]);

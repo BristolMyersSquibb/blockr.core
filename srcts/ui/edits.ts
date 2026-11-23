@@ -15,12 +15,12 @@
 //   board, and below a table for an edit in its rows, as The Edit board plugin
 //   has it
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
-//   The advanced action of Edit inputs, one of core's board actions, runs its
-//   edits so too, and shows why below its list of inputs
-//   (../actions/inputs.tsx).
-//   The block picker, the advanced action of core's board actions that add a
-//   block, runs its edit through useEdits() as well, and hands it to its
-//   done(), which runs it as one step of the user and ends the advanced action
+//   The advanced actions of core's board actions run their edits through
+//   useEdits() as well: the block picker, which adds a block, the forms of a
+//   link and of a stack, and the inputs of a block that Edit inputs lists
+//   (../actions/inputs.tsx). Each hands its edit to its done(), which runs it
+//   as one step of the user and ends the advanced action, and shows why below
+//   its button
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
 
 import { useMemo, useState } from "react";

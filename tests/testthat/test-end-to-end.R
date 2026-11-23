@@ -196,7 +196,7 @@ test_that("the user edits the stacks of a board", {
   wait_for_statuses(app, ready("a", "b", "c"))
 
   # Core's Edit board plugin edits the stacks, in a section of its own: a
-  # stack's row opens a form that changes the stack once the user saves it,
+  # stack's row opens a form that changes the stack once the user applies it,
   # and another form adds a stack once the user submits it.
   stacks <- "section[aria-label='Stacks']"
   change <- "form[aria-label='Change stack']"
@@ -209,7 +209,7 @@ test_that("the user edits the stacks of a board", {
   act(app, "click", "Edit the stack Stack", selector = stacks)
   act(app, "fill", "Name", "abc", selector = change)
   act(app, "choose", "Blocks", "b \u00b7", labels[["b"]], selector = change)
-  act(app, "click", "Save", selector = change)
+  act(app, "click", "Apply", selector = change)
 
   wait_for_board(
     app,
@@ -220,7 +220,7 @@ test_that("the user edits the stacks of a board", {
     "the stack abc of a, c and b"
   )
 
-  # The row's form stays open once saved, until the user closes it.
+  # The row's form stays open once applied, until the user closes it.
   act(app, "click", "Close", selector = stacks)
   act(app, "click", "Remove the stack abc", selector = stacks)
   wait_for_board(app, function(board) !length(board$stacks), "no stack")

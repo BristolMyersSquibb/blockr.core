@@ -229,7 +229,7 @@ describe("Edit stack", () => {
     expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
   });
 
-  test("opens the form of the stack, which renames it, colours it and gives it other blocks once the user saves it, in one step, and closes", async () => {
+  test("opens the form of the stack, which renames it, colours it and gives it other blocks once the user applies it, in one step, and closes", async () => {
     const s = await stubbed();
     const menu = s.menu({ stack: "s1" });
     await menu.pick("Edit stack");
@@ -242,7 +242,7 @@ describe("Edit stack", () => {
     expect(labelled(form(), "Name").value).toBe("Input");
     expect(chipLabels(labelled(form(), "Blocks"))).toEqual(["Iris", "Head"]);
 
-    // It runs nothing before the user saves it.
+    // It runs nothing before the user applies it.
     await step(() => {
       type(labelled(form(), "Name"), "Sources");
     });
@@ -262,7 +262,7 @@ describe("Edit stack", () => {
     await picked(labelled(form(), "Blocks"), step, "Head", "Merge");
     expect(s.core.store.board().stacks.s1).toEqual({ name: "Input", blocks: ["a", "b"], color: null });
     await acting(() => {
-      button(form(), "Save").click();
+      button(form(), "Apply").click();
     });
     await ended;
 
@@ -287,7 +287,7 @@ describe("Edit stack", () => {
       type(labelled(form(), "Name"), "  ");
     });
     await acting(() => {
-      button(form(), "Save").click();
+      button(form(), "Apply").click();
     });
 
     expect(s.advanced()).toBeUndefined();
