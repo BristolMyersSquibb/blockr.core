@@ -888,30 +888,32 @@
   Under the board lock, all four fail their `offers`.
   Their advanced actions are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
   Each form runs nothing before the user submits it, and then hands its batch to `done()`, which runs it as one step of the user.
-  So saving a form that edits takes one step, where the plugin's forms took one for each command until now, as for renaming a stack and changing its blocks.
+  So applying a form that edits, through its Apply button, takes one step, where the plugin's forms took one for each command until now, as for renaming a stack and changing its blocks.
   A form that adds mints the new link's or stack's ID with `core.mintId()`.
   Where the store refuses the batch, the form says why below its button and keeps what the user gave.
   A row of the plugin's tables turns into the form that edits its link or its stack, with a Close button, which closes it, as Escape does, while Escape in a select whose list is open closes the list alone.
-  The form stays open in the row once the user has saved it, and shows the link or the stack as the board holds it then (#746).
+  The form stays open in the row once the user has applied it, and shows the link or the stack as the board holds it then (#746, #828).
 * Core's board action Edit inputs, `blockr.core-edit_inputs_action`, edits the inputs of a block whose class has inputs.
   It has an advanced action alone, which lists the block's inputs in their order, each with its source, as the dock's actions sidebar does.
   On a block that is not variadic, each input of its class has a select of its source and a button that removes the source.
   On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
   The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
-  Each edit applies at once, as one step of the user, through `add_link`, `change_link`, `move_link` or `remove_link`, and the advanced action says below the inputs why the store refused one (#747).
+  The advanced action runs nothing before the user applies the edits through its Apply button.
+  It then runs them as one step of the user, which one undo takes back: `remove_link`, `change_link`, `add_link`, then `move_link`, each at most once for each input.
+  Where the store refuses the batch, the advanced action says why below its button and keeps what the user gave (#747, #828).
 * The rows of the Edit board plugin's tables open the menus of their blocks, links and stacks, in place of their own buttons, which renamed and removed a block, and changed and removed a link or a stack.
   Each row ends in a "…" button, which opens the menu of its object through `core.boardActions.menu()`.
   So a row offers every board action that applies to its object, another package's among them, as every other menu of the object does.
   A row shows the button only where `core.boardActions.on()` gives its object a board action, so under the board lock a row shows none unless another package's board action applies.
   An advanced action that a row's menu opens, such as the form of Edit link, shows in the row, which turns into the form in a cell across the row.
-  The form now closes once the user saves it, as its `done()` ends the advanced action, and the keyboard's focus goes back to the row's button.
+  The form now closes once the user applies it, as its `done()` ends the advanced action, and the keyboard's focus goes back to the row's button.
   Each row starts with a checkbox, which adds its object to `core.selection` or takes it out, and which shows whether the selection holds the object, whatever set it.
   The checkbox in a table's header ticks every row of the page.
   While the selection holds a board object, a bar above the sections says how many it holds, with a "…" button that opens the menu of the selection and a button that clears the selection.
   An advanced action that the menu of the selection opens, such as the form of Create stack, shows below the bar.
   Where the store refuses a board action that one of these menus ran, the plugin says why in a banner below the table or the bar, until the user opens one of the menus there again.
   The reason starts with a sentence that names the edit: in the plugin's own words for core's board actions, as `Could not remove the stack "Input".`, and by its label for another package's, as `Add to document failed for the block "Filter".`
-  The tables draw with the `Table` of core's React SDK (#783).
+  The tables draw with the `Table` of core's React SDK (#783, #828).
 * An item of a quick action takes `checked`.
   It is true for the current pick and for a toggle that is on, and false for another pick and for a toggle that is off.
   So a quick action shows which direction a layout runs in, or whether snapping is on.

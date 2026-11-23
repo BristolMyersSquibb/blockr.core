@@ -17,7 +17,8 @@
 //   name. A name that another link into the block gives already does not do.
 //   Such a block takes its links in their order on the board, and the form
 //   that edits a link offers the link's place among the block's links too.
-// Each form runs nothing before the user submits it, and then hands done()
+// Each form runs nothing before the user submits it, through its Add link
+// button or the Apply button of the form that edits, and then hands done()
 // the batch, which runs as one step of the user:
 // - The form that adds a link, Create link's, starts from the block that its
 //   target names, as the link's source, or from no block on the board, or
@@ -188,7 +189,7 @@ function LinkForm({
   const offered = !variadic && editing !== undefined && target === editing.link.to ? classInputs(board, registry, target) : free;
   const chosen = variadic ? undefined : input !== undefined && offered.includes(input) ? input : free[0];
   // What the form says below the input where another link feeds the one
-  // picked, so that saving swaps the inputs of the two links.
+  // picked, so that applying the form swaps the inputs of the two links.
   const hint = editing !== undefined && target === editing.link.to && chosen !== undefined ? swapHint(board, registry, editing, chosen) : undefined;
   const taken = target === undefined ? [] : namesInto(board, target, except);
   // Where the form changes a link into a variadic block, the block's other
@@ -346,7 +347,7 @@ function LinkForm({
       ) : null}
       <div className="bc:flex bc:gap-2">
         <button type="submit" className={classes.primary} disabled={busy}>
-          {editing === undefined ? "Add link" : "Save"}
+          {editing === undefined ? "Add link" : "Apply"}
         </button>
       </div>
       <Refusal refusal={edits.refusal} />
@@ -376,8 +377,8 @@ function ends(
 
 // What the form that changes a link says where another link into the same
 // block feeds the input picked: which link that is, and the input that it
-// takes once the user saves. It is undefined where no other link feeds the
-// input.
+// takes once the user applies the form. It is undefined where no other link
+// feeds the input.
 function swapHint(
   board: Board,
   registry: BlockRegistry,
@@ -387,7 +388,7 @@ function swapHint(
   const other = linkFeeding(board, registry, editing.link.to, input, editing.id);
   const from = other === undefined ? undefined : own(board.links, other)?.from;
   if (from === undefined) return undefined;
-  return `The link from "${blockName(board, from)}" feeds "${input}". Saving gives that link "${editing.link.input}", so the two links swap their inputs.`;
+  return `The link from "${blockName(board, from)}" feeds "${input}". Applying gives that link "${editing.link.input}", so the two links swap their inputs.`;
 }
 
 // The links into block `to` but the link `id`, in their order on the board,

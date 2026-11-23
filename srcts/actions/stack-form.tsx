@@ -10,7 +10,8 @@
 // It draws a stack's colour with the colours of core's React SDK: a colour
 // picker, beside a checkbox that gives the stack a colour. The picker's
 // popover holds the palette's colours among its swatches.
-// Each form runs nothing before the user submits it, and then hands done()
+// Each form runs nothing before the user submits it, through its Add stack
+// button or the Apply button of the form that edits, and then hands done()
 // the batch, which runs as one step of the user:
 // - The form that adds a stack, Create stack's, starts with the blocks that
 //   its target names, the block or those of the selection, or with none on
@@ -253,7 +254,7 @@ function StackForm({
       )}
       <div className="bc:flex bc:gap-2">
         <button type="submit" className={classes.primary} disabled={busy}>
-          {editing === undefined ? "Add stack" : "Save"}
+          {editing === undefined ? "Add stack" : "Apply"}
         </button>
       </div>
       <Refusal refusal={edits.refusal} />

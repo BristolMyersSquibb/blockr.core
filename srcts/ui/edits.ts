@@ -11,12 +11,11 @@
 // - The advanced actions run their edits through useEdits(), which takes the
 //   notification of a refusal through the edit's notifier, so that core raises
 //   none. Each shows why close to the control that made the edit, until the
-//   user's next edit there. The advanced action of Edit inputs shows why below
-//   its list of inputs (../actions/inputs.tsx). The block picker, the advanced
-//   action of core's board actions that add a block, and the forms of a link
-//   and of a stack hand their edit to their done(), which runs it as one step
-//   of the user and ends the advanced action. They show why below their
-//   buttons
+//   user's next edit there. The block picker, the advanced action of core's
+//   board actions that add a block, the forms of a link and of a stack, and
+//   the inputs of a block that Edit inputs lists (../actions/inputs.tsx) hand
+//   their edit to their done(), which runs it as one step of the user and ends
+//   the advanced action. They show why below their buttons
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
 // The Edit board plugin makes no edit itself. Its forms are those advanced
 // actions, and its rows open the menus of board actions. It takes the
