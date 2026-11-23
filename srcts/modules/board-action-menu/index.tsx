@@ -456,28 +456,37 @@ function Item({
         )}
         <span className="bc:min-w-0 bc:truncate">{label}</span>
       </span>
-      {detail === undefined ? null : <span className="bc:text-xs bc:text-text-muted">{detail}</span>}
+      {/* The detail and the open icon share one span, which the SDK's item puts
+          in the column at its right, on the label's line. The open icon is
+          taller than the line. The span's negative margins keep the row as
+          tall as one without the icon. They sit on the span, not on the icon,
+          since the SDK's grid hides what overflows each of its children. */}
+      {detail === undefined && row.advanced !== true ? null : (
+        <span className="bc:-my-1 bc:flex bc:items-center bc:gap-2">
+          {detail === undefined ? null : <span className="bc:min-w-0 bc:truncate bc:text-xs bc:text-text-muted">{detail}</span>}
+          {row.advanced === true ? (
+            <span
+              aria-hidden="true"
+              data-open-row={index}
+              title={tip}
+              className={OPEN}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen();
+              }}
+            >
+              <OpenIcon />
+            </span>
+          ) : null}
+        </span>
+      )}
       {row.advanced === true ? (
-        <>
-          <span
-            aria-hidden="true"
-            data-open-row={index}
-            title={tip}
-            className={`${OPEN} bc:-my-1`}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpen();
-            }}
-          >
-            <OpenIcon />
-          </span>
-          <Text slot="description" className="bc:sr-only">
-            {tip}
-          </Text>
-        </>
+        <Text slot="description" className="bc:sr-only">
+          {tip}
+        </Text>
       ) : null}
     </MenuItem>
   );
