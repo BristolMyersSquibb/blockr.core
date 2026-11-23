@@ -12,9 +12,10 @@ import { menuModuleTests } from "./index.ts";
 // What a module breaks: it passes on no click on an item, passes the index of
 // an item as it shows it rather than as the level holds it, leaves what it drew
 // on the page as the menu closes, passes on no Escape, no click outside the
-// menu or no click on a choice, draws no open icon, or keeps the keyboard's
-// focus in an element of its own as the menu closes.
-type Break = "noPick" | "shownIndex" | "leaky" | "noEscape" | "noOutside" | "noTick" | "noOpenIcon" | "keepsFocus";
+// menu or no click on a choice, draws no open icon, draws an item that gives
+// `checked` as any other item, or keeps the keyboard's focus in an element of
+// its own as the menu closes.
+type Break = "noPick" | "shownIndex" | "leaky" | "noEscape" | "noOutside" | "noTick" | "noOpenIcon" | "noChecked" | "keepsFocus";
 
 // A module that draws each level in an element of its own at the end of the
 // page's body, as plain elements with the roles and names of the contract,
@@ -62,7 +63,12 @@ function plainMenu(broken?: Break): { api: number; default: MenuModule } {
       shown.forEach(({ row, index: held }, at) => {
         const index = broken === "shownIndex" ? at : held;
         if (row.kind === "item") {
-          const item = element("div", { role: "menuitem", tabindex: "-1" }, row.label);
+          const checks = row.checked !== undefined && broken !== "noChecked";
+          const item = element(
+            "div",
+            checks ? { role: "menuitemcheckbox", tabindex: "-1", "aria-checked": String(row.checked) } : { role: "menuitem", tabindex: "-1" },
+            row.label,
+          );
           if (broken !== "noPick") {
             item.addEventListener("click", () => {
               menu.pick(index);
@@ -176,12 +182,12 @@ describe("the tests of a module that draws the menus of board actions", () => {
   test.each<[Break, readonly string[], string]>([
     [
       "noPick",
-      ["draws the rows", "runs the batch of the item", "shows the next level", "opens the advanced action from an item's"],
+      ["draws the rows", "runs the batch of the item", "says whether each item", "shows the next level", "opens the advanced action from an item's"],
       "The menu did not close after the user clicked the row Remove block, so the module did not pass that on.",
     ],
     [
       "shownIndex",
-      ["draws the rows", "runs the batch of the item", "shows the next level", "opens the advanced action from an item's"],
+      ["draws the rows", "runs the batch of the item", "says whether each item", "shows the next level", "opens the advanced action from an item's"],
       'A click on the row Remove block runs the board action Remove block, but core ran [{"action":"blockr.test-add_block_action","batch":[{"id":"blockr.test-add"}]}].',
     ],
     [
@@ -193,6 +199,11 @@ describe("the tests of a module that draws the menus of board actions", () => {
     ["noOutside", ["ticks the choices"], "The menu did not close after the user clicked outside the menu, so the module did not pass that on."],
     ["noTick", ["ticks the choices", "applies the ticks"], "The choice b does not show that it is ticked, once the user clicked it."],
     ["noOpenIcon", ["opens the advanced action from the level's", "opens the advanced action from an item's"], 'The menu shows no button named "Show all options".'],
+    [
+      "noChecked",
+      ["says whether each item"],
+      'The menu shows no item named "Left to right" that says whether it is checked, an element of the role menuitemcheckbox, menuitemradio or option.',
+    ],
     [
       "keepsFocus",
       ALL.filter((name) => !name.startsWith("shows that a level loads") && !name.startsWith("shows the message") && !name.startsWith("draws no open icon")),

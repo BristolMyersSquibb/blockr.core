@@ -17229,6 +17229,10 @@ function tester(module, trigger, menus, lines) {
       return { menu, ran, opened };
     },
     item: (name2) => until(() => byRole(ITEM4, name2), `The menu shows no item named "${name2}", an element of the role ${roles(ITEM4)}.`),
+    checkable: (name2) => until(
+      () => byRole(CHECKABLE, name2),
+      `The menu shows no item named "${name2}" that says whether it is checked, an element of the role ${roles(CHECKABLE)}.`
+    ),
     choice: (name2) => until(() => byRole(CHOICE, name2), `The menu shows no choice of a multi named "${name2}", an element of the role ${roles(CHOICE)}.`),
     field: (name2) => until(() => fieldNamed(name2), `The menu shows no field named "${name2}".`),
     button: (name2) => until(() => byRole(["button"], name2), `The menu shows no button named "${name2}".`),
@@ -17313,6 +17317,7 @@ function tester(module, trigger, menus, lines) {
   };
 }
 var ITEM4 = ["menuitem", "menuitemradio", "option"];
+var CHECKABLE = ["menuitemcheckbox", "menuitemradio", "option"];
 var CHOICE = ["menuitemcheckbox", "checkbox", "option"];
 var ANY_ROW = '[role="menu"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="listbox"], [role="option"]';
 var LOADS = '[role="status"], [role="progressbar"], [aria-busy="true"]';
@@ -17450,6 +17455,23 @@ var TESTS = [
       await t.click(await t.item("Filter"));
       await t.closed(opened, "after the user clicked the item Filter");
       ranAs(opened, [{ action: append.id, batch: call("pick", { label: "Filter" }) }], "A click on the item Filter runs the batch of Filter");
+    }
+  },
+  {
+    name: "says whether each item that gives checked is checked, and runs the pick of such an item that the user clicks",
+    async check(t) {
+      const layout = action2("Layout", {
+        quick: () => ({
+          rows: [item("Left to right", { checked: true }), item("Top to bottom", { checked: false }), item("Fit to view")]
+        })
+      });
+      const opened = await t.open({ action: layout });
+      await t.item("Fit to view");
+      must(ticked(await t.checkable("Left to right")), "The item Left to right does not say that it is checked, which its checked is.");
+      must(!ticked(await t.checkable("Top to bottom")), "The item Top to bottom says that it is checked, which its checked is not.");
+      await t.click(await t.checkable("Left to right"));
+      await t.closed(opened, "after the user clicked the item Left to right");
+      ranAs(opened, [{ action: layout.id, batch: call("pick", { label: "Left to right" }) }], "A click on the item Left to right runs its pick");
     }
   },
   {

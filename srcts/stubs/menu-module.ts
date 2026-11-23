@@ -26,6 +26,9 @@
 // names them (../modules/board-action-menu):
 // - An item is an element of the role menuitem, menuitemradio or option, named
 //   by the item's label, or by its label followed by its detail.
+// - An item that gives `checked` is an element of the role menuitemcheckbox,
+//   menuitemradio or option, named as any item, which says in aria-checked or
+//   aria-selected whether it is checked.
 // - A choice of a multi is an element of the role menuitemcheckbox, checkbox
 //   or option, named by the choice's label, which says in aria-checked or
 //   aria-selected whether the choice is ticked.
@@ -82,9 +85,10 @@ interface Tester {
   // Opens a menu through the module, which starts at the menu of a target or
   // at a board action's quick action.
   open(start: MenuStart): Promise<Opened>;
-  // The item, the choice of a multi, the field or the button that the menu
-  // shows with the name given, once it shows.
+  // The item, the item that gives `checked`, the choice of a multi, the field
+  // or the button that the menu shows with the name given, once it shows.
   item(name: string): Promise<HTMLElement>;
+  checkable(name: string): Promise<HTMLElement>;
   choice(name: string): Promise<HTMLElement>;
   field(name: string): Promise<HTMLElement>;
   button(name: string): Promise<HTMLElement>;
@@ -193,6 +197,11 @@ function tester(module: MenuModule, trigger: HTMLElement, menus: DrivenMenu[], l
       return { menu, ran, opened };
     },
     item: (name) => until(() => byRole(ITEM, name), `The menu shows no item named "${name}", an element of the role ${roles(ITEM)}.`),
+    checkable: (name) =>
+      until(
+        () => byRole(CHECKABLE, name),
+        `The menu shows no item named "${name}" that says whether it is checked, an element of the role ${roles(CHECKABLE)}.`,
+      ),
     choice: (name) => until(() => byRole(CHOICE, name), `The menu shows no choice of a multi named "${name}", an element of the role ${roles(CHOICE)}.`),
     field: (name) => until(() => fieldNamed(name), `The menu shows no field named "${name}".`),
     button: (name) => until(() => byRole(["button"], name), `The menu shows no button named "${name}".`),
@@ -282,9 +291,10 @@ function tester(module: MenuModule, trigger: HTMLElement, menus: DrivenMenu[], l
   };
 }
 
-// The roles of an item and of a choice of a multi, and what holds any row of a
-// menu, or shows that a level loads.
+// The roles of an item, of an item that gives `checked` and of a choice of a
+// multi, and what holds any row of a menu, or shows that a level loads.
 const ITEM = ["menuitem", "menuitemradio", "option"];
+const CHECKABLE = ["menuitemcheckbox", "menuitemradio", "option"];
 const CHOICE = ["menuitemcheckbox", "checkbox", "option"];
 const ANY_ROW = '[role="menu"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="listbox"], [role="option"]';
 const LOADS = '[role="status"], [role="progressbar"], [aria-busy="true"]';
@@ -475,6 +485,25 @@ const TESTS: readonly Test[] = [
       await t.click(await t.item("Filter"));
       await t.closed(opened, "after the user clicked the item Filter");
       ranAs(opened, [{ action: append.id, batch: call("pick", { label: "Filter" }) }], "A click on the item Filter runs the batch of Filter");
+    },
+  },
+  {
+    name: "says whether each item that gives checked is checked, and runs the pick of such an item that the user clicks",
+    async check(t) {
+      const layout = action("Layout", {
+        quick: () => ({
+          rows: [item("Left to right", { checked: true }), item("Top to bottom", { checked: false }), item("Fit to view")],
+        }),
+      });
+      const opened = await t.open({ action: layout });
+      await t.item("Fit to view");
+      must(ticked(await t.checkable("Left to right")), "The item Left to right does not say that it is checked, which its checked is.");
+      must(!ticked(await t.checkable("Top to bottom")), "The item Top to bottom says that it is checked, which its checked is not.");
+      // The item that is checked, so that a click on it runs its pick, rather
+      // than only taking its check away.
+      await t.click(await t.checkable("Left to right"));
+      await t.closed(opened, "after the user clicked the item Left to right");
+      ranAs(opened, [{ action: layout.id, batch: call("pick", { label: "Left to right" }) }], "A click on the item Left to right runs its pick");
     },
   },
   {
