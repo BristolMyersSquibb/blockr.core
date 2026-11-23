@@ -12908,15 +12908,15 @@ function Item({
             ]
           }
         ),
-        detail === void 0 ? null : /* @__PURE__ */ jsx57("span", { className: "bc:text-xs bc:text-text-muted", children: detail }),
-        row.advanced === true ? /* @__PURE__ */ jsxs45(Fragment28, { children: [
-          /* @__PURE__ */ jsx57(
+        detail === void 0 && row.advanced !== true ? null : /* @__PURE__ */ jsxs45("span", { className: "bc:-my-1 bc:flex bc:items-center bc:gap-2", children: [
+          detail === void 0 ? null : /* @__PURE__ */ jsx57("span", { className: "bc:min-w-0 bc:truncate bc:text-xs bc:text-text-muted", children: detail }),
+          row.advanced === true ? /* @__PURE__ */ jsx57(
             "span",
             {
               "aria-hidden": "true",
               "data-open-row": index,
               title: tip,
-              className: `${OPEN} bc:-my-1`,
+              className: OPEN,
               onPointerDown: (event) => {
                 event.stopPropagation();
               },
@@ -12926,9 +12926,9 @@ function Item({
               },
               children: /* @__PURE__ */ jsx57(OpenIcon, {})
             }
-          ),
-          /* @__PURE__ */ jsx57(Text, { slot: "description", className: "bc:sr-only", children: tip })
-        ] }) : null
+          ) : null
+        ] }),
+        row.advanced === true ? /* @__PURE__ */ jsx57(Text, { slot: "description", className: "bc:sr-only", children: tip }) : null
       ]
     }
   );
