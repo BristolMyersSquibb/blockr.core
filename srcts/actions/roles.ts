@@ -92,6 +92,9 @@ const REMOVE_STACK = "blockr.core-remove_stack";
 // Edit stack's form renames the stack too, so that edit_stack_role runs
 // rename_stack before change_stack, each at most once, where the table names
 // change_stack alone.
+// On a block or a selection, add_stack_role has the new stack take exactly
+// the blocks that the target holds, so that Create stack's form names them in
+// place of a select (./stack-form.tsx).
 export const CORE_ROLES: readonly Role[] = [
   {
     id: "add_block_role",
@@ -217,12 +220,15 @@ function fromSource(board: Board, target: Target, args: Json): boolean {
   return link !== undefined && getAt(args, ["from"]) === link.from;
 }
 
-// The fixes of add_stack: the new stack takes every block that the target
-// holds, among others where the user adds them.
+// The fixes of add_stack: on a block or a selection, the new stack takes
+// exactly the blocks that the target holds. On the board, which holds none,
+// the target fixes no blocks.
 function takesBlocks(board: Board, target: Target, args: Json): boolean {
+  if ("board" in target) return true;
   const blocks = getAt(args, ["blocks"]);
   const taken: readonly unknown[] = Array.isArray(blocks) ? blocks : [];
-  return heldBlocks(board, target).every((block) => taken.includes(block));
+  const held = heldBlocks(board, target);
+  return taken.length === held.length && held.every((block) => taken.includes(block));
 }
 
 // The fixes of Edit inputs' commands: the link that the call names goes into

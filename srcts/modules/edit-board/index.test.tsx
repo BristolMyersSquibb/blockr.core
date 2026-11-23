@@ -1038,7 +1038,7 @@ describe("the selection", () => {
     const menu = await openMenu(m, "Actions of the selection");
     await pick(menu, "Create stack");
     await openAdvanced(menu);
-    expect(chipLabels(labelled(form(bar(el) ?? el, "Add stack"), "Blocks"))).toEqual(["Merge", "Scatter"]);
+    expect(form(bar(el) ?? el, "Add stack").querySelector("p")?.textContent).toBe('A stack of the blocks "Merge" and "Scatter".');
     expect(section(el, "Stacks").querySelectorAll('form[aria-label="Add stack"]')).toHaveLength(1);
     // Its Close button closes it, and so the form shows until the user closes
     // it or its done() ends it.

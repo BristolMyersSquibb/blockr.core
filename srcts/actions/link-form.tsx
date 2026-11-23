@@ -26,9 +26,11 @@
 //   link with add_link.
 //   On a block, the link starts or ends at that block, since Create link
 //   plays add_link_role, whose target fixes one end of the link there
-//   (./roles.ts). So the user may change either end, while the form refuses a
-//   link that neither starts nor ends at the block, and says why below the end
-//   that started there.
+//   (./roles.ts). So the form names the block in a line above its fields, as
+//   "A link from "Scatter".", in place of the select of that end, and offers a
+//   select of the other end alone. The block is the link's target where the
+//   open icon of a "Take from" row handed it as the target, as "A link into
+//   "Merge".", and its source otherwise.
 // - The form that edits a link, Edit link's, changes it with change_link, and
 //   moves it with move_link to the place that the user picks among the links
 //   into a variadic block, which keeps its ID and its ends.
@@ -78,12 +80,16 @@ interface Start {
 }
 
 // Create link's advanced action, which keeps the block that its target names
-// at one end of the link.
+// at one end of the link: its target where the open icon handed the block as
+// the target, and else its source.
 export const createLinkForm: AdvancedModule = {
   render({ el, core, target, picked, done }) {
-    const fixed = "block" in target ? target.block : undefined;
-    const start = picked === undefined ? (fixed === undefined ? {} : { from: fixed }) : startOf(picked);
-    return drawForm(el, <AddLink core={core} start={start} {...(fixed === undefined ? {} : { fixed })} done={done} />);
+    const given = picked === undefined ? {} : startOf(picked);
+    if (!("block" in target)) return drawForm(el, <AddLink core={core} start={given} done={done} />);
+    const { block } = target;
+    const fixed = given.to === block ? "to" : "from";
+    const start = fixed === "to" ? { ...given, to: block } : { ...given, from: block };
+    return drawForm(el, <AddLink core={core} start={start} fixed={fixed} done={done} />);
   },
 };
 
@@ -108,9 +114,19 @@ function startOf(picked: Json): Start {
   };
 }
 
-function AddLink({ core, start, fixed, done }: { core: CoreApi; start: Start; fixed?: BlockId; done: Done }): ReactElement {
+function AddLink({ core, start, fixed, done }: { core: CoreApi; start: Start; fixed?: End; done: Done }): ReactElement {
   const board = useBoard(core);
   return <LinkForm core={core} board={board} start={start} {...(fixed === undefined ? {} : { fixed })} done={done} />;
+}
+
+// An end of a link, which the target of Create link may fix.
+type End = "from" | "to";
+
+// The line that names the block at the end of the link that the target
+// fixes.
+function fixedEnd(board: Board, end: End, block: BlockId | undefined): string {
+  const name = block === undefined ? "" : blockName(board, block);
+  return end === "from" ? `A link from "${name}".` : `A link into "${name}".`;
 }
 
 // The form that edits the link, which draws nothing once the board no longer
@@ -126,8 +142,8 @@ type Errors = Partial<Record<"from" | "to" | "input", string>>;
 // The form that adds a link, or that changes the link given, which offers
 // only links that the store takes (above). Where it changes a link into a
 // variadic block, it offers the link's place among the block's links as
-// well. Where it adds a link with a block `fixed`, the link starts or ends at
-// that block.
+// well. Where it adds a link with an end `fixed`, it names the block of that
+// end in a line in place of the end's select.
 function LinkForm({
   core,
   board,
@@ -139,7 +155,7 @@ function LinkForm({
   core: CoreApi;
   board: Board;
   start?: Start;
-  fixed?: BlockId;
+  fixed?: End;
   editing?: { readonly id: LinkId; readonly link: Link };
   done: Done;
 }): ReactElement {
@@ -186,17 +202,7 @@ function LinkForm({
       ...(source === undefined ? { from: "Pick the block that the link comes from." } : {}),
       ...(target === undefined ? { to: "Pick the block that the link goes to." } : {}),
       ...(variadic ? optional("input", inputNameError(name, taken)) : {}),
-      ...unfixed(),
     };
-  }
-
-  // Why the link neither starts nor ends at the block `fixed`, below the end
-  // that started there, or nothing where it does, or where the form adds a
-  // link with no block fixed.
-  function unfixed(): Errors {
-    if (fixed === undefined || source === undefined || target === undefined || source === fixed || target === fixed) return {};
-    const end = start.to === fixed ? "to" : "from";
-    return { [end]: `The link starts or ends at "${blockName(board, fixed)}", since the form was opened on that block.` };
   }
 
   // The batch that the form runs: add_link with an ID that CoreApi mints, or
@@ -249,38 +255,43 @@ function LinkForm({
         void submit(event);
       }}
     >
-      <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
-        <ComboBox
-          label="From"
-          {...fromSearch}
-          value={source ?? null}
-          placeholder="Search blocks"
-          isInvalid={errors.from !== undefined}
-          errorMessage={errors.from}
-          onChange={(key) => {
-            setFrom(key === null ? undefined : String(key));
-            setErrors((now) => without(now, "from"));
-          }}
-        >
-          {blockRow}
-        </ComboBox>
-        <ComboBox
-          label="To"
-          {...toSearch}
-          value={target ?? null}
-          placeholder="Search blocks"
-          isInvalid={errors.to !== undefined}
-          errorMessage={errors.to}
-          description={toOptions.length === 0 ? "No block takes a link from this block." : undefined}
-          onChange={(key) => {
-            setTo(key === null ? undefined : String(key));
-            setInput(undefined);
-            setPlace(undefined);
-            setErrors((now) => without(without(now, "to"), "input"));
-          }}
-        >
-          {blockRow}
-        </ComboBox>
+      {fixed === undefined ? null : <p className={styles.hint}>{fixedEnd(board, fixed, fixed === "from" ? from : to)}</p>}
+      <div className={fixed === undefined ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid"}>
+        {fixed === "from" ? null : (
+          <ComboBox
+            label="From"
+            {...fromSearch}
+            value={source ?? null}
+            placeholder="Search blocks"
+            isInvalid={errors.from !== undefined}
+            errorMessage={errors.from}
+            onChange={(key) => {
+              setFrom(key === null ? undefined : String(key));
+              setErrors((now) => without(now, "from"));
+            }}
+          >
+            {blockRow}
+          </ComboBox>
+        )}
+        {fixed === "to" ? null : (
+          <ComboBox
+            label="To"
+            {...toSearch}
+            value={target ?? null}
+            placeholder="Search blocks"
+            isInvalid={errors.to !== undefined}
+            errorMessage={errors.to}
+            description={toOptions.length === 0 ? "No block takes a link from this block." : undefined}
+            onChange={(key) => {
+              setTo(key === null ? undefined : String(key));
+              setInput(undefined);
+              setPlace(undefined);
+              setErrors((now) => without(without(now, "to"), "input"));
+            }}
+          >
+            {blockRow}
+          </ComboBox>
+        )}
       </div>
       {target === undefined ? null : variadic ? (
         <div className={among === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>

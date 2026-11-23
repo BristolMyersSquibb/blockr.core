@@ -567,11 +567,18 @@ describe("the check of a batch against one of core's roles", () => {
       undefined,
     ],
     [
+      "adds a stack of exactly the selection's blocks",
+      "add_stack_role",
+      { selection: [{ block: "c" }, { link: "ab" }, { block: "f" }] },
+      [call("add_stack", { blocks: ["f", "c"] })],
+      undefined,
+    ],
+    [
       "adds a stack of the selection's blocks and another",
       "add_stack_role",
       { selection: [{ block: "c" }, { link: "ab" }, { block: "f" }] },
       [call("add_stack", { blocks: ["c", "f", "d"] })],
-      undefined,
+      'the args of its call 1, of "blockr.core-add_stack", do not keep what the target fixes',
     ],
     [
       "adds a stack without a block of the selection",
@@ -580,6 +587,7 @@ describe("the check of a batch against one of core's roles", () => {
       [call("add_stack", { blocks: ["c"] })],
       'the args of its call 1, of "blockr.core-add_stack", do not keep what the target fixes',
     ],
+    ["adds a stack of any blocks on the board", "add_stack_role", { board: true }, [call("add_stack", { blocks: ["c", "d"] })], undefined],
     [
       "puts a block on a link, from the block that the link comes from",
       "insert_block_role",

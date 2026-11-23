@@ -940,7 +940,8 @@
   Core refuses a batch that breaks the role before anything runs, as a fault of the board action's package, with `board_action_failed`, which names the role and the call.
   The commands of a caller's `extend` come after the batch and fall outside the check.
   So Create stack's quick action holds New stack alone, and lists no stack that the board holds.
-  The form of Create link refuses a link that neither starts nor ends at the block that it was opened on, and the form of Create stack refuses a stack that leaves out a block that it was opened on (#825).
+  Opened on a block, the form of Create link names that block in a line, as `A link from "Scatter".`, in place of the select of the end that the block fixes, and offers a select of the other end alone.
+  Opened on a block or a selection, the form of Create stack names their blocks in a line in place of the select of blocks, since the new stack takes exactly those blocks (#825).
 
 # blockr.core 0.1.4
 

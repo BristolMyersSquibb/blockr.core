@@ -18,10 +18,11 @@
 //   "Stack 2" and the first colour of a palette that no stack uses, which the
 //   user may change or, for the colour, leave out. It mints the stack's ID
 //   through CoreApi's mintId() and adds the stack with add_stack.
-//   The new stack takes the blocks that the target names, since Create stack
-//   plays add_stack_role, whose target fixes them (./roles.ts). So the user may
-//   add blocks to them, while the form refuses a stack that leaves one out,
-//   and says why below the blocks.
+//   On a block or a selection, the new stack takes exactly the blocks that
+//   the target names, since Create stack plays add_stack_role, whose target
+//   fixes them (./roles.ts). So the form names those blocks in a line above
+//   its fields, as "A stack of the blocks "Merge" and "Scatter".", in place of
+//   the select of its blocks, which it shows on the board alone.
 // - The form that edits a stack, Edit stack's, renames it with rename_stack
 //   and sets its colour and its blocks with change_stack, each where it
 //   changed. A name that the user leaves empty keeps the stack's name.
@@ -30,7 +31,6 @@
 
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
-import { flushSync } from "react-dom";
 import {
   Checkbox,
   ColorArea,
@@ -50,7 +50,6 @@ import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { focusFirstInvalid } from "../picker/index.ts";
 import { blockItem, blockName, blockRow, blockTexts, classes, drawForm, Refusal, useEdits, useSearch } from "../ui/index.ts";
 import type { BlockItem, Done } from "../ui/index.ts";
 import { own, quoted } from "../util/index.ts";
@@ -149,8 +148,9 @@ function StackForm({
   const [name, setName] = useState(editing?.stack.name ?? "");
   const [color, setColor] = useState<Picked | null>(() => (editing === undefined ? suggestedColor(stacks) : editing.stack.color));
   const [blocks, setBlocks] = useState<readonly BlockId[]>(editing?.stack.blocks ?? given);
-  // Why the form refuses the blocks picked, once the user has submitted them.
-  const [lacking, setLacking] = useState<string | undefined>(undefined);
+  // Whether the target fixes the new stack's blocks, as on a block or a
+  // selection, so that the form names them in place of their select.
+  const fixed = editing === undefined && given.length > 0;
   const [busy, setBusy] = useState(false);
   const edits = useEdits(core);
   const fallbackName = editing === undefined ? suggestedName(stacks) : editing.stack.name;
@@ -197,29 +197,9 @@ function StackForm({
     ];
   }
 
-  // Why the new stack leaves out blocks that the form was given, which the
-  // board still holds, or undefined where it takes them all.
-  function leftOut(): string | undefined {
-    const left = given.filter((block) => Object.hasOwn(board.blocks, block) && !kept.includes(block));
-    if (left.length === 0) return undefined;
-    const names = quoted(left.map((block) => blockName(board, block)));
-    return left.length === 1
-      ? `The new stack takes the block ${names}, which the form was opened on.`
-      : `The new stack takes the blocks ${names}, which the form was opened on.`;
-  }
-
   async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy) return;
-    const form = event.currentTarget;
-    const why = editing === undefined ? leftOut() : undefined;
-    if (why !== undefined) {
-      flushSync(() => {
-        setLacking(why);
-      });
-      focusFirstInvalid(form);
-      return;
-    }
     // The sentence that names the edit, which names the stack as its row does
     // where the form changes one.
     const title = editing === undefined ? "Could not add the stack." : `Could not change the stack "${editing.stack.name}".`;
@@ -239,6 +219,7 @@ function StackForm({
         void submit(event);
       }}
     >
+      {fixed ? <p className={styles.hint}>{stackOf(board, kept)}</p> : null}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
           label="Name"
@@ -250,27 +231,26 @@ function StackForm({
         />
         <StackColor color={color} onChange={setColor} />
       </div>
-      <ComboBox
-        selectionMode="multiple"
-        label="Blocks"
-        {...search}
-        items={sections}
-        value={kept}
-        placeholder="No blocks"
-        description="A block sits in one stack at most."
-        isInvalid={lacking !== undefined}
-        errorMessage={lacking}
-        onChange={(keys) => {
-          setBlocks(keys.map(String));
-          setLacking(undefined);
-        }}
-      >
-        {(section) => (
-          <ComboBoxSection id={section.id} title={section.title} items={section.items}>
-            {blockRow}
-          </ComboBoxSection>
-        )}
-      </ComboBox>
+      {fixed ? null : (
+        <ComboBox
+          selectionMode="multiple"
+          label="Blocks"
+          {...search}
+          items={sections}
+          value={kept}
+          placeholder="No blocks"
+          description="A block sits in one stack at most."
+          onChange={(keys) => {
+            setBlocks(keys.map(String));
+          }}
+        >
+          {(section) => (
+            <ComboBoxSection id={section.id} title={section.title} items={section.items}>
+              {blockRow}
+            </ComboBoxSection>
+          )}
+        </ComboBox>
+      )}
       <div className="bc:flex bc:gap-2">
         <button type="submit" className={classes.primary} disabled={busy}>
           {editing === undefined ? "Add stack" : "Save"}
@@ -326,6 +306,13 @@ function StackColor({ color, onChange }: { color: Picked | null; onChange: (colo
       </div>
     </fieldset>
   );
+}
+
+// The line that names the blocks of the new stack, where the target fixes
+// them.
+function stackOf(board: Board, blocks: readonly BlockId[]): string {
+  const names = quoted(blocks.map((block) => blockName(board, block)));
+  return blocks.length === 1 ? `A stack of the block ${names}.` : `A stack of the blocks ${names}.`;
 }
 
 function sameBlocks(a: readonly BlockId[], b: readonly BlockId[]): boolean {

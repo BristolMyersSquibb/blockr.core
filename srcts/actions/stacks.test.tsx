@@ -11,7 +11,7 @@ import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import { stubCore } from "../stubs/index.ts";
 import type { StubCore, StubMenu } from "../stubs/index.ts";
-import { fieldError, find, press, type } from "../testing/inputs.ts";
+import { find, press, type } from "../testing/inputs.ts";
 import { openDialog } from "../testing/overlays.ts";
 import { step } from "../testing/react.ts";
 import { chipLabels, labelled, picked } from "../testing/select.ts";
@@ -126,7 +126,7 @@ describe("Create stack", () => {
     expect(added(s)).toMatchObject([{ name: "Stack 1", blocks: [], color: "#66c2a5" }]);
   });
 
-  test("opens the form of a stack with the blocks given, which adds the stack once the user submits it and closes", async () => {
+  test("opens the form of a stack with the blocks given, which it names in place of the select of blocks, since its role fixes them, and which adds the stack once the user submits it and closes", async () => {
     const s = await stubbed();
     const menu = s.menu({ selection: [{ block: "c" }, { block: "f" }] });
     await menu.pick("Create stack");
@@ -134,7 +134,8 @@ describe("Create stack", () => {
     expect(s.advanced()).toMatchObject({ id: CREATE_STACK, title: "Create stack", target: { selection: [{ block: "c" }, { block: "f" }] } });
     const form = dialogForm(s, "Add stack");
     expect(labelled(form, "Name").placeholder).toBe("Stack 1");
-    expect(chipLabels(labelled(form, "Blocks"))).toEqual(["Merge", "Scatter"]);
+    expect(form.querySelector("p")?.textContent).toBe('A stack of the blocks "Merge" and "Scatter".');
+    expect(() => labelled(form, "Blocks")).toThrow("Found no text field labelled Blocks.");
 
     // It runs nothing before the user submits it.
     await step(() => {
@@ -149,28 +150,21 @@ describe("Create stack", () => {
     expect(added(s)).toMatchObject([{ name: "Outputs", blocks: ["c", "f"], color: "#66c2a5" }]);
   });
 
-  test("refuses a stack that leaves out a block that its form was opened on, since its role fixes those blocks, and says so below the blocks, while it takes others beside them", async () => {
+  test("names a block that it was opened on in the same way, and opened on the board, offers the select of blocks", async () => {
     const s = await stubbed();
-    const menu = s.menu({ selection: [{ block: "c" }, { block: "f" }] });
+    const menu = s.menu({ block: "c" });
     await menu.pick("Create stack");
     await opened(menu);
-    const form = dialogForm(s, "Add stack");
+    expect(dialogForm(s, "Add stack").querySelector("p")?.textContent).toBe('A stack of the block "Merge".');
+    s.advanced()?.close();
 
-    await picked(labelled(form, "Blocks"), step, "Scatter");
-    expect(chipLabels(labelled(form, "Blocks"))).toEqual(["Merge"]);
-    await acting(() => {
-      button(form, "Add stack").click();
-    });
-    expect(fieldError(form)).toBe('The new stack takes the block "Scatter", which the form was opened on.');
-    expect(added(s)).toEqual([]);
-
-    await picked(labelled(form, "Blocks"), step, "Scatter", "Bind");
-    expect(fieldError(form)).toBeNull();
-    await acting(() => {
-      button(form, "Add stack").click();
-    });
-    expect(s.advanced()).toBeUndefined();
-    expect(added(s)).toMatchObject([{ blocks: ["c", "f", "e"] }]);
+    const room = document.createElement("div");
+    const unmount = s.core.boardActions.mountAdvanced(room, CREATE_STACK, { board: true });
+    await step(() => undefined);
+    const form = find(room, 'form[aria-label="Add stack"]', HTMLFormElement);
+    expect(form.querySelector("p")).toBeNull();
+    expect(chipLabels(labelled(form, "Blocks"))).toEqual([]);
+    act(unmount);
   });
 });
 

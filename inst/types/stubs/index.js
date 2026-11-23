@@ -11501,9 +11501,12 @@ var CHANGE_LINK = "blockr.core-change_link";
 var MOVE_LINK = "blockr.core-move_link";
 var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
-    const fixed2 = "block" in target2 ? target2.block : void 0;
-    const start3 = picked === void 0 ? fixed2 === void 0 ? {} : { from: fixed2 } : startOf(picked);
-    return drawForm(el, /* @__PURE__ */ jsx54(AddLink, { core, start: start3, ...fixed2 === void 0 ? {} : { fixed: fixed2 }, done }));
+    const given = picked === void 0 ? {} : startOf(picked);
+    if (!("block" in target2)) return drawForm(el, /* @__PURE__ */ jsx54(AddLink, { core, start: given, done }));
+    const { block } = target2;
+    const fixed2 = given.to === block ? "to" : "from";
+    const start3 = fixed2 === "to" ? { ...given, to: block } : { ...given, from: block };
+    return drawForm(el, /* @__PURE__ */ jsx54(AddLink, { core, start: start3, fixed: fixed2, done }));
   }
 };
 var editLinkForm = {
@@ -11524,6 +11527,10 @@ function startOf(picked) {
 function AddLink({ core, start: start3, fixed: fixed2, done }) {
   const board = useBoard(core);
   return /* @__PURE__ */ jsx54(LinkForm, { core, board, start: start3, ...fixed2 === void 0 ? {} : { fixed: fixed2 }, done });
+}
+function fixedEnd(board, end, block) {
+  const name2 = block === void 0 ? "" : blockName(board, block);
+  return end === "from" ? `A link from "${name2}".` : `A link into "${name2}".`;
 }
 function EditLink({ core, id: id2, done }) {
   const board = useBoard(core);
@@ -11567,14 +11574,8 @@ function LinkForm({
     return {
       ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
       ...target2 === void 0 ? { to: "Pick the block that the link goes to." } : {},
-      ...variadic2 ? optional3("input", inputNameError(name2, taken)) : {},
-      ...unfixed()
+      ...variadic2 ? optional3("input", inputNameError(name2, taken)) : {}
     };
-  }
-  function unfixed() {
-    if (fixed2 === void 0 || source === void 0 || target2 === void 0 || source === fixed2 || target2 === fixed2) return {};
-    const end = start3.to === fixed2 ? "to" : "from";
-    return { [end]: `The link starts or ends at "${blockName(board, fixed2)}", since the form was opened on that block.` };
   }
   function batch2(source2, target3) {
     const linkInput = variadic2 ? name2.trim() : chosen;
@@ -11614,8 +11615,9 @@ function LinkForm({
         void submit(event);
       },
       children: [
-        /* @__PURE__ */ jsxs42("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx54(
+        fixed2 === void 0 ? null : /* @__PURE__ */ jsx54("p", { className: styles.hint, children: fixedEnd(board, fixed2, fixed2 === "from" ? from : to) }),
+        /* @__PURE__ */ jsxs42("div", { className: fixed2 === void 0 ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid", children: [
+          fixed2 === "from" ? null : /* @__PURE__ */ jsx54(
             ComboBox2,
             {
               label: "From",
@@ -11631,7 +11633,7 @@ function LinkForm({
               children: blockRow
             }
           ),
-          /* @__PURE__ */ jsx54(
+          fixed2 === "to" ? null : /* @__PURE__ */ jsx54(
             ComboBox2,
             {
               label: "To",
@@ -11892,7 +11894,6 @@ function heldLink(board, target2) {
 
 // srcts/actions/stack-form.tsx
 import { useState as useState20 } from "react";
-import { flushSync as flushSync5 } from "react-dom";
 import { jsx as jsx55, jsxs as jsxs43 } from "react/jsx-runtime";
 var ADD_STACK = "blockr.core-add_stack";
 var CHANGE_STACK = "blockr.core-change_stack";
@@ -11946,7 +11947,7 @@ function StackForm({
   const [name2, setName] = useState20(editing?.stack.name ?? "");
   const [color2, setColor] = useState20(() => editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
   const [blocks, setBlocks] = useState20(editing?.stack.blocks ?? given);
-  const [lacking2, setLacking] = useState20(void 0);
+  const fixed2 = editing === void 0 && given.length > 0;
   const [busy, setBusy] = useState20(false);
   const edits = useEdits(core);
   const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
@@ -11983,24 +11984,9 @@ function StackForm({
       ...Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id: id2, ...changed } }]
     ];
   }
-  function leftOut() {
-    const left2 = given.filter((block) => Object.hasOwn(board.blocks, block) && !kept.includes(block));
-    if (left2.length === 0) return void 0;
-    const names2 = quoted(left2.map((block) => blockName(board, block)));
-    return left2.length === 1 ? `The new stack takes the block ${names2}, which the form was opened on.` : `The new stack takes the blocks ${names2}, which the form was opened on.`;
-  }
   async function submit(event) {
     event.preventDefault();
     if (busy) return;
-    const form = event.currentTarget;
-    const why = editing === void 0 ? leftOut() : void 0;
-    if (why !== void 0) {
-      flushSync5(() => {
-        setLacking(why);
-      });
-      focusFirstInvalid(form);
-      return;
-    }
     const title = editing === void 0 ? "Could not add the stack." : `Could not change the stack "${editing.stack.name}".`;
     const calls = batch2();
     setBusy(true);
@@ -12016,6 +12002,7 @@ function StackForm({
         void submit(event);
       },
       children: [
+        fixed2 ? /* @__PURE__ */ jsx55("p", { className: styles.hint, children: stackOf(board, kept) }) : null,
         /* @__PURE__ */ jsxs43("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx55(
             TextField2,
@@ -12030,7 +12017,7 @@ function StackForm({
           ),
           /* @__PURE__ */ jsx55(StackColor, { color: color2, onChange: setColor })
         ] }),
-        /* @__PURE__ */ jsx55(
+        fixed2 ? null : /* @__PURE__ */ jsx55(
           ComboBox2,
           {
             selectionMode: "multiple",
@@ -12040,11 +12027,8 @@ function StackForm({
             value: kept,
             placeholder: "No blocks",
             description: "A block sits in one stack at most.",
-            isInvalid: lacking2 !== void 0,
-            errorMessage: lacking2,
             onChange: (keys) => {
               setBlocks(keys.map(String));
-              setLacking(void 0);
             },
             children: (section) => /* @__PURE__ */ jsx55(ComboBoxSection, { id: section.id, title: section.title, items: section.items, children: blockRow })
           }
@@ -12091,6 +12075,10 @@ function StackColor({ color: color2, onChange }) {
       )
     ] })
   ] });
+}
+function stackOf(board, blocks) {
+  const names2 = quoted(blocks.map((block) => blockName(board, block)));
+  return blocks.length === 1 ? `A stack of the block ${names2}.` : `A stack of the blocks ${names2}.`;
 }
 function sameBlocks(a, b) {
   return a.length === b.length && a.every((block, i) => block === b[i]);
@@ -12459,9 +12447,11 @@ function fromSource(board, target2, args) {
   return link !== void 0 && getAt(args, ["from"]) === link.from;
 }
 function takesBlocks(board, target2, args) {
+  if ("board" in target2) return true;
   const blocks = getAt(args, ["blocks"]);
   const taken = Array.isArray(blocks) ? blocks : [];
-  return heldBlocks(board, target2).every((block) => taken.includes(block));
+  const held5 = heldBlocks(board, target2);
+  return taken.length === held5.length && held5.every((block) => taken.includes(block));
 }
 function intoBlock(board, target2, args) {
   if (!("block" in target2)) return false;
@@ -13007,7 +12997,7 @@ function kindOf(target2) {
 }
 
 // srcts/actions/dialog.tsx
-import { flushSync as flushSync6 } from "react-dom";
+import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 import { jsx as jsx56, jsxs as jsxs44 } from "react/jsx-runtime";
 var showDialog = (args, at) => {
@@ -13027,7 +13017,7 @@ var showDialog = (args, at) => {
     const active = doc.activeElement;
     if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
   }
-  flushSync6(() => {
+  flushSync5(() => {
     root.render(/* @__PURE__ */ jsx56(CoreDialog, { args, onClose: hide }));
   });
   return () => {
@@ -13058,7 +13048,7 @@ var WIDTH = "bc:min-w-[min(420px,100%)]";
 
 // srcts/actions/menu.tsx
 import { useEffect as useEffect2, useRef as useRef13, useSyncExternalStore as useSyncExternalStore3 } from "react";
-import { flushSync as flushSync7 } from "react-dom";
+import { flushSync as flushSync6 } from "react-dom";
 import { createRoot as createRoot4 } from "react-dom/client";
 import { Fragment as Fragment28, jsx as jsx57, jsxs as jsxs45 } from "react/jsx-runtime";
 var showMenu = (menu, at) => {
@@ -13074,7 +13064,7 @@ var showMenu = (menu, at) => {
     void menu.close().catch(() => void 0);
   };
   doc.defaultView?.addEventListener("keydown", tab, true);
-  flushSync7(() => {
+  flushSync6(() => {
     root.render(/* @__PURE__ */ jsx57(CoreMenu, { menu, at, insideRef }));
   });
   return () => {
@@ -15111,7 +15101,7 @@ function noOtel() {
 }
 
 // srcts/modules/basic/index.tsx
-import { flushSync as flushSync8 } from "react-dom";
+import { flushSync as flushSync7 } from "react-dom";
 import { createRoot as createRoot5 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
@@ -15924,7 +15914,7 @@ function render({ el, core }) {
   const toasts = createToasts(core.notifications, (plugin) => hasSection(core, plugin));
   const front = { core, toasts, inView: shown2, sections: createSections(), groups: createSections() };
   const root = createRoot5(el);
-  flushSync8(() => {
+  flushSync7(() => {
     root.render(/* @__PURE__ */ jsx64(BasicBoard, { front }));
   });
   shown2.measure();
@@ -15942,7 +15932,7 @@ function show({ object: object2, el }) {
   const front = drawn2.get(el);
   const target2 = front?.inView.element(object2);
   if (front === void 0 || target2 === void 0) return;
-  flushSync8(() => {
+  flushSync7(() => {
     if ("plugin" in object2) {
       front.sections.collapse(object2.plugin, false);
       return;
@@ -15955,7 +15945,7 @@ function show({ object: object2, el }) {
 }
 
 // srcts/modules/edit-board/index.tsx
-import { flushSync as flushSync9 } from "react-dom";
+import { flushSync as flushSync8 } from "react-dom";
 import { createRoot as createRoot6 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
@@ -16494,7 +16484,7 @@ var edit_board_default = {
   ui: {
     render({ el, core }) {
       const root = createRoot6(el);
-      flushSync9(() => {
+      flushSync8(() => {
         root.render(/* @__PURE__ */ jsx70(EditBoard, { core }));
       });
       return () => {
