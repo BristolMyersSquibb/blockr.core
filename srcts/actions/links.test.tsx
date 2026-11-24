@@ -421,6 +421,28 @@ describe("Edit link", () => {
     expect(s.core.store.canUndo()).toBe(false);
   });
 
+  test("into a variadic block, moves the link to the last place, after the block's other links, in one step", async () => {
+    const s = await stubbed();
+    const menu = s.menu({ link: "be" });
+    await menu.pick("Edit link");
+    await step(() => {
+      void menu.openAdvanced();
+    });
+    const form = (): HTMLFormElement => dialogForm(s, "Change link");
+    expect(selectShows(selectButton(form(), "Position"))).toBe("1");
+
+    await picked(selectButton(form(), "Position"), step, "2");
+    await acting(() => {
+      button(form(), "Apply").click();
+    });
+
+    const into = (): string[] => Object.keys(s.core.store.board().links).filter((id) => s.core.store.board().links[id]?.to === "e");
+    expect(into()).toEqual(["de", "be"]);
+    s.core.store.undo();
+    expect(into()).toEqual(["be", "de"]);
+    expect(s.core.store.canUndo()).toBe(false);
+  });
+
   test("says below its button why the store refused the edit, naming the link, and keeps what the user gave", async () => {
     const s = await stubbed();
     const menu = s.menu({ link: "ac" });

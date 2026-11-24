@@ -3519,7 +3519,7 @@ function blockHost(deps) {
       const set = Object.fromEntries(Object.entries(change).filter(([, value2]) => value2 !== void 0));
       const unset = Object.entries(change).flatMap(([arg, value2]) => value2 === void 0 ? [arg] : []);
       try {
-        await commands.run("blockr.core-set_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
+        await commands.run("blockr.core-change_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
       } catch (error) {
         deps.refused(error, { block }, notifier);
         throw error;
@@ -6590,49 +6590,37 @@ function coreCommands(store) {
       run: (_board, { id: id2 }) => ({ blocks: { rm: [id2] } })
     }),
     command({
-      id: "blockr.core-rename_block",
-      label: "Rename block",
-      description: "Gives a block a new name.",
-      args: object({ id: blockId, name: name2 }, ["id", "name"]),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
-      run: (_board, { id: id2, name: name3 }) => ({ blocks: { mod: { [id2]: { name: name3 } } } })
-    }),
-    command({
-      id: "blockr.core-set_block_lock",
-      label: "Set block lock",
-      description: "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",
-      args: object({ id: blockId, locked }, ["id", "locked"]),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
-      run: (_board, { id: id2, locked: locked2 }) => ({ blocks: { mod: { [id2]: { locked: locked2 } } } })
-    }),
-    command({
-      id: "blockr.core-set_block",
-      label: "Set block state",
-      description: "Sets values of a block's state args, which the schema of its class types, and unsets the state args named, as a block's UI submits an edit.",
+      id: "blockr.core-change_block",
+      label: "Change block",
+      description: "Changes a block's name, its lock or its state. It sets the state args given, which the schema of the block's class types, and unsets those named, as a block's UI submits an edit. The block keeps what the args leave out.",
       args: object(
         {
           id: blockId,
+          name: { ...name2, description: "The block's name, which it keeps where this is left out." },
+          locked: {
+            ...locked,
+            description: "The block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock. The block keeps its lock where this is left out."
+          },
           state: { ...state, description: "Values of the block's state args to set." },
           unset: { ...stateArgs, description: "Names of the block's state args to unset." }
         },
         ["id"]
       ),
       preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
-      run(board2, { id: id2, state: state2, unset }) {
+      // The args but the id are the block's change, as the schema admits no
+      // other args.
+      run(board2, { id: id2, ...change }) {
         const block = own(board2.blocks, id2);
         if (block === void 0) return [];
-        const entry = registryEntry(this.id, block.registry_id);
-        const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
-        if (failures.length > 0) {
-          throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
-        }
-        return {
-          blocks: {
-            mod: {
-              [id2]: { ...state2 === void 0 ? {} : { state: state2 }, ...unset === void 0 ? {} : { unset } }
-            }
+        const { state: state2, unset } = change;
+        if (state2 !== void 0 || unset !== void 0) {
+          const entry = registryEntry(this.id, block.registry_id);
+          const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
+          if (failures.length > 0) {
+            throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
           }
-        };
+        }
+        return { blocks: { mod: { [id2]: change } } };
       }
     })
   ];
@@ -6666,7 +6654,7 @@ function coreCommands(store) {
     command({
       id: "blockr.core-change_link",
       label: "Change link",
-      description: "Changes the block a link comes from, the block it goes to or the input it feeds, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y.",
+      description: "Changes the block a link comes from, the block it goes to, the input it feeds or its place among the links into its block, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from.",
       args: object(
         {
           id: linkId,
@@ -6675,6 +6663,11 @@ function coreCommands(store) {
           input: {
             ...input,
             description: "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic. Where the link keeps its block, an input that another link feeds swaps the inputs of the two links."
+          },
+          before: {
+            ...linkId,
+            type: ["string", "null"],
+            description: "The link that the link goes before, among the links into the block that it goes to, or null to put it last among them. The link keeps its place where this is left out. A block that is not variadic takes each input by its name, so the command refuses this for a link into one."
           }
         },
         ["id"]
@@ -6695,47 +6688,28 @@ function coreCommands(store) {
         const input2 = args.input === void 0 && to === link.to ? link.input : linkInput(this.id, board2, to, args.input, args.id);
         const changed = { [args.id]: { from: args.from ?? link.from, to, input: input2 } };
         const other = to === link.to ? linkFeeding(board2, store.blockRegistry(), to, input2, args.id) : void 0;
-        return { links: { mod: other === void 0 ? changed : { ...changed, [other]: { input: link.input } } } };
-      }
-    }),
-    command({
-      id: "blockr.core-move_link",
-      label: "Move link",
-      description: "Moves a link among the links into the block that it goes to, keeping its id and its ends. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from. A block that is not variadic takes each input by its name, so the command refuses a link into one.",
-      args: object(
-        {
-          id: linkId,
-          before: {
-            ...linkId,
-            description: "The link into the same block that the link goes before. Where it is left out, the link goes last among the links into its block."
-          }
-        },
-        ["id"]
-      ),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
-      run(board2, { id: id2, before }) {
-        const link = own(board2.links, id2);
-        if (link === void 0) return [];
-        const block = own(board2.blocks, link.to);
+        const mod = other === void 0 ? changed : { ...changed, [other]: { input: link.input } };
+        const { before } = args;
+        if (before === void 0) return { links: { mod } };
+        const block = own(board2.blocks, to);
         if (block !== void 0 && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
           throw refusal(this.id, [
-            `The block "${link.to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The command "blockr.core-change_link" changes the input that a link feeds.`
+            `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`
           ]);
         }
-        if (before === void 0) {
-          const place = lastPlace(board2, link.to, id2);
-          return place === void 0 ? [] : { links: { before: { [id2]: place } } };
+        if (before !== null) {
+          if (before === args.id) {
+            throw refusal(this.id, [`The link "${args.id}" cannot go before itself.`]);
+          }
+          const next = own(board2.links, before);
+          if (next !== void 0 && next.to !== to) {
+            throw refusal(this.id, [
+              `The link "${args.id}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`
+            ]);
+          }
         }
-        if (before === id2) {
-          throw refusal(this.id, [`The link "${id2}" cannot go before itself.`]);
-        }
-        const next = own(board2.links, before);
-        if (next !== void 0 && next.to !== link.to) {
-          throw refusal(this.id, [
-            `The link "${id2}" goes into block "${link.to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${link.to}".`
-          ]);
-        }
-        return { links: { before: { [id2]: before } } };
+        const place = before ?? lastPlace(board2, to, args.id);
+        return { links: { mod, ...place === void 0 ? {} : { before: { [args.id]: place } } } };
       }
     }),
     command({
@@ -6778,10 +6752,11 @@ function coreCommands(store) {
     command({
       id: "blockr.core-change_stack",
       label: "Change stack",
-      description: "Changes the blocks of a stack or its colour, taking each block out of the stack it is in, since a block sits in one stack at most.",
+      description: "Changes the name of a stack, its blocks or its colour, taking each block out of the stack it is in, since a block sits in one stack at most.",
       args: object(
         {
           id: stackId,
+          name: { ...name2, description: "The stack's name, which it keeps where this is left out." },
           blocks: {
             ...blockIds,
             description: "The blocks of the stack, in order, which it keeps where they are left out."
@@ -6794,25 +6769,10 @@ function coreCommands(store) {
         ["id"]
       ),
       preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
-      run: (board2, { id: id2, blocks: blocks2, color: color2 }) => ({
-        stacks: {
-          mod: {
-            ...blocks2 === void 0 ? {} : leave(board2, id2, blocks2),
-            [id2]: {
-              ...blocks2 === void 0 ? {} : { blocks: blocks2 },
-              ...color2 === void 0 ? {} : { color: color2 }
-            }
-          }
-        }
+      // The args but the id are the stack's change, as for change_block.
+      run: (board2, { id: id2, ...change }) => ({
+        stacks: { mod: { ...change.blocks === void 0 ? {} : leave(board2, id2, change.blocks), [id2]: change } }
       })
-    }),
-    command({
-      id: "blockr.core-rename_stack",
-      label: "Rename stack",
-      description: "Gives a stack a new name.",
-      args: object({ id: stackId, name: name2 }, ["id", "name"]),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
-      run: (_board, { id: id2, name: name3 }) => ({ stacks: { mod: { [id2]: { name: name3 } } } })
     }),
     command({
       id: "blockr.core-remove_stack",
@@ -6825,11 +6785,11 @@ function coreCommands(store) {
   ];
   const board = [
     command({
-      id: "blockr.core-rename_board",
-      label: "Rename board",
-      description: "Gives the board a new name.",
-      args: object({ name: name2 }, ["name"]),
-      run: (_board, { name: name3 }) => ({ name: name3 })
+      id: "blockr.core-change_board",
+      label: "Change board",
+      description: "Changes the board's name. The board keeps what the args leave out.",
+      args: object({ name: { ...name2, description: "The board's name, which it keeps where this is left out." } }),
+      run: (_board, change) => change
     }),
     command({
       id: "blockr.core-set_option",
@@ -7245,7 +7205,7 @@ var SUBJECTS = {
 var GAVE = {
   quick: 'It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
   pick: "It gave neither a batch of commands nor a level of rows.",
-  submit: 'It gave no batch of commands, as [{ id: "blockr.core-rename_block", args: { id: "a", name: "Head" } }].'
+  submit: 'It gave no batch of commands, as [{ id: "blockr.core-change_block", args: { id: "a", name: "Head" } }].'
 };
 var NO_BATCH = 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].';
 var NO_LEVEL = "It gave no level for the target, and the board action has no advanced action to open in its place.";
@@ -8780,7 +8740,6 @@ import { Button as Button2, ComboBox as ComboBox2, Form as Form2, GridList, Grid
 import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 var ADD_LINK = "blockr.core-add_link";
 var CHANGE_LINK = "blockr.core-change_link";
-var MOVE_LINK = "blockr.core-move_link";
 var REMOVE_LINK = "blockr.core-remove_link";
 var editInputs = {
   render({ el, core, target: target2, done }) {
@@ -9069,7 +9028,7 @@ function variadicBatch(core, board, block, shown2) {
 }
 function moves(from, to) {
   if (from.length === to.length && from.every((id2, i) => id2 === to[i])) return [];
-  return to.map((id2) => ({ id: MOVE_LINK, args: { id: id2 } }));
+  return to.map((id2) => ({ id: CHANGE_LINK, args: { id: id2, before: null } }));
 }
 function inputText(board, { from, input: input2 }, place) {
   const source = blockName(board, from);
@@ -9167,7 +9126,6 @@ import { ComboBox as ComboBox3, Form as Form3, Select as Select2, SelectItem as 
 import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
 var ADD_LINK2 = "blockr.core-add_link";
 var CHANGE_LINK2 = "blockr.core-change_link";
-var MOVE_LINK2 = "blockr.core-move_link";
 var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
     const given = picked === void 0 ? {} : startOf(picked);
@@ -9252,10 +9210,9 @@ function LinkForm({
     if (editing === void 0) {
       return [{ id: ADD_LINK2, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
     }
-    const changed = [{ id: CHANGE_LINK2, args: { id: editing.id, ...link } }];
-    if (among === void 0 || position === void 0 || position === among.place) return changed;
-    const before = among.others[position - 1];
-    return [...changed, { id: MOVE_LINK2, args: { id: editing.id, ...before === void 0 ? {} : { before } } }];
+    const moved = among !== void 0 && position !== void 0 && position !== among.place;
+    const before = moved ? among.others[position - 1] ?? null : void 0;
+    return [{ id: CHANGE_LINK2, args: { id: editing.id, ...link, ...before === void 0 ? {} : { before } } }];
   }
   async function submit(event) {
     event.preventDefault();
@@ -9580,7 +9537,6 @@ import {
 import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
 var ADD_STACK = "blockr.core-add_stack";
 var CHANGE_STACK = "blockr.core-change_stack";
-var RENAME_STACK = "blockr.core-rename_stack";
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
@@ -9659,13 +9615,11 @@ function StackForm({
     }
     const { id: id2, stack } = editing;
     const changed = {
+      ...trimmed === "" || trimmed === stack.name ? {} : { name: trimmed },
       ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
       ...sameColor(hex3, stack.color) ? {} : { color: hex3 }
     };
-    return [
-      ...trimmed === "" || trimmed === stack.name ? [] : [{ id: RENAME_STACK, args: { id: id2, name: trimmed } }],
-      ...Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id: id2, ...changed } }]
-    ];
+    return Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id: id2, ...changed } }];
   }
   async function submit(event) {
     event.preventDefault();
@@ -10002,11 +9956,11 @@ function coreBoardActions(parts) {
 function named2(board, target2) {
   if ("block" in target2) {
     const block = own(board.blocks, target2.block);
-    return block === void 0 ? void 0 : { id: target2.block, name: block.name, command: "blockr.core-rename_block" };
+    return block === void 0 ? void 0 : { id: target2.block, name: block.name, command: "blockr.core-change_block" };
   }
   if ("stack" in target2) {
     const stack = own(board.stacks, target2.stack);
-    return stack === void 0 ? void 0 : { id: target2.stack, name: stack.name, command: "blockr.core-rename_stack" };
+    return stack === void 0 ? void 0 : { id: target2.stack, name: stack.name, command: "blockr.core-change_stack" };
   }
   return void 0;
 }

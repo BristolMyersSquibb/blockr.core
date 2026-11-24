@@ -617,7 +617,7 @@ function blockHost(deps: HostDeps): MountedHost {
       const set = Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined));
       const unset = Object.entries(change).flatMap(([arg, value]) => (value === undefined ? [arg] : []));
       try {
-        await commands.run("blockr.core-set_block", { id: block, state: set as State, ...(unset.length === 0 ? {} : { unset }) });
+        await commands.run("blockr.core-change_block", { id: block, state: set as State, ...(unset.length === 0 ? {} : { unset }) });
       } catch (error) {
         deps.refused(error, { block }, notifier);
         throw error;
