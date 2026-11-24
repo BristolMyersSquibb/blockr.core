@@ -37,25 +37,29 @@ import type { Answers, ClassRequest } from "./answers.ts";
 // blocks it lacks evaluated again.
 const ATTEMPTS = 3;
 
-// Why a request rejects: R's reply, by its status and conditions, or, where
-// the request did not go to R, the blocks it reads that could not be
-// evaluated, each with its status. A block class's request names them by the
-// inputs they feed, in `inputs`, and other requests by block, in `blocks`, as
-// the request of an output names the block of the output where no result of it
-// is in sight.
+// Why a request rejects. Where R replied, the error holds the status and the
+// conditions of R's reply. Where the request did not go to R, it holds what
+// kept the request from R:
+// - In `blocks`, each block that the request reads and that is not ready,
+//   with its status, whatever the type of the request. A block class's
+//   request reads by input, so each of its entries also names the input that
+//   the block feeds. The request of an output reads the block of the output,
+//   which is not ready where no result of it is in sight.
+// - In `unlinked`, each input that the request reads and that no link feeds.
+//   Only a block class's request reads inputs, so only it fills `unlinked`.
 export class RequestError extends Error {
   readonly status: Exclude<ReplyStatus, "ok"> | null;
   readonly conditions: readonly Condition[];
-  readonly inputs: readonly { readonly input: string; readonly status: BlockStatus }[];
-  readonly blocks: readonly { readonly block: BlockId; readonly status: BlockStatus }[];
+  readonly blocks: readonly { readonly block: BlockId; readonly status: BlockStatus; readonly input?: string }[];
+  readonly unlinked: readonly string[];
 
   constructor(
     message: string,
     fields: {
       status?: Exclude<ReplyStatus, "ok">;
       conditions?: readonly Condition[];
-      inputs?: readonly { readonly input: string; readonly status: BlockStatus }[];
-      blocks?: readonly { readonly block: BlockId; readonly status: BlockStatus }[];
+      blocks?: readonly { readonly block: BlockId; readonly status: BlockStatus; readonly input?: string }[];
+      unlinked?: readonly string[];
     } = {},
   ) {
     const conditions = fields.conditions ?? [];
@@ -63,8 +67,8 @@ export class RequestError extends Error {
     this.name = "RequestError";
     this.status = fields.status ?? null;
     this.conditions = conditions;
-    this.inputs = fields.inputs ?? [];
     this.blocks = fields.blocks ?? [];
+    this.unlinked = fields.unlinked ?? [];
   }
 }
 
@@ -201,7 +205,10 @@ async function evaluateReads(
 
   const unlinked = inputs.unlinked.filter((input) => names.includes(input));
   if (unlinked.length > 0) {
-    throw new RequestError(`${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`);
+    throw new RequestError(
+      `${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`,
+      { unlinked },
+    );
   }
 
   const read = inputs.recipe.filter(
@@ -214,12 +221,12 @@ async function evaluateReads(
   const unready = read.flatMap((input) => {
     if (input.block === undefined) return [];
     const status = own(statuses, input.block);
-    return status === undefined || status.status === "ready" ? [] : [{ input: input.input, status }];
+    return status === undefined || status.status === "ready" ? [] : [{ block: input.block, status, input: input.input }];
   });
   if (unready.length > 0) {
     const listed = unready.map(({ input, status }) => `"${input}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since an input it reads is not ready: ${listed.join(", ")}.`, {
-      inputs: unready,
+      blocks: unready,
     });
   }
 

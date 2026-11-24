@@ -2276,16 +2276,16 @@ var ATTEMPTS = 3;
 var RequestError = class extends Error {
   status;
   conditions;
-  inputs;
   blocks;
+  unlinked;
   constructor(message, fields = {}) {
     const conditions = fields.conditions ?? [];
     super([message, ...conditions.map((condition) => `- ${condition.message}`)].join("\n"));
     this.name = "RequestError";
     this.status = fields.status ?? null;
     this.conditions = conditions;
-    this.inputs = fields.inputs ?? [];
     this.blocks = fields.blocks ?? [];
+    this.unlinked = fields.unlinked ?? [];
   }
 };
 async function blockRequest(deps, block, entry, name3, given, opts) {
@@ -2374,7 +2374,10 @@ async function evaluateReads(deps, block, entry, name3, names, signal5) {
   if (inputs === void 0) throw new Error(`Block "${block}" left the board, so its request "${name3}" did not go to R.`);
   const unlinked = inputs.unlinked.filter((input2) => names.includes(input2));
   if (unlinked.length > 0) {
-    throw new RequestError(`${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`);
+    throw new RequestError(
+      `${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`,
+      { unlinked }
+    );
   }
   const read = inputs.recipe.filter(
     (input2) => names.includes(input2.input) || names.includes("...") && !entry.inputs.includes(input2.input)
@@ -2385,12 +2388,12 @@ async function evaluateReads(deps, block, entry, name3, names, signal5) {
   const unready = read.flatMap((input2) => {
     if (input2.block === void 0) return [];
     const status = own(statuses, input2.block);
-    return status === void 0 || status.status === "ready" ? [] : [{ input: input2.input, status }];
+    return status === void 0 || status.status === "ready" ? [] : [{ block: input2.block, status, input: input2.input }];
   });
   if (unready.length > 0) {
     const listed = unready.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since an input it reads is not ready: ${listed.join(", ")}.`, {
-      inputs: unready
+      blocks: unready
     });
   }
   return read.map(
