@@ -962,9 +962,11 @@
   Once every module is registered, core checks the app's picks, and where a pick of `board_actions` fails the check, or names a board action or a role that no package registers, core opens no board and shows why in its place.
   A menu offers only the board action that plays a role, in the place of the role's default.
   The calls `core.boardActions.trigger()` and `mountAdvanced()` take a role's ID in place of a board action's, and act on the board action that plays the role, while they run nothing for the ID of a board action that names a role that it does not play.
+  The Edit board plugin mounts its forms that add a block, a link and a stack by the IDs of `add_block_role`, `add_link_role` and `add_stack_role`.
+  So it shows the form of the board action that the app picks for each of those roles.
   Create stack's quick action holds New stack alone, and lists no stack that the board holds, since Create stack plays `add_stack_role`, which adds a stack.
   Opened on a block, the form of Create link names that block in a line, as `A link from "Scatter".`, in place of the select of the end at that block, and offers a select of the other end alone.
-  Opened on a block or a selection, the form of Create stack names their blocks in a line in place of the select of blocks, since the new stack takes exactly those blocks (#825).
+  Opened on a block or a selection, the form of Create stack names their blocks in a line in place of the select of blocks, since the new stack takes exactly those blocks (#825, #830).
 
 # blockr.core 0.1.4
 

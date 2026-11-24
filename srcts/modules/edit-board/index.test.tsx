@@ -10,7 +10,7 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
-import type { BoardAction } from "../../actions/index.ts";
+import type { AdvancedModule, BoardAction, CommandCall, Target } from "../../actions/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass } from "../../store/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
@@ -25,6 +25,7 @@ import { rowCheckbox } from "../../testing/rows.ts";
 import { withPlugins } from "../../testing/store.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
+import type { Json } from "../../types/json.ts";
 import { editTitle } from "./menus.tsx";
 import * as editBoard from "./index.tsx";
 
@@ -77,18 +78,59 @@ async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
   return { el, core: stubbed.core, board: () => stubbed.core.store.board(), notes, menu, end };
 }
 
+// The id of a board action of blockr.test, from its name, as
+// "blockr.test-count_rows_action" for Count rows.
+function actionId(name: string): string {
+  return `blockr.test-${name.toLowerCase().replaceAll(" ", "_")}_action`;
+}
+
 // A board action of blockr.test on the kinds of target given, labelled by its
 // name, which runs the batch that `run` returns.
 function action(name: string, on: BoardAction["on"], run: NonNullable<BoardAction["run"]>): BoardAction {
-  return { id: `blockr.test-${name.toLowerCase().replaceAll(" ", "_")}_action`, label: name, on, category: "test", run };
+  return { id: actionId(name), label: name, on, category: "test", run };
 }
 
 // The plugin on the board of the fixture hello, or of the reply given, whose
 // app runs a plugin of blockr.test too, whose class lists the board actions
-// given.
-async function withActions(actions: readonly BoardAction[], hello: HelloReply = HELLO): Promise<Mounted> {
+// given. Where `picks` is given, the blockr option board_actions holds it, so
+// that the app picks those board actions for the roles that it names.
+async function withActions(actions: readonly BoardAction[], hello: HelloReply = HELLO, picks?: Json): Promise<Mounted> {
   const cls: PluginClass = { id: "blockr.test-doc_plugin", boardActions: actions };
-  return mounted({ hello: withPlugins({ [cls.id]: { name: "Document" } }, hello), modules: listedModules([cls]) });
+  return mounted({
+    hello: withPlugins({ [cls.id]: { name: "Document" } }, hello),
+    modules: listedModules([cls]),
+    ...(picks === undefined ? {} : { blockrOptions: { board_actions: picks } }),
+  });
+}
+
+// A board action of blockr.test that plays the role given, on the kinds of
+// target given, labelled by its name, with an advanced action alone. Its
+// advanced action draws a button with the label as its text, which hands
+// done() the batch given. The test keeps the target of each render.
+function player(
+  name: string,
+  role: string,
+  on: BoardAction["on"],
+  batch: readonly CommandCall[] = [],
+  more: Partial<BoardAction> = {},
+): { readonly action: BoardAction; readonly renders: readonly Target[] } {
+  const renders: Target[] = [];
+  const advanced: AdvancedModule = {
+    render({ el, target, done }) {
+      renders.push(target);
+      const submit = document.createElement("button");
+      submit.type = "button";
+      submit.textContent = name;
+      submit.addEventListener("click", () => {
+        void done(batch);
+      });
+      el.append(submit);
+      return () => {
+        submit.remove();
+      };
+    },
+  };
+  return { action: { id: actionId(name), label: name, on, category: "add", role, advanced, ...more }, renders };
 }
 
 // The plugin's UI over a store that refuses every edit: the board of the
@@ -937,6 +979,62 @@ describe("the stacks", () => {
     expect(m.board().stacks).toEqual({});
     expect(Object.keys(m.board().blocks)).toEqual(["a", "b", "c", "d", "e", "f"]);
     expect(section(m.el, "Stacks").textContent).toContain("The board has no stacks yet.");
+  });
+});
+
+describe("the forms that add a block, a link and a stack", () => {
+  // The forms of core's Add block, Create link and Create stack.
+  const CORE_FORMS = { Blocks: "Add block", Links: "Add link", Stacks: "Add stack" } as const;
+  // The board, the target of each form.
+  const BOARD: Target = { board: true };
+
+  test("are the advanced actions of the board actions that the app picks for add_block_role, add_link_role and add_stack_role, in place of core's, each rendered again once its done() has run a batch", async () => {
+    const block = player("Kit block", "add_block_role", ["board"], [
+      { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "n" } },
+    ]);
+    const link = player("Kit link", "add_link_role", ["block", "board"]);
+    const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"]);
+    const { el, board } = await withActions([block.action, link.action, stack.action], HELLO, {
+      add_block_role: block.action.id,
+      add_link_role: link.action.id,
+      add_stack_role: stack.action.id,
+    });
+
+    for (const [title, name] of [
+      ["Blocks", "Kit block"],
+      ["Links", "Kit link"],
+      ["Stacks", "Kit stack"],
+    ] as const) {
+      expect(section(el, title).querySelector(`form[aria-label="${CORE_FORMS[title]}"]`)).toBeNull();
+      expect(button(section(el, title), name)).toBeDefined();
+    }
+    expect([block.renders, link.renders, stack.renders]).toEqual([[BOARD], [BOARD], [BOARD]]);
+
+    await click(button(section(el, "Blocks"), "Kit block"));
+    expect(board().blocks.n?.registry_id).toBe("blockr.core-head_block");
+    expect(block.renders).toEqual([BOARD, BOARD]);
+    expect(button(section(el, "Blocks"), "Kit block")).toBeDefined();
+  });
+
+  test("show nowhere that on() leaves out the board action that the app picks for their role on the board", async () => {
+    const refuse = { offers: () => false };
+    const block = player("Kit block", "add_block_role", ["board"], [], refuse);
+    const link = player("Kit link", "add_link_role", ["block", "board"], [], refuse);
+    const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"], [], refuse);
+    const { el } = await withActions([block.action, link.action, stack.action], HELLO, {
+      add_block_role: block.action.id,
+      add_link_role: link.action.id,
+      add_stack_role: stack.action.id,
+    });
+
+    // Core's board actions, which name the roles, no longer play them, so
+    // that no section shows their forms either.
+    for (const title of ["Blocks", "Links", "Stacks"] as const) {
+      expect(section(el, title).querySelector("form")).toBeNull();
+    }
+    expect(section(el, "Blocks").querySelector('[role="group"][aria-label="Add a block"]')).toBeNull();
+    expect(section(el, "Stacks").querySelector('[role="group"][aria-label="Add a stack"]')).toBeNull();
+    expect([...block.renders, ...link.renders, ...stack.renders]).toEqual([]);
   });
 });
 
