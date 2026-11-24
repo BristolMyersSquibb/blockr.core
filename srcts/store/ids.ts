@@ -61,21 +61,6 @@ export function mintId(taken: (id: string) => boolean, randId: RandId = "adjecti
   return `${id}_${String(n)}`;
 }
 
-// A name made from an id, "Curious otter" from "curious_otter", as R's
-// id_to_sentence_case() makes one.
-export function sentenceCase(id: string): string {
-  const words = id
-    .replace(/([A-Z])/g, " $1")
-    .replace(/[_\-.]/g, " ")
-    .trim()
-    .split(" ");
-  const [first = "", ...rest] = words;
-  return [
-    first.charAt(0).toUpperCase() + first.slice(1).toLowerCase(),
-    ...rest.map((word) => word.toLowerCase()),
-  ].join(" ");
-}
-
 // One draw in each shape, which may be taken.
 const draws: Readonly<Record<RandId, () => string>> = {
   adjective_animal: () => `${pick(adjectives)}_${pick(animals)}`,

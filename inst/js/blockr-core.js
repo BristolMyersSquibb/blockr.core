@@ -4780,14 +4780,6 @@ function mintId(taken, randId = "adjective_animal") {
   while (taken(`${id2}_${String(n)}`)) n++;
   return `${id2}_${String(n)}`;
 }
-function sentenceCase(id2) {
-  const words = id2.replace(/([A-Z])/g, " $1").replace(/[_\-.]/g, " ").trim().split(" ");
-  const [first = "", ...rest] = words;
-  return [
-    first.charAt(0).toUpperCase() + first.slice(1).toLowerCase(),
-    ...rest.map((word) => word.toLowerCase())
-  ].join(" ");
-}
 var draws = {
   adjective_animal: () => `${pick(adjectives)}_${pick(animals)}`,
   adjective_adjective_animal: () => {
@@ -6539,7 +6531,7 @@ function coreCommands(store) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
+    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? entry.block_name, locked: null }];
   }
   function inputFailures(board2, to, given) {
     const registry = store.blockRegistry();
@@ -6731,19 +6723,24 @@ function coreCommands(store) {
           ...stackId,
           description: "The new stack's id, which is minted where it is left out."
         },
-        name: { ...name2, description: `The new stack's name, "Stack" where it is left out.` },
+        name: {
+          ...name2,
+          description: `The new stack's name, the first free "Stack n" where it is left out.`
+        },
         blocks: { ...blockIds, description: "The blocks of the new stack, in order." },
         color: {
           ...color,
           description: "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own."
         }
       }),
-      run(board2, { id: id2, name: name3 = "Stack", blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
+      run(board2, { id: id2, name: name3, blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
         const stack = id2 ?? mintId2((id3) => Object.hasOwn(board2.stacks, id3));
         const left2 = leave(board2, stack, blocks2);
         return {
           stacks: {
-            add: { [stack]: { name: name3, blocks: blocks2, color: color2 } },
+            add: {
+              [stack]: { name: name3 ?? suggestedName(Object.values(board2.stacks)), blocks: blocks2, color: color2 }
+            },
             ...Object.keys(left2).length === 0 ? {} : { mod: left2 }
           }
         };
@@ -6843,10 +6840,11 @@ function linkFeeding(board, registry, to, input2, except) {
   if (inputs === void 0 || inputs.includes("...")) return void 0;
   return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
 }
-function defaultBlockName(registryId2) {
-  const pkg = packageFromId(registryId2);
-  const name3 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
-  return sentenceCase(name3.replace(/_block$/, ""));
+function suggestedName(stacks) {
+  const names = new Set(stacks.map((stack) => stack.name));
+  let n = 1;
+  while (names.has(`Stack ${String(n)}`)) n++;
+  return `Stack ${String(n)}`;
 }
 function cycleFailures(board, from, to, except) {
   if (from === to) return [`The link would join block "${to}" to itself.`];
@@ -8441,7 +8439,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
             {
               label: "Name",
               value: name3,
-              placeholder: entry === void 0 ? void 0 : defaultBlockName(entry.id),
+              placeholder: entry?.block_name,
               description: "Optional. The class's name where left empty.",
               autoComplete: "off",
               onChange: setName
@@ -9627,12 +9625,6 @@ function suggestedColor(stacks) {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
   return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
 }
-function suggestedName(stacks) {
-  const names = new Set(stacks.map((stack) => stack.name));
-  let n = 1;
-  while (names.has(`Stack ${String(n)}`)) n++;
-  return `Stack ${String(n)}`;
-}
 var createStackForm = {
   render({ el, core, target: target2, done }) {
     return drawForm(el, /* @__PURE__ */ jsx10(AddStack, { core, given: heldBlocks(core.store.board(), target2), done }));
@@ -9696,7 +9688,7 @@ function StackForm({
     const hex3 = color2 === null ? null : stackColor(color2);
     if (editing === void 0) {
       const id3 = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
-      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, name: trimmed === "" ? fallbackName : trimmed } }];
+      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, ...trimmed === "" ? {} : { name: trimmed } } }];
     }
     const { id: id2, stack } = editing;
     const changed = {

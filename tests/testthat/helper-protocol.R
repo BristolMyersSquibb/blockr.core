@@ -713,6 +713,7 @@ proto_registry <- function(...) {
         required = I("package"),
         additionalProperties = FALSE
       ),
+      block_name = "Dataset",
       state = obj(package = "datasets"),
       options = I(character()),
       requests = obj(
@@ -757,6 +758,7 @@ proto_registry <- function(...) {
         required = I(c("n", "direction")),
         additionalProperties = FALSE
       ),
+      block_name = "Head",
       state = obj(n = 6L, direction = "head"),
       options = I(character()),
       requests = obj(n_max = proto_request("data")),
@@ -796,6 +798,7 @@ proto_registry <- function(...) {
         required = I(c("all_x", "all_y")),
         additionalProperties = FALSE
       ),
+      block_name = "Merge",
       state = obj(all_x = FALSE, all_y = FALSE),
       options = I(character()),
       requests = obj(shared = proto_request(c("x", "y"))),
@@ -827,6 +830,7 @@ proto_registry <- function(...) {
         required = I(c("subset", "select")),
         additionalProperties = FALSE
       ),
+      block_name = "Subset",
       state = obj(subset = "", select = ""),
       options = I(character()),
       requests = obj(),
@@ -850,6 +854,7 @@ proto_registry <- function(...) {
         properties = obj(),
         additionalProperties = FALSE
       ),
+      block_name = "Rbind",
       state = obj(),
       options = I(character()),
       requests = obj(),
@@ -876,6 +881,7 @@ proto_registry <- function(...) {
         ),
         additionalProperties = FALSE
       ),
+      block_name = "Scatter",
       state = obj(),
       options = I(character()),
       requests = obj(columns = proto_request("data")),
@@ -897,6 +903,7 @@ proto_registry <- function(...) {
         properties = obj(file_path = proto_string()),
         additionalProperties = FALSE
       ),
+      block_name = "Data upload",
       state = obj(),
       options = I(character()),
       requests = obj(upload = proto_request(action = TRUE, file = TRUE)),

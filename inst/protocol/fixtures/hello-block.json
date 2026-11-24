@@ -46,6 +46,7 @@
               "required": ["n", "direction"],
               "additionalProperties": false
             },
+            "block_name": "Head",
             "state": { "n": 6, "direction": "head" },
             "options": [],
             "requests": {

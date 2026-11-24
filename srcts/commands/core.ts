@@ -34,7 +34,7 @@
 // rand_id names, as R's rand_names() draws them.
 
 import { createGraph } from "../graph/index.ts";
-import { pathFromSegments, sentenceCase, stateFailures } from "../store/index.ts";
+import { pathFromSegments, stateFailures } from "../store/index.ts";
 import type { BlockMod, Patch, Store } from "../store/index.ts";
 import type {
   Block,
@@ -48,7 +48,7 @@ import type {
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { own, packageFromId, quoted, without } from "../util/index.ts";
+import { own, quoted, without } from "../util/index.ts";
 import { refusal } from "./commands.ts";
 import type { Command, CommandContext } from "./commands.ts";
 import * as schemas from "./schemas.ts";
@@ -114,7 +114,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       throw refusal(command, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id = args.id ?? mintId((id) => Object.hasOwn(board.blocks, id));
-    return [id, { registry_id: entry.id, state, name: args.name ?? defaultBlockName(entry.id), locked: null }];
+    return [id, { registry_id: entry.id, state, name: args.name ?? entry.block_name, locked: null }];
   }
 
   // Why block `to` cannot take one more link, into the input given or else a
@@ -371,7 +371,10 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
           ...schemas.stackId,
           description: "The new stack's id, which is minted where it is left out.",
         },
-        name: { ...schemas.name, description: 'The new stack\'s name, "Stack" where it is left out.' },
+        name: {
+          ...schemas.name,
+          description: 'The new stack\'s name, the first free "Stack n" where it is left out.',
+        },
         blocks: { ...schemas.blockIds, description: "The blocks of the new stack, in order." },
         color: {
           ...schemas.color,
@@ -379,12 +382,14 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
             "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own.",
         },
       }),
-      run(board, { id, name = "Stack", blocks = [], color = null }, { mintId }) {
+      run(board, { id, name, blocks = [], color = null }, { mintId }) {
         const stack = id ?? mintId((id) => Object.hasOwn(board.stacks, id));
         const left = leave(board, stack, blocks);
         return {
           stacks: {
-            add: { [stack]: { name, blocks, color } },
+            add: {
+              [stack]: { name: name ?? suggestedName(Object.values(board.stacks)), blocks, color },
+            },
             ...(Object.keys(left).length === 0 ? {} : { mod: left }),
           },
         };
@@ -525,12 +530,12 @@ export function linkFeeding(
   return Object.entries(board.links).find(([id, link]) => id !== except && link.to === to && link.input === input)?.[0];
 }
 
-// The name of a new block, made as R makes one from its class, from the name
-// in its registry id: "Head" for "blockr.core-head_block".
-export function defaultBlockName(registryId: RegistryId): string {
-  const pkg = packageFromId(registryId);
-  const name = pkg === null ? registryId : registryId.slice(pkg.length + 1);
-  return sentenceCase(name.replace(/_block$/, ""));
+// "Stack 1", or the first "Stack n" that no stack has.
+export function suggestedName(stacks: readonly Stack[]): string {
+  const names = new Set(stacks.map((stack) => stack.name));
+  let n = 1;
+  while (names.has(`Stack ${String(n)}`)) n++;
+  return `Stack ${String(n)}`;
 }
 
 // Why a link from block `from` to block `to` would make the board's links form

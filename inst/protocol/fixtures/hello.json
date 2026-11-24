@@ -42,6 +42,7 @@
               "required": ["package"],
               "additionalProperties": false
             },
+            "block_name": "Dataset",
             "state": { "package": "datasets" },
             "options": [],
             "requests": {
@@ -88,6 +89,7 @@
               "required": ["n", "direction"],
               "additionalProperties": false
             },
+            "block_name": "Head",
             "state": { "n": 6, "direction": "head" },
             "options": [],
             "requests": {
@@ -138,6 +140,7 @@
               "required": ["all_x", "all_y"],
               "additionalProperties": false
             },
+            "block_name": "Merge",
             "state": { "all_x": false, "all_y": false },
             "options": [],
             "requests": {
@@ -187,6 +190,7 @@
               "required": ["subset", "select"],
               "additionalProperties": false
             },
+            "block_name": "Subset",
             "state": { "subset": "", "select": "" },
             "options": [],
             "requests": {},
@@ -220,6 +224,7 @@
               "properties": {},
               "additionalProperties": false
             },
+            "block_name": "Rbind",
             "state": {},
             "options": [],
             "requests": {},
@@ -261,6 +266,7 @@
               },
               "additionalProperties": false
             },
+            "block_name": "Scatter",
             "state": {},
             "options": [],
             "requests": {
@@ -293,6 +299,7 @@
               "properties": { "file_path": { "type": "string" } },
               "additionalProperties": false
             },
+            "block_name": "Data upload",
             "state": {},
             "options": [],
             "requests": {

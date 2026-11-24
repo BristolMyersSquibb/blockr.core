@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { isId, isRandId, mintId, RAND_IDS, type RandId, sentenceCase } from "./ids.ts";
+import { isId, isRandId, mintId, RAND_IDS, type RandId } from "./ids.ts";
 import { adjectives, animals } from "./words.ts";
 
 test("an id is a string that is neither empty nor made of digits alone", () => {
@@ -84,10 +84,4 @@ test("a minted id is none that is taken", () => {
 test("an id is counted up once every draw is taken", () => {
   const id = mintId((other) => !/_\d+$/.test(other) || other.endsWith("_2"));
   expect(id).toMatch(/^[a-z]+_[a-z]+_3$/);
-});
-
-test("a board without a name is named after its id in sentence case", () => {
-  expect(sentenceCase("curious_otter")).toBe("Curious otter");
-  expect(sentenceCase("myBoard")).toBe("My board");
-  expect(sentenceCase("data.dir-x_y")).toBe("Data dir x y");
 });
