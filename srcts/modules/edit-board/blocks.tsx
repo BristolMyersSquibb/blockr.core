@@ -1,10 +1,13 @@
 // The Edit board plugin's section of blocks:
-// - The advanced action of core's board action Add block on the board, the
-//   block picker, which adds a block of a class from the block registry,
-//   under the ID and the name that the user gives, once the user submits it.
-//   The plugin mounts it through mountAdvanced(), so that the plugin and the
-//   menus share it, and only where core.boardActions.on() offers Add block on
-//   the board
+// - The form that adds a block, the advanced action of the board action that
+//   plays add_block_role on the board. That is core's Add block, unless the
+//   app picks another board action for the role. The advanced action of Add
+//   block is the block picker, which adds a block of a class from the block
+//   registry, under the ID and the name that the user gives, once the user
+//   submits it. The plugin mounts the form through mountAdvanced() by the
+//   role's id, so that the plugin and the menus share it. The plugin mounts
+//   the form only where core.boardActions.on() offers the board action that
+//   plays the role on the board
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#what-it-shows).
 //   Core renders it again once it has added a block, ready for the next.
 // - A table of the board's blocks, with each block's name, ID and class, which
@@ -27,9 +30,10 @@ import { own } from "../../util/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
 
-// Core's board action whose advanced action the section mounts, by its id, as
-// any plugin names it.
-const ADD_BLOCK = "blockr.core-add_block_action";
+// The role of the board action whose advanced action the section mounts.
+// Given the role's id, mountAdvanced() renders the advanced action of the
+// board action that the app picks for the role, or else of core's Add block.
+const ROLE = "add_block_role";
 
 const COLUMNS = [
   { id: "name", name: "Name", rowHeader: true },
@@ -48,9 +52,9 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
 
   return (
     <Section title="Blocks" count={count}>
-      {offers(core, ADD_BLOCK, BOARD) ? (
+      {offers(core, ROLE, BOARD) ? (
         <Part title="Add a block">
-          <Advanced core={core} id={ADD_BLOCK} target={BOARD} />
+          <Advanced core={core} role={ROLE} target={BOARD} />
         </Part>
       ) : null}
       <Part title="Blocks on the board">
