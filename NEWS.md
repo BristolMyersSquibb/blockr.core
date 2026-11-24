@@ -230,8 +230,10 @@
   The reply's conditions hold only what R raised, each with the severity of its class, and R logs the reason at debug.
   A block's status in the client holds the reason beside its summary.
   The scheduler writes the reason of a block that an input or a block upstream keeps waiting, in place of a condition.
+  The status names those inputs or blocks in `keptWaiting`, as `{ upstream: ["u"] }`.
+  For a block that R says waits, `keptWaiting` is null.
   A one-time evaluation with parameters runs a block that R says waits, and the block takes its reply.
-  A card counts the reason in the pill of the messages, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596).
+  A card counts the reason in the pill of the messages, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596, #669).
 * R's `ok` reply to a request or an output carries `conditions`, as its reply to an evaluation does: every message and warning that the request's function or the output's coercion raised.
   R logs each of them.
   Core raises a notification for each condition of an `ok` reply to a request or an output (#601, #606).

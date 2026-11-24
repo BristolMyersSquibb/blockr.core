@@ -374,10 +374,17 @@ describe("statuses", () => {
       stderr: "",
       summary: null,
       reason: 'This block is waiting for its input "data" to be linked.',
+      keptWaiting: { unlinked: ["data"] },
       unsent: null,
     });
-    expect(blockStatus(scheduler, "e").reason).toBe("This block is waiting for a block to be linked to it.");
-    expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
+    expect(blockStatus(scheduler, "e")).toMatchObject({
+      reason: "This block is waiting for a block to be linked to it.",
+      keptWaiting: { unlinked: ["..."] },
+    });
+    expect(blockStatus(scheduler, "c")).toMatchObject({
+      reason: 'This block is waiting for block "b".',
+      keptWaiting: { upstream: ["b"] },
+    });
     expect(blockStatus(scheduler, "d").status).toBe("unevaluated");
   });
 
@@ -393,8 +400,17 @@ describe("statuses", () => {
     await tick();
 
     const waiting = blockStatus(scheduler, "b");
-    expect(waiting).toMatchObject({ status: "waiting", evaluated: waiting.revision, reason: "Press run." });
-    expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
+    expect(waiting).toMatchObject({
+      status: "waiting",
+      evaluated: waiting.revision,
+      reason: "Press run.",
+      keptWaiting: null,
+    });
+    expect(blockStatus(scheduler, "c")).toMatchObject({
+      status: "waiting",
+      reason: 'This block is waiting for block "b".',
+      keptWaiting: { upstream: ["b"] },
+    });
     // The block is current, so nothing evaluates it again.
     await tick();
     expect(r.pending().filter((request) => request.block === "b")).toEqual([]);
@@ -682,6 +698,7 @@ describe("demand and scheduling", () => {
       stderr: "",
       summary: null,
       reason: null,
+      keptWaiting: null,
       unsent: why,
     });
     expect(blockStatus(scheduler, "a").revision).toBeGreaterThan(first.revision);
