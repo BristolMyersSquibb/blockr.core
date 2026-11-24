@@ -6180,22 +6180,22 @@ function openJsonBoard(json, reply, registrations) {
   const read = unversioned(json.board);
   const held5 = keptPlugins(read.plugins, reply.plugins, registeredClass);
   const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
-    plugin: id2,
+    about: { plugin: id2 },
     package: packageFromId(id2)
   }));
   const migrated2 = migrate({ ...read, plugins: held5 }, json.board, reply, registrations);
   const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
   const blocks = gone.map((id2) => {
     const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
-    return { block: id2, registry_id: registryId2, package: packageFromId(registryId2) };
+    return { about: { block: id2, registry_id: registryId2 }, package: packageFromId(registryId2) };
   });
   const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
-  const options = unclaimed.map((id2) => ({ option: id2 }));
+  const options = unclaimed.map((id2) => ({ about: { option: id2 }, package: null }));
   const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
   const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
-  const packages = Object.entries(json.packages).filter(([pkg]) => own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ package: pkg, version }));
+  const packages = Object.entries(json.packages).filter(([pkg]) => own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
   return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
 }
 function remove(board, gone, registrations) {
@@ -14810,11 +14810,11 @@ function reloadNotification(changed) {
   );
 }
 function droppedNotification(dropped) {
-  const lines = dropped.map((item2) => {
-    if ("option" in item2) return `- board option "${item2.option}"`;
-    if ("block" in item2) return `- block "${item2.block}" (${item2.registry_id})`;
-    if ("plugin" in item2) return `- plugin "${item2.plugin}"`;
-    return `- package ${item2.package} ${item2.version}`;
+  const lines = dropped.map(({ about }) => {
+    if ("package" in about) return `- package ${about.package} ${about.version}`;
+    if ("block" in about) return `- block "${about.block}" (${about.registry_id})`;
+    if ("plugin" in about) return `- plugin "${about.plugin}"`;
+    return `- board option "${about.option}"`;
   });
   return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
 }

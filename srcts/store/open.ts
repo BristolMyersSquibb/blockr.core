@@ -25,7 +25,7 @@
 // plugins among them (../core/plugins.ts).
 
 import type { HelloReply } from "../protocol/index.ts";
-import type { Board, JsonBoard, OptionId, PluginClassId } from "../types/board.ts";
+import type { BlockId, Board, JsonBoard, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import {
   errorMessage,
@@ -53,28 +53,36 @@ const COLLECTIONS = ["blocks", "links", "stacks", "options", "plugins"] as const
 // such as one that a later version of core adds, opens without it.
 const PROPERTIES: readonly string[] = ["id", "name", ...COLLECTIONS];
 
-// What the store names of what it dropped as it opened a board.
-// It names each package that the JSON board lists and R could not load, with
-// the version the JSON board records, so that the user learns what to install.
-// It names each block whose class the block registry lacks, with the package
-// to install where the registry id of the block's class gives one.
-// It names each plugin whose state it drops, since the app runs no plugin of
-// its class or no package registers the class, by the id of its class, with
-// the package that the id gives, if any.
-// It names each board option that no package registers, by the board
-// option's id, and drops its value.
-export type Dropped =
-  | { readonly package: string; readonly version: string }
-  | {
-      readonly block: string;
-      readonly registry_id: string;
-      readonly package: string | null;
-    }
-  | {
-      readonly plugin: PluginClassId;
-      readonly package: string | null;
-    }
-  | { readonly option: OptionId };
+// What the store names of what it dropped as it opened a board, so that the
+// user learns what to install.
+// The member `about` names what the store dropped, as a notification's `about`
+// names a board object, such as `{ block: "a" }`. It also holds what only its
+// kind of record has:
+// - A package that the JSON board lists and R could not load, as
+//   `{ package, version }`, with the version that the JSON board records.
+// - A block whose class the block registry lacks, as `{ block, registry_id }`,
+//   with the registry id of its class.
+// - The state of a plugin, as `{ plugin }`, by the id of its class, which the
+//   store drops since the app runs no plugin of the class or no package
+//   registers the class.
+// - The value of a board option that no package registers, as `{ option }`,
+//   by the board option's id.
+// The member `package` names the package that what the store dropped comes
+// from: the package itself, or the package that the id of a block's class or
+// of a plugin's class names.
+// It is null where nothing names one. An id may name no package, as that of a
+// block class that an app script defines. A board option's id never names
+// one, and the JSON board does not record which package lists each board
+// option. The JSON board's `packages` lists that package all the same, so the
+// store names the package in a record of its own where R could not load it.
+export interface Dropped {
+  readonly about:
+    | { readonly package: string; readonly version: string }
+    | { readonly block: BlockId; readonly registry_id: RegistryId }
+    | { readonly plugin: PluginClassId }
+    | { readonly option: OptionId };
+  readonly package: string | null;
+}
 
 const refused = "The store refused to open the board";
 
@@ -299,7 +307,7 @@ export function openJsonBoard(
 
   const held = keptPlugins(read.plugins, reply.plugins, registeredClass);
   const plugins: Dropped[] = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id) => ({
-    plugin: id,
+    about: { plugin: id },
     package: packageFromId(id),
   }));
 
@@ -310,11 +318,11 @@ export function openJsonBoard(
     .map(([id]) => id);
   const blocks: Dropped[] = gone.map((id) => {
     const registryId = migrated.blocks[id]?.registry_id ?? "";
-    return { block: id, registry_id: registryId, package: packageFromId(registryId) };
+    return { about: { block: id, registry_id: registryId }, package: packageFromId(registryId) };
   });
 
   const unclaimed = Object.keys(migrated.options).filter((id) => registrations.option(id) === undefined);
-  const options: Dropped[] = unclaimed.map((id) => ({ option: id }));
+  const options: Dropped[] = unclaimed.map((id) => ({ about: { option: id }, package: null }));
 
   const kept = remove({ ...migrated, options: without(migrated.options, unclaimed) }, gone, registrations);
   const board: Board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
@@ -324,7 +332,7 @@ export function openJsonBoard(
 
   const packages: Dropped[] = Object.entries(json.packages)
     .filter(([pkg]) => own(reply.packages, pkg) === undefined)
-    .map(([pkg, version]) => ({ package: pkg, version }));
+    .map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
 
   return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
 }

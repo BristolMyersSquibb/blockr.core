@@ -413,8 +413,8 @@ describe("opening a board", () => {
     expect(store.blockRegistry()).toBe(hello.block_registry);
     expect(store.packages()).toBe(hello.packages);
     expect(dropped).toEqual([
-      { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
+      { about: { block: "x", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
 
     const board = store.board();
@@ -532,10 +532,10 @@ describe("opening a board", () => {
     // whose class no package registers and of those that the app does not
     // run, whose versions then refuse nothing.
     expect(dropped).toEqual([
-      { package: "blockr.md", version: "0.2.0" },
-      { plugin: "blockr.md-md_plugin", package: "blockr.md" },
-      { plugin: "blockr.dag-dag_plugin", package: "blockr.dag" },
-      { plugin: "mine_plugin", package: null },
+      { about: { package: "blockr.md", version: "0.2.0" }, package: "blockr.md" },
+      { about: { plugin: "blockr.md-md_plugin" }, package: "blockr.md" },
+      { about: { plugin: "blockr.dag-dag_plugin" }, package: "blockr.dag" },
+      { about: { plugin: "mine_plugin" }, package: null },
     ]);
     expect(Object.keys(store.board().plugins)).toEqual([dock.id]);
     expect(dockViews(store.board())).toEqual({ main: { panels: ["a"] } });
@@ -555,11 +555,11 @@ describe("opening a board", () => {
     );
 
     expect(dropped).toEqual([
-      { package: "blockr.dag", version: "0.2.0" },
-      { package: "blockr.dock", version: "0.2.1" },
-      { plugin: "blockr.dock-dock_plugin", package: "blockr.dock" },
-      { plugin: "blockr.dag-dag_plugin", package: "blockr.dag" },
-      { option: "view_tabs" },
+      { about: { package: "blockr.dag", version: "0.2.0" }, package: "blockr.dag" },
+      { about: { package: "blockr.dock", version: "0.2.1" }, package: "blockr.dock" },
+      { about: { plugin: "blockr.dock-dock_plugin" }, package: "blockr.dock" },
+      { about: { plugin: "blockr.dag-dag_plugin" }, package: "blockr.dag" },
+      { about: { option: "view_tabs" }, package: null },
     ]);
 
     const board = store.board();
@@ -638,8 +638,8 @@ describe("opening a board", () => {
 
     expect(store.board().plugins).toEqual({ [dock.id]: { views: {} } });
     expect(dropped).toEqual([
-      { plugin: grid.id, package: "blockr.grid" },
-      { plugin: drive.id, package: "blockr.drive" },
+      { about: { plugin: grid.id }, package: "blockr.grid" },
+      { about: { plugin: drive.id }, package: "blockr.drive" },
     ]);
   });
 
@@ -666,7 +666,7 @@ describe("opening a board", () => {
     const dropped = await store.open(replied);
 
     expect(Object.keys(store.board().plugins)).toEqual([dock.id]);
-    expect(dropped).toEqual([{ plugin: dag.id, package: "blockr.dag" }]);
+    expect(dropped).toEqual([{ about: { plugin: dag.id }, package: "blockr.dag" }]);
   });
 
   test("gives no board option its default, those that a plugin's class requires included", async () => {
@@ -784,7 +784,7 @@ describe("opening a board", () => {
     );
 
     expect(dropped).toEqual([
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { block: "x", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     const board = store.board();
     expect(dockViews(board)).toEqual({ main: { panels: ["a", "b"] } });
@@ -840,7 +840,7 @@ describe("opening a board", () => {
 
     // The version that the board records of a value that the store drops
     // refuses nothing.
-    expect(dropped).toEqual([{ option: "grid_gap" }, { option: "view_tabs" }]);
+    expect(dropped).toEqual([{ about: { option: "grid_gap" }, package: null }, { about: { option: "view_tabs" }, package: null }]);
     expect(store.board().options).toEqual({ n_rows: 20 });
     expect(Object.keys(store.jsonBoard().board.options)).toEqual(["n_rows"]);
   });
@@ -866,8 +866,8 @@ describe("opening a board", () => {
     );
 
     expect(dropped).toEqual([
-      { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
+      { about: { block: "x", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     expect(store.board()).toBe(board);
     expect(seen).toEqual([]);
@@ -941,8 +941,8 @@ describe("opening a board", () => {
     // The text holds no state of the DAG, so the DAG holds its class's default
     // state.
     expect(read.dropped).toEqual([
-      { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
+      { about: { block: "x", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     expect(read.board.blocks).toEqual({ b: head() });
     expect(read.board.links).toEqual({});
