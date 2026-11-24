@@ -5,12 +5,15 @@
 // holds. A table shows a page of rows at a time, which a search narrows, so
 // that it stays usable on a board of many blocks.
 // The forms that add a block, a link and a stack are the advanced actions of
-// core's board actions Add block, Create link and Create stack on the board,
-// which the plugin mounts through mountAdvanced(), so that the plugin and the
-// menus share them
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
-// It mounts a form that adds only where core.boardActions.on() offers its
-// board action on the board.
+// the board actions that play core's roles add_block_role, add_link_role and
+// add_stack_role on the board. Those are core's Add block, Create link and
+// Create stack, unless the app picks another board action for a role. The
+// plugin mounts each form through mountAdvanced() by the role's id, so that
+// the plugin and the menus share it, and so that the form of a board action
+// that the app picks shows here too
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#roles).
+// The plugin mounts a form only where core.boardActions.on() offers the board
+// action that plays the form's role on the board.
 // Each row of a table ends in a "…" button, which opens the menu of the row's
 // block, link or stack, and starts with a checkbox, which adds the row's object
 // to core.selection or takes it out. While the selection holds a board
@@ -276,18 +279,21 @@ export function ObjectsTable({
 // The board, as the target of a board action that acts on it.
 export const BOARD = { board: true } as const;
 
-// Whether a menu of the target offers the board action, as on() gives it.
-export function offers(core: CoreApi, id: string, target: Target): boolean {
-  return core.boardActions.on(target).some((action) => action.id === id);
+// Whether a menu of the target offers the board action that plays the role
+// with the id given, as on() gives it. Of the board actions that name the
+// role, on() gives only the one that plays the role in the app.
+export function offers(core: CoreApi, role: string, target: Target): boolean {
+  return core.boardActions.on(target).some((action) => action.role === role);
 }
 
-// The advanced action of a board action on the target, which the plugin
-// mounts in room of its own through mountAdvanced(), until the component goes
-// or its target changes. Core renders it again once its done() has run a
-// batch, so that a form that adds is ready for the next edit, and leaves the
-// element empty once the board no longer holds what the target names.
-export function Advanced({ core, id, target }: { core: CoreApi; id: string; target: Target }): ReactElement {
+// The advanced action of the board action that plays the role with the id
+// given, on the target. The plugin mounts it in room of its own through
+// mountAdvanced() by the role's id, until the component goes or its target
+// changes. Core renders it again once its done() has run a batch, so that a
+// form that adds is ready for the next edit, and leaves the element empty once
+// the board no longer holds what the target names.
+export function Advanced({ core, role, target }: { core: CoreApi; role: string; target: Target }): ReactElement {
   const key = JSON.stringify(target);
-  const mount = useCallback((el: HTMLElement) => core.boardActions.mountAdvanced(el, id, JSON.parse(key) as Target), [core, id, key]);
+  const mount = useCallback((el: HTMLElement) => core.boardActions.mountAdvanced(el, role, JSON.parse(key) as Target), [core, role, key]);
   return <Mounted mount={mount} className="bc:min-w-0" />;
 }

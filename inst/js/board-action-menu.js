@@ -354,6 +354,9 @@ function Item({
               onPointerDown: (event) => {
                 event.stopPropagation();
               },
+              onPointerUp: (event) => {
+                event.stopPropagation();
+              },
               onClick: (event) => {
                 event.stopPropagation();
                 onOpen();
