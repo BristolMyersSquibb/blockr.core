@@ -296,12 +296,7 @@ log_cache <- new.env(parent = emptyenv())
 # Core keeps no setting that fails to compute, so that it computes the
 # setting again, and fails again, the next time.
 cached_log_setting <- function(name, compute) {
-
-  if (!exists(name, envir = log_cache, inherits = FALSE)) {
-    log_cache[[name]] <- compute()
-  }
-
-  log_cache[[name]]
+  rlang::env_cache(log_cache, name, compute())
 }
 
 get_log_flag <- function(name, default) {

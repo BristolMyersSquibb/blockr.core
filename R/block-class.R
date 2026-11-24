@@ -894,7 +894,7 @@ format_block_head <- function(x) {
   c(out, paste0("Name: \"", block_name(x), "\""), dat)
 }
 
-format_block_state <- function(state) {
+format_state <- function(state) {
   trimws(utils::capture.output(utils::str(state))[-1L], "right")
 }
 
@@ -904,7 +904,7 @@ format.block <- function(x, ...) {
   state <- block_state(x)
 
   if (length(state)) {
-    lines <- c("Block state:", format_block_state(state))
+    lines <- c("Block state:", format_state(state))
   } else {
     lines <- "Stateless block"
   }

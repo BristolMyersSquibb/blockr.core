@@ -1,3 +1,31 @@
+test_that("include_mermaid() writes Chromium arguments as JSON", {
+
+  withr::local_dir(withr::local_tempdir())
+  dir.create("mermaid")
+  writeLines("graph TB; A-->B;", file.path("mermaid", "x.mmd"))
+
+  chromium_args <- c(
+    "--no-sandbox",
+    "--user-data-dir=C:\\Users\\me\\mmdc",
+    "--js-flags=\"--max-old-space-size=4096\""
+  )
+  config <- NULL
+
+  with_mocked_bindings(
+    include_mermaid("x", chromium_args),
+    Sys.which = function(x) "mmdc",
+    system2 = function(command, args, ...) {
+      cfg <- args[[which(args == "--puppeteerConfigFile") + 1L]]
+      config <<- yyjsonr::read_json_file(cfg)
+      file.create(args[[which(args == "-o") + 1L]])
+      0L
+    },
+    .package = "base"
+  )
+
+  expect_identical(config[["args"]], chromium_args)
+})
+
 test_that("exprs_to_lang", {
 
   eval_exprs <- function(exprs) {

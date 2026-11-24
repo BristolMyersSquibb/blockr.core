@@ -270,13 +270,14 @@ imported_files <- function(files) {
 
     dir <- dirname(file[["path"]])
     key <- paste(pkg, dir, sep = "/")
-    imports <- get0(key, envir = lists, inherits = FALSE)
-
-    if (is.null(imports)) {
-      json <- package_file(file.path(dir, "preload.json"), pkg)
-      imports <- if (nzchar(json)) yyjsonr::read_json_file(json) else list()
-      assign(key, imports, envir = lists)
-    }
+    imports <- rlang::env_cache(
+      lists,
+      key,
+      {
+        json <- package_file(file.path(dir, "preload.json"), pkg)
+        if (nzchar(json)) yyjsonr::read_json_file(json) else list()
+      }
+    )
 
     as.character(unlst(imports[[basename(file[["path"]])]]))
   }
