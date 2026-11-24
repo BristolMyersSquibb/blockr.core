@@ -6,8 +6,10 @@ import { isBoardObject, isObject } from "../util/index.ts";
 import type { Target } from "./actions.ts";
 
 // The target that a caller gives, copied, so that no board action changes what
-// the next one gets. It throws for anything else, as a plugin in plain JS may
-// give.
+// the next one gets. An input's target takes its block first and its input
+// second, whatever order the caller gives them in, so that two targets of the
+// same input have the same JSON, by which core compares targets. It throws for
+// anything else, as a plugin in plain JS may give.
 export function targetGiven(given: unknown): Target {
   if (isObject(given) && Object.keys(given).length === 1) {
     if (given.board === true) return Object.freeze({ board: true });
@@ -17,8 +19,12 @@ export function targetGiven(given: unknown): Target {
     }
     if (isBoardObject(given)) return Object.freeze({ ...given });
   }
+  if (isObject(given) && Object.keys(given).length === 2 && Object.hasOwn(given, "block") && Object.hasOwn(given, "input")) {
+    const { block, input } = given;
+    if (typeof block === "string" && block !== "" && typeof input === "string") return Object.freeze({ block, input });
+  }
   throw new TypeError(
-    `A board action acts on the board, as { board: true }, on a board object, as { block: "a" }, or on a selection of them, as { selection: [{ block: "a" }, { link: "ab" }] }, not ${JSON.stringify(given)}.`,
+    `A board action acts on the board, as { board: true }, on a board object, as { block: "a" }, on an input of a block, as { block: "a", input: "x" }, or on a selection of board objects, as { selection: [{ block: "a" }, { link: "ab" }] }, not ${JSON.stringify(given)}.`,
   );
 }
 

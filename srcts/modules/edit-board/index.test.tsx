@@ -174,6 +174,17 @@ async function refusing(): Promise<Omit<Mounted, "notes" | "menu">> {
   return { el, core: stubbed.core, board: () => stubbed.core.store.board(), end };
 }
 
+// Adds the head blocks h1 to h8, named Rows 1 to Rows 8, to the board in one
+// batch, so that the plugin draws the board once rather than once for each
+// block. Each draw takes about 300 ms on happy-dom.
+async function addHeadBlocks(core: CoreApi): Promise<void> {
+  const heads = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({
+    id: "blockr.core-add_block",
+    args: { registry_id: "blockr.core-head_block", id: `h${String(i)}`, name: `Rows ${String(i)}` },
+  }));
+  await act(() => core.commands.run(heads));
+}
+
 // The plugin's section of the title given.
 function section(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): HTMLElement {
   return find(el, `section[aria-label="${title}"]`);
@@ -435,9 +446,7 @@ describe("the blocks", () => {
 
   test("are listed in a table, which a search narrows and which shows ten at a time", async () => {
     const { el, core } = await mounted();
-    for (let i = 1; i <= 8; i++) {
-      await act(() => core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: `h${String(i)}`, name: `Rows ${String(i)}` }));
-    }
+    await addHeadBlocks(core);
     const blocks = section(el, "Blocks");
     expect(names(el, "Blocks")).toEqual(["Iris", "Head", "Merge", "Wide sepals", "Bind", "Scatter", "Rows 1", "Rows 2", "Rows 3", "Rows 4"]);
     expect(find(blocks, 'nav[aria-label="Pages of blocks"] span').textContent).toBe("Rows 1–10 of 14");
@@ -1010,7 +1019,7 @@ describe("the forms that add a block, a link and a stack", () => {
     const block = player("Kit block", "add_block_role", ["board"], [
       { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "n" } },
     ]);
-    const link = player("Kit link", "add_link_role", ["block", "board"]);
+    const link = player("Kit link", "add_link_role", ["block", "input", "board"]);
     const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"]);
     const { el, board } = await withActions([block.action, link.action, stack.action], HELLO, {
       add_block_role: block.action.id,
@@ -1037,7 +1046,7 @@ describe("the forms that add a block, a link and a stack", () => {
   test("show nowhere that on() leaves out the board action that the app picks for their role on the board", async () => {
     const refuse = { offers: () => false };
     const block = player("Kit block", "add_block_role", ["board"], [], refuse);
-    const link = player("Kit link", "add_link_role", ["block", "board"], [], refuse);
+    const link = player("Kit link", "add_link_role", ["block", "input", "board"], [], refuse);
     const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"], [], refuse);
     const { el } = await withActions([block.action, link.action, stack.action], HELLO, {
       add_block_role: block.action.id,
@@ -1079,9 +1088,7 @@ describe("the selection", () => {
 
   test("takes every row of a table's page by the checkbox of the table's header, and keeps the rows of its other pages and of other tables", async () => {
     const { el, core } = await mounted();
-    for (let i = 1; i <= 8; i++) {
-      await act(() => core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: `h${String(i)}`, name: `Rows ${String(i)}` }));
-    }
+    await addHeadBlocks(core);
     const blocks = section(el, "Blocks");
     const all = (): HTMLInputElement => find(blocks, '[role="columnheader"] input[type="checkbox"]', HTMLInputElement);
     await step(() => {

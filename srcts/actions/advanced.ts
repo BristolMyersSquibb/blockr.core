@@ -42,7 +42,7 @@
 //    a place that the user pinned does.
 // Where a board object that the target names leaves the board, core ends the
 // advanced action as a done() without a batch does, so that no form edits
-// what the board no longer holds.
+// what the board no longer holds. An input's target names its block.
 // What the user triggered ends with the first end: the promise of the opening
 // resolves then, which is what trigger() waits for. The `picked` and `filter`
 // of the open icon, and the caller's `extend` and notifier, go to the
@@ -320,13 +320,14 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
   }
 
   // Whether the board holds every board object that the target names, the
-  // board as a whole too.
+  // board as a whole too, and the block of an input.
   function held(target: Target): boolean {
     if (!store.hasBoard()) return false;
     if ("board" in target) return true;
     const board = store.board();
     const plugins = parts.core().plugins.appPlugins();
-    const objects: readonly BoardObject[] = "selection" in target ? target.selection : [target];
+    const objects: readonly BoardObject[] =
+      "selection" in target ? target.selection : ["input" in target ? { block: target.block } : target];
     return objects.every((object) => holdsObject(board, object, plugins));
   }
 

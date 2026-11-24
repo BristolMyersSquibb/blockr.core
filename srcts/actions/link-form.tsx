@@ -15,8 +15,9 @@
 // - Where the target is variadic, a name for the input, which the user may
 //   give, as `b2` in `rbind(a, b2 = b)`, or leave empty for an input without a
 //   name. A name that another link into the block gives already does not do.
-//   Such a block takes its links in their order on the board, and the form
-//   that edits a link offers the link's place among the block's links too.
+//   Such a block takes its links in their order on the board, as rbind() takes
+//   its arguments, so the form offers the link's place among the block's links
+//   too. A new link goes last where the user picks no other place.
 // Each form runs nothing before the user submits it, through its Add link
 // button or the Apply button of the form that edits, and then hands done()
 // the batch, which runs as one step of the user:
@@ -31,6 +32,16 @@
 //   select of the other end alone. The block is the link's target where the
 //   open icon of a "Take from" row handed it as the target, as "A link into
 //   "Merge".", and its source otherwise.
+//   On an input, the link goes into that input, as add_link_role has it too.
+//   So the form names the block and the input in the line, as "A link into
+//   the input "y" of "Merge".", in place of the selects of the target and of
+//   the input, and offers a select of the source alone. On the next place of
+//   a variadic block, the input "", the link goes into that block, so the line
+//   names the block alone, as "A link into "Bind".", and the form offers the
+//   name of the input and its place, as on the block.
+//   Where the user picks a place among the links into a variadic block other
+//   than the last, the form then runs change_link on the new link, which
+//   moves it there, as its `before`.
 // - The form that edits a link, Edit link's, changes it with change_link,
 //   which keeps its ID. Where the user picks another place among the links
 //   into a variadic block, the call gives that place too, as its `before`.
@@ -83,10 +94,17 @@ interface Start {
 
 // Create link's advanced action, which keeps the block that its target names
 // at one end of the link: its target where the open icon handed the block as
-// the target, and else its source.
+// the target, and else its source. On an input, it keeps the block as the
+// link's target, and the input as the link's input, but for the next place of
+// a variadic block, "", where the user names the input and picks its place.
 export const createLinkForm: AdvancedModule = {
   render({ el, core, target, picked, done }) {
     const given = picked === undefined ? {} : startOf(picked);
+    if ("input" in target) {
+      const input = target.input === "" ? {} : { input: target.input };
+      const fixedInput = target.input === "" ? {} : { fixedInput: target.input };
+      return drawForm(el, <LinkForm core={core} start={{ ...given, to: target.block, ...input }} fixed="to" {...fixedInput} done={done} />);
+    }
     if (!("block" in target)) return drawForm(el, <LinkForm core={core} start={given} done={done} />);
     const { block } = target;
     const fixed = given.to === block ? "to" : "from";
@@ -120,10 +138,11 @@ function startOf(picked: Json): Start {
 type End = "from" | "to";
 
 // The line that names the block at the end of the link that the target
-// fixes.
-function fixedEnd(board: Board, end: End, block: BlockId | undefined): string {
+// fixes, and the input that it fixes, where it fixes one.
+function fixedEnd(board: Board, end: End, block: BlockId | undefined, input: string | undefined): string {
   const name = block === undefined ? "" : blockName(board, block);
-  return end === "from" ? `A link from "${name}".` : `A link into "${name}".`;
+  if (end === "from") return `A link from "${name}".`;
+  return input === undefined ? `A link into "${name}".` : `A link into the input "${input}" of "${name}".`;
 }
 
 // The form that edits the link, which draws nothing once the board no longer
@@ -136,20 +155,24 @@ function EditLink({ core, id, done }: { core: CoreApi; id: LinkId; done: Done })
 type Errors = Partial<Record<"from" | "to" | "input", string>>;
 
 // The form that adds a link, or that changes the link given, which offers
-// only links that the store takes (above). Where it changes a link into a
+// only links that the store takes (above). Where the link goes into a
 // variadic block, it offers the link's place among the block's links as
 // well. Where it adds a link with an end `fixed`, it names the block of that
-// end in a line in place of the end's select.
+// end in a line in place of the end's select. Where it adds a link into the
+// input `fixedInput` too, the line names that input, and the form asks for no
+// input.
 function LinkForm({
   core,
   start = {},
   fixed,
+  fixedInput,
   editing,
   done,
 }: {
   core: CoreApi;
   start?: Start;
   fixed?: End;
+  fixedInput?: string;
   editing?: { readonly id: LinkId; readonly link: Link };
   done: Done;
 }): ReactElement {
@@ -195,11 +218,11 @@ function LinkForm({
         // picked, so that applying the form swaps the inputs of the two links.
         hint: editing !== undefined && target === editing.link.to && chosen !== undefined ? swapHint(board, registry, editing, chosen) : undefined,
         taken: target === undefined ? [] : namesInto(board, target, except),
-        // Where the form changes a link into a variadic block, the block's
-        // other links and the place that the link falls in where nothing moves
-        // it, which the form offers until the user picks another.
-        among: editing === undefined || target === undefined || !variadic ? undefined : placeAmong(board, editing.id, target),
-        fixedLine: fixed === undefined ? undefined : fixedEnd(board, fixed, fixed === "from" ? from : to),
+        // Where the link goes into a variadic block, the block's other links
+        // and the place that the link falls in where nothing moves it, which
+        // the form offers until the user picks another.
+        among: target === undefined || !variadic ? undefined : placeAmong(board, target, except),
+        fixedLine: fixed === undefined ? undefined : fixedEnd(board, fixed, fixed === "from" ? from : to, fixedInput),
         targetName: target === undefined ? "" : blockName(board, target),
         // Whether the board holds fewer blocks than a link joins.
         few: Object.keys(board.blocks).length < 2,
@@ -221,17 +244,20 @@ function LinkForm({
   // The batch that the form runs: add_link with an ID that CoreApi mints, or
   // change_link. Where the user picked another place among the links into a
   // variadic block, change_link gives it as its `before`: the link at that
-  // place, which the link goes before, or null for the last place. The place
-  // counts the other links into the block, which change_link leaves where
-  // they are.
+  // place, which the link goes before, or null for the last place. The form
+  // that adds a link runs that change_link after add_link, on the new link.
+  // The place counts the other links into the block, which add_link and
+  // change_link leave where they are.
   function batch(source: BlockId, target: BlockId): CommandCall[] {
-    const linkInput = variadic ? name.trim() : chosen;
+    const linkInput = fixedInput ?? (variadic ? name.trim() : chosen);
     const link: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
-    if (editing === undefined) {
-      return [{ id: ADD_LINK, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
-    }
     const moved = among !== undefined && position !== undefined && position !== among.place;
     const before = moved ? (among.others[position - 1] ?? null) : undefined;
+    if (editing === undefined) {
+      const id = core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
+      const added: CommandCall = { id: ADD_LINK, args: { id, ...link } };
+      return before === undefined ? [added] : [added, { id: CHANGE_LINK, args: { id, before } }];
+    }
     return [{ id: CHANGE_LINK, args: { id: editing.id, ...link, ...(before === undefined ? {} : { before }) } }];
   }
 
@@ -308,7 +334,7 @@ function LinkForm({
           </ComboBox>
         )}
       </div>
-      {target === undefined ? null : variadic ? (
+      {target === undefined || fixedInput !== undefined ? null : variadic ? (
         <div className={among === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>
           <TextField
             label="Input name"
@@ -407,10 +433,12 @@ function swapHint(
 
 // The links into block `to` but the link `id`, in their order on the board,
 // and the place, from 1, that the link takes among them where it goes to the
-// block and keeps its place on the board.
-function placeAmong(board: Pick<Board, "links">, id: LinkId, to: BlockId): { others: LinkId[]; place: number } {
+// block and keeps its place on the board. A new link, without an `id`, goes
+// last, as add_link adds it.
+function placeAmong(board: Pick<Board, "links">, to: BlockId, id?: LinkId): { others: LinkId[]; place: number } {
   const ids = Object.keys(board.links).filter((other) => other === id || own(board.links, other)?.to === to);
-  return { others: ids.filter((other) => other !== id), place: ids.indexOf(id) + 1 };
+  const others = ids.filter((other) => other !== id);
+  return { others, place: id === undefined ? others.length + 1 : ids.indexOf(id) + 1 };
 }
 
 // The board without the link given, as one that a form is about to change.

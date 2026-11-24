@@ -21,7 +21,11 @@
 //   add_link from that block to the new one. The new block's class needs an
 //   input for that.
 // - Before a block, feeding an input of that block that no link feeds, with a
-//   batch of add_block and add_link from the new block to that block.
+//   batch of add_block and add_link from the new block to that block. Where
+//   the mode names the input, as Prepend block's on an input does, the link
+//   goes into that input, which the form names in a line in place of the
+//   field of the input. On the next place of a variadic block, the input "",
+//   the form asks what it asks before that block.
 // - On a link, between the two blocks that it joins, with a batch of
 //   add_block, add_link from the block that the link comes from to the new
 //   block, and change_link, which has the link come from the new block. So
@@ -34,6 +38,11 @@
 //   as the left and the right table of a merge.
 // - Where it goes into a variadic block, the user may name the input, as
 //   `b2` in `rbind(a, b2 = b)`, or leave it empty for a positional one.
+//   Before such a block, the user picks the link's place among the block's
+//   links too, since the block takes its links in their order on the board,
+//   as rbind() takes its arguments. The link goes last where the user picks
+//   no other place, and else the batch moves it there with change_link, as
+//   its `before`.
 // - A batch hands no value from one command to the next, and add_link names
 //   the new block. So the form fixes the block's id before it hands on the
 //   batch, as every board action of core's that adds an object does.
@@ -65,11 +74,12 @@ import type { Done } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 
 // Where the new block goes: on its own, after a block, before a block, or on
-// a link.
+// a link. Before a block, it may feed the input given, or "" for the next
+// place of a variadic block, which the picker takes as the block.
 export type AddMode =
   | { readonly kind: "add" }
   | { readonly kind: "after"; readonly from: BlockId }
-  | { readonly kind: "before"; readonly to: BlockId }
+  | { readonly kind: "before"; readonly to: BlockId; readonly input?: string }
   | { readonly kind: "on"; readonly link: LinkId };
 
 export interface PickerProps {
@@ -97,6 +107,8 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
   const [picked, setPicked] = useState<string | undefined>(undefined);
   const [input, setInput] = useState<string | undefined>(undefined);
   const [inputName, setInputName] = useState("");
+  // The place among the links into a variadic block that the user picks.
+  const [place, setPlace] = useState<number | undefined>(undefined);
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [errors, setErrors] = useState<Errors>({});
@@ -115,6 +127,11 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
   const entry = picked === undefined ? undefined : own(registry, picked);
   const link = useBoard(core, (board) => linkChoice(mode, board, core.blockRegistry(), entry));
   const chosen = link.kind === "pick" ? (input !== undefined && link.inputs.includes(input) ? input : link.inputs[0]) : undefined;
+  // Before a variadic block, the links into it, before which the new link may
+  // go, and the place that the user picked among them, last until they pick
+  // another.
+  const places = link.kind === "name" ? link.places : undefined;
+  const position = places === undefined ? undefined : place !== undefined && place <= places.length ? place : places.length + 1;
   // The link that the new block goes on, which the board holds until core
   // ends the advanced action as the link leaves the board.
   const on = useBoard(core, (board) => (mode.kind === "on" ? own(board.links, mode.link) : undefined));
@@ -148,12 +165,14 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
     const into: Record<string, Json> = {
       ...(chosen === undefined ? {} : { input: chosen }),
       ...(link.kind === "name" ? filled("input", inputName) : {}),
+      ...(link.kind === "fixed" ? { input: link.input } : {}),
     };
+    const before = places === undefined || position === undefined ? undefined : places[position - 1];
     setBusy(true);
     // Once the batch has run, core ends the advanced action, and renders it
     // again where it shows in a plugin's room, so that the form starts afresh
     // for the next block.
-    await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into), done);
+    await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into, before), done);
     setBusy(false);
   }
 
@@ -213,22 +232,39 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
         </Select>
       ) : null}
       {link.kind === "name" ? (
-        <TextField
-          label={link.label}
-          value={inputName}
-          description="Optional. Leave it empty for an input without a name, which the block takes in the order of its links."
-          errorMessage={errors.input}
-          isInvalid={errors.input !== undefined}
-          autoComplete="off"
-          onChange={(value) => {
-            setInputName(value);
-            setErrors((now) => without(now, "input"));
-          }}
-          onBlur={() => {
-            setErrors((now) => ({ ...now, ...optional("input", inputNameError(inputName, link.taken)) }));
-          }}
-        />
+        <div className={places === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>
+          <TextField
+            label={link.label}
+            value={inputName}
+            description="Optional. Leave it empty for an input without a name, which the block takes in the order of its links."
+            errorMessage={errors.input}
+            isInvalid={errors.input !== undefined}
+            autoComplete="off"
+            onChange={(value) => {
+              setInputName(value);
+              setErrors((now) => without(now, "input"));
+            }}
+            onBlur={() => {
+              setErrors((now) => ({ ...now, ...optional("input", inputNameError(inputName, link.taken)) }));
+            }}
+          />
+          {places === undefined ? null : (
+            <Select
+              label="Position"
+              isRequired
+              items={Array.from({ length: places.length + 1 }, (_, i) => ({ id: String(i + 1) }))}
+              value={position === undefined ? null : String(position)}
+              isDisabled={places.length === 0}
+              onChange={(key) => {
+                if (key !== null) setPlace(Number(key));
+              }}
+            >
+              {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
+            </Select>
+          )}
+        </div>
       ) : null}
+      {link.kind === "fixed" ? <p className={styles.hint}>{link.line}</p> : null}
       {link.kind === "no_free_inputs" ? <p className={styles.alert}>{link.why}</p> : null}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
@@ -269,17 +305,24 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
 // What the form asks about the link that comes with the new block:
 // - "pick": the input among several, where the input is fixed.
 // - "name": an optional name, where the input is variadic, which the variadic
-//   block's other links take in `taken`.
+//   block's other links take in `taken`. Before a block, the form asks for
+//   the link's place too, before one of the block's links, in `places`, or
+//   last. A new block has no links, so after a block and on a link the form
+//   asks for no place.
+// - "fixed": nothing, before a block where the mode names the input, which
+//   the form names in `line` instead.
 // - "none": nothing, where the mode adds no link, where the user has not
 //   picked the class of a block added after another or on a link yet, or
 //   where the link has one input to go into, which the command then finds.
 // - "no_free_inputs": nothing, before a block whose inputs all take a link
-//   already. The form shows `why` instead, and adds no block.
+//   already, or where a link feeds the input that the mode names. The form
+//   shows `why` instead, and adds no block.
 // After a block and on a link alike, the link goes into an input of the new
 // block, of which no link feeds any.
 type LinkChoice =
   | { readonly kind: "pick"; readonly label: string; readonly inputs: readonly string[] }
-  | { readonly kind: "name"; readonly label: string; readonly taken: readonly string[] }
+  | { readonly kind: "name"; readonly label: string; readonly taken: readonly string[]; readonly places?: readonly LinkId[] }
+  | { readonly kind: "fixed"; readonly input: string; readonly line: string }
   | { readonly kind: "none" }
   | { readonly kind: "no_free_inputs"; readonly why: string };
 
@@ -292,8 +335,10 @@ function linkChoice(
   if (mode.kind === "before") {
     const target = own(board.blocks, mode.to);
     const free = freeInputs(board, registry, mode.to) ?? [];
-    const of = `of "${target?.name ?? mode.to}"`;
-    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
+    const name = target?.name ?? mode.to;
+    const of = `of "${name}"`;
+    if (mode.input !== undefined && mode.input !== "") return fixedInput(free, mode.input, name);
+    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to), places: linksInto(board, mode.to) };
     if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
     return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
   }
@@ -304,35 +349,61 @@ function linkChoice(
   return { kind: "none" };
 }
 
+// What the form asks about a link into the input given, of the block of the
+// name given, whose free inputs are those given. It asks nothing either way:
+// - While no link feeds the input, the form names the input in a line.
+// - Once a link feeds it, the form says why it adds no block.
+function fixedInput(free: readonly string[], input: string, name: string): LinkChoice {
+  const named = `the input "${input}" of "${name}"`;
+  if (free.includes(input)) return { kind: "fixed", input, line: `The new block feeds ${named}.` };
+  return { kind: "no_free_inputs", why: `A link feeds ${named} already.` };
+}
+
 // The batch that adds the block of the mode in one step: add_block, and for a
 // block after or before another or on a link, add_link, into the input that
 // `into` gives, where it gives one, and on a link change_link too. The batch
 // fixes the new block's id first, since add_link and change_link name the
 // block, and mints it where `args` gives none. The link `on` is the one that
 // the mode names, as the board holds it. Where the board no longer holds it,
-// the batch is empty, so that done() only ends the advanced action.
+// the batch is empty, so that done() only ends the advanced action. Before a
+// variadic block, the batch moves the new link before the link `before`,
+// where it names one, with change_link, which names the link by the id that
+// the batch mints for it.
 function pickedBatch(
   core: Pick<CoreApi, "store" | "mintId">,
   mode: AddMode,
   on: Link | undefined,
   args: Readonly<Record<string, Json>>,
   into: Readonly<Record<string, Json>>,
+  before?: LinkId,
 ): { readonly id: string; readonly args: Json }[] {
   const block = typeof args.id === "string" ? args.id : core.mintId((id) => Object.hasOwn(core.store.board().blocks, id));
   const add = { id: "blockr.core-add_block", args: { ...args, id: block } };
-  const linked = (from: BlockId, to: BlockId) => ({ id: "blockr.core-add_link", args: { from, to, ...into } });
+  const linked = (from: BlockId, to: BlockId, id?: LinkId) => ({
+    id: "blockr.core-add_link",
+    args: { ...(id === undefined ? {} : { id }), from, to, ...into },
+  });
   switch (mode.kind) {
     case "add":
       return [add];
     case "after":
       return [add, linked(mode.from, block)];
-    case "before":
-      return [add, linked(block, mode.to)];
+    case "before": {
+      if (before === undefined) return [add, linked(block, mode.to)];
+      const link = core.mintId((id) => Object.hasOwn(core.store.board().links, id));
+      return [add, linked(block, mode.to, link), { id: "blockr.core-change_link", args: { id: link, before } }];
+    }
     case "on":
       return on === undefined
         ? []
         : [add, linked(on.from, block), { id: "blockr.core-change_link", args: { id: mode.link, from: block } }];
   }
+}
+
+// The links into a block, in their order on the board, which a variadic block
+// takes its inputs in.
+function linksInto(board: Pick<Board, "links">, to: BlockId): readonly LinkId[] {
+  return Object.keys(board.links).filter((id) => own(board.links, id)?.to === to);
 }
 
 // The names that the links into a variadic block give its inputs.

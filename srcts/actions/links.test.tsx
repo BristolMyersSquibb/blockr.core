@@ -258,6 +258,100 @@ describe("Create link", () => {
     expect(added.map((id) => s.core.store.board().links[id])).toEqual([{ from: "f", to: "e", input: "" }]);
   });
 
+  test("applies to an input that no link feeds, lists the blocks that can feed it, without closing a cycle, and adds the link picked into that input in one step", async () => {
+    const s = await stubbed();
+    const on = (target: Target) => ids(s.core.boardActions.on(target));
+    expect(on({ block: "b", input: "data" })).not.toContain(CREATE_LINK);
+    expect(on({ block: "c", input: "" })).not.toContain(CREATE_LINK);
+
+    await edited(s, ["blockr.core-remove_link", { id: "ab" }]);
+    const links = Object.keys(s.core.store.board().links);
+    const menu = s.menu({ block: "b", input: "data" });
+    await menu.pick("Create link");
+    expect(menu.level()).toMatchObject({ label: "Create link", filter: "", advanced: true, back: true });
+    // Merge and Bind are downstream of Head, so that a link from either into
+    // Head would close a cycle.
+    expect(shown(menu.level())).toEqual([
+      ["Take from", "Iris", "a"],
+      ["Take from", "Wide sepals", "d"],
+      ["Take from", "Scatter", "f"],
+    ]);
+    await menu.pick("Scatter");
+
+    expect(menu.closed()).toBe(true);
+    const added = Object.keys(s.core.store.board().links).filter((id) => !links.includes(id));
+    expect(added.map((id) => s.core.store.board().links[id])).toEqual([{ from: "f", to: "b", input: "data" }]);
+    s.core.store.undo();
+    expect(Object.keys(s.core.store.board().links)).toEqual(links);
+
+    // Into the next place of Bind, without a name, from any block that is
+    // not downstream of Bind.
+    const next = s.menu({ block: "e", input: "" });
+    await next.pick("Create link");
+    expect(shown(next.level()).map(([, label]) => label)).toEqual(["Iris", "Head", "Merge", "Wide sepals", "Scatter"]);
+    await next.pick("Merge");
+    expect(Object.values(s.core.store.board().links)).toContainEqual({ from: "c", to: "e", input: "" });
+  });
+
+  test("on an input, opens the form into that input, which it names in place of the selects of the link's target and its input, and on the next place of a variadic block, asks for the name of the input and its place", async () => {
+    const s = await stubbed();
+    await edited(s, ["blockr.core-remove_link", { id: "ac" }], ["blockr.core-remove_link", { id: "bc" }]);
+    const links = Object.keys(s.core.store.board().links);
+
+    const menu = s.menu({ block: "c", input: "y" });
+    await menu.pick("Create link");
+    await step(() => {
+      void menu.openAdvanced();
+    });
+    let form = dialogForm(s, "Add link");
+    expect(hint(form)).toBe('A link into the input "y" of "Merge".');
+    expect(() => labelled(form, "To")).toThrow("Found no text field labelled To.");
+    expect(() => selectButton(form, "Input")).toThrow();
+    await chosen(form, "From", "Head");
+    await acting(() => {
+      button(form, "Add link").click();
+    });
+    expect(s.advanced()).toBeUndefined();
+    const added = Object.keys(s.core.store.board().links).filter((id) => !links.includes(id));
+    expect(added.map((id) => s.core.store.board().links[id])).toEqual([{ from: "b", to: "c", input: "y" }]);
+
+    // On the next place of Bind, the line names Bind alone, and the form asks
+    // for the name of the input and its place among Bind's links, be and de,
+    // as rbind() takes its arguments by their order and by their names.
+    const room = document.createElement("div");
+    document.body.append(room);
+    stops.push(() => {
+      room.remove();
+    });
+    let unmount = (): void => undefined;
+    await step(() => {
+      unmount = s.core.boardActions.mountAdvanced(room, "add_link_role", { block: "e", input: "" });
+    });
+    form = find(room, 'form[aria-label="Add link"]', HTMLFormElement);
+    expect(hint(form)).toBe('A link into "Bind".');
+    expect(() => selectButton(form, "Input")).toThrow();
+    expect(await listed(selectButton(form, "Position"), step)).toEqual(["1", "2", "3"]);
+    expect(selectShows(selectButton(form, "Position"))).toBe("3");
+    await chosen(form, "From", "Scatter");
+    await step(() => {
+      type(labelled(form, "Input name"), "plotted");
+    });
+    await picked(selectButton(form, "Position"), step, "1");
+    const board = s.core.store.board();
+    await acting(() => {
+      button(form, "Add link").click();
+    });
+    const into = Object.keys(s.core.store.board().links).filter((id) => s.core.store.board().links[id]?.to === "e");
+    expect(into.slice(1)).toEqual(["be", "de"]);
+    expect(s.core.store.board().links[into[0] ?? ""]).toEqual({ from: "f", to: "e", input: "plotted" });
+    // One undo takes back the link and its move.
+    s.core.store.undo();
+    expect(s.core.store.board()).toEqual(board);
+    await step(() => {
+      unmount();
+    });
+  });
+
   test("on a block, from the open icon of a row that takes from another block, names the block as the link's target in place of the select of that end", async () => {
     const s = await stubbed();
     await edited(s, ["blockr.core-remove_link", { id: "ac" }], ["blockr.core-remove_link", { id: "bc" }]);
