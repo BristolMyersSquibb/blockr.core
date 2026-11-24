@@ -375,7 +375,7 @@ describe("on a variadic block", () => {
     expect(removes(el)).toEqual(["Remove input 1", "Remove input 2"]);
   });
 
-  test("moves an input to another place, which the user drags it to from the keyboard, and applies the order through move_link in one step that undo takes back", async () => {
+  test("moves an input to another place, which the user drags it to from the keyboard, and applies the order through change_link in one step that undo takes back", async () => {
     const { el, core, board } = await opened("e");
     const before = board();
 
@@ -566,9 +566,9 @@ describe("on a variadic block", () => {
         { id: "blockr.core-change_link", args: { id: "de", from: "f", input: "low" } },
         { id: "blockr.core-add_link", args: { id: iris, from: "a", to: "e" } },
         { id: "blockr.core-add_link", args: { id: merge, from: "c", to: "e", input: "m" } },
-        { id: "blockr.core-move_link", args: { id: iris } },
-        { id: "blockr.core-move_link", args: { id: "de" } },
-        { id: "blockr.core-move_link", args: { id: merge } },
+        { id: "blockr.core-change_link", args: { id: iris, before: null } },
+        { id: "blockr.core-change_link", args: { id: "de", before: null } },
+        { id: "blockr.core-change_link", args: { id: merge, before: null } },
       ],
     ]);
     s.core.store.undo();

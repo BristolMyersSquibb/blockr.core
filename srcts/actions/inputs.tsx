@@ -41,7 +41,7 @@
 // 3. An add_link for each input that had no source and got one, and for each
 //    input that the user added, with an ID that CoreApi's mintId() mints.
 // 4. Where the user dragged the inputs of a variadic block into another order,
-//    a move_link for each input, which puts it last, in that order.
+//    a change_link for each input, which puts it last, in that order.
 // So the user's edits undo together, and the board never evaluates a state
 // that the user only passed through on the way to the one they applied.
 // Where the store or the command registry refuses the batch, the advanced
@@ -82,7 +82,6 @@ import type { CommandCall } from "./actions.ts";
 
 const ADD_LINK = "blockr.core-add_link";
 const CHANGE_LINK = "blockr.core-change_link";
-const MOVE_LINK = "blockr.core-move_link";
 const REMOVE_LINK = "blockr.core-remove_link";
 
 // Renders the advanced action for the block that the target names, the one
@@ -486,10 +485,10 @@ function nameError(board: Board, shown: readonly Input[], key: string): string |
 // 2. A change_link for each link whose source or name the user changed, with
 //    the source and the name that changed.
 // 3. An add_link for each input that the user added, in the order shown, with
-//    an ID that CoreApi mints, so that move_link can name the new link.
+//    an ID that CoreApi mints, so that change_link can name the new link.
 // 4. Where the order shown differs from the order that the links take after
-//    the commands above, a move_link for each link, which puts it last, in the
-//    order shown (moves()).
+//    the commands above, a change_link for each link, which puts it last, in
+//    the order shown (moves()).
 function variadicBatch(core: CoreApi, board: Board, block: BlockId, shown: readonly Input[]): CommandCall[] {
   const into = createGraph(board).linksInto(block);
   const minted = new Set<LinkId>();
@@ -518,13 +517,13 @@ function variadicBatch(core: CoreApi, board: Board, block: BlockId, shown: reado
   ];
 }
 
-// The calls of move_link that put the links into a variadic block, which
+// The calls of change_link that put the links into a variadic block, which
 // stand in the order `from` on the board, in the order `to`, where the two
-// differ. Each link goes last among the block's links in turn, in the order
-// `to`, so that each moves once.
+// differ. Each call gives a `before` of null, so that each link goes last
+// among the block's links in turn, in the order `to`, and moves once.
 function moves(from: readonly LinkId[], to: readonly LinkId[]): CommandCall[] {
   if (from.length === to.length && from.every((id, i) => id === to[i])) return [];
-  return to.map((id): CommandCall => ({ id: MOVE_LINK, args: { id } }));
+  return to.map((id): CommandCall => ({ id: CHANGE_LINK, args: { id, before: null } }));
 }
 
 // What an item of the list says to assistive technology, which React Aria

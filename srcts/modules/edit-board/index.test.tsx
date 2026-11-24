@@ -460,7 +460,7 @@ describe("the blocks", () => {
 
   test("open the menu of their block from the … button at the end of each row, which offers what every menu of the block offers, another package's board actions among them", async () => {
     const documented = action("Add to document", ["block"], (_board, target) => [
-      { id: "blockr.core-rename_block", args: { id: "block" in target ? target.block : "", name: "In the document" } },
+      { id: "blockr.core-change_block", args: { id: "block" in target ? target.block : "", name: "In the document" } },
     ]);
     const m = await withActions([documented]);
     const blocks = section(m.el, "Blocks");
@@ -1538,7 +1538,7 @@ describe("the cleanup that render() returns", () => {
     });
     expect(el.childNodes).toHaveLength(0);
 
-    await act(() => core.commands.run("blockr.core-rename_block", { id: "b", name: "First rows" }));
+    await act(() => core.commands.run("blockr.core-change_block", { id: "b", name: "First rows" }));
     expect(el.childNodes).toHaveLength(0);
   });
 

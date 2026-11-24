@@ -24,9 +24,9 @@
 //   names those blocks in a line above its fields, as "A stack of the blocks
 //   "Merge" and "Scatter".", in place of the select of its blocks, which it
 //   shows on the board alone.
-// - The form that edits a stack, Edit stack's, renames it with rename_stack
-//   and sets its colour and its blocks with change_stack, each where it
-//   changed. A name that the user leaves empty keeps the stack's name.
+// - The form that edits a stack, Edit stack's, sets its name, its colour and
+//   its blocks with change_stack, each where it changed. A name that the user
+//   leaves empty keeps the stack's name.
 // Where the store refuses the batch, the form says why below its button, and
 // keeps what the user gave. It reads the board as it is, through the store.
 
@@ -60,7 +60,6 @@ import { heldBlocks } from "./targets.ts";
 
 const ADD_STACK = "blockr.core-add_stack";
 const CHANGE_STACK = "blockr.core-change_stack";
-const RENAME_STACK = "blockr.core-rename_stack";
 
 // The colours that a new stack starts from, ColorBrewer's Set2, of which a new
 // stack takes the first that no stack has.
@@ -179,7 +178,8 @@ function StackForm({
   const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
 
   // The batch that the form runs: add_stack with an ID that CoreApi mints, or
-  // rename_stack and change_stack, each where it changes the stack.
+  // change_stack with the name, the blocks and the colour that the user
+  // changed, where they changed any.
   function batch(): CommandCall[] {
     const trimmed = name.trim();
     const hex = color === null ? null : stackColor(color);
@@ -189,13 +189,11 @@ function StackForm({
     }
     const { id, stack } = editing;
     const changed: Record<string, Json> = {
+      ...(trimmed === "" || trimmed === stack.name ? {} : { name: trimmed }),
       ...(sameBlocks(kept, stack.blocks) ? {} : { blocks: kept }),
       ...(sameColor(hex, stack.color) ? {} : { color: hex }),
     };
-    return [
-      ...(trimmed === "" || trimmed === stack.name ? [] : [{ id: RENAME_STACK, args: { id, name: trimmed } }]),
-      ...(Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id, ...changed } }]),
-    ];
+    return Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id, ...changed } }];
   }
 
   async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {

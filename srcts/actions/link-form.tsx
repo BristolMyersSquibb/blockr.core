@@ -39,9 +39,12 @@
 //   a variadic block, the input "", the link goes into that block, so the line
 //   names the block alone, as "A link into "Bind".", and the form offers the
 //   name of the input and its place, as on the block.
-// - The form that edits a link, Edit link's, changes it with change_link.
-// Each form moves the link with move_link to the place that the user picks
-// among the links into a variadic block, which keeps its ID and its ends.
+//   Where the user picks a place among the links into a variadic block other
+//   than the last, the form then runs change_link on the new link, which
+//   moves it there, as its `before`.
+// - The form that edits a link, Edit link's, changes it with change_link,
+//   which keeps its ID. Where the user picks another place among the links
+//   into a variadic block, the call gives that place too, as its `before`.
 // Where the store refuses the batch, the form says why below its button, and
 // keeps what the user gave. It reads the board as it is, through the store.
 
@@ -77,7 +80,6 @@ import type { CommandCall } from "./actions.ts";
 
 const ADD_LINK = "blockr.core-add_link";
 const CHANGE_LINK = "blockr.core-change_link";
-const MOVE_LINK = "blockr.core-move_link";
 
 // What the form that adds a link starts from: its source, its target and the
 // input, each where given.
@@ -229,22 +231,28 @@ function LinkForm({
     return {
       ...(source === undefined ? { from: "Pick the block that the link comes from." } : {}),
       ...(target === undefined ? { to: "Pick the block that the link goes to." } : {}),
-      ...(variadic && fixedInput === undefined ? optional("input", inputNameError(name, taken)) : {}),
+      ...(variadic ? optional("input", inputNameError(name, taken)) : {}),
     };
   }
 
   // The batch that the form runs: add_link with an ID that CoreApi mints, or
-  // change_link, followed by move_link where the user picked another place
-  // among the links into a variadic block. The place counts the other links
-  // into the block, which add_link and change_link leave where they are.
+  // change_link. Where the user picked another place among the links into a
+  // variadic block, change_link gives it as its `before`: the link at that
+  // place, which the link goes before, or null for the last place. The form
+  // that adds a link runs that change_link after add_link, on the new link.
+  // The place counts the other links into the block, which add_link and
+  // change_link leave where they are.
   function batch(source: BlockId, target: BlockId): CommandCall[] {
     const linkInput = fixedInput ?? (variadic ? name.trim() : chosen);
     const link: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
-    const id = editing?.id ?? core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
-    const linked: CommandCall = { id: editing === undefined ? ADD_LINK : CHANGE_LINK, args: { id, ...link } };
-    if (among === undefined || position === undefined || position === among.place) return [linked];
-    const before = among.others[position - 1];
-    return [linked, { id: MOVE_LINK, args: { id, ...(before === undefined ? {} : { before }) } }];
+    const moved = among !== undefined && position !== undefined && position !== among.place;
+    const before = moved ? (among.others[position - 1] ?? null) : undefined;
+    if (editing === undefined) {
+      const id = core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
+      const added: CommandCall = { id: ADD_LINK, args: { id, ...link } };
+      return before === undefined ? [added] : [added, { id: CHANGE_LINK, args: { id, before } }];
+    }
+    return [{ id: CHANGE_LINK, args: { id: editing.id, ...link, ...(before === undefined ? {} : { before }) } }];
   }
 
   async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {

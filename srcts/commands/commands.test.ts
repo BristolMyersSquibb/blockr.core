@@ -167,18 +167,14 @@ describe("registering", () => {
     expect(Object.keys(commands.registered())).toEqual([
       "blockr.core-add_block",
       "blockr.core-remove_block",
-      "blockr.core-rename_block",
-      "blockr.core-set_block_lock",
-      "blockr.core-set_block",
+      "blockr.core-change_block",
       "blockr.core-add_link",
       "blockr.core-change_link",
-      "blockr.core-move_link",
       "blockr.core-remove_link",
       "blockr.core-add_stack",
       "blockr.core-change_stack",
-      "blockr.core-rename_stack",
       "blockr.core-remove_stack",
-      "blockr.core-rename_board",
+      "blockr.core-change_board",
       "blockr.core-set_option",
       "blockr.core-set_plugin_state",
     ]);
@@ -255,7 +251,7 @@ describe("running a command", () => {
   test("applies a command that does not prepare before run() returns", async () => {
     const { store, commands } = await setup();
 
-    const done = commands.run("blockr.core-rename_board", { name: "Sepals" });
+    const done = commands.run("blockr.core-change_board", { name: "Sepals" });
     expect(store.board().name).toBe("Sepals");
     await done;
   });
@@ -277,8 +273,8 @@ describe("running a command", () => {
 
   test("takes args left out as no args", async () => {
     const { commands } = await setup();
-    await expect(commands.run("blockr.core-rename_board")).rejects.toThrow(
-      'Instance does not have required property "name".',
+    await expect(commands.run("blockr.core-remove_block")).rejects.toThrow(
+      'Instance does not have required property "id".',
     );
     await expect(commands.run("blockr.core-add_stack")).resolves.toBe(true);
   });
@@ -303,7 +299,7 @@ describe("running a command", () => {
     // since the command ran alone.
     const error = await rejection(commands.run("blockr.core-remove_block", { id: "zz" }));
     expect([error.preflight, error.index]).toEqual([false, undefined]);
-    const failed = await rejection(commands.run("blockr.core-rename_board", { name: 1 }));
+    const failed = await rejection(commands.run("blockr.core-change_board", { name: 1 }));
     expect(failed.preflight).toBeUndefined();
   });
 
@@ -347,7 +343,7 @@ describe("running a command", () => {
     const reported = logged();
 
     await expect(commands.run("test.pkg-nothing")).rejects.toThrow("is registered");
-    await expect(commands.run("blockr.core-rename_board", { name: 1 })).rejects.toThrow("The args fail their schema");
+    await expect(commands.run("blockr.core-change_board", { name: 1 })).rejects.toThrow("The args fail their schema");
     await expect(commands.run("blockr.core-remove_block", { id: "zz" })).rejects.toThrow("It fails its preflight");
     // Core's command refuses in its own run(), with a CommandError.
     await expect(commands.run("blockr.core-add_block", { registry_id: "test.pkg-nowhere" })).rejects.toThrow(
@@ -371,15 +367,15 @@ describe("running a command", () => {
   test("refuses to run before the store opens a board", async () => {
     const store = createStore();
     const commands = createCommands(store);
-    await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(
-      'The command "blockr.core-rename_board" refused to run\n- The store holds no board until it opens one.',
+    await expect(commands.run("blockr.core-change_board", { name: "Sepals" })).rejects.toThrow(
+      'The command "blockr.core-change_board" refused to run\n- The store holds no board until it opens one.',
     );
-    expect(commands.preflight("blockr.core-rename_board", { name: "Sepals" })).toBe(false);
+    expect(commands.preflight("blockr.core-change_board", { name: "Sepals" })).toBe(false);
   });
 
   test("applies no step where the command changes nothing", async () => {
     const { store, commands } = await setup();
-    await commands.run("blockr.core-rename_board", { name: "Iris review" });
+    await commands.run("blockr.core-change_board", { name: "Iris review" });
     expect(store.canUndo()).toBe(false);
   });
 
@@ -395,8 +391,8 @@ describe("running a command", () => {
       run: () => ({ blocks: { mod: { b: { state: { n: 6 } } } }, options: { set: { n_rows: 10 } } }),
     });
 
-    await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).resolves.toBe(true);
-    await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).resolves.toBe(false);
+    await expect(commands.run("blockr.core-change_board", { name: "Sepals" })).resolves.toBe(true);
+    await expect(commands.run("blockr.core-change_board", { name: "Sepals" })).resolves.toBe(false);
     await expect(commands.run("test.pkg-later")).resolves.toBe(true);
     await expect(commands.run("test.pkg-rename_b", { name: "Renamed" })).resolves.toBe(false);
     await expect(commands.run("blockr.core-set_option", { id: "n_rows", value: 30 })).resolves.toBe(false);
@@ -499,11 +495,11 @@ describe("preparing", () => {
 
     await expect(done).rejects.toThrow("A board opened while it prepared, which drops it.");
     expect(run).not.toHaveBeenCalled();
-    await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(
-      'The command "blockr.core-rename_board" refused to run\n- Another board opened in a new store, so this command registry runs no command.',
+    await expect(commands.run("blockr.core-change_board", { name: "Sepals" })).rejects.toThrow(
+      'The command "blockr.core-change_board" refused to run\n- Another board opened in a new store, so this command registry runs no command.',
     );
-    await expect(commands.plan("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(CommandError);
-    expect(commands.preflight("blockr.core-rename_board", { name: "Sepals" })).toBe(false);
+    await expect(commands.plan("blockr.core-change_board", { name: "Sepals" })).rejects.toThrow(CommandError);
+    expect(commands.preflight("blockr.core-change_board", { name: "Sepals" })).toBe(false);
     expect(store.board().name).toBe("Iris review");
   });
 
@@ -613,7 +609,7 @@ describe("planning", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    const planned = await commands.plan("blockr.core-rename_board", { name: "Sepals" });
+    const planned = await commands.plan("blockr.core-change_board", { name: "Sepals" });
     expect(planned).toEqual([{ name: "Sepals" }]);
     expect(store.board()).toBe(board);
     expect(store.canUndo()).toBe(false);
@@ -626,12 +622,12 @@ describe("planning", () => {
   test("fills in the edit ids of the board it read, so that the store refuses a plan once another edit came first", async () => {
     const { store, commands } = await setup();
 
-    const planned = await commands.plan("blockr.core-set_block", { id: "b", state: { n: 10 } });
+    const planned = await commands.plan("blockr.core-change_block", { id: "b", state: { n: 10 } });
     expect(planned).toEqual([
       { blocks: { mod: { b: { edit: store.editId({ block: "b" }), state: { n: 10 } } } } },
     ]);
 
-    await commands.run("blockr.core-set_block", { id: "b", state: { n: 20 } });
+    await commands.run("blockr.core-change_block", { id: "b", state: { n: 20 } });
     expect(() => {
       store.apply(planned, "assistant");
     }).toThrow(/The delta was built on edit \d+ of block "b", which another edit has replaced/);
@@ -705,7 +701,7 @@ describe("running a batch", () => {
       [
         { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "g" } },
         { id: "blockr.core-add_link", args: { from: "d", to: "g", id: "dg" } },
-        { id: "blockr.core-rename_block", args: { id: "g", name: "Top" } },
+        { id: "blockr.core-change_block", args: { id: "g", name: "Top" } },
       ],
       "assistant",
     );
@@ -735,7 +731,7 @@ describe("running a batch", () => {
   test("applies a batch whose commands do not prepare before run() returns", async () => {
     const { store, commands } = await setup();
 
-    const done = commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }]);
+    const done = commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }]);
     expect(store.board().name).toBe("Sepals");
     await done;
   });
@@ -753,7 +749,7 @@ describe("running a batch", () => {
 
     await commands.run([
       { id: "test.pkg-rename_b", args: { name: "Three" } },
-      { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+      { id: "blockr.core-change_board", args: { name: "Sepals" } },
     ]);
     expect(store.canUndo()).toBe(true);
     store.undo();
@@ -800,7 +796,7 @@ describe("running a batch", () => {
       commands.run(
         [
           { id: "test.pkg-rename_b", args: { name: "Viewed" } },
-          { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+          { id: "blockr.core-change_board", args: { name: "Sepals" } },
         ],
         "assistant",
       ),
@@ -833,7 +829,7 @@ describe("refusing a batch", () => {
     const error = await rejection(
       commands.run(
         [
-          { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+          { id: "blockr.core-change_board", args: { name: "Sepals" } },
           { id: "blockr.core-remove_block", args: { id: "zz" } },
         ],
         "assistant",
@@ -857,14 +853,14 @@ describe("refusing a batch", () => {
     commands.register(later(prepare));
 
     const error = await rejection(
-      commands.run([{ id: "test.pkg-later" }, { id: "blockr.core-rename_board", args: { name: 1 } }]),
+      commands.run([{ id: "test.pkg-later" }, { id: "blockr.core-change_board", args: { name: 1 } }]),
     );
     expect(error.index).toBe(1);
     expect(error.preflight).toBeUndefined();
     expect(error.failures).toEqual([expect.stringMatching(/^The args fail their schema at \/name:/)]);
     expect(prepare).not.toHaveBeenCalled();
 
-    const missing = await rejection(commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "test.pkg-nothing" }]));
+    const missing = await rejection(commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }, { id: "test.pkg-nothing" }]));
     expect(missing.index).toBe(1);
     expect(missing.failures).toEqual(['No command "test.pkg-nothing" is registered.']);
   });
@@ -875,9 +871,9 @@ describe("refusing a batch", () => {
 
     const error = await rejection(
       commands.run([
-        { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+        { id: "blockr.core-change_board", args: { name: "Sepals" } },
         { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "a" } },
-        { id: "blockr.core-rename_block", args: { id: "b", name: "Top" } },
+        { id: "blockr.core-change_block", args: { id: "b", name: "Top" } },
       ]),
     );
 
@@ -914,7 +910,7 @@ describe("refusing a batch", () => {
   test("refuses a batch at its first command before the store opens a board", async () => {
     const commands = createCommands(createStore());
 
-    const error = await rejection(commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }]));
+    const error = await rejection(commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }]));
     expect(error.index).toBe(0);
     expect(error.failures).toEqual(["The store holds no board until it opens one."]);
   });
@@ -980,7 +976,7 @@ describe("a batch with a command that prepares", () => {
     commands.register(later(() => ready.promise));
 
     const done = commands.run([
-      { id: "blockr.core-rename_block", args: { id: "c", name: "Joined" } },
+      { id: "blockr.core-change_block", args: { id: "c", name: "Joined" } },
       { id: "test.pkg-later" },
     ]);
     store.apply({ blocks: { rm: ["c"] } });
@@ -999,7 +995,7 @@ describe("a batch with a command that prepares", () => {
     const ready = Promise.withResolvers<string>();
     commands.register(later(() => ready.promise));
 
-    const done = commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "test.pkg-later" }]);
+    const done = commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }, { id: "test.pkg-later" }]);
     controller.abort();
     ready.resolve("!");
 
@@ -1015,7 +1011,7 @@ describe("a batch with a command that prepares", () => {
     commands.register(later(() => Promise.reject(thrown)));
     const reported = logged();
 
-    const error = await rejection(commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "test.pkg-later" }]));
+    const error = await rejection(commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }, { id: "test.pkg-later" }]));
     reported.restore();
     expect(error.index).toBe(1);
     expect(error.failures).toEqual(["No layout."]);
@@ -1031,10 +1027,10 @@ describe("planning a batch", () => {
     const b = store.editId({ block: "b" });
 
     const planned = await commands.plan([
-      { id: "blockr.core-set_block", args: { id: "b", state: { n: 7 } } },
-      { id: "blockr.core-rename_block", args: { id: "b", name: "Top" } },
+      { id: "blockr.core-change_block", args: { id: "b", state: { n: 7 } } },
+      { id: "blockr.core-change_block", args: { id: "b", name: "Top" } },
       { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "g" } },
-      { id: "blockr.core-set_block", args: { id: "g", state: { n: 3 } } },
+      { id: "blockr.core-change_block", args: { id: "g", state: { n: 3 } } },
     ]);
 
     expect(planned).toEqual([
@@ -1070,7 +1066,7 @@ describe("planning a batch", () => {
     commands.register(renameB({ undo: false }));
 
     const planned = await commands.plan([
-      { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+      { id: "blockr.core-change_board", args: { name: "Sepals" } },
       { id: "test.pkg-rename_b", args: { name: "Planned" } },
     ]);
     expect(planned).toEqual([
@@ -1088,10 +1084,10 @@ describe("planning a batch", () => {
     const { store, commands } = await setup();
 
     const planned = await commands.plan([
-      { id: "blockr.core-rename_board", args: { name: "Sepals" } },
-      { id: "blockr.core-set_block", args: { id: "b", state: { n: 10 } } },
+      { id: "blockr.core-change_board", args: { name: "Sepals" } },
+      { id: "blockr.core-change_block", args: { id: "b", state: { n: 10 } } },
     ]);
-    await commands.run("blockr.core-set_block", { id: "b", state: { n: 20 } });
+    await commands.run("blockr.core-change_block", { id: "b", state: { n: 20 } });
 
     expect(() => {
       store.apply(planned, "assistant");
@@ -1169,7 +1165,7 @@ describe("spans", () => {
       commands.run(
         [
           { id: "test.pkg-rename_b", args: { name: "Bee" } },
-          { id: "blockr.core-rename_block", args: { id: "b", name: "Bea" } },
+          { id: "blockr.core-change_block", args: { id: "b", name: "Bea" } },
         ],
         "assistant",
       ),
@@ -1179,7 +1175,7 @@ describe("spans", () => {
     const span = recorded.span("command batch");
     expect(span.parentSpanContext?.spanId).toBe(tool.spanContext().spanId);
     expect(span.attributes).toEqual({
-      "blockr.command.ids": ["test.pkg-rename_b", "blockr.core-rename_block"],
+      "blockr.command.ids": ["test.pkg-rename_b", "blockr.core-change_block"],
       "blockr.delta.origin": "assistant",
     });
     expect(span.status.code).toBe(SpanStatusCode.UNSET);

@@ -15,9 +15,10 @@
 //   that the board holds, through its quick action alone (./links.ts,
 //   ./stacks.ts).
 // - Rename, on a block or a stack, asks for the name in its quick action, a
-//   text row that holds the name, which refuses an empty name, and runs core's
-//   command that renames the block or the stack. A name that the user leaves
-//   as it was runs nothing.
+//   text row that holds the name, which refuses an empty name. It runs core's
+//   command that changes the block or the stack, change_block or
+//   change_stack, with the name alone. A name that the user leaves as it was
+//   runs nothing.
 // - Edit inputs, on a block whose class has inputs, has an advanced action
 //   alone, which lists the block's inputs, each with its source, and applies
 //   the user's edits as one batch through its Apply button (./inputs.tsx). It
@@ -175,15 +176,16 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
 }
 
 // The block or the stack that the target names, where the board holds it,
-// with its name and core's command that renames it.
+// with its name and core's command that changes it, which renames it where
+// it is given the name alone.
 function named(board: Board, target: Target): { id: string; name: string; command: string } | undefined {
   if ("block" in target) {
     const block = own(board.blocks, target.block);
-    return block === undefined ? undefined : { id: target.block, name: block.name, command: "blockr.core-rename_block" };
+    return block === undefined ? undefined : { id: target.block, name: block.name, command: "blockr.core-change_block" };
   }
   if ("stack" in target) {
     const stack = own(board.stacks, target.stack);
-    return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: "blockr.core-rename_stack" };
+    return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: "blockr.core-change_stack" };
   }
   return undefined;
 }

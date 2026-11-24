@@ -86,7 +86,7 @@ const notesRole: Role = { id: "notes_role", on: ["block"], default: "blockr.test
 function notes(name: string): BoardAction {
   return action("notes", ["block"], {
     role: "notes_role",
-    run: (_board, target) => ("block" in target ? [{ id: "blockr.core-rename_block", args: { id: target.block, name } }] : undefined),
+    run: (_board, target) => ("block" in target ? [{ id: "blockr.core-change_block", args: { id: target.block, name } }] : undefined),
   });
 }
 

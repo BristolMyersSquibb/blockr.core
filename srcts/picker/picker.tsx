@@ -41,7 +41,8 @@
 //   Before such a block, the user picks the link's place among the block's
 //   links too, since the block takes its links in their order on the board,
 //   as rbind() takes its arguments. The link goes last where the user picks
-//   no other place, and else the batch moves it there with move_link.
+//   no other place, and else the batch moves it there with change_link, as
+//   its `before`.
 // - A batch hands no value from one command to the next, and add_link names
 //   the new block. So the form fixes the block's id before it hands on the
 //   batch, as every board action of core's that adds an object does.
@@ -362,8 +363,8 @@ function fixedInput(free: readonly string[], input: string, name: string): LinkC
 // the mode names, as the board holds it. Where the board no longer holds it,
 // the batch is empty, so that done() only ends the advanced action. Before a
 // variadic block, the batch moves the new link before the link `before`,
-// where it names one, with move_link, which names the link by the id that the
-// batch mints for it.
+// where it names one, with change_link, which names the link by the id that
+// the batch mints for it.
 function pickedBatch(
   core: Pick<CoreApi, "store" | "mintId">,
   mode: AddMode,
@@ -386,7 +387,7 @@ function pickedBatch(
     case "before": {
       if (before === undefined) return [add, linked(block, mode.to)];
       const link = core.mintId((id) => Object.hasOwn(core.store.board().links, id));
-      return [add, linked(block, mode.to, link), { id: "blockr.core-move_link", args: { id: link, before } }];
+      return [add, linked(block, mode.to, link), { id: "blockr.core-change_link", args: { id: link, before } }];
     }
     case "on":
       return on === undefined

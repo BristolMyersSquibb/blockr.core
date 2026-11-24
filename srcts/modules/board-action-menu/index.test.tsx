@@ -25,7 +25,7 @@ function action(name: string, more: Partial<BoardAction> = {}): BoardAction {
   return { id: `blockr.test-${name.toLowerCase().replaceAll(" ", "_")}_action`, label: name, on: ["block"], category: "test", ...more };
 }
 
-const rename = (name: string): CommandCall[] => [{ id: "blockr.core-rename_block", args: { id: "a", name } }];
+const rename = (name: string): CommandCall[] => [{ id: "blockr.core-change_block", args: { id: "a", name } }];
 
 const item = (label: string, more: Partial<Extract<QuickRow, { kind: "item" }>> = {}): QuickRow => ({
   kind: "item",

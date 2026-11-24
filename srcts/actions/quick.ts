@@ -298,7 +298,7 @@ const SUBJECTS: Readonly<Record<Part, string>> = {
 const GAVE: Readonly<Record<Part, string>> = {
   quick: 'It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
   pick: "It gave neither a batch of commands nor a level of rows.",
-  submit: 'It gave no batch of commands, as [{ id: "blockr.core-rename_block", args: { id: "a", name: "Head" } }].',
+  submit: 'It gave no batch of commands, as [{ id: "blockr.core-change_block", args: { id: "a", name: "Head" } }].',
 };
 
 // What core says of what a multi's apply gave, where it is no batch.

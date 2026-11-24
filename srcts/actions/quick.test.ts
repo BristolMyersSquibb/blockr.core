@@ -23,7 +23,7 @@ function action(name: string, more: Partial<BoardAction> = {}): BoardAction {
 }
 
 // A batch that renames block a.
-const rename = (name: string): CommandCall[] => [{ id: "blockr.core-rename_block", args: { id: "a", name } }];
+const rename = (name: string): CommandCall[] => [{ id: "blockr.core-change_block", args: { id: "a", name } }];
 
 // An item that picks what it is given.
 function item(label: string, picked: () => ReturnType<Extract<QuickRow, { kind: "item" }>["pick"]>, more = {}): QuickRow {
