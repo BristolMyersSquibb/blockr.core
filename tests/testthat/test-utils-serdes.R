@@ -20,8 +20,11 @@ test_that("a board is written as a JSON board", {
   expect_identical(res$format, 1)
 
   # The block class is from no package and the board holds no plugin, so the
-  # JSON board records no package
-  expect_identical(res$packages, set_names(list(), character()))
+  # JSON board records only the package that lists the board options
+  expect_identical(
+    res$packages,
+    list(blockr.core = as.character(pkg_version("blockr.core")))
+  )
 
   expect_identical(
     res$board,
@@ -470,7 +473,11 @@ test_that("R finds a schema beside the module that a package lists", {
     }
   )
 
-  local_versions(blockr.one = "0.1.0", blockr.three = "0.1.0")
+  local_versions(
+    blockr.one = "0.1.0",
+    blockr.two = "0.1.0",
+    blockr.three = "0.1.0"
+  )
 
   views <- plugin_ctor(
     function(views = "main") NULL,
@@ -568,6 +575,40 @@ test_that("a JSON board records the package and version of each plugin class", {
   expect_identical(
     board_packages(list(blocks = blocks, plugins = plugins)),
     list(blockr.one = "1.2.0", blockr.two = "0.3.0")
+  )
+})
+
+test_that("a JSON board records the package of each board option", {
+
+  local_versions(blockr.two = "0.3.0")
+
+  # The board option of blockr.two, which names no package in its ID
+  local_listing(
+    "blockr.two",
+    list(options = list(tags = list(module = "js/tags.js")))
+  )
+
+  board <- new_board(
+    options = c(
+      new_board_option("tags", "draft"),
+      new_board_option("unlisted", 1L)
+    )
+  )
+
+  res <- blockr_ser(board)
+
+  # The package that lists the board option, while a board option that no
+  # package lists has none
+  expect_identical(res$packages, list(blockr.two = "0.3.0"))
+
+  # R reads no listing for a board that holds no board option
+  local_mocked_bindings(
+    available_options = function() stop("R read the listings.")
+  )
+
+  expect_identical(
+    board_packages(list(blocks = list(), plugins = list(), options = list())),
+    set_names(list(), character())
   )
 })
 

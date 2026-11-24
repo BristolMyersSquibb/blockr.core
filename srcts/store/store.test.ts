@@ -1068,6 +1068,27 @@ describe("saving a board", () => {
     expect(store2.jsonBoard().packages).toEqual({ "blockr.core": "0.2.0" });
     expect(store2.jsonBoard().board.plugins).toEqual({ "blockr.notes-notes_plugin": { state: { notes: {} }, version: 1 } });
   });
+
+  test("records the package of each board option whose value it holds, which an app without the package then names", async () => {
+    // A core app that loaded blockr.dock, which lists the board option
+    // view_tabs, whose id names no package.
+    const tabs: Option = { id: "view_tabs", label: "Tabs", category: "Dock options", schema: { type: "boolean" }, default: false, ui: noUi };
+    const replied = withOptions(["view_tabs"], { ...hello, packages: { ...hello.packages, "blockr.dock": "0.2.1" } }, {}, "blockr.dock");
+    const store = unopened((store) => store.options.register(tabs), replied);
+    await store.open(file({ options: { n_rows: 50, view_tabs: true } }));
+
+    const text = store.save();
+    expect(store.jsonBoard().packages).toEqual({ "blockr.core": "0.2.0", "blockr.dock": "0.2.1" });
+
+    // An app without blockr.dock drops the value, and names the package in a
+    // record of its own, since nothing records which package lists the board
+    // option.
+    const dropped = await unopened().open(text);
+    expect(dropped).toEqual([
+      { about: { package: "blockr.dock", version: "0.2.1" }, package: "blockr.dock" },
+      { about: { option: "view_tabs" }, package: null },
+    ]);
+  });
 });
 
 describe("migrations", () => {

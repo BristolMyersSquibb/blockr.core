@@ -6321,7 +6321,8 @@ function createStore(options = {}) {
     const classes2 = Object.keys(next.plugins);
     const owned = /* @__PURE__ */ new Set([
       ...classes2.flatMap((cls) => packageFromId(cls) ?? []),
-      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? [])
+      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
+      ...Object.keys(next.options).flatMap((id3) => own(hello?.options ?? {}, id3)?.package ?? [])
     ]);
     const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {

@@ -130,8 +130,10 @@ export interface Store {
   // The board as a JSON board, as a file holds it.
   // It records the version of each package that the board's content comes
   // from, as the reply to `hello` gives it: the package of the class of each
-  // plugin whose state it holds, which the class's id names, and the package
-  // of each block's class, which its registry id names.
+  // plugin whose state it holds, which the class's id names, the package of
+  // each block's class, which its registry id names, and the package of each
+  // board option whose value it holds, which the board option's entry in the
+  // reply's `options` names.
   // It records the version of each shape beside what the board holds in that
   // shape as well: of each plugin's state, as the app's plugin of the class
   // carries it in the reply to `hello`, of each block's state, as the class's
@@ -642,6 +644,7 @@ export function createStore(options: StoreOptions = {}): Store {
     const owned = new Set([
       ...classes.flatMap((cls) => packageFromId(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
+      ...Object.keys(next.options).flatMap((id) => own(hello?.options ?? {}, id)?.package ?? []),
     ]);
     const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {

@@ -76,7 +76,8 @@ export interface Stack {
 
 // A JSON board, the one format of a board outside the store: the board, the
 // version of the format, and the version of every package that the board's
-// block classes and plugin classes come from, which names what to install.
+// block classes, plugin classes and board options come from, which names what
+// to install.
 // The client saves a board as one, and R writes the opening board that an app
 // script built as one, with every id.
 // The board records the version of each shape that a definition outside core
