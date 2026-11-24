@@ -44,8 +44,10 @@ served_module <- function(module) {
 # The URL at which R serves a module, or the file that it ships beside it with
 # `suffix`, which R copies into the directory that it serves. A module whose
 # file R cannot find gets a URL at which nothing is served, so that the client
-# reports the module as failing to load, where it would mount it, while the
-# rest of the page carries on.
+# reports the module as failing to load. Where the module is that of a plugin
+# class or a board option, the client then opens no board. Where it is a
+# block's UI module, the client reports the failure where it would mount the
+# module, while the rest of the page carries on.
 served_url <- function(module, suffix = NULL) {
 
   path <- module_path(module, suffix)

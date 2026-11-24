@@ -774,6 +774,19 @@ export function levelItem(label: string, level: QuickLevel): QuickRow {
   return { kind: "item", label, pick: () => level };
 }
 
+// A text row of a quick action that holds a name, as Rename's and Create
+// stack's do. It refuses an empty name, and hands submit the name without the
+// spaces around it.
+export function nameRow(value: string, submit: (name: string) => readonly CommandCall[]): QuickRow {
+  return {
+    kind: "text",
+    label: "Name",
+    value,
+    check: (given) => (given.trim() === "" ? "A name cannot be empty." : undefined),
+    submit: (given) => submit(given.trim()),
+  };
+}
+
 // Whether a value is a batch of commands, each by its id.
 export function isBatch(value: unknown): value is readonly CommandCall[] {
   return Array.isArray(value) && value.every((call) => isObject(call) && typeof call.id === "string");

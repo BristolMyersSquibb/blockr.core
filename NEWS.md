@@ -302,7 +302,7 @@
 * Core's client starts the page through `startPage()` in its runtime.
   Once R has answered its hello, core asks R in one request for the blockr options that its scheduler reads.
   It then imports, once for the page, the module of the class of each of the app's plugins and of each board option that R's reply names, and registers each under its ID, with the commands of each plugin class.
-  It names a module that fails to load and carries on, so that the board opens without what that module defines.
+  Where one of those modules fails, core opens no board, and the page shows why in its place.
   It opens the board that R sent, or the one that the `load()` of the app's storage plugin names in its place, as the board that the page's URL names, unless the load lock is on.
   Before the store opens a board, core imports the UI module of each block class of which the board holds an older state, and the store migrates the state by the `migrate` that the module exports.
   It draws the board with the app's frontend, and lets the scheduler send once the frontend's `render()` has returned.
@@ -598,7 +598,7 @@
   One raised about a block, a link or a stack that the board no longer holds holds nothing, and core logs one about a board object that the board has never held, and one from a plugin that the app does not run.
   Core withdraws every notification that concerns a block, a link or a stack as it leaves the board, and every one as the next board opens.
   The `Note` type is gone (#539).
-* Core raises a notification where a module cannot draw, a block's UI, a renderer, a board option's UI or a plugin's UI, where a module that the reply to `hello` names fails to load or the store refuses its default export, where a board option does not go onto the board, an `onChange` throws or a plugin's `start` throws, where the board that the storage plugin names or a later board fails to open, and where the store dropped something as the board opened.
+* Core raises a notification where a module cannot draw, a block's UI, a renderer, a board option's UI or a plugin's UI, where a board option does not go onto the board, an `onChange` throws or a plugin's `start` throws, where the board that the storage plugin names or a later board fails to open, and where the store dropped something as the board opened.
   Each has a code of its own, as `module_failed`, and core still logs each failure.
   Core draws nothing in the element of a module that cannot draw, which it leaves empty, so that the frontend alone says where a failure shows.
   Where a board option that a block's UI module, a renderer or a plugin's UI requires does not go onto the board, core raises that the module cannot draw, which concerns the block or the plugin, beside the notification about the board option.
@@ -715,7 +715,7 @@
 * Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
   A board action changes the board only through commands, and runs each batch as one undo step of the user.
   Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
-  It refuses the whole class where one of its board actions has the ID of another, an empty `on`, `run` beside `quick` or `advanced`, or none of the three, and raises `module_failed` about the class.
+  It refuses the whole class where one of its board actions has the ID of another, an empty `on`, `run` beside `quick` or `advanced`, or none of the three, and then opens no board.
   The call `core.boardActions.on(target)` gives the board actions that apply to a target: each whose `on` names the kind of the target, and whose `offers` passes for it or which has none.
   Core's come first, then each package's, in the order of the app's plugins and as each class lists them.
   The call `core.boardActions.trigger(id, target, opts)` runs the batch that a board action's `run` returns, with the commands that the caller's `extend` adds at its end, as one step.
@@ -876,23 +876,27 @@
 * Loading `@blockr/core/stubs` makes every document of `happy-dom` an instance of the window's `Document`, as in a browser.
   React Aria finds the focus within an element only where the root of the element is such an instance.
   So in a test, a popover or a dialog of the SDK that a pointer press opens no longer takes the focus from one of its elements that took the focus first, such as a search field with `autoFocus` (#818).
-* Core registers four more board actions, which create and edit a link or a stack.
+* Core registers five more board actions, which create and edit a link or a stack, and put blocks into a stack.
   Create link applies to a block that a new link can join to another, and to the board where it holds such a block.
   On a block, its quick action lists the blocks that the block can send to and those that it can take from, by their names and IDs, and then asks for the input, where the block that the link goes into has several free ones.
   It lists only the links for which the preflight of `blockr.core-add_link` passes, and no menu offers it where none would be left.
   On the board, its row opens its advanced action at once.
   Edit link applies to a link, and its quick action offers Change source…, Move to input…, whose inputs that another link feeds swap the inputs of the two links, and, into a variadic block, Rename input….
   Create stack applies to a block, to a selection that holds a block and to the board.
-  Its quick action lists the board's stacks that the blocks join, and New stack, which adds a stack of the blocks with a name and a color that no other stack has.
+  Its quick action is a field that holds a name that no other stack has, which the user may change.
+  Submitting it adds a stack of the blocks under that name, in a color that no other stack has.
   Edit stack applies to a stack, and its quick action gives the stack a color of the palette that no other stack has, or ticks the stack's blocks.
-  Under the board lock, all four fail their `offers`.
-  Their advanced actions are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
+  Add to stack, `blockr.core-add_to_stack_action`, applies to a block and to a selection that holds a block, where the board holds a stack that lacks one of the blocks.
+  Its quick action lists those stacks, and the blocks join the one that the user picks, leaving the stack that held them.
+  Under the board lock, all five fail their `offers`.
+  Add to stack has no advanced action.
+  The advanced actions of the other four are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
   Each form runs nothing before the user submits it, and then hands its batch to `done()`, which runs it as one step of the user.
   So applying a form that edits, through its Apply button, takes one step, where the plugin's forms took one for each command until now, as for renaming a stack and changing its blocks.
   A form that adds mints the new link's or stack's ID with `core.mintId()`.
   Where the store refuses the batch, the form says why below its button and keeps what the user gave.
   A row of the plugin's tables turns into the form that edits its link or its stack, with a Close button, which closes it, as Escape does, while Escape in a select whose list is open closes the list alone.
-  The form stays open in the row once the user has applied it, and shows the link or the stack as the board holds it then (#746, #828).
+  The form stays open in the row once the user has applied it, and shows the link or the stack as the board holds it then (#746, #826, #828).
 * Core's board action Edit inputs, `blockr.core-edit_inputs_action`, edits the inputs of a block whose class has inputs.
   It has an advanced action alone, which lists the block's inputs in their order, each with its source, as the dock's actions sidebar does.
   On a block that is not variadic, each input of its class has a select of its source and a button that removes the source.
@@ -958,15 +962,20 @@
   Core defines a role for each of its board actions but Copy block ID, which names it in the new member `role` of `BoardAction`, and a plugin class lists roles of its own in the new member `roles`, beside `boardActions`.
   In each app, one board action plays each role: the one that the blockr option `board_actions` picks for it, as `options(blockr.board_actions = list(append_block_role = "mykit-append_block_action"))` does, or else the role's default.
   Core checks that board action: it names the role, its `on` names the role's targets alone, and it has an advanced action where the role has `advanced`.
-  Core refuses the whole class where one of its roles breaks a rule, as where another package gives a role of its ID, naming both packages, or where the role's default fails that check, and raises `module_failed` about the class.
+  Core refuses the whole class where one of its roles breaks a rule, as where another package gives a role of its ID, naming both packages, or where the role's default fails that check, and then opens no board.
   Once every module is registered, core checks the app's picks, and where a pick of `board_actions` fails the check, or names a board action or a role that no package registers, core opens no board and shows why in its place.
   A menu offers only the board action that plays a role, in the place of the role's default.
   The calls `core.boardActions.trigger()` and `mountAdvanced()` take a role's ID in place of a board action's, and act on the board action that plays the role, while they run nothing for the ID of a board action that names a role that it does not play.
   The Edit board plugin mounts its forms that add a block, a link and a stack by the IDs of `add_block_role`, `add_link_role` and `add_stack_role`.
   So it shows the form of the board action that the app picks for each of those roles.
-  Create stack's quick action holds New stack alone, and lists no stack that the board holds, since Create stack plays `add_stack_role`, which adds a stack.
   Opened on a block, the form of Create link names that block in a line, as `A link from "Scatter".`, in place of the select of the end at that block, and offers a select of the other end alone.
   Opened on a block or a selection, the form of Create stack names their blocks in a line in place of the select of blocks, since the new stack takes exactly those blocks (#825, #830).
+* Core opens no board where the module of a plugin class or of a board option fails, and the page shows why in place of the board.
+  A module fails where it fails to load, declares another major of core's JS API or has no default export.
+  It fails as well where the store refuses the plugin class or the board option that it defines, where a board action or a role of the class breaks a rule, and where the command registry refuses a command of the class.
+  The page names each module that failed, with its package, on a line of its own.
+  Saving a board that opened without such a module would lose what the board holds for the module's plugin or board option, such as the DAG's positions.
+  The `CoreApi` for tests, `stubCore()`, rejects in the same way, so that a package's test fails at once where one of its modules breaks a rule (#847).
 
 # blockr.core 0.1.4
 
