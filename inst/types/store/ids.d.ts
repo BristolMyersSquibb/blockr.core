@@ -5,4 +5,3 @@ export declare function isRandId(value: unknown): value is RandId;
 export declare function asRandId(randId: Json | undefined): RandId;
 export declare function isId(id: unknown): boolean;
 export declare function mintId(taken: (id: string) => boolean, randId?: RandId): string;
-export declare function sentenceCase(id: string): string;

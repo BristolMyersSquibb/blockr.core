@@ -57,7 +57,7 @@
 import { useMemo, useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
-import { defaultBlockName, freeInputs } from "../commands/index.ts";
+import { freeInputs } from "../commands/index.ts";
 import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField, useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
@@ -282,7 +282,7 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
         <TextField
           label="Name"
           value={name}
-          placeholder={entry === undefined ? undefined : defaultBlockName(entry.id)}
+          placeholder={entry?.block_name}
           description="Optional. The class's name where left empty."
           autoComplete="off"
           onChange={setName}

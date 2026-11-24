@@ -42,6 +42,7 @@
               "required": ["package"],
               "additionalProperties": false
             },
+            "block_name": "Dataset",
             "state": { "package": "datasets" },
             "options": [],
             "requests": {
@@ -91,6 +92,7 @@
               "required": ["subset", "select"],
               "additionalProperties": false
             },
+            "block_name": "Subset",
             "state": { "subset": "", "select": "" },
             "options": [],
             "requests": {},

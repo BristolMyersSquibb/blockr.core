@@ -32,6 +32,8 @@ export interface RegistryEntry {
   // state arg's type, and may give its description, for forms and models
   // alike.
   readonly schema: JsonSchema;
+  // The name R gives a new block whose constructor gets no block_name.
+  readonly block_name: string;
   // What a new block starts with, from `expr` called without args.
   readonly state: Readonly<Record<string, Json>>;
   // The board options that the class's UI module reads itself, by id, whose
