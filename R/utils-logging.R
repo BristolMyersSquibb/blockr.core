@@ -304,25 +304,8 @@ cached_log_setting <- function(name, compute) {
   log_cache[[name]]
 }
 
-# The blockr option `log_time` or `log_mem`, which reads a string as
-# `as.logical()` does.
 get_log_flag <- function(name, default) {
-  cached_log_setting(
-    name,
-    function() {
-
-      val <- as.logical(blockr_option(name, default))
-
-      if (!is_bool(val)) {
-        blockr_abort(
-          "The blockr option `{name}` is TRUE or FALSE.",
-          class = paste0(name, "_invalid")
-        )
-      }
-
-      val
-    }
-  )
+  cached_log_setting(name, function() blockr_flag(name, default))
 }
 
 # Core's logger in OpenTelemetry, where OpenTelemetry has set up an exporter of

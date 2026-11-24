@@ -78,7 +78,7 @@ test_that("log_time and log_mem read a string as as.logical() does", {
     blockr.log_mem = NULL
   )
 
-  withr::local_envvar(BLOCKR_LOG_TIME = "FALSE", BLOCKR_LOG_MEM = "T")
+  withr::local_envvar(BLOCKR_LOG_TIME = " FALSE", BLOCKR_LOG_MEM = " T")
   local_reset_logging()
 
   with_mocked_bindings(
@@ -93,6 +93,11 @@ test_that("log_time and log_mem read a string as as.logical() does", {
   expect_error(log_info("abc"), class = "log_time_invalid")
 
   withr::local_envvar(BLOCKR_LOG_TIME = "", BLOCKR_LOG_MEM = "1")
+  reset_logging()
+  expect_error(log_info("abc"), class = "log_mem_invalid")
+
+  withr::local_envvar(BLOCKR_LOG_MEM = NA)
+  withr::local_options(blockr.log_mem = 1)
   reset_logging()
   expect_error(log_info("abc"), class = "log_mem_invalid")
 })

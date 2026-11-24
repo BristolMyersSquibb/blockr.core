@@ -29,7 +29,7 @@ test_that("a glue block refers to its inputs by their links' names", {
     quote(
       glue::glue(
         "{nrow(data)} and {nrow(more)} rows",
-        .envir = list2env(list(data = a, more = b), parent = baseenv())
+        .envir = list2env(list(data = a, more = b), parent = environment())
       )
     )
   )
@@ -42,6 +42,33 @@ test_that("a glue block refers to its inputs by their links' names", {
 
   expect_identical(res[["status"]], "error")
   expect_identical(res[["conditions"]][[1L]][["phase"]], "block_eval")
+})
+
+test_that("glue text uses the environment of the block expression", {
+
+  withr::local_envvar(BLOCKR_ATTACH_DEFAULT_PACKAGES = NA)
+  withr::local_options(blockr.attach_default_packages = FALSE)
+
+  res <- evaluate_block(
+    glue_block,
+    list(text = "{median(data$Time)}"),
+    list(... = list(data = "a")),
+    list(a = datasets::BOD)
+  )
+
+  expect_identical(res[["status"]], "error")
+
+  withr::local_options(blockr.attach_default_packages = TRUE)
+
+  res <- evaluate_block(
+    glue_block,
+    list(text = "{median(data$Time)}"),
+    list(... = list(data = "a")),
+    list(a = datasets::BOD)
+  )
+
+  expect_identical(res[["status"]], "ok")
+  expect_identical(as.character(res[["result"]]), "3.5")
 })
 
 test_that("the glue block's fixture", {
