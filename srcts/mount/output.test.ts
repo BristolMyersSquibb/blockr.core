@@ -1024,7 +1024,7 @@ describe("a request", () => {
 
     const failed = table.host().request("download");
     await expect(failed).rejects.toBeInstanceOf(RequestError);
-    await expect(failed).rejects.toMatchObject({ blocks: [{ block: "b", status: { status: "failed" } }] });
+    await expect(failed).rejects.toMatchObject({ status: null, notReady: [{ block: "b", status: { status: "failed" } }], unlinked: [] });
     expect(requests(s.r)).toHaveLength(0);
   });
 
