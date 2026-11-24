@@ -87,3 +87,15 @@ export function pointTo(el: Element): void {
   el.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" }));
   el.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
 }
+
+// Presses the element with the mouse's main button and lets it go, as a
+// browser fires the events of the pointer and then the click.
+// React Aria takes click() for a virtual press and moves the focus later.
+export async function pointerPress(el: HTMLElement): Promise<void> {
+  const pointer = { bubbles: true, cancelable: true, composed: true, pointerId: 1, pointerType: "mouse", isPrimary: true, button: 0 };
+  await step(() => {
+    el.dispatchEvent(new PointerEvent("pointerdown", { ...pointer, buttons: 1 }));
+    el.dispatchEvent(new PointerEvent("pointerup", { ...pointer, buttons: 0 }));
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, button: 0, detail: 1 }));
+  });
+}
