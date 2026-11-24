@@ -481,7 +481,7 @@
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
   Where the board changes while a command of the batch waits in its `prepare()`, the registry plans the batch again from its first command, on the board as it is then, and no command prepares twice.
   The registry applies the deltas of every command as one step of the origin, or applies none where one command refuses.
-  It then rejects with a `CommandError` whose `index` gives the command's place in the batch, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
+  It then rejects with a `CommandError` whose `index` gives the command's place in the batch, counted from 0.
   The step of a batch is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
   Where the registry refuses a batch that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
   The client records a batch in one span, `command batch`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
@@ -669,6 +669,15 @@
   The registry still rejects with that error, and its `preflight()` still answers `false`.
   It logs no refusal, whether it refuses a command itself, the command refuses with the `refusal()` of its context, or the store refuses the command's deltas.
   Where a plugin runs a command of the user's through `CoreApi`, core raises `board_edit_failed` for a command that failed so, as it does for a refusal, and logs no line of its own (#627).
+* Whatever stops a command, alone or in a batch, the command registry rejects with a `CommandError`.
+  The error names the command by its ID in `command`, and its `by` says what stopped the command:
+  `"registry"` where the registry refused to run it, as where no command has that ID or its args fail their schema,
+  `"preflight"` where its `preflight()` answered `false`,
+  `"command"` where it threw the `refusal()` of its context,
+  `"code"` where its own code threw anything else,
+  and `"store"` where the store refused its deltas.
+  For `"code"`, the error's cause is what the code threw, and for `"store"`, the store's `StoreError`.
+  Where the store refuses a batch as a whole, once the deltas of each command have passed, as where a plugin class's `afterStep` fails, the error names no command (#668).
 * A block class's request takes a file that the client sends only where `new_block_request()` names the argument for it, in `file`.
   That argument may have any name, and the function `run_block_request()` passes it a file through its own argument `file`.
   The block registry marks a request that takes a file with `file`, and the client sends no file with any other request.
