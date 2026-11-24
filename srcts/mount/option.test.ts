@@ -350,7 +350,7 @@ describe("a mount", () => {
     const dark = ui(["n_rows"]);
     const s = await setup(options(ui().mod, { count: 0 }, own.mod), {
       modules: { [DARK]: dark.exports },
-      renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
+      renderers: { theme: { id: "blockr.test-dark", module: DARK } },
     });
     s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
@@ -360,11 +360,31 @@ describe("a mount", () => {
     expect(dark.host().value()).toBe("light");
   });
 
+  test("draws each board option that the app names one renderer for, through a host of its own", async () => {
+    const own = ui();
+    const dark = ui();
+    const renderer = { id: "blockr.test-dark", module: DARK };
+    const s = await setup(options(own.mod, { count: 0 }, own.mod), {
+      modules: { [DARK]: dark.exports },
+      renderers: { n_rows: renderer, theme: renderer },
+    });
+    s.mounts.mountOption(document.createElement("div"), "n_rows");
+    s.mounts.mountOption(document.createElement("div"), "theme");
+    await tick();
+
+    expect(s.imported).toEqual([DARK]);
+    expect(own.mounts).toHaveLength(0);
+    expect(Object.fromEntries(dark.mounts.map(({ host }) => [host.option, host.value()]))).toEqual({
+      n_rows: 50,
+      theme: "light",
+    });
+  });
+
   test("names the renderer that it draws in what the renderer raises and in R's replies to its requests", async () => {
     const dark = ui(["n_rows"]);
     const s = await setup(options(ui().mod, { count: 0 }), {
       modules: { [DARK]: dark.exports },
-      renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
+      renderers: { theme: { id: "blockr.test-dark", module: DARK } },
     });
     s.mounts.mountOption(document.createElement("div"), "theme");
     await tick();
@@ -428,7 +448,7 @@ describe("a mount", () => {
     const reported = logged();
     const s = await setup(options(ui().mod), {
       modules: { [DARK]: { api: 2, default: ui().mod } },
-      renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
+      renderers: { theme: { id: "blockr.test-dark", module: DARK } },
     });
     const el = document.createElement("div");
     s.mounts.mountOption(el, "theme");

@@ -4,7 +4,7 @@
 
 import type { BlockId, JsonBoard, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import type { BlockOutput } from "../types/outputs.ts";
+import type { BlockOutput, OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 
 // The version of the protocol that the client speaks. R's protocol_version()
@@ -104,8 +104,9 @@ export interface HelloReply {
   // The board options that the packages loaded in R list, core's among them,
   // each under its id.
   options: Record<OptionId, OptionEntry>;
-  // The renderers that the app names for board options, by the renderer's id.
-  renderers: Record<string, Renderer>;
+  // The renderers that the app names for board options, under the id of the
+  // board option that each draws, so that one renderer may draw several.
+  renderers: Record<OptionId, Renderer>;
   // The locks that the app sets.
   lock: Lock;
   // The opening board, as a JSON board: the one an app script built, which R
@@ -145,13 +146,10 @@ export interface OptionEntry {
 }
 
 // A renderer that the app names for a board option, which draws the board
-// option's value in place of its UI, while the renderer of an output comes in
-// the output itself.
-export interface Renderer {
-  module: string;
-  css?: string;
-  option: OptionId;
-}
+// option's value in place of its UI: its id and where R serves its module, as
+// an output names its renderer, while the renderer of an output comes in the
+// output itself.
+export type Renderer = OutputRenderer;
 
 // The locks that the app sets, each true where the app sets it: the board lock,
 // the blockr option `locked`, which fixes what a board holds but its blocks'

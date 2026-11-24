@@ -184,9 +184,6 @@ test_that("an output family is a generic with a class of its own", {
   check(identity, "output_family", renderer = words)
   check(identity, "words_output")
   check(identity, "words_output", renderer = "words.js")
-  check(identity, "words_output",
-        renderer = new_renderer("rows", test_module("rows.js"),
-                                option = "n_rows"))
   check(identity, "words_output", families = identity)
 })
 

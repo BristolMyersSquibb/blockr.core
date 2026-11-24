@@ -123,8 +123,9 @@ export interface MountsOptions {
   readonly commands: Pick<Commands, "run">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "inputs" | "request" | "status" | "subscribe">;
   readonly loader: Loader;
-  // The renderers that the app names for board options, by the renderer's id,
-  // as R's reply to `hello` gives them. There are none unless given.
+  // The renderers that the app names for board options, by the id of the board
+  // option that each draws, as R's reply to `hello` gives them. There are none
+  // unless given.
   readonly renderers?: () => Readonly<Record<string, Renderer>>;
   // Hears each event that an output's renderer emits.
   readonly emit?: (event: OutputEvent) => void;

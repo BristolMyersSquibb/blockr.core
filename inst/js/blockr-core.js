@@ -2465,9 +2465,8 @@ function mountOption(deps, el, option) {
   if (def === void 0) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const chosen = Object.entries(deps.renderers()).find(([, renderer2]) => renderer2.option === option);
-  const [id2, renderer] = chosen ?? [];
-  const module = id2 === void 0 ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id2), id2);
+  const renderer = own(deps.renderers(), option);
+  const module = renderer === void 0 ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(renderer.id), renderer.id);
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
@@ -2553,11 +2552,12 @@ function mountOption(deps, el, option) {
   void (async () => {
     let mod;
     try {
-      if (renderer === void 0 || id2 === void 0) {
+      if (renderer === void 0) {
         mod = def.ui;
       } else {
         const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule(await loader.load(source, packageFromId(id2)), renderer.module, packageFromId(id2));
+        const pkg = packageFromId(renderer.id);
+        mod = mountableModule(await loader.load(source, pkg), renderer.module, pkg);
       }
     } catch (error) {
       fail(error);
@@ -2581,7 +2581,7 @@ function mountOption(deps, el, option) {
     } catch (error) {
       const why = `failed in render(): ${errorMessage(error)}`;
       fail(
-        renderer === void 0 || id2 === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageFromId(id2), why, { cause: error })
+        renderer === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageFromId(renderer.id), why, { cause: error })
       );
     }
   })();

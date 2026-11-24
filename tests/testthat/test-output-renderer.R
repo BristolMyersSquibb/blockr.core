@@ -25,7 +25,6 @@ test_that("core's families are drawn by its plain renderers", {
       drawn$module,
       test_module(paste0("js/basic-", what, ".js"), "blockr.core")
     )
-    expect_null(drawn$option)
     expect_identical(drawn$requests, list())
   }
 })
@@ -43,14 +42,11 @@ test_that("a renderer holds its ID, its module and its own requests", {
   expect_identical(drawn$package, "blockr.ui")
   expect_named(drawn$requests, "labels")
 
-  rows <- new_renderer("rows", test_module("rows.js"), option = "n_rows")
+  # What it draws is where the app or a family names it, not a member of its
+  # own
+  expect_named(drawn, c("id", "name", "package", "module", "requests"))
 
-  expect_identical(rows$option, "n_rows")
-
-  expect_snapshot({
-    drawn
-    rows
-  })
+  expect_snapshot(drawn)
 })
 
 test_that("another package's renderer draws where the deployment names it", {
@@ -178,49 +174,70 @@ test_that("an open family's outputs are drawn by the listed families", {
   )
 })
 
-test_that("a family is drawn by a renderer of outputs", {
-
-  rows <- new_renderer("rows", test_module("rows.js"), option = "n_rows")
-
-  expect_error(validate_renderer(rows, table_output),
-               class = "renderer_invalid")
-  expect_error(validate_renderer("rows.js", table_output),
-               class = "renderer_invalid")
-})
-
 test_that("the blockr option names renderers for what they draw", {
 
-  check <- function(value, regexp = NULL) {
+  check <- function(value) {
     withr::local_options(blockr.renderers = value)
-    expect_error(
-      chosen_renderers(),
-      class = "renderers_blockr_option_invalid",
-      regexp = regexp
-    )
+    expect_error(chosen_renderers(), class = "renderers_blockr_option_invalid")
   }
 
-  rows <- new_renderer("rows", test_module("rows.js"), option = "n_rows")
+  rows <- new_renderer("rows", test_module("rows.js"))
 
   check("blockr.core-table_output")
   check(c(table_output = "blockr.core-table_output"))
   check(list(table_output = "blockr.core-table_output"))
   check(list(rows))
-  check(list(dark_mode = rows), "draws board option n_rows")
 })
 
 test_that("a board option keeps its UI unless the app names a renderer", {
 
-  expect_identical(option_renderers(), set_names(list(), character()))
+  expect_length(option_renderers(), 0L)
 
-  rows <- new_renderer("rows", test_module("rows.js", "blockr.ui"),
-                       option = "n_rows")
+  slider <- new_renderer("slider", test_module("slider.js", "blockr.ui"))
   preview <- new_renderer("preview", test_module("preview.js", "blockr.ui"))
 
+  # One renderer draws two board options, while the key of a family names no
+  # board option
   withr::local_options(
-    blockr.renderers = list(n_rows = rows, table_output = preview)
+    blockr.renderers = list(
+      n_rows = slider,
+      table_output = preview,
+      dark_mode = slider
+    )
   )
 
-  expect_identical(option_renderers(), list(`blockr.ui-rows` = rows))
+  expect_identical(
+    option_renderers(),
+    list(n_rows = slider, dark_mode = slider)
+  )
+
+  # A key names a board option where an available package lists one
+  expect_identical(
+    option_renderers(list(dark_mode = list())),
+    list(dark_mode = slider)
+  )
+})
+
+test_that("a board option's renderer brings no requests of its own", {
+
+  labels <- new_renderer(
+    "labels",
+    test_module("labels.js"),
+    requests = list(labels = function(result) names(result))
+  )
+
+  # A renderer of outputs may
+  withr::local_options(blockr.renderers = list(table_output = labels))
+
+  expect_length(option_renderers(), 0L)
+
+  withr::local_options(blockr.renderers = list(n_rows = labels))
+
+  expect_error(
+    option_renderers(),
+    "names renderer blockr.test-labels for board option n_rows",
+    class = "renderers_blockr_option_invalid"
+  )
 })
 
 test_that("a request is the drawing renderer's own or else its class's", {
@@ -293,16 +310,8 @@ test_that("a renderer's construction is checked", {
 
   expect_error(new_renderer("test", "test.js"), class = "renderer_invalid")
   expect_error(new_renderer("", mod), class = "renderer_invalid")
-  expect_error(new_renderer("test", mod, option = ""),
-               class = "renderer_invalid")
   expect_error(new_renderer("test", mod, requests = list(function() 1)),
                class = "renderer_requests_invalid")
   expect_error(new_renderer("test", mod, requests = list(a = 1)),
                class = "renderer_requests_invalid")
-  expect_error(
-    new_renderer("test", mod, requests = list(a = function() 1),
-                 option = "n_rows"),
-    class = "renderer_requests_invalid",
-    regexp = "board option"
-  )
 })

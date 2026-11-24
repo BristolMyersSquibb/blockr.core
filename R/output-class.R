@@ -375,11 +375,10 @@ new_output_family <- function(fun, class, options = NULL, renderer = NULL,
     "output_family_invalid"
   )
 
-  if (!is.null(renderer) &&
-        !(is_renderer(renderer) && is.null(renderer[["option"]]))) {
+  if (!is.null(renderer) && !is_renderer(renderer)) {
     blockr_abort(
-      "The renderer of an output family is expected to be a renderer of ",
-      "outputs, made by `new_renderer()`.",
+      "The renderer of an output family is expected to be made by ",
+      "`new_renderer()`.",
       class = "output_family_invalid"
     )
   }

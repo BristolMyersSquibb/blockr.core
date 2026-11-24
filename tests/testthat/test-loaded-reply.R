@@ -400,14 +400,38 @@ test_that("R names the renderers that the app names for board options", {
   # The app names one for table outputs too, which R sends with each output
   renderers <- declared_fields()$renderers
 
-  expect_named(renderers, "blockr.test-dark")
-  expect_identical(renderers[["blockr.test-dark"]]$option, "dark_mode")
+  # Under the board option that it draws, as an output names its renderer
+  expect_named(renderers, "grid_gap")
+  expect_named(renderers$grid_gap, c("id", "module"))
+  expect_identical(renderers$grid_gap$id, "blockr.test-slider")
   expect_match(
-    renderers[["blockr.test-dark"]]$module,
-    "^blockr.test/js/dark.js\\?v=[0-9a-f]{8}$"
+    renderers$grid_gap$module,
+    "^blockr.test/js/slider.js\\?v=[0-9a-f]{8}$"
   )
 
   expect_identical(json(loaded_reply()$renderers), "{}")
+})
+
+test_that("R names renderers for the board options that serve() read", {
+
+  local_mocked_bindings(
+    pkg_version = function(pkg = parent.frame()) package_version("1.0.0")
+  )
+
+  slider <- new_renderer("slider", test_module("js/slider.js"))
+
+  # R finds no file for the renderer's module
+  withr::local_options(
+    blockr.renderers = list(n_rows = slider, dark_mode = slider),
+    blockr.log_level = "error"
+  )
+  local_reset_logging()
+
+  # Both board options are core's, and the app read n_rows alone
+  renderers <- loaded_reply(options = app_options()["n_rows"])$renderers
+
+  expect_named(renderers, "n_rows")
+  expect_identical(renderers$n_rows$id, "blockr.test-slider")
 })
 
 test_that("R names the modules that every loaded package offers", {

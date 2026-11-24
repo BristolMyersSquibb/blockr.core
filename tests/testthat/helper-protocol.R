@@ -1152,7 +1152,7 @@ proto_output <- function(x) {
 # class grid_plugin, a frontend, each with its module, and it gives the state
 # of grid_plugin and the value of grid_gap version 2, its frontend takes a
 # title from `serve()`, and it makes two renderers, one for table outputs and
-# one for the board option dark_mode.
+# one for its board option grid_gap.
 # Beside the module of grid_plugin sits a bundle that the module would import,
 # by a name that holds a hash of the bundle's content.
 # Two files of blockr.test sit beside none of its modules, one in a directory
@@ -1169,7 +1169,7 @@ declared_files <- function() {
     `blockr.test/js/grid-gap.js` = "export const api = 1; // grid_gap\n",
     `blockr.test/js/picker.js` = "export const api = 1; // picker\n",
     `blockr.test/js/table.js` = "export const api = 1; // table\n",
-    `blockr.test/js/dark.js` = "export const api = 1; // dark\n",
+    `blockr.test/js/slider.js` = "export const api = 1; // slider\n",
     `blockr.test/js/grid-lib-493f0854.js` = "export const lib = 1;\n",
     `blockr.test/js/vendor/notes.txt` = "Not served.\n",
     `blockr.test/notes.txt` = "Not served.\n",
@@ -1430,11 +1430,7 @@ declared_fields <- function(...) {
   withr::local_options(
     blockr.renderers = list(
       table_output = new_renderer("table", module("js/table.js")),
-      dark_mode = new_renderer(
-        "dark",
-        module("js/dark.js"),
-        option = "dark_mode"
-      )
+      grid_gap = new_renderer("slider", module("js/slider.js"))
     )
   )
 

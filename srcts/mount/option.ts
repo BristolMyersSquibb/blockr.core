@@ -57,7 +57,8 @@ export interface OptionDeps {
   readonly commands: Pick<Commands, "run">;
   readonly scheduler: Pick<Scheduler, "request">;
   readonly loader: Loader;
-  // The renderers that the app names for board options, by the renderer's id.
+  // The renderers that the app names for board options, by the id of the board
+  // option that each draws.
   readonly renderers: () => Readonly<Record<string, Renderer>>;
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
@@ -98,12 +99,13 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   if (def === undefined) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const chosen = Object.entries(deps.renderers()).find(([, renderer]) => renderer.option === option);
-  const [id, renderer] = chosen ?? [];
+  const renderer = own(deps.renderers(), option);
   // The module that draws: the renderer that the app names, with its package,
   // or else the board option's own module.
   const module =
-    id === undefined ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id), id);
+    renderer === undefined
+      ? sourceModule({ option }, deps.optionPackage(option))
+      : sourceModule({ option }, packageFromId(renderer.id), renderer.id);
 
   const controller = new AbortController();
   const ended = (): boolean => controller.signal.aborted;
@@ -209,11 +211,12 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   void (async () => {
     let mod: Mountable<OptionArgs>;
     try {
-      if (renderer === undefined || id === undefined) {
+      if (renderer === undefined) {
         mod = def.ui;
       } else {
         const source = renderer.css === undefined ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule<OptionArgs>(await loader.load(source, packageFromId(id)), renderer.module, packageFromId(id));
+        const pkg = packageFromId(renderer.id);
+        mod = mountableModule<OptionArgs>(await loader.load(source, pkg), renderer.module, pkg);
       }
     } catch (error) {
       fail(error);
@@ -239,9 +242,9 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     } catch (error) {
       const why = `failed in render(): ${errorMessage(error)}`;
       fail(
-        renderer === undefined || id === undefined
+        renderer === undefined
           ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error })
-          : new ModuleError(renderer.module, packageFromId(id), why, { cause: error }),
+          : new ModuleError(renderer.module, packageFromId(renderer.id), why, { cause: error }),
       );
     }
   })();

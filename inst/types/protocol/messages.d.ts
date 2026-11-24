@@ -1,6 +1,6 @@
 import type { BlockId, JsonBoard, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import type { BlockOutput } from "../types/outputs.ts";
+import type { BlockOutput, OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 export declare const PROTOCOL_VERSION = "1.0";
 export type Kind = "hello" | "blockr_options" | "evaluate" | "request" | "output" | "cancel" | "forget";
@@ -40,7 +40,7 @@ export interface HelloReply {
     plugins: Record<PluginClassId, PluginEntry>;
     frontend: Record<string, Json>;
     options: Record<OptionId, OptionEntry>;
-    renderers: Record<string, Renderer>;
+    renderers: Record<OptionId, Renderer>;
     lock: Lock;
     board: JsonBoard;
     bound?: string[];
@@ -58,11 +58,7 @@ export interface OptionEntry {
     css?: string;
     version: number;
 }
-export interface Renderer {
-    module: string;
-    css?: string;
-    option: OptionId;
-}
+export type Renderer = OutputRenderer;
 export interface Lock {
     board: boolean;
     load: boolean;

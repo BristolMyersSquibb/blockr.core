@@ -8,8 +8,8 @@
 # of the arguments of `serve()`, `frontend`, as `frontend_reply()` writes it,
 # the app's board options, `options`, each with its package, where R serves
 # its module and the version of its shape, as `app_options()` gives them, the
-# renderers that the app names for board options, and the versions of the
-# packages that all of these come from.
+# renderers that the app names for board options, by board option, and the
+# versions of the packages that all of these come from.
 # The entry of a class whose output family is open names the board options
 # and renderers of the families that the available packages list, `families`,
 # as `app_families()` gives them.
@@ -27,7 +27,7 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
                          families = app_families()) {
 
   entries <- registry_entries(registry)
-  renderers <- option_renderers()
+  renderers <- option_renderers(options)
 
   drawn <- lapply(entries, entry_renderers, families)
 
@@ -58,7 +58,7 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
     plugins = as_json_object(lapply(plugins, plugin_entry_reply)),
     frontend = frontend,
     options = as_json_object(lapply(options, option_entry_reply)),
-    renderers = as_json_object(lapply(renderers, option_renderer_reply))
+    renderers = as_json_object(lapply(renderers, renderer_reply))
   )
 }
 
@@ -118,7 +118,7 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x, families),
       output_options = I(
         family_option_ids(x[["block_class"]][["output"]], families)
       ),
-      renderers = I(lapply(unname(renderers), output_renderer_reply))
+      renderers = I(lapply(unname(renderers), renderer_reply))
     )
   )
 }
@@ -191,14 +191,9 @@ option_entry_reply <- function(x) {
   )
 }
 
-# A renderer that the app names for a board option, with where R serves its
-# module and the board option that it draws.
-option_renderer_reply <- function(x) {
-  c(served_module(x[["module"]]), list(option = x[["option"]]))
-}
-
-# The renderer of an output as R sends it in the output: its ID, which a
-# request of its own names, and where R serves its module.
-output_renderer_reply <- function(x) {
+# A renderer as R sends it, in an output or under a board option that the app
+# names it for: its ID, which a request of its own names, and where R serves
+# its module.
+renderer_reply <- function(x) {
   c(list(id = x[["id"]]), served_module(x[["module"]]))
 }

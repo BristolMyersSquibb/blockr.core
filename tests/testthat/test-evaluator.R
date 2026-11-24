@@ -13,11 +13,7 @@ test_that("R answers the handshake as the fixture hello-declared has it", {
   withr::local_options(
     blockr.renderers = list(
       table_output = new_renderer("table", module("js/table.js")),
-      dark_mode = new_renderer(
-        "dark",
-        module("js/dark.js"),
-        option = "dark_mode"
-      )
+      grid_gap = new_renderer("slider", module("js/slider.js"))
     )
   )
 

@@ -4,7 +4,7 @@
 \alias{new_renderer}
 \title{Renderers}
 \usage{
-new_renderer(name, module, requests = list(), option = NULL)
+new_renderer(name, module, requests = list())
 }
 \arguments{
 \item{name}{The name part of the renderer's ID}
@@ -13,9 +13,6 @@ new_renderer(name, module, requests = list(), option = NULL)
 
 \item{requests}{A named list of the renderer's own requests, each a
 function, which only a renderer of outputs has}
-
-\item{option}{The ID of the board option that the renderer draws, or \code{NULL}
-for a renderer of outputs}
 }
 \value{
 The constructor \code{new_renderer()} returns an object of class
@@ -57,9 +54,15 @@ does (see \code{\link[=blockr_option]{blockr_option()}}).
 R reads that choice before the family's own renderer, so loading a package
 that offers a renderer changes nothing, and no package takes the choice
 away.
-A renderer that draws a board option names it in \code{option} and replaces the
-board option's UI where the app names it in \code{renderers} under the board
-option's ID, and R sends every such renderer in its reply to \code{hello}.
+A deployment also draws a board option with a renderer, in place of the
+board option's UI, by naming the renderer in \code{renderers} under the board
+option's ID.
+A key names a board option where an available package lists a board option
+of that ID.
+R sends the renderer of each such key in its reply to \code{hello}, under the
+key, so one renderer may draw several board options.
+Such a renderer reaches R through the requests of the board option that it
+draws, so R refuses one that brings requests of its own.
 
 A renderer of outputs may bring requests of its own, for what the output
 does not hold, such as the labels of a table's columns, which core's table
