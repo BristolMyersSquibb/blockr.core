@@ -22,6 +22,7 @@ const RENAME = "blockr.core-rename_action";
 const EDIT_LINK = "blockr.core-edit_link_action";
 const EDIT_INPUTS = "blockr.core-edit_inputs_action";
 const EDIT_STACK = "blockr.core-edit_stack_action";
+const ADD_TO_STACK = "blockr.core-add_to_stack_action";
 const COPY = "blockr.core-copy_block_id_action";
 const REMOVE_BLOCK = "blockr.core-remove_block_action";
 const REMOVE_LINK = "blockr.core-remove_link_action";
@@ -69,7 +70,7 @@ function refusingClipboard(): void {
 }
 
 describe("core's board actions", () => {
-  test("are Add block, Create link and Create stack on the board, Append block, Prepend block, Create link, Create stack, Rename, Edit inputs, Copy block ID and Remove block on a block, Insert block, Edit link and Remove link on a link, Rename, Edit stack and Remove stack on a stack, and Create stack and Remove on a selection, in the order of their table", async () => {
+  test("are Add block, Create link and Create stack on the board, Append block, Prepend block, Create link, Create stack, Rename, Edit inputs, Add to stack, Copy block ID and Remove block on a block, Insert block, Edit link and Remove link on a link, Rename, Edit stack and Remove stack on a stack, and Create stack, Add to stack and Remove on a selection, in the order of their table", async () => {
     const s = await stubCore();
     const on = (target: Target) => s.core.boardActions.on(target);
 
@@ -79,7 +80,8 @@ describe("core's board actions", () => {
       [CREATE_STACK, "Create stack", "add"],
     ]);
     // Links feed every input of the head block b, and none feeds the bind
-    // block e, which is variadic.
+    // block e, which is variadic. The stack s1 holds b, and no stack holds e,
+    // so that Add to stack applies to e alone.
     expect(rows(on({ block: "b" }))).toEqual([
       [APPEND, "Append block", "add"],
       [CREATE_LINK, "Create link", "add"],
@@ -96,6 +98,7 @@ describe("core's board actions", () => {
       [CREATE_STACK, "Create stack", "add"],
       [RENAME, "Rename", "edit"],
       [EDIT_INPUTS, "Edit inputs", "edit"],
+      [ADD_TO_STACK, "Add to stack", "edit"],
       [COPY, "Copy block ID", "clipboard"],
       [REMOVE_BLOCK, "Remove block", "remove"],
     ]);
@@ -117,6 +120,11 @@ describe("core's board actions", () => {
       [CREATE_STACK, "Create stack", "add"],
       [REMOVE_SELECTED, "Remove", "remove"],
     ]);
+    expect(rows(on({ selection: [{ block: "b" }, { block: "e" }] }))).toEqual([
+      [CREATE_STACK, "Create stack", "add"],
+      [ADD_TO_STACK, "Add to stack", "edit"],
+      [REMOVE_SELECTED, "Remove", "remove"],
+    ]);
     expect(on({ option: "n_rows" })).toEqual([]);
     expect(on({ plugin: "blockr.core-edit_board_plugin" })).toEqual([]);
 
@@ -127,7 +135,7 @@ describe("core's board actions", () => {
     // others no icon.
     const icons = (target: Target) => on(target).map(({ icon }) => (icon === undefined ? "none" : icon.includes("M8 3v10M3 8h10") ? "plus" : "bin"));
     expect(icons({ board: true })).toEqual(["plus", "plus", "plus"]);
-    expect(icons({ block: "e" })).toEqual(["plus", "plus", "plus", "plus", "none", "none", "none", "bin"]);
+    expect(icons({ block: "e" })).toEqual(["plus", "plus", "plus", "plus", "none", "none", "none", "none", "bin"]);
     expect(icons({ link: "ab" })).toEqual(["plus", "none", "bin"]);
     expect(icons({ stack: "s1" })).toEqual(["none", "none", "bin"]);
     expect(icons({ selection: [{ block: "b" }] })).toEqual(["plus", "bin"]);
@@ -156,6 +164,9 @@ describe("core's board actions", () => {
     expect(on({ stack: "s1" })).toEqual([]);
     expect(on({ selection: [{ block: "b" }] })).toEqual([]);
     expect(on({ board: true })).toEqual([]);
+    // Add to stack fails it as well, on a block that no stack holds.
+    expect(rows(on({ block: "e" }))).toEqual([[COPY, "Copy block ID", "clipboard"]]);
+    expect(on({ selection: [{ block: "e" }] })).toEqual([]);
 
     await s.core.boardActions.trigger(REMOVE_BLOCK, { block: "b" }, { el });
     await s.core.boardActions.trigger(REMOVE_SELECTED, { selection: [{ block: "b" }, { link: "ab" }] }, { el });

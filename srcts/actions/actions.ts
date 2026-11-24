@@ -13,7 +13,7 @@
 // (../core/start.ts). It registers the roles beside them, its own and those
 // that each class lists in `roles` (./roles.ts). It refuses the whole class
 // where one of its board actions or its roles breaks a rule (register(),
-// below).
+// below), and then opens no board (../core/start.ts).
 // Once every module is registered, core chooses the board action that plays
 // each role: the one that the blockr option `board_actions` picks for the
 // role, or else the role's default (choosePlayers(), below).

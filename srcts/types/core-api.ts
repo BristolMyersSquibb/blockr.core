@@ -181,10 +181,9 @@ export interface CoreApi {
   // Core registers the class of each of the app's plugins itself, from the
   // default export of the module that R names for it.
   readonly plugins: {
-    // The app's plugins whose classes are registered, by the ids of their
-    // classes, each with its class's name, as R's reply to `hello` names
-    // them. It returns the same object until the registered classes change,
-    // and an empty one while no board is open.
+    // The app's plugins, by the ids of their classes, each with its class's
+    // name, as R's reply to `hello` names them. It returns the same object
+    // while the board is open, and an empty one while no board is open.
     appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
     // The definition of the class of a plugin that runs. It throws for a
     // plugin that the app does not run.

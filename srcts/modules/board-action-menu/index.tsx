@@ -470,7 +470,15 @@ function Item({
               data-open-row={index}
               title={tip}
               className={OPEN}
+              // The icon stops the pointer going down and coming up, as it
+              // stops the click, so that none of them reaches the item.
+              // React Aria's menu item clicks itself if the mouse comes up on
+              // it after a press that did not start on it.
+              // That click would pick the item.
               onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onPointerUp={(event) => {
                 event.stopPropagation();
               }}
               onClick={(event) => {

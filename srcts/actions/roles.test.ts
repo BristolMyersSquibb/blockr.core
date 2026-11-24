@@ -1,6 +1,6 @@
 // Roles on the CoreApi for tests: core's, which core's board actions play,
-// those that the classes of the app's plugins list, the classes that core
-// refuses for a role that breaks a rule, the board action that the blockr
+// those that the classes of the app's plugins list, a class's role that breaks
+// a rule, for which core opens no board, the board action that the blockr
 // option board_actions picks for a role, which plays it in place of its
 // default, and the picks for which core opens no board. Core checks no batch
 // of the board action that plays a role, whose edit is the role's contract.
@@ -14,10 +14,8 @@ import type { PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
 import { logged } from "../testing/logged.ts";
-import { held, notificationCode } from "../testing/notifications.ts";
-import { listedModules } from "../testing/plugins.ts";
+import { listedModules, noBoard, refusedClass } from "../testing/plugins.ts";
 import { withPlugins } from "../testing/store.ts";
-import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { createBoardActions } from "./actions.ts";
@@ -69,23 +67,6 @@ function stubbed(classes: readonly PluginClass[], picks?: Json): Promise<StubCor
 
 function ids(actions: readonly BoardAction[]): string[] {
   return actions.map(({ id }) => id);
-}
-
-// The notifications of the code given that hold, without their ids.
-function raised(core: CoreApi, code: string) {
-  return held(core, (n) => notificationCode(n) === code);
-}
-
-// A notification of the code given about the class of blockr.test given,
-// with the message given, as core raises it for a fault of the class's
-// package.
-function about(plugin: string, code: string, message: string) {
-  return {
-    severity: "error",
-    message,
-    source: { kind: "core", code, module: { object: { plugin }, package: "blockr.test" } },
-    about: { plugin },
-  };
 }
 
 // The batch that adds the block n, a Head, after the block that the target
@@ -191,25 +172,14 @@ describe("the roles that a plugin class lists", () => {
       'gives the role "notes_role", whose default "notes" is not named as a board action\'s id is, "{pkg}-{name}".',
     ],
     ["has an advanced that is not true", [{ ...notesRole, advanced: false }], 'gives the role "notes_role", whose advanced is neither true nor left out.'],
-  ])("refuse the whole class where its roles %s, with module_failed about the class", async (_rule, roles, message) => {
-    const fine = action("fine", ["board"]);
-    const cls = listing("faulty", [fine], {
-      roles: roles as readonly Role[],
-      commands: [{ id: "blockr.test-noop", label: "Do nothing", run: () => ({}) }],
-    });
+  ])("open no board where a class's roles %s, and say why, naming the class's module with its package", async (_rule, roles, message) => {
+    const cls = listing("faulty", [action("fine", ["board"])], { roles: roles as readonly Role[] });
+    const why = noBoard(refusedClass(cls.id, `The plugin class "blockr.test-faulty_plugin"${message.startsWith(",") ? "" : " "}${message}`));
     const reported = logged();
-    const s = await stubbed([cls]);
+    await expect(stubbed([cls])).rejects.toThrow(why);
     reported.restore();
 
-    const why = `The plugin class "blockr.test-faulty_plugin"${message.startsWith(",") ? "" : " "}${message}`;
-    expect(raised(s.core, "module_failed")).toEqual([about(cls.id, "module_failed", why)]);
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
-    // Core registers neither the class, nor any of its board actions, nor its
-    // commands.
-    expect(Object.keys(s.core.plugins.appPlugins())).not.toContain(cls.id);
-    expect(ids(s.core.boardActions.on({ board: true }))).not.toContain(fine.id);
-    expect(Object.keys(s.core.commands.registered())).not.toContain("blockr.test-noop");
-    s.stop();
   });
 
   test.each<[string, readonly BoardAction[], Role, string]>([
@@ -243,38 +213,32 @@ describe("the roles that a plugin class lists", () => {
       { ...notesRole, advanced: true },
       'gives the role "notes_role", whose default "blockr.test-notes_action" cannot play it, since that board action has no advanced action, which callers of the role mount.',
     ],
-  ])("refuse the whole class where a role's default %s, with module_failed about the class, as for any role that breaks a rule", async (_rule, actions, role, message) => {
+  ])("open no board where a role's default %s, as for any role that breaks a rule", async (_rule, actions, role, message) => {
     const cls = listing("notes", actions, { roles: [role] });
     const reported = logged();
-    const s = await stubbed([cls]);
+    await expect(stubbed([cls])).rejects.toThrow(noBoard(refusedClass(cls.id, `The plugin class "blockr.test-notes_plugin" ${message}`)));
     reported.restore();
-
-    const why = `The plugin class "blockr.test-notes_plugin" ${message}`;
-    expect(raised(s.core, "module_failed")).toEqual([about(cls.id, "module_failed", why)]);
-    expect(reported.errors().map((line) => line.message)).toEqual([why]);
-    expect(Object.keys(s.core.plugins.appPlugins())).not.toContain(cls.id);
-    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual(ON_BLOCK);
-    await expect(s.core.boardActions.trigger("notes_role", { block: "b" }, { el })).rejects.toThrow('No role "notes_role" is registered.');
-    s.stop();
   });
 
-  test("refuse a class whose role has the id of one of another package's classes, or of one that the class lists before it, naming both packages", async () => {
+  test("open no board where a class's role has the id of one of another package's classes, or of one that the class lists before it, naming both packages and the module of each such class", async () => {
     const first = listing("first", [notes("First")], { roles: [notesRole] });
     const other: PluginClass = { id: "blockr.other-second_plugin", roles: [notesRole] };
     const twiceRole: Role = { ...notesRole, id: "twice_role", default: "blockr.test-twice_action" };
     const twice = listing("twice", [action("twice", ["block"], { role: "twice_role" })], { roles: [twiceRole, twiceRole] });
     const reported = logged();
-    const s = await stubbed([first, other, twice]);
+    await expect(stubbed([first, other, twice])).rejects.toThrow(
+      noBoard(
+        refusedClass(
+          other.id,
+          'The plugin class "blockr.other-second_plugin", of the package blockr.other, gives the role "notes_role", which the package blockr.test gives already.',
+        ),
+        refusedClass(
+          twice.id,
+          'The plugin class "blockr.test-twice_plugin", of the package blockr.test, gives the role "twice_role", which the package blockr.test gives already.',
+        ),
+      ),
+    );
     reported.restore();
-
-    expect(raised(s.core, "module_failed").map(({ message }) => message)).toEqual([
-      'The plugin class "blockr.other-second_plugin", of the package blockr.other, gives the role "notes_role", which the package blockr.test gives already.',
-      'The plugin class "blockr.test-twice_plugin", of the package blockr.test, gives the role "twice_role", which the package blockr.test gives already.',
-    ]);
-    expect(Object.keys(s.core.plugins.appPlugins())).toContain(first.id);
-    expect(Object.keys(s.core.plugins.appPlugins())).not.toContain(other.id);
-    expect(Object.keys(s.core.plugins.appPlugins())).not.toContain(twice.id);
-    s.stop();
   });
 });
 

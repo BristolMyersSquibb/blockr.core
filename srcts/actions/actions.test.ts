@@ -1,7 +1,7 @@
 // Board actions on the CoreApi for tests: those that core registers, its own and
-// those that the classes of the app's plugins list, the classes that core
-// refuses for a board action that breaks a rule, the board actions that on()
-// gives for a target, the menu of a target, which the CoreApi for tests
+// those that the classes of the app's plugins list, a class's board action
+// that breaks a rule, for which core opens no board, the board actions that
+// on() gives for a target, the menu of a target, which the CoreApi for tests
 // drives by the labels of its rows, and triggering a board action, one that
 // asks the user nothing and one with a quick action.
 
@@ -11,15 +11,15 @@ import type { Delta, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import { logged } from "../testing/logged.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
-import { listedModules } from "../testing/plugins.ts";
+import { listedModules, noBoard, refusedClass } from "../testing/plugins.ts";
 import { withPlugins } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { QuickLevel } from "./quick.ts";
 
-// Core's board actions on the blocks b and c, whose inputs links feed, which
-// come first in every menu of one, and on the board.
+// Core's board actions on the block b, which come first in every menu of it,
+// and on the board. Links feed every input of b, and the stack s1 holds it.
 const ON_BLOCK = [
   "blockr.core-append_block_action",
   "blockr.core-add_link_action",
@@ -56,22 +56,6 @@ function stubbed(classes: readonly PluginClass[], replied: HelloReply = HELLO) {
 
 function ids(actions: readonly BoardAction[]): string[] {
   return actions.map(({ id }) => id);
-}
-
-// The notifications of module_failed that hold, without their ids.
-function moduleFailures(core: CoreApi) {
-  return held(core, (n) => notificationCode(n) === "module_failed");
-}
-
-// The module_failed about the class given, with the message given, as core
-// raises it for a class that it refuses.
-function refusedClass(plugin: string, message: string) {
-  return {
-    severity: "error",
-    message,
-    source: { kind: "core", code: "module_failed", module: { object: { plugin }, package: "blockr.test" } },
-    about: { plugin },
-  };
 }
 
 describe("the board actions that core registers", () => {
@@ -125,44 +109,34 @@ describe("the board actions that core registers", () => {
       { role: 3 as unknown as string },
       'gives the board action "blockr.test-faulty_action", whose role 3 is no role\'s id, as "append_block_role".',
     ],
-  ])("refuse the whole class where one of its board actions %s, with module_failed about the class", async (_rule, given, message) => {
-    const fine = action("fine", ["board"]);
-    const faulty = { ...action("faulty", ["block"]), ...given };
-    const cls = listing("faulty", [fine, faulty], {
-      commands: [{ id: "blockr.test-noop", label: "Do nothing", run: () => ({}) }],
-    });
+  ])("open no board where a class's board action %s, and say why, naming the class's module with its package", async (_rule, given, message) => {
+    const cls = listing("faulty", [action("fine", ["board"]), { ...action("faulty", ["block"]), ...given }]);
+    const why = noBoard(refusedClass(cls.id, `The plugin class "blockr.test-faulty_plugin" ${message}`));
     const reported = logged();
-    const s = await stubbed([cls]);
+    await expect(stubbed([cls])).rejects.toThrow(why);
     reported.restore();
 
-    const why = `The plugin class "blockr.test-faulty_plugin" ${message}`;
-    expect(moduleFailures(s.core)).toEqual([refusedClass(cls.id, why)]);
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
-    // Core registers neither the class, nor any of its board actions, nor its
-    // commands.
-    expect(Object.keys(s.core.plugins.appPlugins())).not.toContain(cls.id);
-    expect(ids(s.core.boardActions.on({ board: true }))).toEqual(ON_BOARD);
-    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual(ON_BLOCK);
-    expect(Object.keys(s.core.commands.registered())).not.toContain("blockr.test-noop");
-    s.stop();
   });
 
-  test("refuse a class whose board action has the id of one that the class lists before it, or that a class before it lists", async () => {
+  test("open no board where a class's board action has the id of one that the class lists before it, or that a class before it lists, naming the module of each such class", async () => {
     const twice = listing("twice", [action("same", ["board"]), action("same", ["block"])]);
     const first = listing("first", [action("taken", ["board"])]);
     const second = listing("second", [action("taken", ["block"]), action("free", ["board"])]);
     const reported = logged();
-    const s = await stubbed([twice, first, second]);
+    await expect(stubbed([twice, first, second])).rejects.toThrow(
+      noBoard(
+        refusedClass(
+          twice.id,
+          'The plugin class "blockr.test-twice_plugin" gives the board action "blockr.test-same_action", which has the id of another board action.',
+        ),
+        refusedClass(
+          second.id,
+          'The plugin class "blockr.test-second_plugin" gives the board action "blockr.test-taken_action", which has the id of another board action.',
+        ),
+      ),
+    );
     reported.restore();
-
-    expect(moduleFailures(s.core).map((n) => n.message)).toEqual([
-      'The plugin class "blockr.test-twice_plugin" gives the board action "blockr.test-same_action", which has the id of another board action.',
-      'The plugin class "blockr.test-second_plugin" gives the board action "blockr.test-taken_action", which has the id of another board action.',
-    ]);
-    expect(reported.errors()).toHaveLength(2);
-    expect(Object.keys(s.core.plugins.appPlugins())).toContain(first.id);
-    expect(ids(s.core.boardActions.on({ board: true }))).toEqual([...ON_BOARD, "blockr.test-taken_action"]);
-    s.stop();
   });
 
   test.each<[string, unknown, string]>([
@@ -205,35 +179,11 @@ describe("the board actions that core registers", () => {
       [{ ...action("x", ["block"]), run: undefined, quick: { rows: [] } }],
       'gives the board action "blockr.test-x_action", whose quick is no function.',
     ],
-  ])("refuse a class that gives %s, as a package that writes its JS without types may", async (_what, given, message) => {
+  ])("open no board where a class gives %s, as a package that writes its JS without types may", async (_what, given, message) => {
     const cls: PluginClass = { id: "blockr.test-untyped_plugin", boardActions: given as readonly BoardAction[] };
     const reported = logged();
-    const s = await stubbed([cls]);
+    await expect(stubbed([cls])).rejects.toThrow(noBoard(refusedClass(cls.id, `The plugin class "blockr.test-untyped_plugin" ${message}`)));
     reported.restore();
-
-    expect(moduleFailures(s.core)).toEqual([refusedClass(cls.id, `The plugin class "blockr.test-untyped_plugin" ${message}`)]);
-    expect(reported.errors()).toHaveLength(1);
-    expect(Object.keys(s.core.plugins.appPlugins())).not.toContain(cls.id);
-    s.stop();
-  });
-
-  test("are kept for a class whose command the command registry refuses, which core only logs", async () => {
-    const kept = action("kept", ["board"]);
-    const cls = listing("clashing", [kept], {
-      commands: [{ id: "blockr.core-remove_block", label: "Remove block", run: () => ({}) }],
-    });
-    const reported = logged();
-    const s = await stubbed([cls]);
-    reported.restore();
-
-    expect(moduleFailures(s.core)).toEqual([]);
-    expect(reported.errors().map((line) => line.message)).toEqual([
-      'A command of the plugin class "blockr.test-clashing_plugin" is refused: The command "blockr.core-remove_block" is registered already.',
-    ]);
-    expect(Object.keys(s.core.plugins.appPlugins())).toContain(cls.id);
-    expect(ids(s.core.boardActions.on({ board: true }))).toEqual([...ON_BOARD, kept.id]);
-    expect(s.core.boardActions.on({ board: true }).at(-1)).toBe(kept);
-    s.stop();
   });
 });
 
@@ -250,7 +200,17 @@ describe("on()", () => {
     const s = await stubbed([listing("test", [picky, open])]);
 
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, picky.id]);
-    expect(ids(s.core.boardActions.on({ block: "c" }))).toEqual(ON_BLOCK);
+    // No stack holds the block c, so that Add to stack applies to it as well.
+    expect(ids(s.core.boardActions.on({ block: "c" }))).toEqual([
+      "blockr.core-append_block_action",
+      "blockr.core-add_link_action",
+      "blockr.core-add_stack_action",
+      "blockr.core-rename_action",
+      "blockr.core-edit_inputs_action",
+      "blockr.core-add_to_stack_action",
+      "blockr.core-copy_block_id_action",
+      "blockr.core-remove_block_action",
+    ]);
     expect(ids(s.core.boardActions.on({ link: "ab" }))).toEqual([
       "blockr.core-insert_block_action",
       "blockr.core-edit_link_action",

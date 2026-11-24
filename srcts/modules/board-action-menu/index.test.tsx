@@ -13,7 +13,7 @@ import { CORE_MENU, drawWith, openMenu } from "../../actions/index.ts";
 import type { BoardAction, CommandCall, DrivenMenu, MenuStart, QuickLevel, QuickRow } from "../../actions/index.ts";
 import { find, press, type } from "../../testing/inputs.ts";
 import { logged } from "../../testing/logged.ts";
-import { openMenu as shownMenu } from "../../testing/overlays.ts";
+import { pointerPress, openMenu as shownMenu } from "../../testing/overlays.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -409,10 +409,13 @@ describe("core's menu", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     document.body.replaceChildren();
 
+    // The mouse presses the item's open icon and lets it go, as a user does.
+    // React Aria's menu item hears the pointer's events, and click() sends none.
     const onItem = await drawn({ action: adds });
     const icon = row(shownMenu("Append"), "Head").querySelector<HTMLElement>("[data-open-row]");
     if (icon === null) throw new Error("Found no open icon on the row Head.");
-    await click(icon);
+    await pointerPress(icon);
+    await settle();
     expect(onItem.advanced).toEqual([[adds.id, { picked: { class: "head" }, filter: "" }]]);
     expect(onItem.ran).toEqual([]);
   });

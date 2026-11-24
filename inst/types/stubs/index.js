@@ -7905,6 +7905,15 @@ function actionRow(action3, board, target2) {
 function levelItem(label, level) {
   return { kind: "item", label, pick: () => level };
 }
+function nameRow(value2, submit) {
+  return {
+    kind: "text",
+    label: "Name",
+    value: value2,
+    check: (given) => given.trim() === "" ? "A name cannot be empty." : void 0,
+    submit: (given) => submit(given.trim())
+  };
+}
 function isBatch(value2) {
   return Array.isArray(value2) && value2.every((call2) => isObject(call2) && typeof call2.id === "string");
 }
@@ -12331,6 +12340,7 @@ function sameBlocks(a, b) {
 // srcts/actions/stacks.ts
 var CREATE_STACK = "blockr.core-add_stack_action";
 var EDIT_STACK = "blockr.core-edit_stack_action";
+var ADD_TO_STACK = "blockr.core-add_to_stack_action";
 var ADD_STACK2 = "blockr.core-add_stack";
 var CHANGE_STACK2 = "blockr.core-change_stack";
 function createStackAction() {
@@ -12344,8 +12354,8 @@ function createStackAction() {
     quick(board, target2, core) {
       const blocks = heldBlocks(board, target2);
       if (!("board" in target2) && blocks.length === 0) return void 0;
-      const rows = [{ kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) }];
-      return blocks.length === 0 ? { rows } : { title: `Add ${blocksLabel(board, blocks)} to`, rows };
+      const rows = [nameRow(suggestedName(Object.values(board.stacks)), (name2) => newStack(core, blocks, name2))];
+      return blocks.length === 0 ? { rows } : { title: `New stack of ${blocksLabel(board, blocks)}`, rows };
     },
     advanced: createStackForm,
     role: "add_stack_role"
@@ -12373,20 +12383,48 @@ function editStackAction() {
     role: "edit_stack_role"
   };
 }
-function newStack(core, blocks) {
-  const stacks = core.store.board().stacks;
-  const others = Object.values(stacks);
+function addToStackAction() {
+  return {
+    id: ADD_TO_STACK,
+    label: "Add to stack",
+    on: ["block", "selection"],
+    category: "edit",
+    offers: (board, target2, lock) => !lock.board && joinable(board, heldBlocks(board, target2)).length > 0,
+    quick(board, target2) {
+      const blocks = heldBlocks(board, target2);
+      const stacks = joinable(board, blocks);
+      if (stacks.length === 0) return void 0;
+      return {
+        title: `Add ${blocksLabel(board, blocks)} to`,
+        rows: stacks.map(
+          ([id2, stack]) => ({
+            kind: "item",
+            label: stack.name,
+            icon: swatch(stack.color),
+            detail: count(stack.blocks.length),
+            pick: () => [{ id: CHANGE_STACK2, args: { id: id2, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }]
+          })
+        )
+      };
+    },
+    role: "add_to_stack_role"
+  };
+}
+function newStack(core, blocks, name2) {
   return [
     {
       id: ADD_STACK2,
       args: {
         id: core.mintId((id2) => Object.hasOwn(core.store.board().stacks, id2)),
-        name: suggestedName(others),
-        color: suggestedColor(others),
+        name: name2,
+        color: suggestedColor(Object.values(core.store.board().stacks)),
         blocks
       }
     }
   ];
+}
+function joinable(board, blocks) {
+  return Object.entries(board.stacks).filter(([, stack]) => blocks.some((block) => !stack.blocks.includes(block)));
 }
 function colourRows(board, id2, stack) {
   const used = new Set(
@@ -12449,18 +12487,7 @@ function coreBoardActions(parts) {
         const object2 = named2(board, target2);
         if (object2 === void 0) return void 0;
         return {
-          rows: [
-            {
-              kind: "text",
-              label: "Name",
-              value: object2.name,
-              check: (value2) => value2.trim() === "" ? "A name cannot be empty." : void 0,
-              submit(value2) {
-                const name2 = value2.trim();
-                return name2 === object2.name ? [] : [{ id: object2.command, args: { id: object2.id, name: name2 } }];
-              }
-            }
-          ]
+          rows: [nameRow(object2.name, (name2) => name2 === object2.name ? [] : [{ id: object2.command, args: { id: object2.id, name: name2 } }])]
         };
       },
       role: "rename_role"
@@ -12479,6 +12506,7 @@ function coreBoardActions(parts) {
       role: "edit_inputs_role"
     },
     editStackAction(),
+    addToStackAction(),
     {
       id: "blockr.core-copy_block_id_action",
       label: "Copy block ID",
@@ -12594,6 +12622,8 @@ var CORE_ROLES = [
   { id: "edit_inputs_role", on: ["block"], default: "blockr.core-edit_inputs_action" },
   // Changes the stack, its name, its colour or its blocks.
   { id: "edit_stack_role", on: ["stack"], default: "blockr.core-edit_stack_action" },
+  // Puts the blocks that the target holds into a stack that the board holds.
+  { id: "add_to_stack_role", on: ["block", "selection"], default: "blockr.core-add_to_stack_action" },
   // Removes the block, the link or the stack.
   { id: "remove_block_role", on: ["block"], default: "blockr.core-remove_block_action" },
   { id: "remove_link_role", on: ["link"], default: "blockr.core-remove_link_action" },
@@ -13206,17 +13236,11 @@ function runPlugins(deps) {
     offStore();
     for (const stop of stops.splice(0)) stop();
   });
-  let memo2;
+  const running3 = Object.freeze(
+    Object.fromEntries(Object.entries(deps.plugins).map(([id2, { name: name2 }]) => [id2, Object.freeze({ name: name2 })]))
+  );
   function appPlugins() {
-    if (!store.hasBoard()) return NONE;
-    const classes2 = store.plugins.registered();
-    if (memo2?.classes !== classes2) {
-      const registered = Object.entries(deps.plugins).flatMap(
-        ([id2, { name: name2 }]) => Object.hasOwn(classes2, id2) ? [[id2, Object.freeze({ name: name2 })]] : []
-      );
-      memo2 = { classes: classes2, plugins: Object.freeze(Object.fromEntries(registered)) };
-    }
-    return memo2.plugins;
+    return store.hasBoard() ? running3 : NONE;
   }
   function pluginClass(plugin) {
     const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : void 0;
@@ -14521,7 +14545,7 @@ function start2(options) {
       blockRegistry: () => store.blockRegistry()
     });
     const showMenu = await opening2.step("modules", async () => {
-      await register(reply, store, commands, boardActions, signal5, raise);
+      await register(reply, store, commands, boardActions, signal5);
       return drawing;
     });
     boardActions.choosePlayers(alone ? void 0 : picks);
@@ -14614,7 +14638,7 @@ function start2(options) {
     } else {
       const front = plugins.frontend();
       options.frontEnds?.prepare(
-        front === void 0 ? { none: noFrontend(reply, core) } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
+        front === void 0 ? { none: NO_FRONTEND } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
         signal5
       );
       const failures = await (front?.added ?? []);
@@ -14628,70 +14652,60 @@ function start2(options) {
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
-  async function register(reply, store, commands, boardActions, signal5, raise) {
-    const failed3 = (error, concerns) => {
-      log.error(asError(error));
-      if (!signal5.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
-    };
-    const [defs, opts] = await Promise.all([
-      Promise.all(
-        Object.entries(reply.plugins).map(
-          ([id2, entry]) => listed(entry, packageFromId(id2), (error) => {
-            failed3(error, { module: sourceModule({ plugin: id2 }, packageFromId(id2)) });
-          })
-        )
-      ),
-      Promise.all(
-        Object.entries(reply.options).map(
-          ([id2, entry]) => listed(entry, entry.package, (error) => {
-            failed3(error, { module: sourceModule({ option: id2 }, entry.package) });
-          })
-        )
-      )
+  async function register(reply, store, commands, boardActions, signal5) {
+    const [classes2, options2] = await Promise.all([
+      Promise.all(Object.entries(reply.plugins).map(([id2, entry]) => listed(id2, entry, packageFromId(id2)))),
+      Promise.all(Object.entries(reply.options).map(([id2, entry]) => listed(id2, entry, entry.package)))
     ]);
     if (signal5.aborted) return;
-    Object.entries(reply.options).forEach(([id2, entry], i) => {
-      const def = opts[i];
-      if (def === void 0) return;
-      try {
-        store.options.register({ ...def, id: id2 });
-      } catch (error) {
-        failed3(error, { module: sourceModule({ option: id2 }, entry.package) });
+    const failures = [];
+    const refuse = ({ source, pkg }, what, why) => {
+      failures.push(new ModuleError(source.module, pkg, `defines ${what} that core refuses: ${why}`));
+    };
+    for (const module of options2) {
+      if ("failure" in module) {
+        failures.push(module.failure);
+        continue;
       }
-    });
-    Object.keys(reply.plugins).forEach((id2, i) => {
-      const def = defs[i];
-      if (def === void 0) return;
+      try {
+        store.options.register({ ...module.def, id: module.id });
+      } catch (error) {
+        refuse(module, "a board option", errorMessage(error));
+      }
+    }
+    for (const module of classes2) {
+      if ("failure" in module) {
+        failures.push(module.failure);
+        continue;
+      }
+      const { id: id2 } = module;
       let cls;
       try {
-        cls = { ...def, id: id2 };
-        const unregister = store.plugins.register(cls);
-        try {
-          boardActions.register(id2, cls.boardActions, cls.roles);
-        } catch (error) {
-          unregister();
-          throw error;
-        }
+        cls = { ...module.def, id: id2 };
+        store.plugins.register(cls);
+        boardActions.register(id2, cls.boardActions, cls.roles);
       } catch (error) {
-        failed3(error, { module: sourceModule({ plugin: id2 }, packageFromId(id2)) });
-        return;
+        refuse(module, "a plugin class", errorMessage(error));
+        continue;
       }
-      for (const command2 of cls.commands ?? []) {
+      const refused2 = (cls.commands ?? []).flatMap((command2) => {
         try {
           commands.register(command2);
+          return [];
         } catch (error) {
-          log.error(new Error(`A command of the plugin class "${id2}" is refused: ${errorMessage(error)}`, { cause: error }));
+          return [errorMessage(error)];
         }
-      }
-    });
+      });
+      if (refused2.length > 0) refuse(module, "a plugin class", refused2.join(" "));
+    }
+    if (failures.length > 0) throw new Error([...failures.map(({ message }) => message), noBoard(failures.length)].join("\n"));
   }
-  async function listed(source, pkg, failed3) {
+  async function listed(id2, source, pkg) {
     try {
       const at = source.css === void 0 ? { module: source.module } : { module: source.module, css: source.css };
-      return listedDefault(await loader.load(at, pkg), source.module, pkg);
+      return { id: id2, source, pkg, def: listedDefault(await loader.load(at, pkg), source.module, pkg) };
     } catch (error) {
-      failed3(error);
-      return void 0;
+      return { id: id2, source, pkg, failure: asError(error) };
     }
   }
   async function named5(reply, store, core, signal5, raise, opening2) {
@@ -14819,10 +14833,9 @@ function helloError(reply) {
   }
   return void 0;
 }
-function noFrontend(reply, core) {
-  const missing = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
-  const why = missing.length === 0 ? "none of the app's plugins is a frontend" : `core registered no class of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
-  return `The app runs no frontend that draws the board, since ${why}.`;
+var NO_FRONTEND = "The app runs no frontend that draws the board, since none of the app's plugins is a frontend.";
+function noBoard(failed3) {
+  return failed3 === 1 ? "Core opens no board without this module, since saving the board would lose what it holds for the module's plugin or board option." : "Core opens no board without these modules, since saving the board would lose what it holds for their plugins and board options.";
 }
 function changedPackages(loaded, reply) {
   return Object.entries(reply.packages).flatMap(([pkg, now]) => {
@@ -15858,10 +15871,11 @@ var CORE_EDITS = {
   "blockr.core-prepend_block_action": (object2) => `prepend a block to ${object2}`,
   "blockr.core-insert_block_action": (object2) => `insert a block into ${object2}`,
   "blockr.core-add_link_action": (object2) => `add a link for ${object2}`,
-  "blockr.core-add_stack_action": (object2) => `put ${object2} in a stack`,
+  "blockr.core-add_stack_action": (object2) => `put ${object2} in a new stack`,
   "blockr.core-rename_action": (object2) => `rename ${object2}`,
   "blockr.core-edit_link_action": (object2) => `change ${object2}`,
   "blockr.core-edit_stack_action": (object2) => `change ${object2}`,
+  "blockr.core-add_to_stack_action": (object2) => `add ${object2} to a stack`,
   "blockr.core-remove_block_action": (object2) => `remove ${object2}`,
   "blockr.core-remove_link_action": (object2) => `remove ${object2}`,
   "blockr.core-remove_stack_action": (object2) => `remove ${object2}`,
@@ -15887,7 +15901,7 @@ function without4(map, key2) {
 
 // srcts/modules/edit-board/blocks.tsx
 import { Fragment as Fragment28, jsx as jsx65, jsxs as jsxs52 } from "react/jsx-runtime";
-var ADD_BLOCK = "blockr.core-add_block_action";
+var ROLE = "add_block_role";
 var COLUMNS = [
   { id: "name", name: "Name", rowHeader: true },
   { id: "id", name: "ID" },
@@ -15900,7 +15914,7 @@ function BlocksSection({ core, board }) {
   const count2 = Object.keys(board.blocks).length;
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs52(Section, { title: "Blocks", count: count2, children: [
-    offers(core, ADD_BLOCK, BOARD) ? /* @__PURE__ */ jsx65(Part, { title: "Add a block", children: /* @__PURE__ */ jsx65(Advanced, { core, id: ADD_BLOCK, target: BOARD }) }) : null,
+    offers(core, ROLE, BOARD) ? /* @__PURE__ */ jsx65(Part, { title: "Add a block", children: /* @__PURE__ */ jsx65(Advanced, { core, role: ROLE, target: BOARD }) }) : null,
     /* @__PURE__ */ jsx65(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs52(Fragment28, { children: [
       /* @__PURE__ */ jsx65(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx65("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx65(
@@ -15931,7 +15945,7 @@ function BlocksSection({ core, board }) {
 
 // srcts/modules/edit-board/links.tsx
 import { Fragment as Fragment29, jsx as jsx66, jsxs as jsxs53 } from "react/jsx-runtime";
-var CREATE_LINK2 = "blockr.core-add_link_action";
+var ROLE2 = "add_link_role";
 var COLUMNS2 = [
   { id: "from", name: "From", rowHeader: true },
   { id: "to", name: "To" },
@@ -15946,7 +15960,7 @@ function LinksSection({ core, board, locked: locked2 }) {
   const variadic2 = variadicBlocks(board, core.blockRegistry());
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs53(Section, { title: "Links", count: links.length, children: [
-    locked2 ? null : /* @__PURE__ */ jsx66(Part, { title: "Add a link", children: offers(core, CREATE_LINK2, BOARD) ? /* @__PURE__ */ jsx66(Advanced, { core, id: CREATE_LINK2, target: BOARD }) : /* @__PURE__ */ jsx66("p", { className: styles.hint, children: Object.keys(board.blocks).length < 2 ? "A link joins two blocks, so the board needs two blocks first." : "No new link can join two blocks of the board." }) }),
+    locked2 ? null : /* @__PURE__ */ jsx66(Part, { title: "Add a link", children: offers(core, ROLE2, BOARD) ? /* @__PURE__ */ jsx66(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx66("p", { className: styles.hint, children: Object.keys(board.blocks).length < 2 ? "A link joins two blocks, so the board needs two blocks first." : "No new link can join two blocks of the board." }) }),
     /* @__PURE__ */ jsx66(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs53(Fragment29, { children: [
       /* @__PURE__ */ jsx66(TableSearch, { label: "Search links", view }),
       view.found === 0 ? /* @__PURE__ */ jsx66("p", { className: styles.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx66(
@@ -16040,7 +16054,7 @@ function idOf2(object2, kind) {
 
 // srcts/modules/edit-board/stacks.tsx
 import { Fragment as Fragment30, jsx as jsx67, jsxs as jsxs54 } from "react/jsx-runtime";
-var CREATE_STACK2 = "blockr.core-add_stack_action";
+var ROLE3 = "add_stack_role";
 var COLUMNS3 = [
   { id: "name", name: "Name", rowHeader: true },
   { id: "blocks", name: "Blocks" }
@@ -16050,7 +16064,7 @@ function StacksSection({ core, board, locked: locked2 }) {
   const view = useTableView(stacks, ([id2, stack]) => [stack.name, id2, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs54(Section, { title: "Stacks", count: stacks.length, children: [
-    locked2 || !offers(core, CREATE_STACK2, BOARD) ? null : /* @__PURE__ */ jsx67(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx67(Advanced, { core, id: CREATE_STACK2, target: BOARD }) }),
+    locked2 || !offers(core, ROLE3, BOARD) ? null : /* @__PURE__ */ jsx67(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx67(Advanced, { core, role: ROLE3, target: BOARD }) }),
     /* @__PURE__ */ jsx67(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs54(Fragment30, { children: [
       /* @__PURE__ */ jsx67(TableSearch, { label: "Search stacks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx67("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx67(
@@ -16227,12 +16241,12 @@ function ObjectsTable({
   );
 }
 var BOARD = { board: true };
-function offers(core, id2, target2) {
-  return core.boardActions.on(target2).some((action3) => action3.id === id2);
+function offers(core, role, target2) {
+  return core.boardActions.on(target2).some((action3) => action3.role === role);
 }
-function Advanced({ core, id: id2, target: target2 }) {
+function Advanced({ core, role, target: target2 }) {
   const key2 = JSON.stringify(target2);
-  const mount2 = useCallback11((el) => core.boardActions.mountAdvanced(el, id2, JSON.parse(key2)), [core, id2, key2]);
+  const mount2 = useCallback11((el) => core.boardActions.mountAdvanced(el, role, JSON.parse(key2)), [core, role, key2]);
   return /* @__PURE__ */ jsx68(Mounted, { mount: mount2, className: "bc:min-w-0" });
 }
 

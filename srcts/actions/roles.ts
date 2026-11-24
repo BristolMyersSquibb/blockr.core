@@ -17,7 +17,7 @@
 // its board actions that edits the board (CORE_ROLES, below), and a plugin
 // class lists roles of its own in `roles`, which core registers with the class
 // (./actions.ts). Core refuses the whole class where one of its roles breaks a
-// rule (checkedRoles(), below).
+// rule (checkedRoles(), below), and then opens no board (../core/start.ts).
 //
 // In each app, one board action plays each role: the one that the blockr
 // option `board_actions` picks for the role, or else the role's default, one
@@ -85,6 +85,8 @@ export const CORE_ROLES: readonly Role[] = [
   { id: "edit_inputs_role", on: ["block"], default: "blockr.core-edit_inputs_action" },
   // Changes the stack, its name, its colour or its blocks.
   { id: "edit_stack_role", on: ["stack"], default: "blockr.core-edit_stack_action" },
+  // Puts the blocks that the target holds into a stack that the board holds.
+  { id: "add_to_stack_role", on: ["block", "selection"], default: "blockr.core-add_to_stack_action" },
   // Removes the block, the link or the stack.
   { id: "remove_block_role", on: ["block"], default: "blockr.core-remove_block_action" },
   { id: "remove_link_role", on: ["link"], default: "blockr.core-remove_link_action" },
