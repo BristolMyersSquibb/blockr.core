@@ -7,8 +7,8 @@
 // - Append block, `blockr.core-append_block_action`, on a block, adds a block
 //   that takes the block's result, with add_block and add_link.
 // - Prepend block, `blockr.core-prepend_block_action`, on a block with an
-//   input that no link feeds, adds a block that feeds that input, with
-//   add_block and add_link.
+//   input that no link feeds, or on such an input, adds a block that feeds
+//   that input, with add_block and add_link.
 // - Insert block, `blockr.core-insert_block_action`, on a link, adds a block
 //   between the two blocks that the link joins, with add_block, add_link and
 //   change_link. The link then comes from the new block, and keeps its id,
@@ -27,12 +27,19 @@
 // with an id that core.mintId() mints and the class's name, and its link
 // through the first free input. That is the new block's first input after a
 // block or on a link, and before a block the block's first input that no link
-// feeds. Into a variadic block, the link goes without a name. The batch runs
-// as one step of the user.
+// feeds. Into a variadic block, the link goes without a name. On an input,
+// Prepend block's link goes into that input, and on the next place of a
+// variadic block, the input "", without a name. The batch runs as one step of
+// the user.
 // The advanced action of each is the block picker (../picker), which holds the
 // new block's class, its id, its name and the input that its link feeds:
 // on its own for Add block, after the block for Append block, before it for
-// Prepend block, and on the link for Insert block.
+// Prepend block, and on the link for Insert block. On an input, the picker
+// before the block takes the link into that input. It names the input in a
+// line in place of the field of the input, since the target fixes the input,
+// as prepend_block_role has it (./roles.ts). On the next place of a variadic
+// block, the input "", the picker asks for the name of the input and its
+// place among the block's links, as before the block.
 // Opened from the quick action, the picker starts its search from the text in
 // the level's filter, and takes the keyboard's focus there. It runs nothing
 // before the user submits it, mints the id that the user leaves empty, and
@@ -48,8 +55,11 @@
 // - The board lock is on, since the store refuses what the board action runs.
 // - The board does not hold what the board action acts on.
 // - Its quick action would hold no row, as where the block registry holds no
-//   class that it can add, or for Prepend block, where links feed every input
-//   of the block.
+//   class that it can add.
+// - For Prepend block on a block, links feed every input of the block.
+// - For Prepend block on an input, a link feeds the input, or the block has no
+//   such input. A variadic block's only input there is its next place, "",
+//   and a block of fixed inputs has no input "".
 // A row that the user picks once the board no longer holds the board action's
 // target runs nothing.
 
@@ -65,7 +75,7 @@ import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import { PLUS } from "./icons.ts";
 import type { QuickLevel } from "./quick.ts";
-import { heldBlock } from "./targets.ts";
+import { heldBlock, inputOf } from "./targets.ts";
 
 // The block registry's entries by registry id, as the store holds them for the
 // open board.
@@ -108,16 +118,24 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
       id: "blockr.core-prepend_block_action",
       label: "Prepend block",
       icon: PLUS,
-      on: ["block"],
+      on: ["block", "input"],
       category: "add",
       offers: (board, target, lock) =>
         !lock.board && freeInputOf(board, registry(), target) !== undefined && adds(false),
       quick: (_board, target, core) =>
         classLevel(core, false, (entry, block, board) => {
           const to = heldBlock(board, target);
-          return to === undefined ? [] : [addBlockCall(entry, block), addLinkCall(block, to, freeInputOf(board, core.blockRegistry(), target))];
+          // On an input, the link goes into that input even where a link has
+          // come to feed it since the menu opened, so that the command refuses
+          // it, rather than the link going into another input.
+          const input = inputOf(target) ?? freeInputOf(board, core.blockRegistry(), target);
+          return to === undefined ? [] : [addBlockCall(entry, block), addLinkCall(block, to, input)];
         }),
-      advanced: pickerModule((target) => ("block" in target ? { kind: "before", to: target.block } : undefined)),
+      advanced: pickerModule((target) => {
+        if (!("block" in target)) return undefined;
+        const input = inputOf(target);
+        return { kind: "before", to: target.block, ...(input === undefined ? {} : { input }) };
+      }),
       role: "prepend_block_role",
     },
     {
@@ -200,13 +218,20 @@ function newBlockInput(entry: RegistryEntry): string | undefined {
   return entry.inputs.includes("...") ? "" : entry.inputs[0];
 }
 
-// The first input of the block that the target names that no link feeds,
-// which a block that Prepend block adds feeds. It is "" for a variadic block,
-// whose link goes in without a name, and undefined where the board does not
-// hold the block, or where links feed every input of the block.
+// The input that a block that Prepend block adds feeds, of the block that the
+// target names: on a block, its first input that no link feeds, and on an
+// input, that input, where no link feeds it. It is "" for a variadic block,
+// whose link goes in without a name. It is undefined in these cases:
+// - The board does not hold the block.
+// - Links feed every input of the block.
+// - On an input, a link feeds the input, or the block has no input of that
+//   name. A variadic block has none but "", its next place.
 function freeInputOf(board: Board, registry: Readonly<Record<RegistryId, RegistryEntry>>, target: Target): string | undefined {
   const block = heldBlock(board, target);
-  return block === undefined ? undefined : freeInputs(board, registry, block)?.[0];
+  const free = block === undefined ? undefined : freeInputs(board, registry, block);
+  const input = inputOf(target);
+  if (input === undefined) return free?.[0];
+  return free?.includes(input) === true ? input : undefined;
 }
 
 // The block picker as the advanced action of a board action, in the mode that

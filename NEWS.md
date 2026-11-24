@@ -976,6 +976,14 @@
   The page names each module that failed, with its package, on a line of its own.
   Saving a board that opened without such a module would lose what the board holds for the module's plugin or board option, such as the DAG's positions.
   The `CoreApi` for tests, `stubCore()`, rejects in the same way, so that a package's test fails at once where one of its modules breaks a rule (#847).
+* A target may name an input of a block, as `{ block: "b", input: "y" }`, which is no board object, since the store holds no inputs.
+  The input `""` names the next place of a variadic block, where the quick actions below put a link last among the block's links, without a name.
+  Core hands an input's target only to a board action whose `on` names `"input"`, which a role's `on` may name too.
+  Prepend block applies to an input that no link feeds, and adds a block that feeds that input.
+  Create link applies to such an input too, and its quick action lists the blocks that can feed the input without closing a cycle.
+  So `prepend_block_role` and `add_link_role` take inputs among their targets, and a board action that an app picks to play one of them names inputs in its `on` too.
+  Opened on an input, the block picker and the form of Create link name the input in a line, as `The new block feeds the input "y" of "Merge".` and `A link into the input "y" of "Merge".`, in place of the field of the input.
+  Where a new link goes into a variadic block, as on its next place, the block picker before the block and the form of Create link ask for the link's position among the block's links beside the name of its input, since the block takes its links by their order and by their names, as `rbind()` takes its arguments (#827).
 
 # blockr.core 0.1.4
 

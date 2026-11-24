@@ -11,6 +11,7 @@ export type AddMode = {
 } | {
     readonly kind: "before";
     readonly to: BlockId;
+    readonly input?: string;
 } | {
     readonly kind: "on";
     readonly link: LinkId;

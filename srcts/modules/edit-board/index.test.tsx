@@ -992,7 +992,7 @@ describe("the forms that add a block, a link and a stack", () => {
     const block = player("Kit block", "add_block_role", ["board"], [
       { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "n" } },
     ]);
-    const link = player("Kit link", "add_link_role", ["block", "board"]);
+    const link = player("Kit link", "add_link_role", ["block", "input", "board"]);
     const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"]);
     const { el, board } = await withActions([block.action, link.action, stack.action], HELLO, {
       add_block_role: block.action.id,
@@ -1019,7 +1019,7 @@ describe("the forms that add a block, a link and a stack", () => {
   test("show nowhere that on() leaves out the board action that the app picks for their role on the board", async () => {
     const refuse = { offers: () => false };
     const block = player("Kit block", "add_block_role", ["board"], [], refuse);
-    const link = player("Kit link", "add_link_role", ["block", "board"], [], refuse);
+    const link = player("Kit link", "add_link_role", ["block", "input", "board"], [], refuse);
     const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"], [], refuse);
     const { el } = await withActions([block.action, link.action, stack.action], HELLO, {
       add_block_role: block.action.id,

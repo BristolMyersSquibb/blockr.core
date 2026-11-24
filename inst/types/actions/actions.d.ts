@@ -1,5 +1,5 @@
 import type { Store } from "../store/index.ts";
-import type { Board, PluginClassId } from "../types/board.ts";
+import type { BlockId, Board, PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
@@ -11,6 +11,9 @@ import type { Role } from "./roles.ts";
 export type Target = {
     readonly board: true;
 } | BoardObject | {
+    readonly block: BlockId;
+    readonly input: string;
+} | {
     readonly selection: readonly BoardObject[];
 };
 export interface CommandCall {
@@ -22,7 +25,7 @@ export interface BoardAction {
     readonly label: string;
     readonly icon?: string;
     detail?(board: Board, target: Target): string | undefined;
-    readonly on: readonly ("board" | "block" | "link" | "stack" | "option" | "plugin" | "selection")[];
+    readonly on: readonly ("board" | "block" | "input" | "link" | "stack" | "option" | "plugin" | "selection")[];
     readonly category: string;
     offers?(board: Board, target: Target, lock: Lock): boolean;
     run?(board: Board, target: Target, core: CoreApi): readonly CommandCall[] | undefined | Promise<readonly CommandCall[] | undefined>;

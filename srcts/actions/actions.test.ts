@@ -161,7 +161,7 @@ describe("the board actions that core registers", () => {
     [
       "a board action whose on names no kind of target",
       [{ ...action("x", ["block"]), on: ["block", "node"] }],
-      'gives the board action "blockr.test-x_action", whose on names "node", which is none of the kinds of target, "board", "block", "link", "stack", "option", "plugin" and "selection".',
+      'gives the board action "blockr.test-x_action", whose on names "node", which is none of the kinds of target, "board", "block", "input", "link", "stack", "option", "plugin" and "selection".',
     ],
     ["a board action without a category", [{ ...action("x", ["block"]), category: undefined }], 'gives the board action "blockr.test-x_action" without a category.'],
     [
@@ -248,15 +248,68 @@ describe("on()", () => {
     s.stop();
   });
 
+  test("hands an input's target only to the board actions whose on names inputs, Prepend block and Create link among core's, on an input that no link feeds", async () => {
+    const got: Target[] = [];
+    const onInput = action("on input", ["input"], {
+      offers(_board, target) {
+        got.push(target);
+        return true;
+      },
+    });
+    const onBlock = action("on block", ["block"], {
+      offers(_board, target) {
+        got.push(target);
+        return true;
+      },
+    });
+    const s = await stubbed([listing("test", [onInput, onBlock])]);
+    const on = (target: Target): string[] => ids(s.core.boardActions.on(target));
+    const CORE = ["blockr.core-prepend_block_action", "blockr.core-add_link_action"];
+
+    // A link feeds the input x of Merge, and none the next place of Bind.
+    expect(on({ block: "c", input: "x" })).toEqual([onInput.id]);
+    expect(on({ block: "e", input: "" })).toEqual([...CORE, onInput.id]);
+    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
+    expect(on({ block: "c", input: "x" })).toEqual([...CORE, onInput.id]);
+    // The target names an input whatever order the caller gives its block and
+    // its input in.
+    expect(on({ input: "x", block: "c" })).toEqual([...CORE, onInput.id]);
+
+    // Merge takes its inputs by name, so it has no next place, and Bind is
+    // variadic, so it has none but its next place. Neither has an input z.
+    for (const target of [{ block: "c", input: "" }, { block: "c", input: "z" }, { block: "e", input: "x" }]) {
+      expect(on(target)).toEqual([onInput.id]);
+    }
+
+    // Core handed the board action on blocks none of them.
+    expect(got).toHaveLength(7);
+    expect(got.every((target) => "input" in target && Object.isFrozen(target))).toBe(true);
+    expect(got[3]).toEqual({ block: "c", input: "x" });
+    expect(Object.keys(got[3] ?? {})).toEqual(["block", "input"]);
+    s.stop();
+  });
+
   test("throws for what is no target, as a plugin in plain JS may give", async () => {
     const s = await stubCore();
     const on = (given: unknown) => () => s.core.boardActions.on(given as Target);
 
-    for (const given of [undefined, "b", { block: "" }, { block: "b", link: "ab" }, { board: false }, { selection: [{ blok: "b" }] }]) {
+    for (const given of [
+      undefined,
+      "b",
+      { block: "" },
+      { block: "b", link: "ab" },
+      { board: false },
+      { selection: [{ blok: "b" }] },
+      { input: "x" },
+      { block: "", input: "x" },
+      { block: "b", input: 1 },
+      { block: "b", input: "x", link: "ab" },
+      { selection: [{ block: "b", input: "x" }] },
+    ]) {
       expect(on(given)).toThrow(TypeError);
     }
     expect(on({ blok: "b" })).toThrow(
-      'A board action acts on the board, as { board: true }, on a board object, as { block: "a" }, or on a selection of them, as { selection: [{ block: "a" }, { link: "ab" }] }, not {"blok":"b"}.',
+      'A board action acts on the board, as { board: true }, on a board object, as { block: "a" }, on an input of a block, as { block: "a", input: "x" }, or on a selection of board objects, as { selection: [{ block: "a" }, { link: "ab" }] }, not {"blok":"b"}.',
     );
     s.stop();
   });
@@ -351,6 +404,33 @@ describe("menu()", () => {
       menu({ block: "b" }, { ...at, extend: "more" });
     }).toThrow(new TypeError("The `extend` of menu() is a function."));
     expect(s.menu()).toBeUndefined();
+    s.stop();
+  });
+
+  test("opens no menu on the board or on an input under the board lock, where none of core's board actions applies, so that no menu shows empty", async () => {
+    const s = await stubCore({ hello: { ...HELLO, lock: { board: true, load: false } } });
+
+    s.core.boardActions.menu({ board: true }, at);
+    expect(s.menu()).toBeUndefined();
+    s.core.boardActions.menu({ block: "e", input: "" }, at);
+    expect(s.menu()).toBeUndefined();
+    // Copy block ID applies to a block under the lock too.
+    expect(s.menu({ block: "e" }).level()?.rows.map((row) => row.label)).toEqual(["Copy block ID"]);
+    s.stop();
+  });
+
+  test("opens the menu of an input with a row for each board action whose on names inputs", async () => {
+    const embed = action("Feed from document", ["input"], { category: "document" });
+    const s = await stubbed([listing("test", [embed, action("Export", ["block"])])]);
+
+    const menu = s.menu({ block: "e", input: "" });
+
+    expect(menu.level()?.rows.map((row) => [row.label, "category" in row ? row.category : undefined])).toEqual([
+      ["Prepend block", "add"],
+      ["Create link", "add"],
+      ["Feed from document", "document"],
+    ]);
+    menu.escape();
     s.stop();
   });
 
