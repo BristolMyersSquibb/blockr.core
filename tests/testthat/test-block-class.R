@@ -304,6 +304,20 @@ test_that("the constructor keeps the state the checks in expr leave", {
                class = "block_class_invalid")
 })
 
+test_that("a package's constructor and blocks use its namespace's class", {
+
+  cls <- get("head_block", envir = asNamespace("blockr.core"))
+
+  expect_identical(
+    rlang::obj_address(constructor_class(new_head_block)),
+    rlang::obj_address(cls)
+  )
+  expect_identical(
+    rlang::obj_address(block_class(new_head_block())),
+    rlang::obj_address(cls)
+  )
+})
+
 test_that("an unset arg stays out of the state until something sets it", {
 
   expect_identical(

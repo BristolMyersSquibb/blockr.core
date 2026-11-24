@@ -276,12 +276,9 @@ test_that("registry entries print", {
 
 test_that("loading core registers none of its block classes", {
 
-  skip_on_covr()
-
   local_empty_declarations()
 
-  # Outside covr, the load hook traces no block class, and declares core's
-  # modules again
+  # The load hook declares core's modules again.
   .onLoad("", "blockr.core")
 
   expect_identical(list_blocks(), character())
@@ -330,6 +327,10 @@ test_that("an app offers the block classes that `blocks` gives", {
   head <- entries[["blockr.core-head_block"]]
 
   expect_identical(head[["block_class"]], head_block)
+  expect_identical(
+    rlang::obj_address(head[["block_class"]]),
+    rlang::obj_address(get("head_block", envir = asNamespace("blockr.core")))
+  )
   expect_identical(head[["state"]], list(n = 6L, direction = "head"))
 
   # The schema that the module ships describes each state arg, as the JSDoc
