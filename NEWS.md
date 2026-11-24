@@ -47,10 +47,11 @@
   and `waiting` where it signals `blockr_waiting()`.
   R reports why as the block's reason, which is no condition.
   With them come `result_summary()`,
-  `new_block_request()` and `run_block_request()`,
-  `expect_block_fixture()`, which tests a class
-  without Shiny, and `trace_block_classes()`, which a package calls in
-  `.onLoad()` so that covr counts the code its classes hold (#421).
+  `new_block_request()` and `run_block_request()`, and
+  `expect_block_fixture()`, which tests a class without Shiny (#421).
+* Coverage counts the functions of a block class through covr's full
+  traversal, which `Config/covr/full_traversal: true` turns on. The
+  `trace_block_classes()` export and its calls in `.onLoad()` are gone (#726).
 * Registration reads a block class from its constructor and builds no block.
   It keeps one entry per class under the registry id `{pkg}-{name}`, holding
   what R needs to evaluate a block and resolve its requests, and drops the

@@ -76,6 +76,7 @@ Suggests:
     otelsdk,
     pkgload
 Config/testthat/edition: 3
+Config/covr/full_traversal: true
 VignetteBuilder: quarto
 Config/roxygen2/version: 8.0.0
 Collate: 
@@ -88,7 +89,6 @@ Collate:
     'utils-cnd.R'
     'utils-assertions.R'
     'block-class.R'
-    'block-coverage.R'
     'block-eval.R'
     'block-fixture.R'
     'block-registry.R'

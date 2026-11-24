@@ -893,7 +893,6 @@ The package lists its classes for core in the object that it exports, `._BLOCKR_
 Loading the package registers none of the classes.
 R finds the package by that export, once it is installed, without loading it.
 Then `available_blocks()` lists its classes, and an app offers them, as it offers every available class unless its script narrows them through `serve()`'s `blocks`, as in `serve(new_board(), blocks = subset(available_blocks(), package != "blockr.ggplot"))`.
-The package's `.onLoad()` also calls `trace_block_classes()`, which lets covr count the lines of the functions that the classes hold (see "Testing" below):
 
 ```r
 #' @export
@@ -901,7 +900,6 @@ The package's `.onLoad()` also calls `trace_block_classes()`, which lets covr co
 
 .onLoad <- function(libname, pkgname) {
   ._BLOCKR_MODULES_$blocks <- blockr.core::read_blocks_yml(pkgname)
-  trace_block_classes(pkgname)
 }
 ```
 See `?block_registration_roclet` for every tag, and `?read_blocks_yml` for the rest of what a package lists there, its plugin classes, board options and the modules it offers others.
@@ -980,8 +978,9 @@ In `tests/testthat/test-head-block.R`, this writes `tests/testthat/_snaps/head-b
 The package commits the snapshot.
 A change to what a request answers then fails the test until the new snapshot is accepted with `testthat::snapshot_accept()`.
 
-A class's functions live inside a value, where covr finds none of them, so a coverage report would show none of their lines.
-Under covr, `trace_block_classes()` in the package's `.onLoad()` binds them in the namespace, where covr counts them.
+A package sets `Config/covr/full_traversal: true` in its `DESCRIPTION`.
+Covr then reaches the functions that its block classes hold in the class objects that its namespace binds.
+Registration and block construction use those same objects, so a coverage run counts the functions that R runs.
 
 ### The module tests
 
