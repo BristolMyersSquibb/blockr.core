@@ -514,8 +514,11 @@ test_that("a plugin prints fields that are empty or nested", {
     1:5
   )
 
+  # R-devel adds a space before "List of" in utils::str().
+  actual <- sub(": List of", ":List of", format(plugin), fixed = TRUE)
+
   expect_identical(
-    format(plugin),
+    actual,
     c(
       "<views_plugin> blockr.test-views_plugin",
       " $ views :List of 2",
