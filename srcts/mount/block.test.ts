@@ -1180,7 +1180,7 @@ describe("a request", () => {
     const max = host.request("n_max");
     const rejected = expect(max).rejects.toMatchObject({
       status: null,
-      blocks: [{ block: "a", status: { status: "failed", conditions: [failure] }, input: "data" }],
+      notReady: [{ block: "a", status: { status: "failed", conditions: [failure] }, input: "data" }],
       unlinked: [],
       message: 'The request "n_max" of block "b" did not go to R, since an input it reads is not ready: "data" reads failed.',
     });
@@ -1200,7 +1200,7 @@ describe("a request", () => {
     await expect(max).rejects.toBeInstanceOf(RequestError);
     await expect(max).rejects.toMatchObject({
       status: null,
-      blocks: [],
+      notReady: [],
       unlinked: ["data"],
       message: 'The request "n_max" of block "b" did not go to R, since no link feeds its input "data".',
     });

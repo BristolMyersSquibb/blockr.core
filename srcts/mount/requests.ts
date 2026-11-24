@@ -40,7 +40,7 @@ const ATTEMPTS = 3;
 // Why a request rejects. Where R replied, the error holds the status and the
 // conditions of R's reply. Where the request did not go to R, it holds what
 // kept the request from R:
-// - In `blocks`, each block that the request reads and that is not ready,
+// - In `notReady`, each block that the request reads and that is not ready,
 //   with its status, whatever the type of the request. A block class's
 //   request reads by input, so each of its entries also names the input that
 //   the block feeds. The request of an output reads the block of the output,
@@ -50,7 +50,7 @@ const ATTEMPTS = 3;
 export class RequestError extends Error {
   readonly status: Exclude<ReplyStatus, "ok"> | null;
   readonly conditions: readonly Condition[];
-  readonly blocks: readonly { readonly block: BlockId; readonly status: BlockStatus; readonly input?: string }[];
+  readonly notReady: readonly { readonly block: BlockId; readonly status: BlockStatus; readonly input?: string }[];
   readonly unlinked: readonly string[];
 
   constructor(
@@ -58,7 +58,7 @@ export class RequestError extends Error {
     fields: {
       status?: Exclude<ReplyStatus, "ok">;
       conditions?: readonly Condition[];
-      blocks?: readonly { readonly block: BlockId; readonly status: BlockStatus; readonly input?: string }[];
+      notReady?: readonly { readonly block: BlockId; readonly status: BlockStatus; readonly input?: string }[];
       unlinked?: readonly string[];
     } = {},
   ) {
@@ -67,7 +67,7 @@ export class RequestError extends Error {
     this.name = "RequestError";
     this.status = fields.status ?? null;
     this.conditions = conditions;
-    this.blocks = fields.blocks ?? [];
+    this.notReady = fields.notReady ?? [];
     this.unlinked = fields.unlinked ?? [];
   }
 }
@@ -218,15 +218,15 @@ async function evaluateReads(
   if (upstream.length === 0) return read.map((input) => ({ input: input.input }));
 
   const statuses = await deps.scheduler.evaluate(upstream, undefined, signal === undefined ? {} : { signal });
-  const unready = read.flatMap((input) => {
+  const notReady = read.flatMap((input) => {
     if (input.block === undefined) return [];
     const status = own(statuses, input.block);
     return status === undefined || status.status === "ready" ? [] : [{ block: input.block, status, input: input.input }];
   });
-  if (unready.length > 0) {
-    const listed = unready.map(({ input, status }) => `"${input}" reads ${status.status}`);
+  if (notReady.length > 0) {
+    const listed = notReady.map(({ input, status }) => `"${input}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since an input it reads is not ready: ${listed.join(", ")}.`, {
-      blocks: unready,
+      notReady,
     });
   }
 

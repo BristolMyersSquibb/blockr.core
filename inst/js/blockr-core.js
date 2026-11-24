@@ -2276,7 +2276,7 @@ var ATTEMPTS = 3;
 var RequestError = class extends Error {
   status;
   conditions;
-  blocks;
+  notReady;
   unlinked;
   constructor(message, fields = {}) {
     const conditions = fields.conditions ?? [];
@@ -2284,7 +2284,7 @@ var RequestError = class extends Error {
     this.name = "RequestError";
     this.status = fields.status ?? null;
     this.conditions = conditions;
-    this.blocks = fields.blocks ?? [];
+    this.notReady = fields.notReady ?? [];
     this.unlinked = fields.unlinked ?? [];
   }
 };
@@ -2385,15 +2385,15 @@ async function evaluateReads(deps, block, entry, name3, names, signal5) {
   const upstream = [...new Set(read.flatMap((input2) => input2.block ?? []))];
   if (upstream.length === 0) return read.map((input2) => ({ input: input2.input }));
   const statuses = await deps.scheduler.evaluate(upstream, void 0, signal5 === void 0 ? {} : { signal: signal5 });
-  const unready = read.flatMap((input2) => {
+  const notReady = read.flatMap((input2) => {
     if (input2.block === void 0) return [];
     const status = own(statuses, input2.block);
     return status === void 0 || status.status === "ready" ? [] : [{ block: input2.block, status, input: input2.input }];
   });
-  if (unready.length > 0) {
-    const listed = unready.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
+  if (notReady.length > 0) {
+    const listed = notReady.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since an input it reads is not ready: ${listed.join(", ")}.`, {
-      blocks: unready
+      notReady
     });
   }
   return read.map(
@@ -2975,7 +2975,7 @@ function mountOutput(deps, el, block) {
           reject(
             new RequestError(
               `The request "${name3}" of the output of block "${block}" did not go to R, since the block reads ${status.status}.`,
-              { blocks: [{ block, status }] }
+              { notReady: [{ block, status }] }
             )
           );
           return true;
@@ -10901,14 +10901,14 @@ async function evaluateReads2(deps, what, blocks, signal5) {
   }
   const unique = [...new Set(blocks)];
   const statuses = await deps.scheduler.evaluate(unique, void 0, signal5 === void 0 ? {} : { signal: signal5 });
-  const unready = unique.flatMap((block) => {
+  const notReady = unique.flatMap((block) => {
     const status = own(statuses, block);
     return status === void 0 || status.status === "ready" ? [] : [{ block, status }];
   });
-  if (unready.length > 0) {
-    const listed = unready.map(({ block, status }) => `"${block}" reads ${status.status}`);
+  if (notReady.length > 0) {
+    const listed = notReady.map(({ block, status }) => `"${block}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since a block it reads is not ready: ${listed.join(", ")}.`, {
-      blocks: unready
+      notReady
     });
   }
   const left2 = unique.filter((block) => own(statuses, block) === void 0);

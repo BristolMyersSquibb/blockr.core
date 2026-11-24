@@ -111,7 +111,7 @@ describe("a plugin's request", () => {
     const s = setup([], { a: READY, b: failed });
     const sent = pluginRequest(s.deps, CODE, "script", {}, { reads: ["a", "b"] });
     await expect(sent).rejects.toBeInstanceOf(RequestError);
-    await expect(sent).rejects.toMatchObject({ status: null, blocks: [{ block: "b", status: failed }], unlinked: [] });
+    await expect(sent).rejects.toMatchObject({ status: null, notReady: [{ block: "b", status: failed }], unlinked: [] });
     expect(s.sent).toEqual([]);
   });
 

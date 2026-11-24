@@ -10,7 +10,7 @@ import type { Answers } from "./answers.ts";
 export declare class RequestError extends Error {
     readonly status: Exclude<ReplyStatus, "ok"> | null;
     readonly conditions: readonly Condition[];
-    readonly blocks: readonly {
+    readonly notReady: readonly {
         readonly block: BlockId;
         readonly status: BlockStatus;
         readonly input?: string;
@@ -19,7 +19,7 @@ export declare class RequestError extends Error {
     constructor(message: string, fields?: {
         status?: Exclude<ReplyStatus, "ok">;
         conditions?: readonly Condition[];
-        blocks?: readonly {
+        notReady?: readonly {
             readonly block: BlockId;
             readonly status: BlockStatus;
             readonly input?: string;
