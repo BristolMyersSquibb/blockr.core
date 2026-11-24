@@ -3,6 +3,7 @@ import type { Json, JsonSchema } from "./json.ts";
 import type { OutputRenderer } from "./outputs.ts";
 export interface RegistryEntry {
     readonly id: RegistryId;
+    readonly offered?: true;
     readonly name: string;
     readonly description: string;
     readonly url?: string;

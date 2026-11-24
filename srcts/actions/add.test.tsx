@@ -111,6 +111,15 @@ function refusals(within: ParentNode): string[][] {
   return [...within.querySelectorAll('[role="alert"]')].map((alert) => [...alert.querySelectorAll("p, li")].map((line) => line.textContent));
 }
 
+// The block registry of the fixture hello, but for the classes given, which
+// the app does not offer: R registered them only for blocks of the opening
+// board, so that their entries carry no `offered`.
+function unoffered(...ids: string[]): HelloReply["block_registry"] {
+  return Object.fromEntries(
+    Object.entries(HELLO.block_registry).map(([id, entry]) => [id, ids.includes(id) ? { ...entry, offered: undefined } : entry]),
+  );
+}
+
 // The classes of core's registry under their categories, as the quick actions
 // that add a block list them, and as the picker does.
 const ALL = [
@@ -160,6 +169,40 @@ describe("the quick actions of the board actions that add a block", () => {
     expect(headings(APPEND, { block: "b" })).toEqual(TAKING);
     expect(headings(INSERT, { link: "ab" })).toEqual(TAKING);
     expect(headings(PREPEND, { block: "e" })).toEqual(ALL);
+  });
+
+  test("list only the classes that the app offers, though the registry holds the class of each block of the board", async () => {
+    // The board's block f is a scatter plot, whose class the app does not
+    // offer.
+    const s = await stubbed({ hello: { ...HELLO, block_registry: unoffered("blockr.core-scatter_block") } });
+    const { menu } = triggered(s, ADD, { board: true });
+
+    expect(menu.level()?.rows.map((row) => ("heading" in row ? [row.heading, row.label] : []))).toEqual(
+      ALL.filter(([, label]) => label !== "scatter plot block"),
+    );
+    menu.escape();
+    expect(s.core.store.board().blocks.f).toMatchObject({ registry_id: "blockr.core-scatter_block" });
+  });
+
+  test("of a board action are not offered where the app offers no class that it can add", async () => {
+    // The app offers the classes without an input alone, so that no new
+    // block can take another's result.
+    const taking = Object.values(HELLO.block_registry)
+      .filter((entry) => entry.inputs.length > 0)
+      .map((entry) => entry.id);
+    let s = await stubbed({ hello: { ...HELLO, block_registry: unoffered(...taking) } });
+    const ids = (target: Target): string[] => s.core.boardActions.on(target).map(({ id }) => id);
+
+    expect(ids({ board: true })).toContain(ADD);
+    expect(ids({ block: "b" })).not.toContain(APPEND);
+    expect(ids({ link: "ab" })).not.toContain(INSERT);
+    expect(ids({ block: "e" })).toContain(PREPEND);
+
+    // Where the app offers no class at all, none of them is.
+    s = await stubbed({ hello: { ...HELLO, block_registry: unoffered(...Object.keys(HELLO.block_registry)) } });
+
+    expect(ids({ board: true })).not.toContain(ADD);
+    expect(ids({ block: "e" })).not.toContain(PREPEND);
   });
 });
 
@@ -324,6 +367,20 @@ describe("under the board lock", () => {
 });
 
 describe("the block picker, their advanced action,", () => {
+  test("offers only the classes that the app offers", async () => {
+    const s = await stubbed({ hello: { ...HELLO, block_registry: unoffered("blockr.core-merge_block") } });
+
+    const form = await picker(s, APPEND, { block: "b" });
+    const classes = labelled(form, "Block class");
+    await step(() => {
+      classes.click();
+    });
+
+    expect(optionLabels(classes)).toEqual(
+      TAKING.filter(([, name]) => name !== "merge block").map(([category, name]) => `${category ?? ""}: ${name ?? ""}`),
+    );
+  });
+
   test("opens from the open icon in core's dialog, titled with the board action's label, with its search starting from the filter's text and the keyboard's focus in it", async () => {
     const s = await stubbed();
 

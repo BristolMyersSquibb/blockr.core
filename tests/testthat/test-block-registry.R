@@ -343,9 +343,9 @@ test_that("available_blocks() lists the classes of the available packages", {
 
   expect_setequal(
     core[["id"]],
-    c("csv_block", "dataset_block", "filebrowser_block", "glue_block",
-      "head_block", "merge_block", "rbind_block", "scatter_block",
-      "subset_block", "upload_block")
+    c("csv_block", "dataset_block", "filebrowser_block", "fixed_block",
+      "glue_block", "head_block", "merge_block", "rbind_block",
+      "scatter_block", "static_block", "subset_block", "upload_block")
   )
 })
 
@@ -356,9 +356,9 @@ test_that("an app offers the block classes that `blocks` gives", {
 
   ids <- paste0(
     "blockr.core-",
-    c("csv_block", "dataset_block", "filebrowser_block", "glue_block",
-      "head_block", "merge_block", "rbind_block", "scatter_block",
-      "subset_block", "upload_block")
+    c("csv_block", "dataset_block", "filebrowser_block", "fixed_block",
+      "glue_block", "head_block", "merge_block", "rbind_block",
+      "scatter_block", "static_block", "subset_block", "upload_block")
   )
 
   registry <- app_block_registry(core_block_rows())
@@ -391,14 +391,17 @@ test_that("an app offers the block classes that `blocks` gives", {
     )
   )
 
-  # Core lists neither its static nor its fixed block, whose classes give their
-  # ids all the same
-  expect_false(any(c("blockr.core-static_block", "blockr.core-fixed_block") %in%
-                     ls(registry)))
-  expect_identical(registry_id_from_block(new_static_block()),
-                   "blockr.core-static_block")
-  expect_identical(registry_id_from_block(new_fixed_block()),
-                   "blockr.core-fixed_block")
+  # Core lists its static and fixed blocks as it lists its other classes, with
+  # the name and the description that their registration gives
+  static <- entries[["blockr.core-static_block"]]
+
+  expect_identical(static[["name"]], "static block")
+  expect_identical(static[["description"]], "Evaluate an R expression")
+  expect_identical(static[["category"]], "input")
+  expect_identical(
+    entries[["blockr.core-fixed_block"]][["category"]],
+    "transform"
+  )
 
   # Each app holds a registry of its own, and the block registry of the
   # process none of its classes

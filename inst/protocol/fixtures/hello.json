@@ -19,6 +19,7 @@
         "block_registry": {
           "blockr.core-dataset_block": {
             "id": "blockr.core-dataset_block",
+            "offered": true,
             "name": "dataset block",
             "description": "Choose a dataset from a package",
             "keywords": ["dataset", "data", "import", "package", "source"],
@@ -62,6 +63,7 @@
           },
           "blockr.core-head_block": {
             "id": "blockr.core-head_block",
+            "offered": true,
             "name": "head/tail block",
             "description": "Data head/tail",
             "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",
@@ -105,6 +107,7 @@
           },
           "blockr.core-merge_block": {
             "id": "blockr.core-merge_block",
+            "offered": true,
             "name": "merge block",
             "description": "Joining or merging datasets",
             "keywords": [
@@ -160,6 +163,7 @@
           },
           "blockr.core-subset_block": {
             "id": "blockr.core-subset_block",
+            "offered": true,
             "name": "subset block",
             "description": "Row and column subsetting",
             "keywords": [
@@ -204,6 +208,7 @@
           },
           "blockr.core-rbind_block": {
             "id": "blockr.core-rbind_block",
+            "offered": true,
             "name": "rbind block",
             "description": "Row-binding of datasets",
             "keywords": [
@@ -238,6 +243,7 @@
           },
           "blockr.core-scatter_block": {
             "id": "blockr.core-scatter_block",
+            "offered": true,
             "name": "scatter plot block",
             "description": "Scatter plotting",
             "keywords": [
@@ -286,6 +292,7 @@
           },
           "blockr.core-upload_block": {
             "id": "blockr.core-upload_block",
+            "offered": true,
             "name": "data upload block",
             "description": "Upload data",
             "keywords": ["upload", "file", "import", "data", "session"],

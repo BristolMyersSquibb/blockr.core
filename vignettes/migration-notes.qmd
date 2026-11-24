@@ -387,6 +387,9 @@ register_block(
 unregister_blocks("identity_block")
 ```
 
+A script registers each class that it defines before it serves a board with a block of the class.
+In version 0.1, such a block ran without a registration, while `serve()` of version 0.2 stops on it, naming the block and the class.
+
 ## A board built from another board
 
 Nothing changes a board in R in version 0.2, since the browser makes every change.

@@ -8,9 +8,10 @@
 // The user fills in the form, and the block goes onto the board only as the
 // user submits it, with these fields:
 // - The block's class, which a select picks among the block registry's
-//   entries, by their names, descriptions, keywords and registry ids, grouped
-//   by category. Where the user opened the picker from a quick action, the
-//   search starts from the text in the quick action's filter.
+//   entries of the classes that the app offers, by their names, descriptions,
+//   keywords and registry ids, grouped by category. Where the user opened the
+//   picker from a quick action, the search starts from the text in the quick
+//   action's filter.
 // - The input that the new link feeds, where the mode adds one (below).
 // - The new block's id and its name, which the user may leave empty. Then the
 //   form mints the id through CoreApi, and the command takes the name from the
@@ -60,7 +61,7 @@ import { flushSync } from "react-dom";
 import { freeInputs } from "../commands/index.ts";
 import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField, useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
-import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
+import type { BlockId, Board, Link, LinkId, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -113,7 +114,7 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
   // A block added after another or on a link takes a block's result, so its
   // class has an input.
   const takes = mode.kind === "after" || mode.kind === "on";
-  const options = useMemo(() => blockClasses(Object.values(registry).filter((entry) => !takes || entry.inputs.length > 0)), [registry, takes]);
+  const options = useMemo(() => blockClasses(offeredClasses(registry, takes)), [registry, takes]);
   const search = useSearch(
     options,
     (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
@@ -436,6 +437,15 @@ export interface ClassItem {
   readonly pkg: string | null;
   readonly category: string;
   readonly keywords: readonly string[];
+}
+
+// The entries of the block classes that the app offers, which R marks
+// `offered`, only those with an input where `taking` is true, as a block that
+// takes another's result needs. The block registry also holds the class of
+// each block of the opening board, which the app need not offer, and which no
+// picker lists.
+export function offeredClasses(registry: Readonly<Record<RegistryId, RegistryEntry>>, taking: boolean): RegistryEntry[] {
+  return Object.values(registry).filter((entry) => entry.offered === true && (!taking || entry.inputs.length > 0));
 }
 
 // The block classes of the entries, in the order in which the picker and the

@@ -985,6 +985,13 @@
   So `prepend_block_role` and `add_link_role` take inputs among their targets, and a board action that an app picks to play one of them names inputs in its `on` too.
   Opened on an input, the block picker and the form of Create link name the input in a line, as `The new block feeds the input "y" of "Merge".` and `A link into the input "y" of "Merge".`, in place of the field of the input.
   Where a new link goes into a variadic block, as on its next place, the block picker before the block and the form of Create link ask for the link's position among the block's links beside the name of its input, since the block takes its links by their order and by their names, as `rbind()` takes its arguments (#827).
+* Every block class in an app's block registry comes from a registration: its package's listing, or the block registry of the process, where `register_block()` puts it.
+  As `serve()` builds the app, R registers the class of each block on the board that the registry lacks from that registration, with the name and the other metadata that it gives, where it made up a name and an empty description before.
+  A board with a block of a class that nothing registers stops the app, naming the block and the class, so a script registers a class that it defines itself before it serves a board with a block of the class.
+  Core lists its static and fixed blocks with their metadata, so that an app offers them unless its `blocks` leaves them out.
+  The reply to `hello` marks the entries of the classes that the app offers with `offered`.
+  The block picker and the quick actions that add a block list only those classes.
+  The class of a block of the opening board that the app does not offer stays in the registry, so that the block runs (#666).
 
 # blockr.core 0.1.4
 

@@ -73,6 +73,17 @@ block_registry <- new.env()
 #' So a later `serve()` or `register_block()` changes no app that `serve()`
 #' built before.
 #'
+#' Every block class in an app's block registry comes from a registration: a
+#' package's listing, or the block registry of the process.
+#' A block on the board that the script serves may be of a class that the app
+#' does not offer, such as core's static block in an app whose rows leave it
+#' out.
+#' Then `serve()` registers that class in the app's block registry from its
+#' registration, so that the block runs, and the app still does not offer it.
+#' A block of a class that nothing registers stops the app, so a script
+#' registers a class that it defines itself before it serves a board with a
+#' block of it (see [serve()]).
+#'
 #' An entry holds, beside the metadata, the block class, its data inputs and
 #' the JSON Schema of the block's state that the class's UI module ships beside
 #' it, as `<name>.schema.json` for a module `<name>.js`,
@@ -89,9 +100,10 @@ block_registry <- new.env()
 #' description (see `vignette("create-block")`).
 #'
 #' R sends the client what it needs of each entry, in its reply to `hello`,
-#' without building a block: the metadata, with `link` as `url`, the data
-#' inputs, where R serves the UI module, the schema, the state a new block
-#' starts with and the requests. R serves the
+#' without building a block: whether the app offers the class, the metadata,
+#' with `link` as `url`, the data inputs, where R serves the UI module, the
+#' schema, the state a new block starts with and the requests.
+#' The client's pickers list only the classes that the app offers. R serves the
 #' module, and the stylesheet beside it, at a URL that holds a hash of the
 #' file's content, so that no browser runs a changed file from its cache. It
 #' writes the starting state by the schema of the block's state.
@@ -235,6 +247,30 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
     )
   }
 
+  entry <- class_entry(
+    cls,
+    list(
+      name = name,
+      description = description,
+      link = link,
+      guidance = guidance,
+      keywords = keywords,
+      category = category,
+      icon = icon
+    )
+  )
+
+  assign(id, entry, envir = registry)
+
+  invisible(entry)
+}
+
+# The entry of block class `cls` in a block registry, with the metadata that
+# its registration gives, `meta`, as `add_block_entry()` checks it: the
+# entry's `name`, `description`, `link`, `guidance`, `keywords`, `category`
+# and `icon`, the icon as SVG markup.
+class_entry <- function(cls, meta) {
+
   state <- expr_state(cls, list())
 
   # R sends the client the state a new block of the class starts with, so it
@@ -244,25 +280,28 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
     paste("The state a new block of class", cls[["id"]], "starts with")
   )
 
-  entry <- new_registry_entry(
-    id = id,
-    name = name,
-    description = description,
-    link = link,
-    guidance = guidance,
-    keywords = keywords,
-    category = category,
-    icon = icon,
-    block_class = cls,
-    inputs = class_inputs(cls),
-    schema = class_schema(cls),
-    requests = lapply(cls[["requests"]], request_entry, cls),
-    state = state
+  do.call(
+    new_registry_entry,
+    c(
+      list(id = class_registry_id(cls)),
+      meta,
+      list(
+        block_class = cls,
+        inputs = class_inputs(cls),
+        schema = class_schema(cls),
+        requests = lapply(cls[["requests"]], request_entry, cls),
+        state = state
+      )
+    ),
+    quote = TRUE
   )
+}
 
-  assign(id, entry, envir = registry)
-
-  invisible(entry)
+# The metadata that the registration of registry entry `x` gave, as
+# `class_entry()` takes it.
+entry_metadata <- function(x) {
+  x[c("name", "description", "link", "guidance", "keywords", "category",
+      "icon")]
 }
 
 # A block class's registry id, `{pkg}-{id}`, from the package that the class
@@ -582,13 +621,14 @@ check_listed_blocks <- function(entries, package) {
 
 # The block registry of an app, which `serve()` builds as it starts the app,
 # and which the app's sessions read alone.
-# It holds the block classes that the app offers, as `blocks` gives them, whose
-# packages R loads, the classes that the app script defined and registered
-# itself, and the classes of the blocks on `board` that it lacks (see
-# `register_board_classes()`).
+# It holds the block classes that the app offers: those that `blocks` gives,
+# whose packages R loads, and the classes that the app script defined and
+# registered itself.
+# Then `serve()` adds the classes of the board's blocks that it lacks, which
+# the app does not offer (see `register_board_classes()`).
 # Building it reads the listing of each package that the app offers, as it
 # registers the package's classes.
-app_block_registry <- function(blocks = available_blocks(), board = NULL) {
+app_block_registry <- function(blocks = available_blocks()) {
 
   offered <- offered_block_classes(blocks)
   registry <- new.env(parent = emptyenv())
@@ -599,10 +639,6 @@ app_block_registry <- function(blocks = available_blocks(), board = NULL) {
   }
 
   list2env(process_entries(), registry)
-
-  if (not_null(board)) {
-    register_board_classes(board, registry)
-  }
 
   registry
 }
@@ -747,6 +783,38 @@ register_offered_classes <- function(package, registry, ids = NULL) {
   list2env(held, registry)
 
   invisible()
+}
+
+# Registers block class `cls` in `registry` from its registration, as `serve()`
+# registers the class of a block on its board: from the block registry of the
+# process where that holds the class's registry id, and from the listing of
+# the class's package otherwise.
+# It returns whether the class has a registration, and registers nothing
+# where it has none, as for a class that an app script defined and did not
+# register, or one that its package does not list.
+register_class <- function(cls, registry) {
+
+  id <- class_registry_id(cls)
+  held <- get0(id, envir = block_registry, inherits = FALSE)
+
+  if (is_registry_entry(held)) {
+    assign(id, held, envir = registry)
+    return(TRUE)
+  }
+
+  package <- cls[["package"]]
+
+  if (is.null(package)) {
+    return(FALSE)
+  }
+
+  if (!cls[["id"]] %in% chr_xtr(listed_blocks(package), "id")) {
+    return(FALSE)
+  }
+
+  register_listed_blocks(package, registry, cls[["id"]])
+
+  TRUE
 }
 
 # Registers the block classes that a package lists in `registry`, or those of

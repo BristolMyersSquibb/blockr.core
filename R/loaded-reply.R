@@ -1,6 +1,8 @@
 # What R tells the client about the app's packages, in its reply to `hello`,
 # for neither side to edit: the entries of the app's block registry,
-# `registry`, each with the renderers of its class's outputs, where R serves the
+# `registry`, each with the renderers of its class's outputs, those of the
+# classes that the app offers marked by their registry ids, `offered_ids`,
+# every class of the registry by default, where R serves the
 # modules that the available packages offer each other, `modules`, as
 # `offered_modules()` gives them, the app's plugins, `plugins`, each under the
 # ID of its class with the class's name and version, and where R serves the
@@ -20,7 +22,8 @@
 # `frontend`, `options` and `renderers` of inst/protocol/README.md, as R values
 # that `encode_message()` writes as the reply's JSON.
 # Building them builds no block.
-loaded_reply <- function(registry = block_registry, plugins = list(),
+loaded_reply <- function(registry = block_registry,
+                         offered_ids = ls(registry), plugins = list(),
                          frontend = as_json_object(list()),
                          options = app_options(),
                          modules = offered_modules(),
@@ -49,7 +52,11 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
     packages = package_versions(sources),
     block_registry = as_json_object(
       Map(
-        function(x, renderers) registry_entry_reply(x, renderers, families),
+        function(x, renderers) {
+          registry_entry_reply(
+            x, renderers, families, x[["id"]] %in% offered_ids
+          )
+        },
         entries,
         drawn
       )
@@ -76,9 +83,11 @@ package_versions <- function(packages) {
 }
 
 # A block class's entry in the block registry as the client gets it, the
-# `RegistryEntry` of srcts/types/registry.ts: the metadata that registration
-# gives, with `register_block()`'s `link` as `url`, and what the client cannot
-# read off a class that stays in R. Those are its data inputs, where R serves
+# `RegistryEntry` of srcts/types/registry.ts: whether the app offers the class,
+# `offered`, said only where it does, so that a picker lists the class, the
+# metadata that registration gives, with `register_block()`'s `link` as `url`,
+# and what the client cannot read off a class that stays in R.
+# Those are its data inputs, where R serves
 # its UI module, the schema of its state that the module ships, the name a new
 # block gets where its constructor gets none, the state a new block starts
 # with, the board options that its UI module reads itself,
@@ -89,10 +98,11 @@ package_versions <- function(packages) {
 # either form. An open family reads the board options of the families that the
 # available packages list, `families`.
 registry_entry_reply <- function(x, renderers = entry_renderers(x, families),
-                                 families = app_families()) {
+                                 families = app_families(), offered = TRUE) {
   c(
+    list(id = x[["id"]]),
+    if (isTRUE(offered)) list(offered = TRUE),
     list(
-      id = x[["id"]],
       name = x[["name"]],
       description = x[["description"]]
     ),
