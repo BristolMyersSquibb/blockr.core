@@ -383,3 +383,30 @@ test_that("misc", {
   expect_error(set_blockr_options(test_opt = "a", test_opt = "b"),
                class = "blockr_options_names_invalid")
 })
+
+test_that("blockr_flag reads TRUE and FALSE by one rule", {
+
+  withr::local_options(blockr.test_flag = NULL)
+  withr::local_envvar(BLOCKR_TEST_FLAG = NA)
+
+  expect_false(blockr_flag("test_flag", FALSE))
+  expect_true(blockr_flag("test_flag", TRUE))
+
+  withr::local_options(blockr.test_flag = TRUE)
+  expect_true(blockr_flag("test_flag", FALSE))
+
+  withr::local_options(blockr.test_flag = 1)
+  expect_error(
+    blockr_flag("test_flag", FALSE),
+    "The blockr option `test_flag` is TRUE or FALSE.",
+    class = "test_flag_invalid",
+    fixed = TRUE
+  )
+
+  withr::local_options(blockr.test_flag = NULL)
+  withr::local_envvar(BLOCKR_TEST_FLAG = " TRUE")
+  expect_true(blockr_flag("test_flag", FALSE))
+
+  withr::local_envvar(BLOCKR_TEST_FLAG = "1")
+  expect_error(blockr_flag("test_flag", FALSE), class = "test_flag_invalid")
+})

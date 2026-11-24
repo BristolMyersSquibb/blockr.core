@@ -56,7 +56,7 @@
 #' changes.
 #' A request that should not run on a locked board, such as one that evaluates
 #' code that the client sends, is its package's to refuse,
-#' by reading the blockr option `locked`.
+#' by reading the blockr option `locked` with [blockr_flag()].
 #'
 #' @section Scope: A lock is no sandbox.
 #' A block left open may parse what a reader types into code,
@@ -70,36 +70,14 @@
 #' @name locked-board
 NULL
 
-# Whether the blockr option `name`, `locked` or `lock_load`, turns its lock on.
-# A lock is off unless an app or a deployment sets it.
-# An environment variable gives a string, which R reads as `as.logical()`
-# does, as the client reads a blockr option that its code reads as a logical.
-lock_option <- function(name) {
-
-  x <- blockr_option(name, FALSE)
-
-  if (is.character(x)) {
-    x <- as.logical(trimws(x))
-  }
-
-  if (!is_bool(x)) {
-    blockr_abort(
-      "The blockr option `{name}` is TRUE or FALSE.",
-      class = "lock_option_invalid"
-    )
-  }
-
-  x
-}
-
 # Whether the board lock is on, which the blockr option `locked` sets.
 board_lock_on <- function() {
-  lock_option("locked")
+  blockr_flag("locked", FALSE)
 }
 
 # Whether the load lock is on, which the blockr option `lock_load` sets.
 load_lock_on <- function() {
-  lock_option("lock_load")
+  blockr_flag("lock_load", FALSE)
 }
 
 # The locks that the app sets, as R sends them with its reply to `hello`.

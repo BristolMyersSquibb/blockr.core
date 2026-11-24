@@ -516,14 +516,7 @@ block_eval.block <- function(x, expr, env, ...) {
 #' @export
 eval_env <- function(data) {
 
-  defaults <- as.logical(blockr_option("attach_default_packages", FALSE))
-
-  if (!is_bool(defaults)) {
-    blockr_abort(
-      "The blockr option `attach_default_packages` is TRUE or FALSE.",
-      class = "attach_default_packages_invalid"
-    )
-  }
+  defaults <- blockr_flag("attach_default_packages", FALSE)
 
   if (defaults) {
     parent <- default_eval_parent()

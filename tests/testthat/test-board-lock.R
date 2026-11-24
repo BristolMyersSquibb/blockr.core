@@ -17,11 +17,11 @@ test_that("both locks are off unless an app or a deployment sets them", {
   expect_identical(app_locks(), list(board = TRUE, load = TRUE))
 
   withr::local_envvar(BLOCKR_LOCK_LOAD = "yes")
-  expect_error(load_lock_on(), class = "lock_option_invalid")
+  expect_error(load_lock_on(), class = "lock_load_invalid")
 
   withr::local_envvar(BLOCKR_LOCK_LOAD = NA)
   withr::local_options(blockr.lock_load = c(TRUE, TRUE))
-  expect_error(load_lock_on(), class = "lock_option_invalid")
+  expect_error(load_lock_on(), class = "lock_load_invalid")
 })
 
 test_that("R sends the locks that the app sets with its reply to hello", {

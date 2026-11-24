@@ -338,6 +338,10 @@ na_to_empty <- function(x) replace(x, is.na(x), "")
 #' for `getOption()` and upper case for environment variables. In case no value
 #' is available for a given `name`, `default` is returned.
 #'
+#' The `blockr_flag()` reader reads a blockr option that is `TRUE` or `FALSE`.
+#' It trims a string before converting it with [base::as.logical()].
+#' Any other value must already be `TRUE` or `FALSE`.
+#'
 #' @param name Option name
 #' @param default Default value
 #'
@@ -358,9 +362,11 @@ na_to_empty <- function(x) replace(x, is.na(x), "")
 #' Sys.unsetenv("BLOCKR_TEST-EXAMPLE")
 #' blockr_option("test-example", "default")
 #'
-#' @return The value set as option `name` or `default` if not set. In case of
-#' the option being available only as environment variable, the value will be
-#' a string and if available as [base::options()] entry it may be of any R type.
+#' @return The `blockr_option()` reader returns the value set as option `name`
+#' or `default` if not set. In case of the option being available only as
+#' environment variable, the value will be a string and if available as
+#' [base::options()] entry it may be of any R type.
+#' The `blockr_flag()` reader returns `TRUE` or `FALSE`.
 #'
 #' @export
 blockr_option <- function(name, default) {
@@ -392,6 +398,26 @@ blockr_option <- function(name, default) {
     "and option {opt}.",
     class = "conflicing_blockr_option"
   )
+}
+
+#' @rdname blockr_option
+#' @export
+blockr_flag <- function(name, default) {
+
+  x <- blockr_option(name, default)
+
+  if (is.character(x)) {
+    x <- as.logical(trimws(x))
+  }
+
+  if (!is_bool(x)) {
+    blockr_abort(
+      "The blockr option `{name}` is TRUE or FALSE.",
+      class = paste0(name, "_invalid")
+    )
+  }
+
+  x
 }
 
 #' @param ... Option key value pairs as named arguments
