@@ -29,6 +29,9 @@
 //   leaves empty keeps the stack's name.
 // Where the store refuses the batch, the form says why below its button, and
 // keeps what the user gave. It reads the board as it is, through the store.
+// It takes from the board only what it shows, such as the blocks that its
+// select offers, by their names. So it draws again only where that changes,
+// and not for a change of a block's state.
 
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
@@ -83,7 +86,7 @@ export function suggestedName(stacks: readonly Stack[]): string {
 // Create stack's advanced action.
 export const createStackForm: AdvancedModule = {
   render({ el, core, target, done }) {
-    return drawForm(el, <AddStack core={core} given={heldBlocks(core.store.board(), target)} done={done} />);
+    return drawForm(el, <StackForm core={core} given={heldBlocks(core.store.board(), target)} done={done} />);
   },
 };
 
@@ -95,17 +98,11 @@ export const editStackForm: AdvancedModule = {
   },
 };
 
-function AddStack({ core, given, done }: { core: CoreApi; given: readonly BlockId[]; done: Done }): ReactElement {
-  const board = useBoard(core);
-  return <StackForm core={core} board={board} given={given} done={done} />;
-}
-
 // The form that edits the stack, which draws nothing once the board no longer
 // holds it, since core then ends it.
 function EditStack({ core, id, done }: { core: CoreApi; id: StackId; done: Done }): ReactElement | null {
-  const board = useBoard(core);
-  const stack = own(board.stacks, id);
-  return stack === undefined ? null : <StackForm core={core} board={board} editing={{ id, stack }} done={done} />;
+  const stack = useBoard(core, (board) => own(board.stacks, id));
+  return stack === undefined ? null : <StackForm core={core} editing={{ id, stack }} done={done} />;
 }
 
 // A colour as the form holds it: the hex of a stack's colour or of the
@@ -132,50 +129,58 @@ function sameColor(a: string | null, b: string | null): boolean {
 // given.
 function StackForm({
   core,
-  board,
   given = [],
   editing,
   done,
 }: {
   core: CoreApi;
-  board: Board;
   given?: readonly BlockId[];
   editing?: { readonly id: StackId; readonly stack: Stack };
   done: Done;
 }): ReactElement {
-  const registry = core.blockRegistry();
-  const stacks = Object.values(board.stacks);
   const [name, setName] = useState(editing?.stack.name ?? "");
-  const [color, setColor] = useState<Picked | null>(() => (editing === undefined ? suggestedColor(stacks) : editing.stack.color));
+  const [color, setColor] = useState<Picked | null>(() =>
+    editing === undefined ? suggestedColor(Object.values(core.store.board().stacks)) : editing.stack.color,
+  );
   const [blocks, setBlocks] = useState<readonly BlockId[]>(editing?.stack.blocks ?? given);
   // Whether the target fixes the new stack's blocks, as on a block or a
   // selection, so that the form names them in place of their select.
   const fixed = editing === undefined && given.length > 0;
   const [busy, setBusy] = useState(false);
   const edits = useEdits(core);
-  const fallbackName = editing === undefined ? suggestedName(stacks) : editing.stack.name;
 
-  // The stack that holds each block, but the one that the form changes.
-  const holder = new Map<BlockId, string>();
-  for (const [id, stack] of Object.entries(board.stacks)) {
-    if (id === editing?.id) continue;
-    for (const block of stack.blocks) holder.set(block, stack.name);
-  }
-  // The blocks, those in no stack first, and those in another stack, which
-  // say that they leave it.
-  const options = Object.keys(board.blocks).map((id): BlockItem & { readonly free: boolean } => {
-    const item = blockItem(board, registry, id);
-    const other = holder.get(id);
-    return other === undefined ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} · leaves the stack ${other}` };
+  // What the form shows of the board, for the blocks that the user picked.
+  const { options, kept, fallbackName, line } = useBoard(core, (board) => {
+    const registry = core.blockRegistry();
+    // The stack that holds each block, but the one that the form changes.
+    const holder = new Map<BlockId, string>();
+    for (const [id, stack] of Object.entries(board.stacks)) {
+      if (id === editing?.id) continue;
+      for (const block of stack.blocks) holder.set(block, stack.name);
+    }
+    // The blocks that the board still holds, in the order that the user
+    // picked them.
+    const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
+    return {
+      // The blocks, those in no stack first, and those in another stack, which
+      // say that they leave it.
+      options: Object.keys(board.blocks).map((id): BlockItem & { readonly free: boolean } => {
+        const item = blockItem(board, registry, id);
+        const other = holder.get(id);
+        return other === undefined ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} · leaves the stack ${other}` };
+      }),
+      kept,
+      fallbackName: editing === undefined ? suggestedName(Object.values(board.stacks)) : editing.stack.name,
+      // The line that names the new stack's blocks, where the target fixes
+      // them.
+      line: fixed ? stackOf(board, kept) : undefined,
+    };
   });
   const search = useSearch(options, blockTexts, "The board holds no block.");
   const sections = [
     { id: "free", title: "In no stack", items: search.items.filter((item) => item.free) },
     { id: "held", title: "In another stack", items: search.items.filter((item) => !item.free) },
   ].filter((section) => section.items.length > 0);
-  // The blocks that the board still holds, in the order that the user picked
-  // them.
-  const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
 
   // The batch that the form runs: add_stack with an ID that CoreApi mints, or
   // change_stack with the name, the blocks and the colour that the user
@@ -218,7 +223,7 @@ function StackForm({
         void submit(event);
       }}
     >
-      {fixed ? <p className={styles.hint}>{stackOf(board, kept)}</p> : null}
+      {line === undefined ? null : <p className={styles.hint}>{line}</p>}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
           label="Name"

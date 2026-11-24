@@ -18,11 +18,14 @@
 // forms say why below themselves.
 // Under the board lock, it lists the stacks alone, and a row shows no "…"
 // unless another package's board action applies to its stack.
+// The section takes from the board only what its rows show of each stack. So
+// it draws again only where that changes, and not for a change of a block's
+// state.
 
 import type { ReactElement } from "react";
-import { ColorSwatch } from "../../react/index.ts";
+import { ColorSwatch, useBoard } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
-import type { BlockId, Board } from "../../types/board.ts";
+import type { BlockId, Board, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { blockName, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
@@ -39,16 +42,17 @@ const COLUMNS = [
   { id: "blocks", name: "Blocks" },
 ] as const;
 
-export function StacksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
-  const stacks = Object.entries(board.stacks);
-  const view = useTableView(stacks, ([id, stack]) => [stack.name, id, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
+export function StacksSection({ core, locked }: { core: CoreApi; locked: boolean }): ReactElement {
+  const stacks = useBoard(core, stackRows);
+  const adds = useBoard(core, () => offers(core, ROLE, BOARD));
+  const view = useTableView(stacks, (stack) => [stack.name, stack.id, ...stack.blocks.map((block) => block.name)].join(" "));
   // The menus of the table's rows, which say why one was refused below the
   // table.
   const menus = useMenus(core);
 
   return (
     <Section title="Stacks" count={stacks.length}>
-      {locked || !offers(core, ROLE, BOARD) ? null : (
+      {locked || !adds ? null : (
         <Part title="Add a stack">
           <Advanced core={core} role={ROLE} target={BOARD} />
         </Part>
@@ -68,8 +72,8 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
                 kind="stack"
                 label="The board's stacks"
                 columns={COLUMNS}
-                rows={view.rows.map(([id, stack]) => ({
-                  id,
+                rows={view.rows.map((stack) => ({
+                  id: stack.id,
                   text: stack.name,
                   menuLabel: `Actions of the stack ${stack.name}`,
                   cells: [
@@ -82,7 +86,7 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
                       ),
                       className: WRAP,
                     },
-                    { content: <StackBlocks board={board} blocks={stack.blocks} />, className: WRAP },
+                    { content: <StackBlocks blocks={stack.blocks} />, className: WRAP },
                   ],
                 }))}
               />
@@ -96,19 +100,35 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
   );
 }
 
+// Each stack of the board as its row shows it: its ID, its name, its colour
+// and its blocks, each by its ID and its name.
+function stackRows(board: Board): {
+  readonly id: StackId;
+  readonly name: string;
+  readonly color: string | null;
+  readonly blocks: readonly { readonly id: BlockId; readonly name: string }[];
+}[] {
+  return Object.entries(board.stacks).map(([id, stack]) => ({
+    id,
+    name: stack.name,
+    color: stack.color,
+    blocks: stack.blocks.map((block) => ({ id: block, name: blockName(board, block) })),
+  }));
+}
+
 // How many blocks of a stack its row names before it counts the rest.
 const SHOWN_BLOCKS = 6;
 
 // A stack's blocks, each by its name and its id, which tells apart blocks of
 // one name, the first few of a large stack and how many more it holds.
-function StackBlocks({ board, blocks }: { board: Board; blocks: readonly BlockId[] }): ReactElement {
+function StackBlocks({ blocks }: { blocks: readonly { readonly id: BlockId; readonly name: string }[] }): ReactElement {
   if (blocks.length === 0) return <span className="bc:text-text-muted">No blocks</span>;
   const rest = blocks.length - SHOWN_BLOCKS;
   return (
     <ul aria-label="Blocks" className="bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0">
       {blocks.slice(0, SHOWN_BLOCKS).map((block) => (
-        <li key={block} className="bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs">
-          {blockName(board, block)} <span className="bc:font-mono bc:text-text-muted">{block}</span>
+        <li key={block.id} className="bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs">
+          {block.name} <span className="bc:font-mono bc:text-text-muted">{block.id}</span>
         </li>
       ))}
       {rest > 0 ? <li className="bc:px-1 bc:text-xs bc:text-text-muted">and {rest} more</li> : null}

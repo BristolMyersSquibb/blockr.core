@@ -258,6 +258,7 @@
   Such an input says below itself why the host refused a submit, and submits nothing that the state holds already (#772).
   Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a board object through `CoreApi`, as core's own frontend and cards do.
   The hook `useNotified()` takes the board object as `{ block: id }` or `{ plugin: id }`, or null for every notification (#673, #710).
+  Given a function that takes a part of the board, such as each block's name, `useBoard()` gives that part instead, and the component draws again only where that part changes (#857).
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
   Beside the preset, the build package exports the plugin `vendorCheck`, which fails a build that puts code from `node_modules` into one of a package's own files, so that the libraries a package bundles go into its vendor file instead.
   The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.

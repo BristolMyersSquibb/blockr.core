@@ -36,6 +36,9 @@
 //   into a variadic block, the call gives that place too, as its `before`.
 // Where the store refuses the batch, the form says why below its button, and
 // keeps what the user gave. It reads the board as it is, through the store.
+// It takes from the board only what it shows, such as the blocks that its
+// selects offer, by their names. So it draws again only where that changes,
+// and not for a change of a block's state.
 
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
@@ -84,11 +87,11 @@ interface Start {
 export const createLinkForm: AdvancedModule = {
   render({ el, core, target, picked, done }) {
     const given = picked === undefined ? {} : startOf(picked);
-    if (!("block" in target)) return drawForm(el, <AddLink core={core} start={given} done={done} />);
+    if (!("block" in target)) return drawForm(el, <LinkForm core={core} start={given} done={done} />);
     const { block } = target;
     const fixed = given.to === block ? "to" : "from";
     const start = fixed === "to" ? { ...given, to: block } : { ...given, from: block };
-    return drawForm(el, <AddLink core={core} start={start} fixed={fixed} done={done} />);
+    return drawForm(el, <LinkForm core={core} start={start} fixed={fixed} done={done} />);
   },
 };
 
@@ -113,11 +116,6 @@ function startOf(picked: Json): Start {
   };
 }
 
-function AddLink({ core, start, fixed, done }: { core: CoreApi; start: Start; fixed?: End; done: Done }): ReactElement {
-  const board = useBoard(core);
-  return <LinkForm core={core} board={board} start={start} {...(fixed === undefined ? {} : { fixed })} done={done} />;
-}
-
 // An end of a link, which the target of Create link may fix.
 type End = "from" | "to";
 
@@ -131,9 +129,8 @@ function fixedEnd(board: Board, end: End, block: BlockId | undefined): string {
 // The form that edits the link, which draws nothing once the board no longer
 // holds it, since core then ends it.
 function EditLink({ core, id, done }: { core: CoreApi; id: LinkId; done: Done }): ReactElement | null {
-  const board = useBoard(core);
-  const link = own(board.links, id);
-  return link === undefined ? null : <LinkForm core={core} board={board} editing={{ id, link }} done={done} />;
+  const link = useBoard(core, (board) => own(board.links, id));
+  return link === undefined ? null : <LinkForm core={core} editing={{ id, link }} done={done} />;
 }
 
 type Errors = Partial<Record<"from" | "to" | "input", string>>;
@@ -145,55 +142,72 @@ type Errors = Partial<Record<"from" | "to" | "input", string>>;
 // end in a line in place of the end's select.
 function LinkForm({
   core,
-  board,
   start = {},
   fixed,
   editing,
   done,
 }: {
   core: CoreApi;
-  board: Board;
   start?: Start;
   fixed?: End;
   editing?: { readonly id: LinkId; readonly link: Link };
   done: Done;
 }): ReactElement {
-  const registry = core.blockRegistry();
   const except = editing?.id;
   const [from, setFrom] = useState<BlockId | undefined>(editing?.link.from ?? start.from);
   const [to, setTo] = useState<BlockId | undefined>(editing?.link.to ?? start.to);
   const [input, setInput] = useState<string | undefined>(editing?.link.input ?? start.input);
-  const [name, setName] = useState(editing !== undefined && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  const [name, setName] = useState(() =>
+    editing !== undefined && isVariadicBlock(core.store.board(), core.blockRegistry(), editing.link.to) ? editing.link.input : "",
+  );
   // The place among the links into a variadic target that the user picks.
   const [place, setPlace] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
   const edits = useEdits(core);
 
-  // The blocks that the form offers, with the links of the board but the one
-  // that the form changes, which is about to move.
-  const others = withoutLink(board, except);
-  const held = (block: BlockId | undefined): block is BlockId => block !== undefined && own(board.blocks, block) !== undefined;
-  const source = held(from) ? from : undefined;
-  const target = held(to) ? to : undefined;
-  const { fromOptions, toOptions } = ends(others, registry, source, target);
+  // What the form shows of the board, for the blocks and the input that the
+  // user picked.
+  const { source, target, fromOptions, toOptions, variadic, offered, chosen, hint, taken, among, fixedLine, targetName, few } = useBoard(
+    core,
+    (board) => {
+      const registry = core.blockRegistry();
+      // The blocks that the form offers, with the links of the board but the
+      // one that the form changes, which is about to move.
+      const others = withoutLink(board, except);
+      const held = (block: BlockId | undefined): block is BlockId => block !== undefined && own(board.blocks, block) !== undefined;
+      const source = held(from) ? from : undefined;
+      const target = held(to) ? to : undefined;
+      const free = target === undefined ? [] : (freeInputs(others, registry, target) ?? []);
+      const variadic = isVariadic(free);
+      // Where the form changes a link and keeps its block, every input of the
+      // block, and otherwise the free inputs.
+      const offered = !variadic && editing !== undefined && target === editing.link.to ? classInputs(board, registry, target) : free;
+      const chosen = variadic ? undefined : input !== undefined && offered.includes(input) ? input : free[0];
+      return {
+        source,
+        target,
+        ...ends(others, registry, source, target),
+        variadic,
+        offered,
+        chosen,
+        // What the form says below the input where another link feeds the one
+        // picked, so that applying the form swaps the inputs of the two links.
+        hint: editing !== undefined && target === editing.link.to && chosen !== undefined ? swapHint(board, registry, editing, chosen) : undefined,
+        taken: target === undefined ? [] : namesInto(board, target, except),
+        // Where the form changes a link into a variadic block, the block's
+        // other links and the place that the link falls in where nothing moves
+        // it, which the form offers until the user picks another.
+        among: editing === undefined || target === undefined || !variadic ? undefined : placeAmong(board, editing.id, target),
+        fixedLine: fixed === undefined ? undefined : fixedEnd(board, fixed, fixed === "from" ? from : to),
+        targetName: target === undefined ? "" : blockName(board, target),
+        // Whether the board holds fewer blocks than a link joins.
+        few: Object.keys(board.blocks).length < 2,
+      };
+    },
+  );
   const fromSearch = useSearch(fromOptions, blockTexts);
   const toSearch = useSearch(toOptions, blockTexts);
-
-  const free = target === undefined ? [] : (freeInputs(others, registry, target) ?? []);
-  const variadic = isVariadic(free);
-  // Where the form changes a link and keeps its block, every input of the
-  // block, and otherwise the free inputs.
-  const offered = !variadic && editing !== undefined && target === editing.link.to ? classInputs(board, registry, target) : free;
-  const chosen = variadic ? undefined : input !== undefined && offered.includes(input) ? input : free[0];
-  // What the form says below the input where another link feeds the one
-  // picked, so that applying the form swaps the inputs of the two links.
-  const hint = editing !== undefined && target === editing.link.to && chosen !== undefined ? swapHint(board, registry, editing, chosen) : undefined;
-  const taken = target === undefined ? [] : namesInto(board, target, except);
-  // Where the form changes a link into a variadic block, the block's other
-  // links and the place that the link falls in where nothing moves it, which
-  // the form offers until the user picks another.
-  const among = editing === undefined || target === undefined || !variadic ? undefined : placeAmong(board, editing.id, target);
   const position = among === undefined ? undefined : place !== undefined && place <= among.others.length + 1 ? place : among.place;
 
   function check(): Errors {
@@ -235,6 +249,7 @@ function LinkForm({
     }
     // The sentence that names the edit, which names the link as its row does
     // where the form changes one.
+    const board = core.store.board();
     const title =
       editing === undefined
         ? "Could not add the link."
@@ -255,7 +270,7 @@ function LinkForm({
         void submit(event);
       }}
     >
-      {fixed === undefined ? null : <p className={styles.hint}>{fixedEnd(board, fixed, fixed === "from" ? from : to)}</p>}
+      {fixedLine === undefined ? null : <p className={styles.hint}>{fixedLine}</p>}
       <div className={fixed === undefined ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid"}>
         {fixed === "from" ? null : (
           <ComboBox
@@ -298,7 +313,7 @@ function LinkForm({
           <TextField
             label="Input name"
             value={name}
-            description={`Optional. The block "${blockName(board, target)}" takes any number of links, each by its name or, where it has none, by its position.`}
+            description={`Optional. The block "${targetName}" takes any number of links, each by its name or, where it has none, by its position.`}
             errorMessage={errors.input}
             isInvalid={errors.input !== undefined}
             autoComplete="off"
@@ -341,7 +356,7 @@ function LinkForm({
           {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
         </Select>
       )}
-      {editing === undefined && Object.keys(board.blocks).length < 2 ? (
+      {editing === undefined && few ? (
         <p className={styles.hint}>A link joins two blocks, so the board needs two blocks first.</p>
       ) : null}
       <div className="bc:flex bc:gap-2">

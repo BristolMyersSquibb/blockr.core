@@ -44,6 +44,11 @@
 // command registry or the store refuses all the same, the form says below its
 // button, until the user submits it again, and it takes the notifications of
 // the refusal, so that core raises none.
+// The form takes two things from the board: what it asks about the link that
+// comes with the new block, and the link that the block goes on. So it draws
+// again only where those change, and not for a change of a block's state. It
+// checks the new block's id against the board as the board is when the user
+// leaves the field or submits the form.
 
 import { useMemo, useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
@@ -87,7 +92,6 @@ export interface PickerProps {
 type Errors = Partial<Record<"registry" | "id" | "input", string>>;
 
 export function BlockPicker({ core, mode, done, filter = "", autofocus = false }: PickerProps): ReactElement | null {
-  const board = useBoard(core);
   const registry = core.blockRegistry();
   const edits = useEdits(core);
   const [picked, setPicked] = useState<string | undefined>(undefined);
@@ -109,17 +113,17 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
     filter,
   );
   const entry = picked === undefined ? undefined : own(registry, picked);
-  const link = linkChoice(mode, board, registry, entry);
+  const link = useBoard(core, (board) => linkChoice(mode, board, core.blockRegistry(), entry));
   const chosen = link.kind === "pick" ? (input !== undefined && link.inputs.includes(input) ? input : link.inputs[0]) : undefined;
   // The link that the new block goes on, which the board holds until core
   // ends the advanced action as the link leaves the board.
-  const on = mode.kind === "on" ? own(board.links, mode.link) : undefined;
+  const on = useBoard(core, (board) => (mode.kind === "on" ? own(board.links, mode.link) : undefined));
   if (mode.kind === "on" && on === undefined) return null;
 
   function check(): Errors {
     return {
       ...(entry === undefined ? { registry: "Pick the class of the new block." } : {}),
-      ...optional("id", blockIdError(id, board)),
+      ...optional("id", blockIdError(id, core.store.board())),
       ...(link.kind === "name" ? optional("input", inputNameError(inputName, link.taken)) : {}),
     };
   }
@@ -240,7 +244,7 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
             setErrors((now) => without(now, "id"));
           }}
           onBlur={() => {
-            setErrors((now) => ({ ...now, ...optional("id", blockIdError(id, board)) }));
+            setErrors((now) => ({ ...now, ...optional("id", blockIdError(id, core.store.board())) }));
           }}
         />
         <TextField
