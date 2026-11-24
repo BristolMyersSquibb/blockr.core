@@ -59,16 +59,18 @@ export const CORE_ROLES: readonly Role[] = [
   { id: "add_block_role", on: ["board"], default: "blockr.core-add_block_action", advanced: true },
   // Adds a block that takes the result of the block, through a link from it.
   { id: "append_block_role", on: ["block"], default: "blockr.core-append_block_action" },
-  // Adds a block that feeds the block, through a link into one of its inputs.
-  // On an input, the link goes into that input, and into the next place of a
-  // variadic block without a name.
+  // Adds a block that feeds the block, through a link into one of its inputs,
+  // or on an input, into that input. On the next place of a variadic block,
+  // the link goes into that block, as on the block, under any name or none and
+  // at any place among its links.
   { id: "prepend_block_role", on: ["block", "input"], default: "blockr.core-prepend_block_action" },
   // Adds a block on the link, which then comes from the new block, while a
   // new link feeds the new block from the block that the link came from.
   { id: "insert_block_role", on: ["link"], default: "blockr.core-insert_block_action" },
   // Adds a link that starts or ends at the block, or any link on the board.
-  // On an input, the link goes into that input, and into the next place of a
-  // variadic block without a name.
+  // On an input, the link goes into that input. On the next place of a
+  // variadic block, it goes into that block, under any name or none and at
+  // any place among its links.
   { id: "add_link_role", on: ["block", "input", "board"], default: "blockr.core-add_link_action", advanced: true },
   // Adds a stack of exactly the blocks that the target holds, or of any
   // blocks on the board.

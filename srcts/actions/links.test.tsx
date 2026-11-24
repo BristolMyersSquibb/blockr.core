@@ -293,7 +293,7 @@ describe("Create link", () => {
     expect(Object.values(s.core.store.board().links)).toContainEqual({ from: "c", to: "e", input: "" });
   });
 
-  test("on an input, opens the form into that input, which it names in place of the selects of the link's target and its input", async () => {
+  test("on an input, opens the form into that input, which it names in place of the selects of the link's target and its input, and on the next place of a variadic block, asks for the name of the input and its place", async () => {
     const s = await stubbed();
     await edited(s, ["blockr.core-remove_link", { id: "ac" }], ["blockr.core-remove_link", { id: "bc" }]);
     const links = Object.keys(s.core.store.board().links);
@@ -312,11 +312,12 @@ describe("Create link", () => {
       button(form, "Add link").click();
     });
     expect(s.advanced()).toBeUndefined();
-    let added = Object.keys(s.core.store.board().links).filter((id) => !links.includes(id));
+    const added = Object.keys(s.core.store.board().links).filter((id) => !links.includes(id));
     expect(added.map((id) => s.core.store.board().links[id])).toEqual([{ from: "b", to: "c", input: "y" }]);
 
-    // Into the next place of Bind, the line names Bind alone, and the form
-    // asks for no name of the input.
+    // On the next place of Bind, the line names Bind alone, and the form asks
+    // for the name of the input and its place among Bind's links, be and de,
+    // as rbind() takes its arguments by their order and by their names.
     const room = document.createElement("div");
     document.body.append(room);
     stops.push(() => {
@@ -328,13 +329,24 @@ describe("Create link", () => {
     });
     form = find(room, 'form[aria-label="Add link"]', HTMLFormElement);
     expect(hint(form)).toBe('A link into "Bind".');
-    expect(() => labelled(form, "Input name")).toThrow("Found no text field labelled Input name.");
+    expect(() => selectButton(form, "Input")).toThrow();
+    expect(await listed(selectButton(form, "Position"), step)).toEqual(["1", "2", "3"]);
+    expect(selectShows(selectButton(form, "Position"))).toBe("3");
     await chosen(form, "From", "Scatter");
+    await step(() => {
+      type(labelled(form, "Input name"), "plotted");
+    });
+    await picked(selectButton(form, "Position"), step, "1");
+    const board = s.core.store.board();
     await acting(() => {
       button(form, "Add link").click();
     });
-    added = Object.keys(s.core.store.board().links).filter((id) => !links.includes(id));
-    expect(added.map((id) => s.core.store.board().links[id])).toContainEqual({ from: "f", to: "e", input: "" });
+    const into = Object.keys(s.core.store.board().links).filter((id) => s.core.store.board().links[id]?.to === "e");
+    expect(into.slice(1)).toEqual(["be", "de"]);
+    expect(s.core.store.board().links[into[0] ?? ""]).toEqual({ from: "f", to: "e", input: "plotted" });
+    // One undo takes back the link and its move.
+    s.core.store.undo();
+    expect(s.core.store.board()).toEqual(board);
     await step(() => {
       unmount();
     });

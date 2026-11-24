@@ -16,7 +16,7 @@ import type { StubCoreOptions } from "../stubs/index.ts";
 import { find, type } from "../testing/inputs.ts";
 import { held } from "../testing/notifications.ts";
 import { step } from "../testing/react.ts";
-import { labelled, listFromField, optionFromLabel, optionLabels, picked, selectButton } from "../testing/select.ts";
+import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked, selectButton, selectShows } from "../testing/select.ts";
 import type { Board, Link } from "../types/board.ts";
 import type { Target } from "./actions.ts";
 
@@ -435,7 +435,7 @@ describe("the block picker, their advanced action,", () => {
     expect(linksOf(s.core.store.board(), "second").map(([, link]) => link)).toEqual([{ from: "second", to: "c", input: "x" }]);
   });
 
-  test("before an input, takes the link into that input, or without a name into the next place of a variadic block, which it names in a line in place of the field of the input", async () => {
+  test("before an input, takes the link into that input, which it names in a line in place of the field of the input, and before the next place of a variadic block, asks for the name of the input and its place", async () => {
     const s = await stubbed();
     await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
     await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
@@ -451,15 +451,26 @@ describe("the block picker, their advanced action,", () => {
     await click(form, "Add block");
     expect(linksOf(s.core.store.board(), "first").map(([, link]) => link)).toEqual([{ from: "first", to: "c", input: "y" }]);
 
+    // Before the next place of Bind, the picker asks for the name of the input
+    // and its place among Bind's links, be and de, last until the user picks
+    // another, as before Bind.
     form = await picker(s, PREPEND, { block: "e", input: "" });
-    expect(form.textContent).toContain('The new block feeds "Bind".');
-    expect(() => labelled(form, 'Input name of "Bind"')).toThrow();
+    expect(form.textContent).not.toContain("The new block feeds");
+    expect(await listed(selectButton(form, "Position"), step)).toEqual(["1", "2", "3"]);
+    expect(selectShows(selectButton(form, "Position"))).toBe("3");
     await chosen(form, "dataset", "dataset block");
     await step(() => {
+      type(labelled(form, 'Input name of "Bind"'), "extra");
       type(labelled(form, "ID"), "second");
     });
+    await picked(selectButton(form, "Position"), step, "2");
+    const board = s.core.store.board();
     await click(form, "Add block");
-    expect(linksOf(s.core.store.board(), "second").map(([, link]) => link)).toEqual([{ from: "second", to: "e", input: "" }]);
+    const into = Object.entries(s.core.store.board().links).filter(([, link]) => link.to === "e");
+    expect(into.map(([id, link]) => (id === "be" || id === "de" ? id : link))).toEqual(["be", { from: "second", to: "e", input: "extra" }, "de"]);
+    // One undo takes back the block, its link and the link's move.
+    s.core.store.undo();
+    expect(s.core.store.board()).toEqual(board);
   });
 
   test("before an input, says why it adds none where another edit feeds the input meanwhile", async () => {

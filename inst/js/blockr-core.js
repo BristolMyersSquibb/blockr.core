@@ -8310,6 +8310,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
   const [picked, setPicked] = useState7(void 0);
   const [input2, setInput] = useState7(void 0);
   const [inputName, setInputName] = useState7("");
+  const [place, setPlace] = useState7(void 0);
   const [id2, setId] = useState7("");
   const [name3, setName] = useState7("");
   const [errors, setErrors] = useState7({});
@@ -8325,6 +8326,8 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
   const entry = picked === void 0 ? void 0 : own(registry, picked);
   const link = linkChoice(mode, board, registry, entry);
   const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
+  const places = link.kind === "name" ? link.places : void 0;
+  const position = places === void 0 ? void 0 : place !== void 0 && place <= places.length ? place : places.length + 1;
   const on = mode.kind === "on" ? own(board.links, mode.link) : void 0;
   if (mode.kind === "on" && on === void 0) return null;
   function check2() {
@@ -8356,8 +8359,9 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
       ...link.kind === "name" ? filled("input", inputName) : {},
       ...link.kind === "fixed" ? { input: link.input } : {}
     };
+    const before = places === void 0 || position === void 0 ? void 0 : places[position - 1];
     setBusy(true);
-    await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into), done);
+    await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into, before), done);
     setBusy(false);
   }
   return /* @__PURE__ */ jsxs5(
@@ -8407,24 +8411,40 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
             children: (item) => /* @__PURE__ */ jsx6(SelectItem, { id: item.id, children: item.id })
           }
         ) : null,
-        link.kind === "name" ? /* @__PURE__ */ jsx6(
-          TextField2,
-          {
-            label: link.label,
-            value: inputName,
-            description: "Optional. Leave it empty for an input without a name, which the block takes in the order of its links.",
-            errorMessage: errors.input,
-            isInvalid: errors.input !== void 0,
-            autoComplete: "off",
-            onChange: (value2) => {
-              setInputName(value2);
-              setErrors((now) => without3(now, "input"));
-            },
-            onBlur: () => {
-              setErrors((now) => ({ ...now, ...optional2("input", inputNameError(inputName, link.taken)) }));
+        link.kind === "name" ? /* @__PURE__ */ jsxs5("div", { className: places === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx6(
+            TextField2,
+            {
+              label: link.label,
+              value: inputName,
+              description: "Optional. Leave it empty for an input without a name, which the block takes in the order of its links.",
+              errorMessage: errors.input,
+              isInvalid: errors.input !== void 0,
+              autoComplete: "off",
+              onChange: (value2) => {
+                setInputName(value2);
+                setErrors((now) => without3(now, "input"));
+              },
+              onBlur: () => {
+                setErrors((now) => ({ ...now, ...optional2("input", inputNameError(inputName, link.taken)) }));
+              }
             }
-          }
-        ) : null,
+          ),
+          places === void 0 ? null : /* @__PURE__ */ jsx6(
+            Select,
+            {
+              label: "Position",
+              isRequired: true,
+              items: Array.from({ length: places.length + 1 }, (_, i) => ({ id: String(i + 1) })),
+              value: position === void 0 ? null : String(position),
+              isDisabled: places.length === 0,
+              onChange: (key2) => {
+                if (key2 !== null) setPlace(Number(key2));
+              },
+              children: (item) => /* @__PURE__ */ jsx6(SelectItem, { id: item.id, children: item.id })
+            }
+          )
+        ] }) : null,
         link.kind === "fixed" ? /* @__PURE__ */ jsx6("p", { className: styles.hint, children: link.line }) : null,
         link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx6("p", { className: styles.alert, children: link.why }) : null,
         /* @__PURE__ */ jsxs5("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
@@ -8471,8 +8491,8 @@ function linkChoice(mode, board, registry, entry) {
     const free = freeInputs(board, registry, mode.to) ?? [];
     const name3 = target2?.name ?? mode.to;
     const of = `of "${name3}"`;
-    if (mode.input !== void 0) return fixedInput(free, mode.input, name3);
-    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
+    if (mode.input !== void 0 && mode.input !== "") return fixedInput(free, mode.input, name3);
+    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to), places: linksInto(board, mode.to) };
     if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
     return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
   }
@@ -8483,24 +8503,33 @@ function linkChoice(mode, board, registry, entry) {
   return { kind: "none" };
 }
 function fixedInput(free, input2, name3) {
-  const named4 = input2 === "" ? `"${name3}"` : `the input "${input2}" of "${name3}"`;
+  const named4 = `the input "${input2}" of "${name3}"`;
   if (free.includes(input2)) return { kind: "fixed", input: input2, line: `The new block feeds ${named4}.` };
-  return { kind: "no_free_inputs", why: input2 === "" ? `"${name3}" takes no link without a name.` : `A link feeds ${named4} already.` };
+  return { kind: "no_free_inputs", why: `A link feeds ${named4} already.` };
 }
-function pickedBatch(core, mode, on, args, into) {
+function pickedBatch(core, mode, on, args, into, before) {
   const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
   const add = { id: "blockr.core-add_block", args: { ...args, id: block } };
-  const linked = (from, to) => ({ id: "blockr.core-add_link", args: { from, to, ...into } });
+  const linked = (from, to, id2) => ({
+    id: "blockr.core-add_link",
+    args: { ...id2 === void 0 ? {} : { id: id2 }, from, to, ...into }
+  });
   switch (mode.kind) {
     case "add":
       return [add];
     case "after":
       return [add, linked(mode.from, block)];
-    case "before":
-      return [add, linked(block, mode.to)];
+    case "before": {
+      if (before === void 0) return [add, linked(block, mode.to)];
+      const link = core.mintId((id2) => Object.hasOwn(core.store.board().links, id2));
+      return [add, linked(block, mode.to, link), { id: "blockr.core-move_link", args: { id: link, before } }];
+    }
     case "on":
       return on === void 0 ? [] : [add, linked(on.from, block), { id: "blockr.core-change_link", args: { id: mode.link, from: block } }];
   }
+}
+function linksInto(board, to) {
+  return Object.keys(board.links).filter((id2) => own(board.links, id2)?.to === to);
 }
 function namesInto(board, to, except) {
   return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
@@ -9188,8 +9217,8 @@ var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
     const given = picked === void 0 ? {} : startOf(picked);
     if ("input" in target2) {
-      const start3 = { ...given, to: target2.block, input: target2.input };
-      return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: start3, fixed: "to", input: target2.input, done }));
+      const input2 = target2.input === "" ? {} : { input: target2.input };
+      return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: { ...given, to: target2.block, ...input2 }, fixed: "to", ...input2, done }));
     }
     if (!("block" in target2)) return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: given, done }));
     const { block } = target2;
@@ -9230,7 +9259,7 @@ function AddLink({ core, start: start2, fixed: fixed2, input: input2, done }) {
 function fixedEnd(board, end, block, input2) {
   const name3 = block === void 0 ? "" : blockName(board, block);
   if (end === "from") return `A link from "${name3}".`;
-  return input2 === void 0 || input2 === "" ? `A link into "${name3}".` : `A link into the input "${input2}" of "${name3}".`;
+  return input2 === void 0 ? `A link into "${name3}".` : `A link into the input "${input2}" of "${name3}".`;
 }
 function EditLink({ core, id: id2, done }) {
   const board = useBoard3(core);
@@ -9269,7 +9298,7 @@ function LinkForm({
   const chosen = variadic2 ? void 0 : input2 !== void 0 && offered.includes(input2) ? input2 : free[0];
   const hint = editing !== void 0 && target2 === editing.link.to && chosen !== void 0 ? swapHint(board, registry, editing, chosen) : void 0;
   const taken = target2 === void 0 ? [] : namesInto(board, target2, except);
-  const among = editing === void 0 || target2 === void 0 || !variadic2 ? void 0 : placeAmong(board, editing.id, target2);
+  const among = target2 === void 0 || !variadic2 ? void 0 : placeAmong(board, target2, except);
   const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
   function check2() {
     return {
@@ -9281,13 +9310,11 @@ function LinkForm({
   function batch2(source2, target3) {
     const linkInput = fixedInput2 ?? (variadic2 ? name3.trim() : chosen);
     const link = { from: source2, to: target3, ...linkInput === void 0 ? {} : { input: linkInput } };
-    if (editing === void 0) {
-      return [{ id: ADD_LINK2, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
-    }
-    const changed = [{ id: CHANGE_LINK2, args: { id: editing.id, ...link } }];
-    if (among === void 0 || position === void 0 || position === among.place) return changed;
+    const id2 = editing?.id ?? core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
+    const linked = { id: editing === void 0 ? ADD_LINK2 : CHANGE_LINK2, args: { id: id2, ...link } };
+    if (among === void 0 || position === void 0 || position === among.place) return [linked];
     const before = among.others[position - 1];
-    return [...changed, { id: MOVE_LINK2, args: { id: editing.id, ...before === void 0 ? {} : { before } } }];
+    return [linked, { id: MOVE_LINK2, args: { id: id2, ...before === void 0 ? {} : { before } } }];
   }
   async function submit(event) {
     event.preventDefault();
@@ -9426,9 +9453,10 @@ function swapHint(board, registry, editing, input2) {
   if (from === void 0) return void 0;
   return `The link from "${blockName(board, from)}" feeds "${input2}". Applying gives that link "${editing.link.input}", so the two links swap their inputs.`;
 }
-function placeAmong(board, id2, to) {
+function placeAmong(board, to, id2) {
   const ids2 = Object.keys(board.links).filter((other) => other === id2 || own(board.links, other)?.to === to);
-  return { others: ids2.filter((other) => other !== id2), place: ids2.indexOf(id2) + 1 };
+  const others = ids2.filter((other) => other !== id2);
+  return { others, place: id2 === void 0 ? others.length + 1 : ids2.indexOf(id2) + 1 };
 }
 function withoutLink(board, id2) {
   if (id2 === void 0 || !Object.hasOwn(board.links, id2)) return board;
@@ -10051,16 +10079,18 @@ var CORE_ROLES = [
   { id: "add_block_role", on: ["board"], default: "blockr.core-add_block_action", advanced: true },
   // Adds a block that takes the result of the block, through a link from it.
   { id: "append_block_role", on: ["block"], default: "blockr.core-append_block_action" },
-  // Adds a block that feeds the block, through a link into one of its inputs.
-  // On an input, the link goes into that input, and into the next place of a
-  // variadic block without a name.
+  // Adds a block that feeds the block, through a link into one of its inputs,
+  // or on an input, into that input. On the next place of a variadic block,
+  // the link goes into that block, as on the block, under any name or none and
+  // at any place among its links.
   { id: "prepend_block_role", on: ["block", "input"], default: "blockr.core-prepend_block_action" },
   // Adds a block on the link, which then comes from the new block, while a
   // new link feeds the new block from the block that the link came from.
   { id: "insert_block_role", on: ["link"], default: "blockr.core-insert_block_action" },
   // Adds a link that starts or ends at the block, or any link on the board.
-  // On an input, the link goes into that input, and into the next place of a
-  // variadic block without a name.
+  // On an input, the link goes into that input. On the next place of a
+  // variadic block, it goes into that block, under any name or none and at
+  // any place among its links.
   { id: "add_link_role", on: ["block", "input", "board"], default: "blockr.core-add_link_action", advanced: true },
   // Adds a stack of exactly the blocks that the target holds, or of any
   // blocks on the board.

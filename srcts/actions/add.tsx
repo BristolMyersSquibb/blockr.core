@@ -37,7 +37,9 @@
 // Prepend block, and on the link for Insert block. On an input, the picker
 // before the block takes the link into that input. It names the input in a
 // line in place of the field of the input, since the target fixes the input,
-// as prepend_block_role has it (./roles.ts).
+// as prepend_block_role has it (./roles.ts). On the next place of a variadic
+// block, the input "", the picker asks for the name of the input and its
+// place among the block's links, as before the block.
 // Opened from the quick action, the picker starts its search from the text in
 // the level's filter, and takes the keyboard's focus there. It runs nothing
 // before the user submits it, mints the id that the user leaves empty, and
