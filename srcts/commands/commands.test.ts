@@ -166,8 +166,8 @@ describe("registering", () => {
 
     expect(Object.keys(commands.registered())).toEqual([
       "blockr.core-add_block",
-      "blockr.core-change_block",
       "blockr.core-remove_block",
+      "blockr.core-change_block",
       "blockr.core-add_link",
       "blockr.core-change_link",
       "blockr.core-remove_link",

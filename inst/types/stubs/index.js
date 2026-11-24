@@ -6857,25 +6857,6 @@ function coreCommands(store) {
       `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`
     );
   }
-  function linkPlace(command2, board2, id2, to, before) {
-    const block = own(board2.blocks, to);
-    if (block !== void 0 && !registryEntry(command2, block.registry_id).inputs.includes("...")) {
-      throw refusal(command2, [
-        `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`
-      ]);
-    }
-    if (before === null) return lastPlace(board2, to, id2);
-    if (before === id2) {
-      throw refusal(command2, [`The link "${id2}" cannot go before itself.`]);
-    }
-    const next = own(board2.links, before);
-    if (next !== void 0 && next.to !== to) {
-      throw refusal(command2, [
-        `The link "${id2}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`
-      ]);
-    }
-    return before;
-  }
   const blocks = [
     command({
       id: "blockr.core-add_block",
@@ -6886,6 +6867,14 @@ function coreCommands(store) {
         const [id2, block] = added(this.id, board2, args, mintId2);
         return { blocks: { add: { [id2]: block } } };
       }
+    }),
+    command({
+      id: "blockr.core-remove_block",
+      label: "Remove block",
+      description: "Removes a block, with its links and its place in its stack.",
+      args: object({ id: blockId }, ["id"]),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      run: (_board, { id: id2 }) => ({ blocks: { rm: [id2] } })
     }),
     command({
       id: "blockr.core-change_block",
@@ -6905,9 +6894,12 @@ function coreCommands(store) {
         ["id"]
       ),
       preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
-      run(board2, { id: id2, name: name2, locked: locked2, state: state2, unset }) {
+      // The args but the id are the block's change, as the schema admits no
+      // other args.
+      run(board2, { id: id2, ...change }) {
         const block = own(board2.blocks, id2);
         if (block === void 0) return [];
+        const { state: state2, unset } = change;
         if (state2 !== void 0 || unset !== void 0) {
           const entry = registryEntry(this.id, block.registry_id);
           const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
@@ -6915,27 +6907,8 @@ function coreCommands(store) {
             throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
           }
         }
-        return {
-          blocks: {
-            mod: {
-              [id2]: {
-                ...name2 === void 0 ? {} : { name: name2 },
-                ...locked2 === void 0 ? {} : { locked: locked2 },
-                ...state2 === void 0 ? {} : { state: state2 },
-                ...unset === void 0 ? {} : { unset }
-              }
-            }
-          }
-        };
+        return { blocks: { mod: { [id2]: change } } };
       }
-    }),
-    command({
-      id: "blockr.core-remove_block",
-      label: "Remove block",
-      description: "Removes a block, with its links and its place in its stack.",
-      args: object({ id: blockId }, ["id"]),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
-      run: (_board, { id: id2 }) => ({ blocks: { rm: [id2] } })
     })
   ];
   const links = [
@@ -7003,7 +6976,26 @@ function coreCommands(store) {
         const changed = { [args.id]: { from: args.from ?? link.from, to, input: input2 } };
         const other = to === link.to ? linkFeeding(board2, store.blockRegistry(), to, input2, args.id) : void 0;
         const mod = other === void 0 ? changed : { ...changed, [other]: { input: link.input } };
-        const place = args.before === void 0 ? void 0 : linkPlace(this.id, board2, args.id, to, args.before);
+        const { before } = args;
+        if (before === void 0) return { links: { mod } };
+        const block = own(board2.blocks, to);
+        if (block !== void 0 && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
+          throw refusal(this.id, [
+            `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`
+          ]);
+        }
+        if (before !== null) {
+          if (before === args.id) {
+            throw refusal(this.id, [`The link "${args.id}" cannot go before itself.`]);
+          }
+          const next = own(board2.links, before);
+          if (next !== void 0 && next.to !== to) {
+            throw refusal(this.id, [
+              `The link "${args.id}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`
+            ]);
+          }
+        }
+        const place = before ?? lastPlace(board2, to, args.id);
         return { links: { mod, ...place === void 0 ? {} : { before: { [args.id]: place } } } };
       }
     }),
@@ -7064,17 +7056,9 @@ function coreCommands(store) {
         ["id"]
       ),
       preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
-      run: (board2, { id: id2, name: name2, blocks: blocks2, color: color2 }) => ({
-        stacks: {
-          mod: {
-            ...blocks2 === void 0 ? {} : leave(board2, id2, blocks2),
-            [id2]: {
-              ...name2 === void 0 ? {} : { name: name2 },
-              ...blocks2 === void 0 ? {} : { blocks: blocks2 },
-              ...color2 === void 0 ? {} : { color: color2 }
-            }
-          }
-        }
+      // The args but the id are the stack's change, as for change_block.
+      run: (board2, { id: id2, ...change }) => ({
+        stacks: { mod: { ...change.blocks === void 0 ? {} : leave(board2, id2, change.blocks), [id2]: change } }
       })
     }),
     command({
@@ -7092,7 +7076,7 @@ function coreCommands(store) {
       label: "Change board",
       description: "Changes the board's name. The board keeps what the args leave out.",
       args: object({ name: { ...name, description: "The board's name, which it keeps where this is left out." } }),
-      run: (_board, { name: name2 }) => name2 === void 0 ? [] : { name: name2 }
+      run: (_board, change) => change
     }),
     command({
       id: "blockr.core-set_option",

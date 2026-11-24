@@ -1,14 +1,8 @@
 // Core's commands, which cover what core's plugins of today and the dock's
-// actions did. Blocks, links and stacks each have a command that adds one, a
-// command that changes any of its fields and a command that removes it:
-// - A block's change_block sets its name, its lock and its state args.
-// - A link's change_link sets its ends, its input and its place among the
-//   links into its block.
-// - A stack's change_stack sets its name, its colour and its blocks.
-// The board's change_board sets its name. Besides these, set_option sets a
-// board option and set_plugin_state a plugin's state, while the app's opening
-// board sets which plugins a board holds. A block that a command adds starts
-// with a lock of null, which follows the board lock.
+// actions did: adding, changing and removing blocks, links and stacks, changing
+// the board and setting a board option, and setting a plugin's state, while
+// the app's opening board sets which plugins a board holds. A block that a
+// command adds starts with a lock of null, which follows the board lock.
 // Appending, prepending and inserting a block are batches of these, so that
 // each rule about links lives in add_link alone
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#commands):
@@ -41,7 +35,7 @@
 
 import { createGraph } from "../graph/index.ts";
 import { pathFromSegments, sentenceCase, stateFailures } from "../store/index.ts";
-import type { Patch, Store } from "../store/index.ts";
+import type { BlockMod, Patch, Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,
@@ -174,40 +168,6 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     );
   }
 
-  // Where the link `id` goes on the board, as the `before` of a delta names
-  // it, to take the place among the links into block `to` that the args give:
-  // before the link that they name, or last among those links for null. It is
-  // undefined where no other link goes into the block. The args may give a
-  // place only for a link into a variadic block, since a block that is not
-  // variadic takes each input by its name. They may not name the link itself,
-  // nor a link into another block, and the store refuses a link that the
-  // board lacks.
-  function linkPlace(
-    command: string,
-    board: Board,
-    id: LinkId,
-    to: BlockId,
-    before: LinkId | null,
-  ): LinkId | null | undefined {
-    const block = own(board.blocks, to);
-    if (block !== undefined && !registryEntry(command, block.registry_id).inputs.includes("...")) {
-      throw refusal(command, [
-        `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`,
-      ]);
-    }
-    if (before === null) return lastPlace(board, to, id);
-    if (before === id) {
-      throw refusal(command, [`The link "${id}" cannot go before itself.`]);
-    }
-    const next = own(board.links, before);
-    if (next !== undefined && next.to !== to) {
-      throw refusal(command, [
-        `The link "${id}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`,
-      ]);
-    }
-    return before;
-  }
-
   const blocks = [
     command<NewBlock>({
       id: "blockr.core-add_block",
@@ -220,13 +180,15 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         return { blocks: { add: { [id]: block } } };
       },
     }),
-    command<{
-      readonly id: BlockId;
-      readonly name?: string;
-      readonly locked?: boolean | null;
-      readonly state?: State;
-      readonly unset?: readonly string[];
-    }>({
+    command<{ readonly id: BlockId }>({
+      id: "blockr.core-remove_block",
+      label: "Remove block",
+      description: "Removes a block, with its links and its place in its stack.",
+      args: object({ id: schemas.blockId }, ["id"]),
+      preflight: (board, { id }) => Object.hasOwn(board.blocks, id),
+      run: (_board, { id }) => ({ blocks: { rm: [id] } }),
+    }),
+    command<{ readonly id: BlockId } & Omit<BlockMod, "edit">>({
       id: "blockr.core-change_block",
       label: "Change block",
       description:
@@ -246,9 +208,12 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         ["id"],
       ),
       preflight: (board, { id }) => Object.hasOwn(board.blocks, id),
-      run(board, { id, name, locked, state, unset }) {
+      // The args but the id are the block's change, as the schema admits no
+      // other args.
+      run(board, { id, ...change }) {
         const block = own(board.blocks, id);
         if (block === undefined) return [];
+        const { state, unset } = change;
         if (state !== undefined || unset !== undefined) {
           const entry = registryEntry(this.id, block.registry_id);
           const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state });
@@ -256,27 +221,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
             throw refusal(this.id, failures.map((failure) => `The state of block "${id}" ${failure}`));
           }
         }
-        return {
-          blocks: {
-            mod: {
-              [id]: {
-                ...(name === undefined ? {} : { name }),
-                ...(locked === undefined ? {} : { locked }),
-                ...(state === undefined ? {} : { state }),
-                ...(unset === undefined ? {} : { unset }),
-              },
-            },
-          },
-        };
+        return { blocks: { mod: { [id]: change } } };
       },
-    }),
-    command<{ readonly id: BlockId }>({
-      id: "blockr.core-remove_block",
-      label: "Remove block",
-      description: "Removes a block, with its links and its place in its stack.",
-      args: object({ id: schemas.blockId }, ["id"]),
-      preflight: (board, { id }) => Object.hasOwn(board.blocks, id),
-      run: (_board, { id }) => ({ blocks: { rm: [id] } }),
     }),
   ];
 
@@ -373,10 +319,29 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         // back.
         const other = to === link.to ? linkFeeding(board, store.blockRegistry(), to, input, args.id) : undefined;
         const mod = other === undefined ? changed : { ...changed, [other]: { input: link.input } };
+        const { before } = args;
+        if (before === undefined) return { links: { mod } };
+        const block = own(board.blocks, to);
+        if (block !== undefined && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
+          throw refusal(this.id, [
+            `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`,
+          ]);
+        }
+        if (before !== null) {
+          if (before === args.id) {
+            throw refusal(this.id, [`The link "${args.id}" cannot go before itself.`]);
+          }
+          const next = own(board.links, before);
+          if (next !== undefined && next.to !== to) {
+            throw refusal(this.id, [
+              `The link "${args.id}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`,
+            ]);
+          }
+        }
         // The store moves the link before it applies the change, so the link
-        // takes its place on the board among the links into the block that it
-        // goes to after the change.
-        const place = args.before === undefined ? undefined : linkPlace(this.id, board, args.id, to, args.before);
+        // takes its place among the links into the block that it goes to after
+        // the change.
+        const place = before ?? lastPlace(board, to, args.id);
         return { links: { mod, ...(place === undefined ? {} : { before: { [args.id]: place } }) } };
       },
     }),
@@ -425,12 +390,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         };
       },
     }),
-    command<{
-      readonly id: StackId;
-      readonly name?: string;
-      readonly blocks?: readonly BlockId[];
-      readonly color?: string | null;
-    }>({
+    command<{ readonly id: StackId } & Partial<Stack>>({
       id: "blockr.core-change_stack",
       label: "Change stack",
       description:
@@ -452,17 +412,9 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         ["id"],
       ),
       preflight: (board, { id }) => Object.hasOwn(board.stacks, id),
-      run: (board, { id, name, blocks, color }) => ({
-        stacks: {
-          mod: {
-            ...(blocks === undefined ? {} : leave(board, id, blocks)),
-            [id]: {
-              ...(name === undefined ? {} : { name }),
-              ...(blocks === undefined ? {} : { blocks }),
-              ...(color === undefined ? {} : { color }),
-            },
-          },
-        },
+      // The args but the id are the stack's change, as for change_block.
+      run: (board, { id, ...change }) => ({
+        stacks: { mod: { ...(change.blocks === undefined ? {} : leave(board, id, change.blocks)), [id]: change } },
       }),
     }),
     command<{ readonly id: StackId }>({
@@ -481,7 +433,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       label: "Change board",
       description: "Changes the board's name. The board keeps what the args leave out.",
       args: object({ name: { ...schemas.name, description: "The board's name, which it keeps where this is left out." } }),
-      run: (_board, { name }) => (name === undefined ? [] : { name }),
+      run: (_board, change) => change,
     }),
     command<{ readonly id: string; readonly value: Json }>({
       id: "blockr.core-set_option",
