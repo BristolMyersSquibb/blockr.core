@@ -13,6 +13,9 @@
 // class has `frontend`, core's basic frontend for the reply of the fixture
 // hello. A board that the test opens later through the store's open() starts
 // core again, as on the page.
+// Where one of those modules fails to load, or core refuses what it defines,
+// core opens no board, as on the page, and stubCore() rejects with why, so
+// that a package's test fails at once where one of its modules breaks a rule.
 // R, played from the fixtures, replies to the client's hello with the
 // reply of the fixture hello unless given, and drops what it holds at a later
 // hello, as R does. It evaluates every block as ok, makes a block's output
@@ -128,7 +131,8 @@ export interface StubCoreOptions {
   // an id of the form `{pkg}-{name}` that R's reply does not name as one that
   // packages offer each other. The stub gives the modules of core's own plugin
   // classes and board options, as the page imports them, unless the test gives
-  // its own, and a module that the test leaves out fails to load.
+  // its own. A module that the test leaves out fails to load, so that
+  // stubCore() rejects with why core opens no board.
   readonly modules?: Readonly<Record<string, unknown>>;
   // What R replies to an evaluation, beside its id, block and revision, ok
   // with no conditions unless given.

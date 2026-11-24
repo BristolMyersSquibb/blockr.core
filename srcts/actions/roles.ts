@@ -17,7 +17,7 @@
 // its board actions that edits the board (CORE_ROLES, below), and a plugin
 // class lists roles of its own in `roles`, which core registers with the class
 // (./actions.ts). Core refuses the whole class where one of its roles breaks a
-// rule (checkedRoles(), below).
+// rule (checkedRoles(), below), and then opens no board (../core/start.ts).
 //
 // In each app, one board action plays each role: the one that the blockr
 // option `board_actions` picks for the role, or else the role's default, one

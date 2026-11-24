@@ -13148,17 +13148,11 @@ function runPlugins(deps) {
     offStore();
     for (const stop of stops.splice(0)) stop();
   });
-  let memo2;
+  const running3 = Object.freeze(
+    Object.fromEntries(Object.entries(deps.plugins).map(([id2, { name: name2 }]) => [id2, Object.freeze({ name: name2 })]))
+  );
   function appPlugins() {
-    if (!store.hasBoard()) return NONE;
-    const classes2 = store.plugins.registered();
-    if (memo2?.classes !== classes2) {
-      const registered = Object.entries(deps.plugins).flatMap(
-        ([id2, { name: name2 }]) => Object.hasOwn(classes2, id2) ? [[id2, Object.freeze({ name: name2 })]] : []
-      );
-      memo2 = { classes: classes2, plugins: Object.freeze(Object.fromEntries(registered)) };
-    }
-    return memo2.plugins;
+    return store.hasBoard() ? running3 : NONE;
   }
   function pluginClass(plugin) {
     const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : void 0;
@@ -14463,7 +14457,7 @@ function start2(options) {
       blockRegistry: () => store.blockRegistry()
     });
     const showMenu = await opening2.step("modules", async () => {
-      await register(reply, store, commands, boardActions, signal5, raise);
+      await register(reply, store, commands, boardActions, signal5);
       return drawing;
     });
     boardActions.choosePlayers(alone ? void 0 : picks);
@@ -14556,7 +14550,7 @@ function start2(options) {
     } else {
       const front = plugins.frontend();
       options.frontEnds?.prepare(
-        front === void 0 ? { none: noFrontend(reply, core) } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
+        front === void 0 ? { none: NO_FRONTEND } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
         signal5
       );
       const failures = await (front?.added ?? []);
@@ -14570,70 +14564,60 @@ function start2(options) {
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
-  async function register(reply, store, commands, boardActions, signal5, raise) {
-    const failed3 = (error, concerns) => {
-      log.error(asError(error));
-      if (!signal5.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
-    };
-    const [defs, opts] = await Promise.all([
-      Promise.all(
-        Object.entries(reply.plugins).map(
-          ([id2, entry]) => listed(entry, packageFromId(id2), (error) => {
-            failed3(error, { module: sourceModule({ plugin: id2 }, packageFromId(id2)) });
-          })
-        )
-      ),
-      Promise.all(
-        Object.entries(reply.options).map(
-          ([id2, entry]) => listed(entry, entry.package, (error) => {
-            failed3(error, { module: sourceModule({ option: id2 }, entry.package) });
-          })
-        )
-      )
+  async function register(reply, store, commands, boardActions, signal5) {
+    const [classes2, options2] = await Promise.all([
+      Promise.all(Object.entries(reply.plugins).map(([id2, entry]) => listed(id2, entry, packageFromId(id2)))),
+      Promise.all(Object.entries(reply.options).map(([id2, entry]) => listed(id2, entry, entry.package)))
     ]);
     if (signal5.aborted) return;
-    Object.entries(reply.options).forEach(([id2, entry], i) => {
-      const def = opts[i];
-      if (def === void 0) return;
-      try {
-        store.options.register({ ...def, id: id2 });
-      } catch (error) {
-        failed3(error, { module: sourceModule({ option: id2 }, entry.package) });
+    const failures = [];
+    const refuse = ({ source, pkg }, what, why) => {
+      failures.push(new ModuleError(source.module, pkg, `defines ${what} that core refuses: ${why}`));
+    };
+    for (const module of options2) {
+      if ("failure" in module) {
+        failures.push(module.failure);
+        continue;
       }
-    });
-    Object.keys(reply.plugins).forEach((id2, i) => {
-      const def = defs[i];
-      if (def === void 0) return;
+      try {
+        store.options.register({ ...module.def, id: module.id });
+      } catch (error) {
+        refuse(module, "a board option", errorMessage(error));
+      }
+    }
+    for (const module of classes2) {
+      if ("failure" in module) {
+        failures.push(module.failure);
+        continue;
+      }
+      const { id: id2 } = module;
       let cls;
       try {
-        cls = { ...def, id: id2 };
-        const unregister = store.plugins.register(cls);
-        try {
-          boardActions.register(id2, cls.boardActions, cls.roles);
-        } catch (error) {
-          unregister();
-          throw error;
-        }
+        cls = { ...module.def, id: id2 };
+        store.plugins.register(cls);
+        boardActions.register(id2, cls.boardActions, cls.roles);
       } catch (error) {
-        failed3(error, { module: sourceModule({ plugin: id2 }, packageFromId(id2)) });
-        return;
+        refuse(module, "a plugin class", errorMessage(error));
+        continue;
       }
-      for (const command2 of cls.commands ?? []) {
+      const refused2 = (cls.commands ?? []).flatMap((command2) => {
         try {
           commands.register(command2);
+          return [];
         } catch (error) {
-          log.error(new Error(`A command of the plugin class "${id2}" is refused: ${errorMessage(error)}`, { cause: error }));
+          return [errorMessage(error)];
         }
-      }
-    });
+      });
+      if (refused2.length > 0) refuse(module, "a plugin class", refused2.join(" "));
+    }
+    if (failures.length > 0) throw new Error([...failures.map(({ message }) => message), noBoard(failures.length)].join("\n"));
   }
-  async function listed(source, pkg, failed3) {
+  async function listed(id2, source, pkg) {
     try {
       const at = source.css === void 0 ? { module: source.module } : { module: source.module, css: source.css };
-      return listedDefault(await loader.load(at, pkg), source.module, pkg);
+      return { id: id2, source, pkg, def: listedDefault(await loader.load(at, pkg), source.module, pkg) };
     } catch (error) {
-      failed3(error);
-      return void 0;
+      return { id: id2, source, pkg, failure: asError(error) };
     }
   }
   async function named5(reply, store, core, signal5, raise, opening2) {
@@ -14761,10 +14745,9 @@ function helloError(reply) {
   }
   return void 0;
 }
-function noFrontend(reply, core) {
-  const missing = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
-  const why = missing.length === 0 ? "none of the app's plugins is a frontend" : `core registered no class of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
-  return `The app runs no frontend that draws the board, since ${why}.`;
+var NO_FRONTEND = "The app runs no frontend that draws the board, since none of the app's plugins is a frontend.";
+function noBoard(failed3) {
+  return failed3 === 1 ? "Core opens no board without this module, since saving the board would lose what it holds for the module's plugin or board option." : "Core opens no board without these modules, since saving the board would lose what it holds for their plugins and board options.";
 }
 function changedPackages(loaded, reply) {
   return Object.entries(reply.packages).flatMap(([pkg, now]) => {

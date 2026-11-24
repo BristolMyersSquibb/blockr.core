@@ -1,8 +1,9 @@
 // Running the app's plugins on the open board, as Running a plugin has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#running-a-plugin).
 // The app's plugins are those that R names in its reply to `hello`, each under
-// the id of its class, and they run on every board that the app opens, as far
-// as a package registers their classes:
+// the id of its class, and they run on every board that the app opens, since
+// core opens no board where the module of one of their classes fails
+// (./start.ts):
 // 1. As the store opens the board, core adds to the board the board options
 //    that the entry of each plugin that runs names in `options`, from the
 //    method of R's `plugin_options()` for its class, each with its default
@@ -138,28 +139,16 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     for (const stop of stops.splice(0)) stop();
   });
 
-  // The plugins that run, as appPlugins() last gave them, with the classes
-  // that it gave them from.
-  let memo:
-    | {
-        readonly classes: Readonly<Record<PluginClassId, PluginClass>>;
-        readonly plugins: Readonly<Record<PluginClassId, Plugin>>;
-      }
-    | undefined;
+  // The app's plugins, each with its name alone.
+  const running: Readonly<Record<PluginClassId, Plugin>> = Object.freeze(
+    Object.fromEntries(Object.entries(deps.plugins).map(([id, { name }]) => [id, Object.freeze({ name })])),
+  );
 
-  // The app's plugins whose classes a package registers, each with its name
-  // alone, which run once the store has opened a board, since every package
-  // registers its classes before.
+  // The app's plugins, which run once the store has opened a board. Every
+  // package has registered their classes by then, since core opens no board
+  // where the module of one fails.
   function appPlugins(): Readonly<Record<PluginClassId, Plugin>> {
-    if (!store.hasBoard()) return NONE;
-    const classes = store.plugins.registered();
-    if (memo?.classes !== classes) {
-      const registered = Object.entries(deps.plugins).flatMap(([id, { name }]) =>
-        Object.hasOwn(classes, id) ? [[id, Object.freeze({ name })] as const] : [],
-      );
-      memo = { classes, plugins: Object.freeze(Object.fromEntries(registered)) };
-    }
-    return memo.plugins;
+    return store.hasBoard() ? running : NONE;
   }
 
   function pluginClass(plugin: PluginClassId): PluginClass {

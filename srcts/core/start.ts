@@ -13,10 +13,13 @@
 //    each board option that R's reply names, each once per page, and
 //    registers the default export of each under the id that the reply gives
 //    it, with the commands, the board actions and the roles of each plugin
-//    class. It raises a notification for a module that fails to load, for one
-//    whose class or board option the store refuses, and for one whose class
-//    lists a board action or a role that breaks a rule, and carries on, so
-//    that the board opens without what that module defines.
+//    class. Core opens no board where a module fails to load, where the store
+//    refuses the class or the board option that it defines, where its class
+//    lists a board action or a role that breaks a rule, or where the command
+//    registry refuses a command of its class. The page then shows why in
+//    place of the board, naming each such module and its package. Saving a
+//    board that opened without such a module would lose what the board holds
+//    for the module's plugin or board option.
 //    Meanwhile it loads the module that board_action_menu names. Where that
 //    module cannot draw the menus, as where no package offers it, core opens
 //    no board and shows why in its place, since the blockr option is the
@@ -135,7 +138,7 @@ import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index
 import { createCommands } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { createLoader, ModuleError, moduleExports } from "../mount/index.ts";
-import type { LoaderOptions, Measure } from "../mount/index.ts";
+import type { LoaderOptions, Measure, Source } from "../mount/index.ts";
 import { createClient, PROTOCOL_VERSION, sameMajor } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
@@ -149,8 +152,8 @@ import { fallBack, log, logSettings, serviceName, setUpLogging } from "../log/in
 import type { OtelModule } from "../log/index.ts";
 import { setUpTracing, steps, tracesUrl } from "../trace/index.ts";
 import type { Steps } from "../trace/index.ts";
-import { asError, coreNotification, errorMessage, givenNotifier, isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
-import type { Concerns, Raise } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, givenNotifier, isObject, own, packageFromId, sourceModule } from "../util/index.ts";
+import type { Raise } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
 import { createMigrations } from "./migrations.ts";
@@ -242,8 +245,9 @@ export interface StartOptions {
   // scheduler, the command registry or the page's logger does not take, or
   // one in board_actions that picks a board action that cannot play its role,
   // or where the module that board_action_menu names cannot draw the menus of
-  // board actions, or why no board is open once another failed to open. Core
-  // logs why where it is not given.
+  // board actions, or where the module of a plugin class or a board option
+  // fails, as step 3 above has it, or why no board is open once another
+  // failed to open. Core logs why where it is not given.
   readonly fail?: (error: Error) => void;
   // Imports core's OpenTelemetry module, as the page does, where the blockr
   // options have the page send its log records or its spans to a collector
@@ -280,6 +284,14 @@ interface Later {
   readonly text: string;
   readonly before: string;
 }
+
+// The module that R serves for a plugin class or a board option, by the id of
+// the class or the board option, with where R serves it and its package, and
+// with its default export, or why it fails to load or exports none.
+type Listed = { readonly id: string; readonly source: Source; readonly pkg: string | null } & (
+  | { readonly def: Readonly<Record<string, unknown>> }
+  | { readonly failure: Error }
+);
 
 export function start(options: StartOptions): Started {
   const page = new AbortController();
@@ -546,8 +558,7 @@ export function start(options: StartOptions): Started {
     drawing.catch(() => undefined);
 
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
-    // The notifications of the board, made before core imports the modules
-    // that the reply names, so that the frontend hears of one that fails.
+    // The notifications of the board.
     const notifications = createNotifications(store, { signal, plugins: reply.plugins });
     const { raise } = notifications;
     askReload(raise);
@@ -563,7 +574,7 @@ export function start(options: StartOptions): Started {
       blockRegistry: () => store.blockRegistry(),
     });
     const showMenu = await opening.step("modules", async () => {
-      await register(reply, store, commands, boardActions, signal, raise);
+      await register(reply, store, commands, boardActions, signal);
       return drawing;
     });
     // Once every module is registered, the board action that plays each role.
@@ -667,9 +678,7 @@ export function start(options: StartOptions): Started {
       // requires are on the board.
       const front = plugins.frontend();
       options.frontEnds?.prepare(
-        front === undefined
-          ? { none: noFrontend(reply, core) }
-          : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
+        front === undefined ? { none: NO_FRONTEND } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
         signal,
       );
       const failures = await (front?.added ?? []);
@@ -687,93 +696,82 @@ export function start(options: StartOptions): Started {
   // Registers in the store the class of each of the app's plugins and each
   // board option that the reply names, from the module that R serves for it,
   // which the loader imports once per page, with the board actions and the
-  // roles of each plugin class, and its commands in the command registry. It
-  // refuses the whole class, with its board actions, its roles and its
-  // commands, where the store refuses the class or one of its board actions or
-  // its roles breaks a rule (../actions/actions.ts), while it only logs a
-  // command that the command registry refuses, naming the class. It raises a notification for a module
-  // that fails to load and for a default export that it refuses, which
-  // concerns the plugin class or the board option, with the module's package,
-  // and carries on, so that the board opens without them.
+  // roles of each plugin class, and its commands in the command registry.
+  // Core refuses what a module defines where the store refuses the class or
+  // the board option, where one of the class's board actions or roles breaks
+  // a rule (../actions/actions.ts), or where the command registry refuses one
+  // of the class's commands. Once it has tried every module, it throws where
+  // a module failed to load or core refused what it defines, naming each such
+  // module with its package, so that core opens no board.
   async function register(
     reply: HelloReply,
     store: Store,
     commands: Commands,
     boardActions: BoardActions,
     signal: AbortSignal,
-    raise: Raise,
   ): Promise<void> {
-    const failed = (error: unknown, concerns: Concerns): void => {
-      log.error(asError(error));
-      if (!signal.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
-    };
-    const [defs, opts] = await Promise.all([
-      Promise.all(
-        Object.entries(reply.plugins).map(([id, entry]) =>
-          listed(entry, packageFromId(id), (error) => {
-            failed(error, { module: sourceModule({ plugin: id }, packageFromId(id)) });
-          }),
-        ),
-      ),
-      Promise.all(
-        Object.entries(reply.options).map(([id, entry]) =>
-          listed(entry, entry.package, (error) => {
-            failed(error, { module: sourceModule({ option: id }, entry.package) });
-          }),
-        ),
-      ),
+    const [classes, options] = await Promise.all([
+      Promise.all(Object.entries(reply.plugins).map(([id, entry]) => listed(id, entry, packageFromId(id)))),
+      Promise.all(Object.entries(reply.options).map(([id, entry]) => listed(id, entry, entry.package))),
     ]);
     if (signal.aborted) return;
-    Object.entries(reply.options).forEach(([id, entry], i) => {
-      const def = opts[i];
-      if (def === undefined) return;
-      try {
-        store.options.register({ ...(def as unknown as Option), id });
-      } catch (error) {
-        failed(error, { module: sourceModule({ option: id }, entry.package) });
+    // Why each module failed, one for each module.
+    const failures: Error[] = [];
+    // Why core refuses what the module defines, naming the module and its
+    // package.
+    const refuse = ({ source, pkg }: Listed, what: string, why: string): void => {
+      failures.push(new ModuleError(source.module, pkg, `defines ${what} that core refuses: ${why}`));
+    };
+    for (const module of options) {
+      if ("failure" in module) {
+        failures.push(module.failure);
+        continue;
       }
-    });
-    Object.keys(reply.plugins).forEach((id, i) => {
-      const def = defs[i];
-      if (def === undefined) return;
+      try {
+        store.options.register({ ...(module.def as unknown as Option), id: module.id });
+      } catch (error) {
+        refuse(module, "a board option", errorMessage(error));
+      }
+    }
+    for (const module of classes) {
+      if ("failure" in module) {
+        failures.push(module.failure);
+        continue;
+      }
+      const { id } = module;
       let cls: PluginClass;
       try {
-        cls = { ...(def as unknown as PluginClass), id };
-        const unregister = store.plugins.register(cls);
-        try {
-          boardActions.register(id, cls.boardActions, cls.roles);
-        } catch (error) {
-          unregister();
-          throw error;
-        }
+        cls = { ...(module.def as unknown as PluginClass), id };
+        store.plugins.register(cls);
+        boardActions.register(id, cls.boardActions, cls.roles);
       } catch (error) {
-        failed(error, { module: sourceModule({ plugin: id }, packageFromId(id)) });
-        return;
+        refuse(module, "a plugin class", errorMessage(error));
+        continue;
       }
-      for (const command of cls.commands ?? []) {
+      // Why the command registry refuses each command that it refuses, which
+      // it checks one by one.
+      const refused = (cls.commands ?? []).flatMap((command) => {
         try {
           commands.register(command);
+          return [];
         } catch (error) {
-          log.error(new Error(`A command of the plugin class "${id}" is refused: ${errorMessage(error)}`, { cause: error }));
+          return [errorMessage(error)];
         }
-      }
-    });
+      });
+      if (refused.length > 0) refuse(module, "a plugin class", refused.join(" "));
+    }
+    if (failures.length > 0) throw new Error([...failures.map(({ message }) => message), noBoard(failures.length)].join("\n"));
   }
 
-  // The default export of the module that R serves for a plugin class or a
-  // board option, or undefined where it fails to load or exports none, which
-  // `failed` hears.
-  async function listed(
-    source: { readonly module: string; readonly css?: string },
-    pkg: string | null,
-    failed: (error: unknown) => void,
-  ): Promise<Readonly<Record<string, unknown>> | undefined> {
+  // The module that R serves for the plugin class or the board option of the
+  // id given, with its default export, or why it fails to load or exports
+  // none, which names the module and its package.
+  async function listed(id: string, source: Source, pkg: string | null): Promise<Listed> {
     try {
       const at = source.css === undefined ? { module: source.module } : { module: source.module, css: source.css };
-      return listedDefault(await loader.load(at, pkg), source.module, pkg);
+      return { id, source, pkg, def: listedDefault(await loader.load(at, pkg), source.module, pkg) };
     } catch (error) {
-      failed(error);
-      return undefined;
+      return { id, source, pkg, failure: asError(error) };
     }
   }
 
@@ -943,16 +941,15 @@ function helloError(reply: Reply): Error | undefined {
   return undefined;
 }
 
-// Why the app runs no frontend, which the page shows in place of the board: no
-// plugin that the reply names is a frontend whose class core registered from
-// the module that R names for it.
-function noFrontend(reply: HelloReply, core: CoreApi): string {
-  const missing = Object.keys(reply.plugins).filter((id) => !Object.hasOwn(core.plugins.appPlugins(), id));
-  const why =
-    missing.length === 0
-      ? "none of the app's plugins is a frontend"
-      : `core registered no class of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
-  return `The app runs no frontend that draws the board, since ${why}.`;
+// Why the app runs no frontend, which the page shows in place of the board.
+const NO_FRONTEND = "The app runs no frontend that draws the board, since none of the app's plugins is a frontend.";
+
+// What the page shows in place of the board after why each module failed,
+// given how many modules failed.
+function noBoard(failed: number): string {
+  return failed === 1
+    ? "Core opens no board without this module, since saving the board would lose what it holds for the module's plugin or board option."
+    : "Core opens no board without these modules, since saving the board would lose what it holds for their plugins and board options.";
 }
 
 // The packages that a reply names at another version than the page loaded.

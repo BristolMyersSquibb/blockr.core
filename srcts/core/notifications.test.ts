@@ -809,7 +809,16 @@ describe("core's notifications", () => {
 
   test("of an edit of another origin are raised as for the user's, the assistant's among them, while core's own edit of a board option's default raises board_option_failed alone", async () => {
     const reported = logged();
-    const unfit: Option = { id: "unfit", label: "Unfit", category: "View options", schema: { type: "number" }, default: "big", ui: { render: () => undefined } };
+    // A default that the store checks only as core adds it to the board, since
+    // it refuses a board option whose value of a default fails the schema.
+    const unfit: Option = {
+      id: "unfit",
+      label: "Unfit",
+      category: "View options",
+      schema: { type: "number" },
+      default: () => Promise.resolve("big"),
+      ui: { render: () => undefined },
+    };
     const needy: PluginClass = { id: "blockr.test-needy_plugin", ui: pluginUi().ui };
     const s = await stubCore({
       hello: withOptions(["unfit"], withPlugins({ [needy.id]: { name: "Needy", options: ["unfit"] } })),

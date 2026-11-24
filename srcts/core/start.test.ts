@@ -764,7 +764,7 @@ describe("starting the page", () => {
     expect(core.store.board().name).toBe("Iris review");
   });
 
-  test("names a module that fails to load, or whose default export the store refuses, and carries on with the rest", async () => {
+  test("opens no board where a module fails to load or core refuses what it defines, and shows why in its place, naming each module with its package", async () => {
     const reply = withOptions(
       ["zoom", "gap"],
       withPlugins({
@@ -773,50 +773,53 @@ describe("starting the page", () => {
         "blockr.good-good_plugin": { name: "Good" },
       }),
     );
-    const zoom: Omit<Option, "id"> = { label: "Zoom", category: "View", schema: { type: "number" }, default: 1, ui: { render: () => undefined } };
-    const s = setup({
-      [BASIC]: frontEnd().exports,
+    const zoom = { label: "Zoom", category: "View", schema: { type: "number" }, default: 1, ui: {} } as unknown as Omit<Option, "id">;
+    const r = playedR();
+    const el = document.createElement("div");
+    const basic = frontEnd();
+    const served: Readonly<Record<string, unknown>> = {
+      ...CORE,
+      [BASIC]: basic.exports,
       [pluginUrl("blockr.bad-bad_plugin")]: classModule({ start: "now" } as unknown as Omit<PluginClass, "id">),
       [pluginUrl("blockr.good-good_plugin")]: classModule(),
       [optionUrl("zoom")]: optionModule(zoom),
       [optionUrl("gap")]: { api: 1 },
-    });
+    };
     const reported = logged();
-    s.r.session(reply);
+    const started = startPage({
+      el,
+      transport: r.transport,
+      loader: {
+        importer: (url) =>
+          Object.hasOwn(served, url)
+            ? Promise.resolve(served[url])
+            : Promise.reject(new TypeError(`Failed to fetch dynamically imported module: ${url}`)),
+        stylesheet: () => Promise.resolve(),
+      },
+      measure: { info: () => null, watch: () => () => undefined },
+    });
+    r.session(reply);
     await tick();
-    s.r.options();
-    const core = await s.started.ready;
+    r.options();
+
+    // One line for each module, the board options' first, then the plugin
+    // classes', each in the order of the reply.
+    const why = [
+      'The module blockr.test/zoom.js of blockr.test defines a board option that core refuses: The board option "zoom" has no UI module with a render() function.',
+      "The module blockr.test/gap.js of blockr.test has no default export, an object.",
+      'The module blockr.bad/blockr.bad-bad_plugin.js of blockr.bad defines a plugin class that core refuses: The plugin class "blockr.bad-bad_plugin" has a start that is no function.',
+      "The module blockr.missing/blockr.missing-missing_plugin.js of blockr.missing failed to load: Failed to fetch dynamically imported module: blockr.missing/blockr.missing-missing_plugin.js",
+      "Core opens no board without these modules, since saving the board would lose what it holds for their plugins and board options.",
+    ].join("\n");
+    await expect(started.ready).rejects.toThrow(why);
     reported.restore();
 
-    expect(core.store.hasBoard()).toBe(true);
-    expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC_FRONTEND, FILE_STORAGE, EDIT_BOARD, "blockr.good-good_plugin"]);
-    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "dark_mode", "zoom"]);
-    expect(reported.errors().map((line) => line.message).sort()).toEqual([
-      "The module blockr.missing/blockr.missing-missing_plugin.js of blockr.missing failed to load: Failed to fetch dynamically imported module: blockr.missing/blockr.missing-missing_plugin.js",
-      "The module blockr.test/gap.js of blockr.test has no default export, an object.",
-      'The plugin class "blockr.bad-bad_plugin" has a start that is no function.',
-    ]);
-    // Each raises a notification that concerns its plugin class or board
-    // option, with the module's package, which the frontend hears as it draws.
-    const failed = core.notifications.get().filter((n) => notificationCode(n) === "module_failed");
-    const part = (n: Notification): string | undefined =>
-      n.about === undefined ? undefined : "plugin" in n.about ? n.about.plugin : "option" in n.about ? n.about.option : undefined;
-    const pkg = (n: Notification): string | undefined => n.source.module?.package;
-    expect(failed.map((n) => [part(n), pkg(n), n.source.kind, n.message]).sort()).toEqual([
-      [
-        "blockr.bad-bad_plugin",
-        "blockr.bad",
-        "core",
-        'The plugin class "blockr.bad-bad_plugin" has a start that is no function.',
-      ],
-      [
-        "blockr.missing-missing_plugin",
-        "blockr.missing",
-        "core",
-        "The module blockr.missing/blockr.missing-missing_plugin.js of blockr.missing failed to load: Failed to fetch dynamically imported module: blockr.missing/blockr.missing-missing_plugin.js",
-      ],
-      ["gap", "blockr.test", "core", "The module blockr.test/gap.js of blockr.test has no default export, an object."],
-    ]);
+    expect(el.firstElementChild?.getAttribute("role")).toBe("alert");
+    expect(el.textContent).toBe(why);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
+    expect(started.core()).toBeUndefined();
+    expect(basic.renders).toHaveLength(0);
+    expect(r.evaluations()).toEqual([]);
   });
 
   test("raises the notification that names what the store dropped before the frontend draws, which reads it as it draws", async () => {
@@ -1700,15 +1703,6 @@ describe("the frontend and the plugins", () => {
     expect(s.el.textContent).toBe(why);
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(s.core.store.board().name).toBe("Iris review");
-
-    // So it does where the module of the class of the app's frontend fails to
-    // load.
-    const again = logged();
-    const t = await started(listed([]), replied({ [GRID]: { name: "Grid" } }, undefined, [BASIC_FRONTEND]));
-    again.restore();
-    expect(t.el.textContent).toBe(
-      'The app runs no frontend that draws the board, since core registered no class of the app\'s plugin "blockr.test-grid_plugin".',
-    );
   });
 
   test("shows why in the page's element in place of the frontend where a board option that it requires does not go onto the board", async () => {
