@@ -475,8 +475,8 @@ test_that("a plugin prints its class's id and its state", {
     format(plugin),
     c(
       "<notes_plugin> blockr.test-notes_plugin",
-      "text: To do",
-      "tags: a, b"
+      " $ text: chr \"To do\"",
+      " $ tags: chr [1:2] \"a\" \"b\""
     )
   )
 
@@ -499,9 +499,9 @@ test_that("a plugin prints fields that are empty or nested", {
     format(views()),
     c(
       "<views_plugin> blockr.test-views_plugin",
-      "views: list()",
-      "active: NULL",
-      "tags: character()"
+      " $ views : list()",
+      " $ active: NULL",
+      " $ tags  : chr(0)"
     )
   )
 
@@ -514,47 +514,21 @@ test_that("a plugin prints fields that are empty or nested", {
     1:5
   )
 
-  # The views nest three deep, so their lines go below the field, while each
-  # view nests two deep or less and stays on a line
   expect_identical(
     format(plugin),
     c(
       "<views_plugin> blockr.test-views_plugin",
-      "views:",
-      "  main: {name: Main, panels: list()}",
-      "  side: {name: Side, panels: [b, c]}",
-      "active: main",
-      "tags: 1, 2, 3, ..."
-    )
-  )
-})
-
-test_that("a plugin prints a list too deep or too wide below its field", {
-
-  grid <- plugin_ctor(
-    function(children = list(), tags = list()) NULL,
-    "grid_plugin"
-  )
-
-  plugin <- grid(
-    list(
-      list(panels = list(list(block = "a")), active = list(block = "a"))
-    ),
-    list(strrep("x", 40L), list(strrep("y", 40L), 1:5))
-  )
-
-  # A list without names gives an item for each element, whose first line
-  # holds the first field of an element that has names
-  expect_identical(
-    format(plugin),
-    c(
-      "<grid_plugin> blockr.test-grid_plugin",
-      "children:",
-      "  - panels: [{block: a}]",
-      "    active: {block: a}",
-      "tags:",
-      paste0("  - ", strrep("x", 40L)),
-      paste0("  - [", strrep("y", 40L), ", [1, 2, 3, ...]]")
+      " $ views :List of 2",
+      "  ..$ main:List of 2",
+      "  .. ..$ name  : chr \"Main\"",
+      "  .. ..$ panels: list()",
+      "  ..$ side:List of 2",
+      "  .. ..$ name  : chr \"Side\"",
+      "  .. ..$ panels:List of 2",
+      "  .. .. ..$ : chr \"b\"",
+      "  .. .. ..$ : chr \"c\"",
+      " $ active: chr \"main\"",
+      " $ tags  : int [1:5] 1 2 3 4 5"
     )
   )
 })

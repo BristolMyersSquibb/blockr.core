@@ -1,55 +1,17 @@
-fmt_cnd_msg <- function(x) {
-  sub("\n$", "", conditionMessage(x))
-}
-
-show_condition <- function(x) {
-  UseMethod("show_condition")
-}
-
-#' @noRd
-#' @export
-show_condition.list <- function(x) {
-  invisible(lapply(x, show_condition))
-}
-
-#' @noRd
-#' @export
-show_condition.default <- function(x) {
-  invisible(NULL)
-}
-
-#' @noRd
-#' @export
-show_condition.message <- function(x) {
-  message(fmt_cnd_msg(x))
-}
-
-#' @noRd
-#' @export
-show_condition.warning <- function(x) {
-  warning(fmt_cnd_msg(x))
-}
-
-#' @noRd
-#' @export
-show_condition.error <- function(x) {
-  stop(fmt_cnd_msg(x))
-}
-
 #' @importFrom evaluate replay
 #' @export
 replay.message <- function(x) {
-  log_info(fmt_cnd_msg(x), use_glue = FALSE)
+  log_info(condition_text(x), use_glue = FALSE)
 }
 
 #' @export
 replay.warning <- function(x) {
-  log_warn(fmt_cnd_msg(x), use_glue = FALSE)
+  log_warn(condition_text(x), use_glue = FALSE)
 }
 
 #' @export
 replay.error <- function(x) {
-  log_error(fmt_cnd_msg(x), use_glue = FALSE)
+  log_error(condition_text(x), use_glue = FALSE)
 }
 
 try_catch_continue <- function(expr, message, warning, error) {

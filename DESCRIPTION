@@ -29,6 +29,8 @@ Encoding: UTF-8
 Language: en-US
 Roxygen: list(markdown = TRUE, roclets = c("collate", "namespace", "rd",
     "blockr.core::block_registration_roclet"))
+Depends:
+    R (>= 4.1.3)
 Imports:
     shiny (>= 1.14.0),
     htmltools,
@@ -41,7 +43,7 @@ Imports:
     utils,
     vctrs,
     generics,
-    rlang,
+    rlang (>= 1.0.0),
     evaluate,
     cli,
     glue,

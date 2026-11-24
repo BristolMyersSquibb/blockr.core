@@ -538,18 +538,21 @@ eval_env_default_pkgs <- c(
   "stats", "graphics", "grDevices", "utils", "datasets", "methods"
 )
 
-default_eval_parent <- local({
-  cached <- NULL
-  function() {
-    if (!is.null(cached)) return(cached)
-    parent <- baseenv()
-    for (pkg in rev(eval_env_default_pkgs)) {
-      parent <- pkg_export_env(pkg, parent)
+eval_parent_cache <- new.env(parent = emptyenv())
+
+default_eval_parent <- function() {
+  rlang::env_cache(
+    eval_parent_cache,
+    "parent",
+    {
+      parent <- baseenv()
+      for (pkg in rev(eval_env_default_pkgs)) {
+        parent <- pkg_export_env(pkg, parent)
+      }
+      parent
     }
-    cached <<- parent
-    cached
-  }
-})
+  )
+}
 
 pkg_export_env <- function(pkg, parent) {
   ns <- loadNamespace(pkg)
