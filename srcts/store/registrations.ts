@@ -31,9 +31,9 @@ import type { Delta, Patch } from "./delta.ts";
 // class meet at the id.
 // A class sets any mix of its members, or none of `ui`, `frontend` and
 // `storage`, as a plugin without a place on the screen does.
-// The store reads `state`, `update`, `afterStep` and `migrate`, and core
-// tells a frontend and a storage plugin by `frontend` and `storage`, of which
-// an app runs one and one at most, and reads the rest.
+// The store reads `state`, and core tells a frontend and a storage plugin by
+// `frontend` and `storage`, of which an app runs one and one at most, and
+// reads the rest.
 // An app runs at most one plugin of each class, so a plugin is named by the id
 // of its class.
 // What sits inside a plugin's state is the class's own design, and the store
@@ -44,45 +44,51 @@ import type { Delta, Patch } from "./delta.ts";
 export interface PluginClass {
   // As "blockr.dag-dag_plugin".
   readonly id: PluginClassId;
-  // What its plugin keeps in the board: the schema of the state, with
-  // descriptions and examples for a model, against which the store checks the
-  // state after every change, and the state that the plugin starts with on a
-  // board that opens without it.
-  // The board holds nothing for the plugin of a class without one.
-  readonly state?: { readonly schema: JsonSchema; readonly default: Json };
-  // The patches to the state of the class's plugin, which `plugin` names by
-  // the class's id, that follow from a change, such as removing a removed
-  // block's position from the DAG's positions.
-  // The store calls it where the board holds the plugin's state before the
-  // change, with every change it applies, and applies what it returns in the
-  // same step.
-  // It gets the delta, as expanded so far, and the board before the delta,
-  // so that it sees what the delta removes.
-  // It reads nothing else: it calls no R and reads nothing on screen, so that
-  // every peer that applies a change computes the same patches.
-  // It mints an id only into the step it is part of.
-  update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
-  // The patches to the state of the class's plugin that follow from a step as
-  // a whole, once its last delta is in. The DAG's class places a block that a
-  // batch adds and then links by that link, which `update` has not seen yet as
-  // it is given the block's delta.
-  // The store calls it where the board holds the plugin's state, after every
-  // step that changes the board, undos and redos included. It gets the board
-  // that the step leaves and the board that the step started from.
-  // The store applies what it returns as one more delta of the step, which it
-  // expands and checks as any other, so that the patches are undone, saved and
-  // announced with the step.
-  // It reads only the two boards, so that every peer computes the same
-  // patches. Every class gets the same two boards, so none sees what another
-  // class's afterStep returns.
-  afterStep?(board: Board, before: Board, plugin: PluginClassId): readonly Patch[];
-  // Converts the plugin's state, as a JSON board holds it, from the version of
-  // the class that the board records to the one that R's `plugin_version()`
-  // gives, and returns it as the board then holds it, so that what it leaves
-  // out is gone.
-  // The store calls it as it opens a board whose recorded version of the class
-  // is below R's, with that version.
-  migrate?(state: Json, version: number): Json;
+  // What its plugin keeps in the board: the schema and the default of the
+  // state, and the functions that the store calls to keep the state current,
+  // which only a plugin with state needs.
+  // The board holds nothing for the plugin of a class without it.
+  readonly state?: {
+    // The schema of the state, with descriptions and examples for a model,
+    // against which the store checks the state after every change.
+    readonly schema: JsonSchema;
+    // The state that the plugin starts with on a board that opens without it.
+    readonly default: Json;
+    // The patches to the state of the class's plugin, which `plugin` names by
+    // the class's id, that follow from a change, such as removing a removed
+    // block's position from the DAG's positions.
+    // The store calls it where the board holds the plugin's state before the
+    // change, with every change it applies, and applies what it returns in
+    // the same step.
+    // It gets the delta, as expanded so far, and the board before the delta,
+    // so that it sees what the delta removes.
+    // It reads nothing else: it calls no R and reads nothing on screen, so
+    // that every peer that applies a change computes the same patches.
+    // It mints an id only into the step it is part of.
+    update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
+    // The patches to the state of the class's plugin that follow from a step
+    // as a whole, once its last delta is in. The DAG's class places a block
+    // that a batch adds and then links by that link, which `update` has not
+    // seen yet as it is given the block's delta.
+    // The store calls it where the board holds the plugin's state, after
+    // every step that changes the board, undos and redos included. It gets
+    // the board that the step leaves and the board that the step started
+    // from.
+    // The store applies what it returns as one more delta of the step, which
+    // it expands and checks as any other, so that the patches are undone,
+    // saved and announced with the step.
+    // It reads only the two boards, so that every peer computes the same
+    // patches. Every class gets the same two boards, so none sees what
+    // another class's afterStep returns.
+    afterStep?(board: Board, before: Board, plugin: PluginClassId): readonly Patch[];
+    // Converts the plugin's state, as a JSON board holds it, from the version
+    // of the class that the board records to the one that R's
+    // `plugin_version()` gives, and returns it as the board then holds it, so
+    // that what it leaves out is gone.
+    // The store calls it as it opens a board whose recorded version of the
+    // class is below R's, with that version.
+    migrate?(state: Json, version: number): Json;
+  };
   // What every frontend places for the class's plugin, through CoreApi's
   // mountPlugin(), which core calls with the element that the frontend gives.
   readonly ui?: PluginModule;
@@ -238,21 +244,26 @@ export interface Options {
 // and a board option's `default`.
 export type Migration = (state: Block["state"], version: number) => Block["state"];
 
-// A registration with the validator of its schema.
-export interface Checked<T> {
+// A registration with the validator of its schema, or with undefined where it
+// has no schema, as a plugin class without state has none.
+export interface Checked<T, V extends Validate | undefined = Validate> {
   readonly def: T;
-  readonly validate: Validate;
+  readonly validate: V;
 }
 
 export interface Registrations {
   readonly plugins: Plugins;
   readonly options: Options;
-  // A plugin class with the validator of its state's schema, which allows any
-  // state where the class gives none.
-  plugin(id: PluginClassId): Checked<PluginClass> | undefined;
+  // A plugin class with the validator of its state's schema, or with
+  // undefined where the class keeps no state.
+  plugin(id: PluginClassId): Checked<PluginClass, Validate | undefined> | undefined;
   option(id: OptionId): Checked<Option> | undefined;
   migration(registryId: RegistryId): Migration | undefined;
 }
+
+// The functions that a plugin class gives in its state, each with the article
+// that its name takes.
+const STATE_FUNCTIONS = [["update", "an"], ["afterStep", "an"], ["migrate", "a"]] as const;
 
 // The migrations of block classes' states, by registry id, which the store
 // reads as it opens a board, and which core gives it from the classes' UI
@@ -260,7 +271,7 @@ export interface Registrations {
 export function createRegistrations(
   migration: (registryId: RegistryId) => Migration | undefined = () => undefined,
 ): Registrations {
-  const classes = signal<ReadonlyMap<PluginClassId, Checked<PluginClass>>>(new Map());
+  const classes = signal<ReadonlyMap<PluginClassId, Checked<PluginClass, Validate | undefined>>>(new Map());
   const options = signal<readonly Checked<Option>[]>([]);
 
   const optionIndex = computed(
@@ -297,12 +308,16 @@ export function createRegistrations(
       throw new Error(`The plugin class "${id}" is registered already.`);
     }
     // A package that writes its JS without types may give members of the
-    // wrong kind.
+    // wrong kind, or give outside the state what the store calls only inside
+    // it.
     const given = def as unknown as Readonly<Record<string, unknown>>;
-    for (const [member, article] of [["update", "an"], ["afterStep", "an"], ["migrate", "a"], ["start", "a"]] as const) {
-      if (given[member] !== undefined && typeof given[member] !== "function") {
-        throw new Error(`The plugin class "${id}" has ${article} ${member} that is no function.`);
+    for (const [member, article] of STATE_FUNCTIONS) {
+      if (given[member] !== undefined) {
+        throw new Error(`The plugin class "${id}" gives ${article} ${member} outside its state.`);
       }
+    }
+    if (given.start !== undefined && typeof given.start !== "function") {
+      throw new Error(`The plugin class "${id}" has a start that is no function.`);
     }
     for (const member of ["ui", "frontend"]) {
       const drawn = given[member];
@@ -330,17 +345,22 @@ export function createRegistrations(
       throw new Error(`The plugin class "${id}" gives commands that are no array.`);
     }
     const what = `the state of the plugin class "${id}"`;
-    let validate: Validate = () => [];
+    let validate: Validate | undefined;
     const state = given.state;
     if (state !== undefined) {
       if (!isObject(state) || !isObject(state.schema) || !Object.hasOwn(state, "default")) {
         throw new Error(`The plugin class "${id}" gives a state without a schema and a default.`);
       }
+      for (const [member] of STATE_FUNCTIONS) {
+        if (state[member] !== undefined && typeof state[member] !== "function") {
+          throw new Error(`The plugin class "${id}" has a state whose ${member} is no function.`);
+        }
+      }
       validate = compile(what, state.schema as JsonSchema);
       checkInitial(what, validate, state.default as Json, "default");
     }
 
-    const item: Checked<PluginClass> = { def, validate };
+    const item: Checked<PluginClass, Validate | undefined> = { def, validate };
     classes.value = new Map([...classes.value, [id, item]]);
     return () => {
       if (classes.value.get(id) !== item) return;

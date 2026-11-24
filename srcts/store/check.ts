@@ -225,8 +225,9 @@ function checkValues(
 
 // The state of each plugin that a patch changed, or of every one as the board
 // opens, under the id of the plugin's class: the class, which a package has to
-// register and which has to keep state, and the state against the schema of
-// the class's state, as a whole.
+// register and which has to keep state, so that registration holds a validator
+// of its state, and the state against the schema of the class's state, as a
+// whole.
 function checkPlugins(
   board: Board,
   registrations: Registrations,
@@ -240,7 +241,7 @@ function checkPlugins(
       failures.push(`The board holds the state of a plugin of the class "${id}", which no package registered.`);
       continue;
     }
-    if (cls.def.state === undefined) {
+    if (cls.validate === undefined) {
       failures.push(`The board holds the state of a plugin of the class "${id}", which keeps none.`);
       continue;
     }

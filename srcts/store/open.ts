@@ -204,11 +204,11 @@ function migrate(
         );
         return [cls, state];
       }
-      if (def.migrate === undefined) return [cls, state];
+      if (def.state?.migrate === undefined) return [cls, state];
       changed.add("plugins");
       return [
         cls,
-        migratedValue(`The migration of the plugin class "${cls}"`, () => def.migrate?.(frozenCopy(state), from)),
+        migratedValue(`The migration of the plugin class "${cls}"`, () => def.state?.migrate?.(frozenCopy(state), from)),
       ];
     }),
   );
