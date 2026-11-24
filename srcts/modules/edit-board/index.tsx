@@ -6,8 +6,10 @@
 // it places any plugin whose class has a `ui`, where core mounts it with
 // mountPlugin().
 // It adds the board's blocks, links and stacks through its forms, which are
-// the advanced actions of core's board actions Add block, Create link and
-// Create stack on the board, which it mounts through mountAdvanced(), so that
+// the advanced actions of the board actions that play core's roles
+// add_block_role, add_link_role and add_stack_role on the board. Those are
+// core's Add block, Create link and Create stack, unless the app picks others.
+// The plugin mounts each form by its role's id through mountAdvanced(), so that
 // the menus offer the same forms. Each row of its tables opens the menu of its
 // block, link or stack through core.boardActions.menu(), so that it offers
 // every board action that applies to the object, a package's among them, and

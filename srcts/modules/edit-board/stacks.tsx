@@ -1,7 +1,9 @@
 // The Edit board plugin's section of stacks:
-// - The form that adds a stack, the advanced action of core's board action
-//   Create stack on the board, which the plugin mounts where a menu of the
-//   board offers Create stack.
+// - The form that adds a stack, the advanced action of the board action that
+//   plays add_stack_role on the board. That is core's Create stack, unless
+//   the app picks another board action for the role. The plugin mounts the
+//   form by the role's id where a menu of the board offers the board action
+//   that plays the role.
 // - A table of the board's stacks, with each stack's name, colour and blocks,
 //   which a search narrows and which shows a page of rows at a time. Each
 //   row's "…" opens the menu of its stack, which offers Rename, Edit stack and
@@ -26,9 +28,11 @@ import { blockName, Pager, Refusal, TableSearch, useTableView } from "../../ui/i
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
 
-// Core's board action whose advanced action the section mounts, by its id, as
-// any plugin names it.
-const CREATE_STACK = "blockr.core-add_stack_action";
+// The role of the board action whose advanced action the section mounts.
+// Given the role's id, mountAdvanced() renders the advanced action of the
+// board action that the app picks for the role, or else of core's Create
+// stack.
+const ROLE = "add_stack_role";
 
 const COLUMNS = [
   { id: "name", name: "Name", rowHeader: true },
@@ -44,9 +48,9 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
 
   return (
     <Section title="Stacks" count={stacks.length}>
-      {locked || !offers(core, CREATE_STACK, BOARD) ? null : (
+      {locked || !offers(core, ROLE, BOARD) ? null : (
         <Part title="Add a stack">
-          <Advanced core={core} id={CREATE_STACK} target={BOARD} />
+          <Advanced core={core} role={ROLE} target={BOARD} />
         </Part>
       )}
       <Part title="Stacks on the board">

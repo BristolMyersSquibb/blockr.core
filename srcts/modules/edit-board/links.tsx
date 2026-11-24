@@ -1,9 +1,11 @@
 // The Edit board plugin's section of links:
-// - The form that adds a link, the advanced action of core's board action
-//   Create link on the board, which the plugin mounts where a menu of the
-//   board offers Create link, as where the board holds a block that a new
-//   link can join to another. Elsewhere the section says why it holds no
-//   form.
+// - The form that adds a link, the advanced action of the board action that
+//   plays add_link_role on the board. That is core's Create link, unless the
+//   app picks another board action for the role. The plugin mounts the form
+//   by the role's id where a menu of the board offers the board action that
+//   plays the role. A menu of the board offers Create link where the board
+//   holds a block that a new link can join to another. Elsewhere the section
+//   says why it holds no form.
 // - A table of the board's links, with the block that each comes from, the
 //   block it goes to and the input it feeds, which a search narrows and which
 //   shows a page of rows at a time. For a link into a variadic block, the
@@ -28,9 +30,10 @@ import { blockName, isVariadicBlock, Pager, Refusal, TableSearch, useTableView }
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
 
-// Core's board action whose advanced action the section mounts, by its id, as
-// any plugin names it.
-const CREATE_LINK = "blockr.core-add_link_action";
+// The role of the board action whose advanced action the section mounts.
+// Given the role's id, mountAdvanced() renders the advanced action of the
+// board action that the app picks for the role, or else of core's Create link.
+const ROLE = "add_link_role";
 
 const COLUMNS = [
   { id: "from", name: "From", rowHeader: true },
@@ -52,8 +55,8 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
     <Section title="Links" count={links.length}>
       {locked ? null : (
         <Part title="Add a link">
-          {offers(core, CREATE_LINK, BOARD) ? (
-            <Advanced core={core} id={CREATE_LINK} target={BOARD} />
+          {offers(core, ROLE, BOARD) ? (
+            <Advanced core={core} role={ROLE} target={BOARD} />
           ) : (
             <p className={styles.hint}>
               {Object.keys(board.blocks).length < 2
