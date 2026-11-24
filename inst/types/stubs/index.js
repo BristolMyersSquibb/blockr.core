@@ -7901,6 +7901,15 @@ function actionRow(action3, board, target2) {
 function levelItem(label, level) {
   return { kind: "item", label, pick: () => level };
 }
+function nameRow(value2, submit) {
+  return {
+    kind: "text",
+    label: "Name",
+    value: value2,
+    check: (given) => given.trim() === "" ? "A name cannot be empty." : void 0,
+    submit: (given) => submit(given.trim())
+  };
+}
 function isBatch(value2) {
   return Array.isArray(value2) && value2.every((call2) => isObject(call2) && typeof call2.id === "string");
 }
@@ -12250,6 +12259,7 @@ function sameBlocks(a, b) {
 // srcts/actions/stacks.ts
 var CREATE_STACK = "blockr.core-add_stack_action";
 var EDIT_STACK = "blockr.core-edit_stack_action";
+var ADD_TO_STACK = "blockr.core-add_to_stack_action";
 var ADD_STACK2 = "blockr.core-add_stack";
 var CHANGE_STACK2 = "blockr.core-change_stack";
 function createStackAction() {
@@ -12263,8 +12273,8 @@ function createStackAction() {
     quick(board, target2, core) {
       const blocks = heldBlocks(board, target2);
       if (!("board" in target2) && blocks.length === 0) return void 0;
-      const rows = [{ kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) }];
-      return blocks.length === 0 ? { rows } : { title: `Add ${blocksLabel(board, blocks)} to`, rows };
+      const rows = [nameRow(suggestedName(Object.values(board.stacks)), (name2) => newStack(core, blocks, name2))];
+      return blocks.length === 0 ? { rows } : { title: `New stack of ${blocksLabel(board, blocks)}`, rows };
     },
     advanced: createStackForm,
     role: "add_stack_role"
@@ -12292,20 +12302,48 @@ function editStackAction() {
     role: "edit_stack_role"
   };
 }
-function newStack(core, blocks) {
-  const stacks = core.store.board().stacks;
-  const others = Object.values(stacks);
+function addToStackAction() {
+  return {
+    id: ADD_TO_STACK,
+    label: "Add to stack",
+    on: ["block", "selection"],
+    category: "edit",
+    offers: (board, target2, lock) => !lock.board && joinable(board, heldBlocks(board, target2)).length > 0,
+    quick(board, target2) {
+      const blocks = heldBlocks(board, target2);
+      const stacks = joinable(board, blocks);
+      if (stacks.length === 0) return void 0;
+      return {
+        title: `Add ${blocksLabel(board, blocks)} to`,
+        rows: stacks.map(
+          ([id2, stack]) => ({
+            kind: "item",
+            label: stack.name,
+            icon: swatch(stack.color),
+            detail: count(stack.blocks.length),
+            pick: () => [{ id: CHANGE_STACK2, args: { id: id2, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }]
+          })
+        )
+      };
+    },
+    role: "add_to_stack_role"
+  };
+}
+function newStack(core, blocks, name2) {
   return [
     {
       id: ADD_STACK2,
       args: {
         id: core.mintId((id2) => Object.hasOwn(core.store.board().stacks, id2)),
-        name: suggestedName(others),
-        color: suggestedColor(others),
+        name: name2,
+        color: suggestedColor(Object.values(core.store.board().stacks)),
         blocks
       }
     }
   ];
+}
+function joinable(board, blocks) {
+  return Object.entries(board.stacks).filter(([, stack]) => blocks.some((block) => !stack.blocks.includes(block)));
 }
 function colourRows(board, id2, stack) {
   const used = new Set(
@@ -12368,18 +12406,7 @@ function coreBoardActions(parts) {
         const object2 = named2(board, target2);
         if (object2 === void 0) return void 0;
         return {
-          rows: [
-            {
-              kind: "text",
-              label: "Name",
-              value: object2.name,
-              check: (value2) => value2.trim() === "" ? "A name cannot be empty." : void 0,
-              submit(value2) {
-                const name2 = value2.trim();
-                return name2 === object2.name ? [] : [{ id: object2.command, args: { id: object2.id, name: name2 } }];
-              }
-            }
-          ]
+          rows: [nameRow(object2.name, (name2) => name2 === object2.name ? [] : [{ id: object2.command, args: { id: object2.id, name: name2 } }])]
         };
       },
       role: "rename_role"
@@ -12398,6 +12425,7 @@ function coreBoardActions(parts) {
       role: "edit_inputs_role"
     },
     editStackAction(),
+    addToStackAction(),
     {
       id: "blockr.core-copy_block_id_action",
       label: "Copy block ID",
@@ -12507,6 +12535,8 @@ var CORE_ROLES = [
   { id: "edit_inputs_role", on: ["block"], default: "blockr.core-edit_inputs_action" },
   // Changes the stack, its name, its colour or its blocks.
   { id: "edit_stack_role", on: ["stack"], default: "blockr.core-edit_stack_action" },
+  // Puts the blocks that the target holds into a stack that the board holds.
+  { id: "add_to_stack_role", on: ["block", "selection"], default: "blockr.core-add_to_stack_action" },
   // Removes the block, the link or the stack.
   { id: "remove_block_role", on: ["block"], default: "blockr.core-remove_block_action" },
   { id: "remove_link_role", on: ["link"], default: "blockr.core-remove_link_action" },
@@ -15770,10 +15800,11 @@ var CORE_EDITS = {
   "blockr.core-prepend_block_action": (object2) => `prepend a block to ${object2}`,
   "blockr.core-insert_block_action": (object2) => `insert a block into ${object2}`,
   "blockr.core-add_link_action": (object2) => `add a link for ${object2}`,
-  "blockr.core-add_stack_action": (object2) => `put ${object2} in a stack`,
+  "blockr.core-add_stack_action": (object2) => `put ${object2} in a new stack`,
   "blockr.core-rename_action": (object2) => `rename ${object2}`,
   "blockr.core-edit_link_action": (object2) => `change ${object2}`,
   "blockr.core-edit_stack_action": (object2) => `change ${object2}`,
+  "blockr.core-add_to_stack_action": (object2) => `add ${object2} to a stack`,
   "blockr.core-remove_block_action": (object2) => `remove ${object2}`,
   "blockr.core-remove_link_action": (object2) => `remove ${object2}`,
   "blockr.core-remove_stack_action": (object2) => `remove ${object2}`,

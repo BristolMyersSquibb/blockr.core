@@ -81,12 +81,12 @@ const SELECTION = "selection";
 
 // The bar of the selection, while the selection holds a board object, of
 // whatever kind and whatever selected it: how many it holds, a "…" button that
-// opens the menu of the selection, which offers Remove and Create stack among
-// core's board actions, and a button that clears the selection. An advanced
-// action that the menu opens shows below the bar, as Create stack's form with
-// the selected blocks given, until it ends, even where the selection empties
-// meanwhile. Why the store refused a board action that the menu ran shows
-// below the bar too.
+// opens the menu of the selection, which offers Remove, Create stack and Add
+// to stack among core's board actions, and a button that clears the
+// selection. An advanced action that the menu opens shows below the bar, as
+// Create stack's form with the selected blocks given, until it ends, even
+// where the selection empties meanwhile. Why the store refused a board action
+// that the menu ran shows below the bar too.
 function SelectionBar({ core }: { core: CoreApi }): ReactElement | null {
   const selected = useSelected(core);
   const menus = useMenus(core);

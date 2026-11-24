@@ -541,7 +541,8 @@ describe("a card", () => {
     // Links feed every input of the head block, so it offers no Prepend block.
     expect(labels(head)).toEqual(["Append block", "Create link", "Create stack", "Rename", "Edit inputs", "Copy block ID", "Remove block"]);
     head.escape();
-    // The bind block is variadic, so it takes one more link.
+    // The bind block is variadic, so it takes one more link, and no stack
+    // holds it, as the stack Input holds the head block, so it joins one.
     expect(labels(await menu(page, "Bind"))).toEqual([
       "Append block",
       "Prepend block",
@@ -549,6 +550,7 @@ describe("a card", () => {
       "Create stack",
       "Rename",
       "Edit inputs",
+      "Add to stack",
       "Copy block ID",
       "Remove block",
     ]);

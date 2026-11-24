@@ -1,17 +1,19 @@
 // Core's board actions, from the table of Core's board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions),
 // in its order: Add block, Append block, Prepend block and Insert block,
-// Create link, Create stack, Rename, Edit link, Edit inputs, Edit stack,
-// Copy block ID, Remove block, Remove link, Remove stack, and Remove on a
-// selection. Their ids are under blockr.core and keep the names of the dock's
-// actions, as blockr.core-remove_block_action, but for Rename and Copy block
-// ID, which are new.
+// Create link, Create stack, Rename, Edit link, Edit inputs, Edit stack, Add
+// to stack, Copy block ID, Remove block, Remove link, Remove stack, and Remove
+// on a selection. Their ids are under blockr.core and keep the names of the
+// dock's actions, as blockr.core-remove_block_action, but for Rename, Copy
+// block ID and Add to stack, which are new.
 // - Add block, Append block, Prepend block and Insert block add a block
 //   through a pick in their quick actions, or through the block picker, their
 //   advanced action (./add.tsx).
 // - Create link and Edit link add and change a link, and Create stack and Edit
 //   stack a stack, through their quick actions and their advanced actions,
-//   the forms of a link and of a stack (./links.ts, ./stacks.ts).
+//   the forms of a link and of a stack. Add to stack puts blocks into a stack
+//   that the board holds, through its quick action alone (./links.ts,
+//   ./stacks.ts).
 // - Rename, on a block or a stack, asks for the name in its quick action, a
 //   text row that holds the name, which refuses an empty name, and runs core's
 //   command that renames the block or the stack. A name that the user leaves
@@ -55,7 +57,8 @@ import { addingBoardActions } from "./add.tsx";
 import { copyText } from "./clipboard.ts";
 import { editInputs } from "./inputs.tsx";
 import { createLinkAction, editLinkAction } from "./links.ts";
-import { createStackAction, editStackAction } from "./stacks.ts";
+import { nameRow } from "./quick.ts";
+import { addToStackAction, createStackAction, editStackAction } from "./stacks.ts";
 import { blockOf, held, heldBlock } from "./targets.ts";
 
 // What core's board actions read beyond what their functions get: what raises
@@ -86,18 +89,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
         const object = named(board, target);
         if (object === undefined) return undefined;
         return {
-          rows: [
-            {
-              kind: "text",
-              label: "Name",
-              value: object.name,
-              check: (value) => (value.trim() === "" ? "A name cannot be empty." : undefined),
-              submit(value) {
-                const name = value.trim();
-                return name === object.name ? [] : [{ id: object.command, args: { id: object.id, name } }];
-              },
-            },
-          ],
+          rows: [nameRow(object.name, (name) => (name === object.name ? [] : [{ id: object.command, args: { id: object.id, name } }]))],
         };
       },
       role: "rename_role",
@@ -116,6 +108,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
       role: "edit_inputs_role",
     },
     editStackAction(),
+    addToStackAction(),
     {
       id: "blockr.core-copy_block_id_action",
       label: "Copy block ID",

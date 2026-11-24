@@ -876,23 +876,27 @@
 * Loading `@blockr/core/stubs` makes every document of `happy-dom` an instance of the window's `Document`, as in a browser.
   React Aria finds the focus within an element only where the root of the element is such an instance.
   So in a test, a popover or a dialog of the SDK that a pointer press opens no longer takes the focus from one of its elements that took the focus first, such as a search field with `autoFocus` (#818).
-* Core registers four more board actions, which create and edit a link or a stack.
+* Core registers five more board actions, which create and edit a link or a stack, and put blocks into a stack.
   Create link applies to a block that a new link can join to another, and to the board where it holds such a block.
   On a block, its quick action lists the blocks that the block can send to and those that it can take from, by their names and IDs, and then asks for the input, where the block that the link goes into has several free ones.
   It lists only the links for which the preflight of `blockr.core-add_link` passes, and no menu offers it where none would be left.
   On the board, its row opens its advanced action at once.
   Edit link applies to a link, and its quick action offers Change source…, Move to input…, whose inputs that another link feeds swap the inputs of the two links, and, into a variadic block, Rename input….
   Create stack applies to a block, to a selection that holds a block and to the board.
-  Its quick action lists the board's stacks that the blocks join, and New stack, which adds a stack of the blocks with a name and a color that no other stack has.
+  Its quick action is a field that holds a name that no other stack has, which the user may change.
+  Submitting it adds a stack of the blocks under that name, in a color that no other stack has.
   Edit stack applies to a stack, and its quick action gives the stack a color of the palette that no other stack has, or ticks the stack's blocks.
-  Under the board lock, all four fail their `offers`.
-  Their advanced actions are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
+  Add to stack, `blockr.core-add_to_stack_action`, applies to a block and to a selection that holds a block, where the board holds a stack that lacks one of the blocks.
+  Its quick action lists those stacks, and the blocks join the one that the user picks, leaving the stack that held them.
+  Under the board lock, all five fail their `offers`.
+  Add to stack has no advanced action.
+  The advanced actions of the other four are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
   Each form runs nothing before the user submits it, and then hands its batch to `done()`, which runs it as one step of the user.
   So applying a form that edits, through its Apply button, takes one step, where the plugin's forms took one for each command until now, as for renaming a stack and changing its blocks.
   A form that adds mints the new link's or stack's ID with `core.mintId()`.
   Where the store refuses the batch, the form says why below its button and keeps what the user gave.
   A row of the plugin's tables turns into the form that edits its link or its stack, with a Close button, which closes it, as Escape does, while Escape in a select whose list is open closes the list alone.
-  The form stays open in the row once the user has applied it, and shows the link or the stack as the board holds it then (#746, #828).
+  The form stays open in the row once the user has applied it, and shows the link or the stack as the board holds it then (#746, #826, #828).
 * Core's board action Edit inputs, `blockr.core-edit_inputs_action`, edits the inputs of a block whose class has inputs.
   It has an advanced action alone, which lists the block's inputs in their order, each with its source, as the dock's actions sidebar does.
   On a block that is not variadic, each input of its class has a select of its source and a button that removes the source.
@@ -963,7 +967,6 @@
   The calls `core.boardActions.trigger()` and `mountAdvanced()` take a role's ID in place of a board action's, and act on the board action that plays the role, while they run nothing for the ID of a board action that names a role that it does not play.
   The Edit board plugin mounts its forms that add a block, a link and a stack by the IDs of `add_block_role`, `add_link_role` and `add_stack_role`.
   So it shows the form of the board action that the app picks for each of those roles.
-  Create stack's quick action holds New stack alone, and lists no stack that the board holds, since Create stack plays `add_stack_role`, which adds a stack.
   Opened on a block, the form of Create link names that block in a line, as `A link from "Scatter".`, in place of the select of the end at that block, and offers a select of the other end alone.
   Opened on a block or a selection, the form of Create stack names their blocks in a line in place of the select of blocks, since the new stack takes exactly those blocks (#825, #830).
 

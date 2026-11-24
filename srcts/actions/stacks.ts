@@ -1,13 +1,15 @@
-// Core's board actions that create and edit a stack, from the table of Core's
-// board actions
+// Core's board actions that create, edit and join a stack, from the table of
+// Core's board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions):
 // - Create stack, on a block, on a selection that holds a block, of which it
-//   takes the blocks, or on the board. Its quick action holds New stack, which
-//   runs blockr.core-add_stack, with the blocks, or with none on the board, a
-//   name and a colour that no other stack has, and an ID that CoreApi mints as
-//   the user picks it. A block that the new stack takes leaves the stack that
-//   held it. It plays add_stack_role, which adds a stack, so that its quick
-//   action lists no stack that the board holds for the blocks to join.
+//   takes the blocks, or on the board. Its quick action is a text row that
+//   holds a name that no other stack has, which the user may change.
+//   Submitting it runs blockr.core-add_stack, with the blocks, or with none on
+//   the board, the name, a colour that no other stack has, and an ID that
+//   CoreApi mints as the user submits it. A block that the new stack takes
+//   leaves the stack that held it. It plays add_stack_role, which adds a
+//   stack, while Add to stack, below, puts blocks into a stack that the board
+//   holds.
 //   Its advanced action is the form of a stack (./stack-form.tsx), with the
 //   blocks given, or with none on the board.
 // - Edit stack, on a stack. Its quick action offers Colour…, which lists the
@@ -17,8 +19,17 @@
 //   runs blockr.core-change_stack. Its advanced action is the form of a stack,
 //   editing it. Renaming and removing a stack are core's Rename and Remove
 //   stack. It plays edit_stack_role.
-// Under the board lock, both fail their offers(), since the store refuses
-// what they run.
+// - Add to stack, on a block or on a selection that holds a block, of which
+//   it takes the blocks. Its quick action lists the board's stacks that the
+//   blocks join, as blockr.dock#550 had them, each with its colour as its
+//   icon and how many blocks it holds at its end. A stack that holds every
+//   one of the blocks already is left out, since joining it would change
+//   nothing, and Add to stack fails its offers() where no stack is left. Each
+//   row runs blockr.core-change_stack, which puts the blocks at the end of the
+//   stack and takes them out of the stack that held them. It has no advanced
+//   action, and plays add_to_stack_role.
+// Under the board lock, all three fail their offers(), since the store
+// refuses what they run.
 
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -26,13 +37,14 @@ import { blockName } from "../ui/index.ts";
 import { own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { PLUS, swatch } from "./icons.ts";
-import { levelItem } from "./quick.ts";
+import { levelItem, nameRow } from "./quick.ts";
 import type { QuickRow } from "./quick.ts";
 import { createStackForm, editStackForm, PALETTE, suggestedColor, suggestedName } from "./stack-form.tsx";
 import { heldBlocks } from "./targets.ts";
 
 const CREATE_STACK = "blockr.core-add_stack_action";
 const EDIT_STACK = "blockr.core-edit_stack_action";
+const ADD_TO_STACK = "blockr.core-add_to_stack_action";
 const ADD_STACK = "blockr.core-add_stack";
 const CHANGE_STACK = "blockr.core-change_stack";
 
@@ -47,8 +59,8 @@ export function createStackAction(): BoardAction {
     quick(board, target, core) {
       const blocks = heldBlocks(board, target);
       if (!("board" in target) && blocks.length === 0) return undefined;
-      const rows: QuickRow[] = [{ kind: "item", label: "New stack", icon: PLUS, pick: () => newStack(core, blocks) }];
-      return blocks.length === 0 ? { rows } : { title: `Add ${blocksLabel(board, blocks)} to`, rows };
+      const rows = [nameRow(suggestedName(Object.values(board.stacks)), (name) => newStack(core, blocks, name))];
+      return blocks.length === 0 ? { rows } : { title: `New stack of ${blocksLabel(board, blocks)}`, rows };
     },
     advanced: createStackForm,
     role: "add_stack_role",
@@ -78,22 +90,54 @@ export function editStackAction(): BoardAction {
   };
 }
 
-// The batch that adds a stack of the blocks, with a name and a colour that no
-// other stack has, under an ID that CoreApi mints.
-function newStack(core: CoreApi, blocks: readonly BlockId[]): CommandCall[] {
-  const stacks = core.store.board().stacks;
-  const others = Object.values(stacks);
+export function addToStackAction(): BoardAction {
+  return {
+    id: ADD_TO_STACK,
+    label: "Add to stack",
+    on: ["block", "selection"],
+    category: "edit",
+    offers: (board, target, lock) => !lock.board && joinable(board, heldBlocks(board, target)).length > 0,
+    quick(board, target) {
+      const blocks = heldBlocks(board, target);
+      const stacks = joinable(board, blocks);
+      if (stacks.length === 0) return undefined;
+      return {
+        title: `Add ${blocksLabel(board, blocks)} to`,
+        rows: stacks.map(
+          ([id, stack]): QuickRow => ({
+            kind: "item",
+            label: stack.name,
+            icon: swatch(stack.color),
+            detail: count(stack.blocks.length),
+            pick: () => [{ id: CHANGE_STACK, args: { id, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }],
+          }),
+        ),
+      };
+    },
+    role: "add_to_stack_role",
+  };
+}
+
+// The batch that adds a stack of the blocks under the name given, with a
+// colour that no other stack has, under an ID that CoreApi mints.
+function newStack(core: CoreApi, blocks: readonly BlockId[], name: string): CommandCall[] {
   return [
     {
       id: ADD_STACK,
       args: {
         id: core.mintId((id) => Object.hasOwn(core.store.board().stacks, id)),
-        name: suggestedName(others),
-        color: suggestedColor(others),
+        name,
+        color: suggestedColor(Object.values(core.store.board().stacks)),
         blocks,
       },
     },
   ];
+}
+
+// The board's stacks that the blocks join, with their IDs: each that lacks one
+// of the blocks, so that none is left where no block is given.
+function joinable(board: Board, blocks: readonly BlockId[]): [StackId, Stack][] {
+  return Object.entries(board.stacks).filter(([, stack]) => blocks.some((block) => !stack.blocks.includes(block)));
 }
 
 // The rows of Colour…: the stack's colour, which changes nothing, and each
