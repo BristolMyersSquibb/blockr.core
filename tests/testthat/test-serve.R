@@ -1161,6 +1161,24 @@ test_that("a plugin's board option that no package lists stops the app", {
   expect_s3_class(serve(served_board(), plugins = rows), "shiny.appobj")
 })
 
+test_that("a board option's renderer with requests of its own stops the app", {
+
+  labels <- new_renderer(
+    "labels",
+    test_module("labels.js"),
+    requests = list(labels = function(result) names(result))
+  )
+
+  withr::local_options(blockr.renderers = list(n_rows = labels))
+
+  # R refuses it as serve() is called, before any session says hello
+  expect_error(
+    serve(served_board()),
+    "names renderer blockr.test-labels for board option n_rows",
+    class = "renderers_blockr_option_invalid"
+  )
+})
+
 test_that("the page names the files that it imports, which R serves at once", {
 
   # A module of its own content, which R serves nowhere yet.

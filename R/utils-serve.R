@@ -373,6 +373,8 @@ check_outside_classes <- function(classes) {
 # same ones in whatever process runs the app.
 # A component of the app that reads a board option that no available package
 # lists stops the app here (see `check_component_options()`).
+# So does a renderer that the blockr option `renderers` names for a board
+# option and that brings requests of its own (see `option_renderers()`).
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -404,6 +406,7 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
   families <- app_families()
 
   check_component_options(registry, plugins, options, families)
+  option_renderers(options)
 
   modules <- page_modules(board, registry, plugins, options, families, offered)
   dark_mode <- board_dark_mode(board)

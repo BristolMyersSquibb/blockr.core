@@ -62,7 +62,7 @@ of that ID.
 R sends the renderer of each such key in its reply to \code{hello}, under the
 key, so one renderer may draw several board options.
 Such a renderer reaches R through the requests of the board option that it
-draws, so R refuses one that brings requests of its own.
+draws, so \code{\link[=serve]{serve()}} refuses one that brings requests of its own.
 
 A renderer of outputs may bring requests of its own, for what the output
 does not hold, such as the labels of a table's columns, which core's table
