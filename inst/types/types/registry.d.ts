@@ -15,6 +15,7 @@ export interface RegistryEntry {
     readonly css?: string;
     readonly version: number;
     readonly schema: JsonSchema;
+    readonly block_name: string;
     readonly state: Readonly<Record<string, Json>>;
     readonly options?: readonly OptionId[];
     readonly requests: Readonly<Record<string, {

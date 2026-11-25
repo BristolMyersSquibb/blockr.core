@@ -48,8 +48,8 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
   expect_named(
     entry,
     c("id", "name", "description", "keywords", "category", "icon", "inputs",
-      "module", "version", "schema", "state", "options", "requests",
-      "output_options", "renderers")
+      "module", "version", "schema", "block_name", "state", "options",
+      "requests", "output_options", "renderers")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -91,6 +91,14 @@ test_that("an entry holds no block class, constructor or package", {
     ),
     0L
   )
+})
+
+test_that("an entry names a new block as R's constructors do", {
+
+  reply <- declared_fields()$block_registry
+
+  expect_identical(reply$count_block$block_name, "Count")
+  expect_identical(reply$letters_block$block_name, "Letters")
 })
 
 test_that("the starting state is written by the schema of the class's state", {

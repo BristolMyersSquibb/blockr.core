@@ -2,10 +2,13 @@
 % Please edit documentation in R/utils-misc.R
 \name{blockr_option}
 \alias{blockr_option}
+\alias{blockr_flag}
 \alias{set_blockr_options}
 \title{Blockr Options}
 \usage{
 blockr_option(name, default)
+
+blockr_flag(name, default)
 
 set_blockr_options(...)
 }
@@ -17,9 +20,11 @@ set_blockr_options(...)
 \item{...}{Option key value pairs as named arguments}
 }
 \value{
-The value set as option \code{name} or \code{default} if not set. In case of
-the option being available only as environment variable, the value will be
-a string and if available as \code{\link[base:options]{base::options()}} entry it may be of any R type.
+The \code{blockr_option()} reader returns the value set as option \code{name}
+or \code{default} if not set. In case of the option being available only as
+environment variable, the value will be a string and if available as
+\code{\link[base:options]{base::options()}} entry it may be of any R type.
+The \code{blockr_flag()} reader returns \code{TRUE} or \code{FALSE}.
 }
 \description{
 Retrieves options via \code{\link[base:getOption]{base::getOption()}} or \code{\link[base:Sys.getenv]{base::Sys.getenv()}}, in that
@@ -27,6 +32,11 @@ order, and prefixes the option name passed as \code{name} with \code{blockr.} or
 \code{blockr_} respectively. Additionally, the name is converted to lower case
 for \code{getOption()} and upper case for environment variables. In case no value
 is available for a given \code{name}, \code{default} is returned.
+}
+\details{
+The \code{blockr_flag()} reader reads a blockr option that is \code{TRUE} or \code{FALSE}.
+It trims a string before converting it with \code{\link[base:as.logical]{base::as.logical()}}.
+Any other value must already be \code{TRUE} or \code{FALSE}.
 }
 \examples{
 blockr_option("test-example", "default")

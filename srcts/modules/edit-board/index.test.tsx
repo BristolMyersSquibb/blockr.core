@@ -9,7 +9,7 @@
 // (a to f), and its stack s1, Input, holds a and b.
 
 import { act } from "react";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AdvancedModule, BoardAction, CommandCall, Target } from "../../actions/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass } from "../../store/index.ts";
@@ -28,6 +28,24 @@ import type { CoreApi, Notification } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import { editTitle } from "./menus.tsx";
 import * as editBoard from "./index.tsx";
+
+// How many times the React roots on the page committed, the plugin's and those
+// of its forms, as React DOM hands each commit to the hook of React's
+// developer tools. React DOM looks for the hook as it loads, so vi.hoisted()
+// sets it before the imports run.
+const commits = vi.hoisted(() => {
+  const counted = { count: 0 };
+  Object.assign(globalThis, {
+    __REACT_DEVTOOLS_GLOBAL_HOOK__: {
+      supportsFiber: true,
+      inject: () => 1,
+      onCommitFiberRoot: () => {
+        counted.count++;
+      },
+    },
+  });
+  return counted;
+});
 
 // The class of the plugin, which the app of the fixture hello runs.
 const EDIT = "blockr.core-edit_board_plugin";
@@ -1594,5 +1612,52 @@ describe("on a board that holds no blocks", () => {
     await chosen(add, "To", "Head");
     await click(button(add, "Add link"));
     expect(Object.values(board().links)).toEqual([{ from: "iris", to: "rows", input: "data" }]);
+  });
+});
+
+describe("each part of the plugin", () => {
+  test("draws nothing again for a change that it shows nothing of, its forms included: a block's state, a board option, a plugin's state, or undoing such a change", async () => {
+    const notes: PluginClass = { id: "blockr.test-notes_plugin", state: { schema: { type: "object" }, default: { text: "" } } };
+    const { el, core } = await mounted({
+      hello: withPlugins({ [notes.id]: { name: "Notes", state: { text: "To do" } } }, HELLO),
+      modules: listedModules([notes]),
+    });
+    const before = commits.count;
+
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { state: { n: 3, direction: "head" } } } } });
+    });
+    await step(() => {
+      core.store.apply({ options: { set: { n_rows: 25 } } });
+    });
+    await step(() => {
+      core.store.apply({ patches: [{ op: "replace", path: `/plugins/${notes.id}/text`, value: "Done" }] });
+    });
+    await step(() => {
+      core.store.undo();
+    });
+    expect(core.store.board().plugins[notes.id]).toEqual({ text: "To do" });
+    expect(commits.count).toBe(before);
+
+    // A change that the plugin shows draws again the parts that show it.
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { name: "First rows" } } } });
+    });
+    expect(commits.count).toBeGreaterThan(before);
+    expect(names(el, "Blocks")).toContain("First rows");
+  });
+
+  test("follows what the board actions offer on its rows, which may read any part of the board, such as a board option", async () => {
+    // Under the board lock, none of core's board actions applies to a link, so
+    // a row of the links shows a "…" only where this one applies.
+    const counted: BoardAction = { ...action("Count rows", ["link"], () => undefined), offers: (board) => board.options.n_rows === 25 };
+    const { el, core } = await withActions([counted], { ...HELLO, lock: { board: true, load: false } });
+    const offered = (): string[] => rows(el, "Links").filter((id) => row(section(el, "Links"), id).querySelector("button") !== null);
+    expect(offered()).toEqual([]);
+
+    await step(() => {
+      core.store.apply({ options: { set: { n_rows: 25 } } });
+    });
+    expect(offered()).toHaveLength(7);
   });
 });

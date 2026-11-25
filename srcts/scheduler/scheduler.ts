@@ -59,7 +59,7 @@ import type { Asked, Plan, Sent } from "./plan.ts";
 import { inputsByBlock } from "./recipes.ts";
 import type { Inputs } from "./recipes.ts";
 import { bump, counter, opening, revise } from "./revisions.ts";
-import { blockStatuses, keptWaiting, replyOutcome, unsent } from "./status.ts";
+import { blockStatuses, replyOutcome, unsent } from "./status.ts";
 import type { BlockStatus, Outcome, Unsent } from "./status.ts";
 
 export interface Scheduler {
@@ -86,8 +86,10 @@ export interface Scheduler {
   // or not. R passes the parameters to the block's block_eval() method. Each
   // evaluation goes once R holds what the block reads, at the revision the
   // block has then. Once sent, it is never cancelled. The evaluation resolves
-  // with the statuses R's replies give. It rejects where a block reads waiting,
-  // since no result is in sight.
+  // with the statuses R's replies give. It rejects where an input or a block
+  // upstream keeps a block waiting, as the block's status says in
+  // `keptWaiting`, since no result is in sight. A block that R says waits goes
+  // to R, as for its save button.
   evaluate(
     blocks: Iterable<BlockId>,
     params?: Record<string, Json>,
@@ -493,11 +495,12 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
 
   // A reply's outcome becomes the block's where it is for the block's current
-  // revision, and no input or block upstream keeps the block waiting. A block
-  // that R said waits takes it, as from its save button. It replaces the
-  // evaluation that the transport could not send, if any. A reply of
-  // `cancelled` or `missing` has no outcome. A reply to an evaluation for a
-  // one-time evaluation with parameters goes to that one-time evaluation too.
+  // revision, and no input or block upstream keeps the block waiting, as the
+  // block's status says in `keptWaiting`. A block that R said waits takes it,
+  // as from its save button. It replaces the evaluation that the transport
+  // could not send, if any. A reply of `cancelled` or `missing` has no outcome.
+  // A reply to an evaluation for a one-time evaluation with parameters goes to
+  // that one-time evaluation too.
   const answered = action((id: number, reply: Reply) => {
     const evaluation = done(id);
     if (evaluation === undefined || ended()) return;
@@ -507,7 +510,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     if (
       outcome !== undefined &&
       evaluation.revision === revisions.value.get(evaluation.block) &&
-      keptWaiting(inputs.value.get(evaluation.block), statuses.value) === undefined
+      statuses.value.get(evaluation.block)?.keptWaiting === null
     ) {
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
       if (unsentEvaluations.value.has(evaluation.block)) {
@@ -583,7 +586,6 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           graph: graph.value,
           revisions: revisions.value,
           statuses: statuses.value,
-          inputs: inputs.value,
           needs: needs.value,
           sent: sent.value.values(),
           asked: asked.value.values(),
@@ -752,7 +754,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           else resolve(result.statuses);
         });
 
-        const oneTime = evaluations.createOneTime([...new Set(blocks)], params, at, statuses.value, inputs.value);
+        const oneTime = evaluations.createOneTime([...new Set(blocks)], params, at, statuses.value);
         if (oneTime instanceof Error) {
           update({ oneTimes: oneTimes.value, settled: [[id, { error: oneTime }]] });
         } else {

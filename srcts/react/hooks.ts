@@ -5,7 +5,8 @@
 // so that it meets the contract of a block's UI as every bound control does,
 // and follows the requests it shows the answers of.
 // A component that holds CoreApi, as the UI of a plugin does, follows the
-// board, a block's status and the notifications in the same way.
+// board, or the part of it that the component shows, a block's status and
+// the notifications in the same way.
 // Core's own frontend and cards follow them through these hooks too.
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -257,7 +258,21 @@ function readAlike(a: Read, b: Read, state: State): boolean {
 
 // The board, which the store keeps the same object until it announces a
 // change.
-export function useBoard(core: Pick<CoreApi, "store">): Board {
+// Given `select`, the hook gives what `select` takes from the board instead,
+// such as each block's name. The component then draws again only where that
+// changes, and not for a change of another part of the board, such as a
+// block's state.
+// What `select` takes is plain data: objects, arrays and values of JSON. The
+// hook compares it by value with jsonEqual(), and gives the object that it
+// gave before where the new data is equal to it. A Map or a Set does not do,
+// since jsonEqual() finds any two of them equal.
+// The function may also read what follows the board, such as the board
+// actions that core.boardActions.on() offers.
+// The hook calls an inline `select` again on each render, since it is a new
+// function each time.
+export function useBoard(core: Pick<CoreApi, "store">): Board;
+export function useBoard<T>(core: Pick<CoreApi, "store">, select: (board: Board) => T): T;
+export function useBoard<T>(core: Pick<CoreApi, "store">, select?: (board: Board) => T): Board | T {
   const subscribe = useCallback(
     (notify: () => void) =>
       core.store.subscribe(() => {
@@ -265,7 +280,21 @@ export function useBoard(core: Pick<CoreApi, "store">): Board {
       }),
     [core],
   );
-  return useSyncExternalStore(subscribe, () => core.store.board());
+  // What the component reads: the board, or what `select` took from the board
+  // that the store last announced.
+  const read = useMemo(() => {
+    if (select === undefined) return (): Board | T => core.store.board();
+    let last: { readonly board: Board; readonly value: T } | undefined;
+    return (): Board | T => {
+      const board = core.store.board();
+      if (last?.board !== board) {
+        const value = select(board);
+        last = { board, value: last !== undefined && jsonEqual(last.value, value) ? last.value : value };
+      }
+      return last.value;
+    };
+  }, [core, select]);
+  return useSyncExternalStore(subscribe, read);
 }
 
 // The block's status, which the scheduler keeps the same object until it

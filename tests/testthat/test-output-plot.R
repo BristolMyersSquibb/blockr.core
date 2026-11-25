@@ -283,12 +283,13 @@ test_that("a font is available where the system has it", {
   expect_false(font_available("No Such Font Family"))
 })
 
-test_that("a PNG is drawn without ragg too", {
+test_that("a plot that draws nothing gives a blank PNG without ragg", {
 
   local_mocked_bindings(pkg_avail = function(...) FALSE)
+  withr::local_options(shiny.useragg = FALSE)
 
   size <- list(width = 200, height = 200, ratio = 1)
-  png <- draw_png(function() plot(1:3), size, NULL)
+  png <- draw_png(function() NULL, size, NULL)
 
   expect_identical(utils::head(png$png, 8L), png_signature)
   expect_null(png$recording)

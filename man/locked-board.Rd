@@ -63,7 +63,7 @@ since the locks fix the board and its blocks' state, which no request
 changes.
 A request that should not run on a locked board, such as one that evaluates
 code that the client sends, is its package's to refuse,
-by reading the blockr option \code{locked}.
+by reading the blockr option \code{locked} with \code{\link[=blockr_flag]{blockr_flag()}}.
 }
 \section{Scope}{
  A lock is no sandbox.

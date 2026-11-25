@@ -9,11 +9,11 @@ import { describe, expect, test } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
 import { isId, StoreError } from "../store/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
-import { openedStore, withPlugins } from "../testing/store.ts";
+import { hello, openedStore, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import { CommandError, createCommands, defaultBlockName, freeInputs, linkFeeding, schemas } from "./index.ts";
+import { CommandError, createCommands, freeInputs, linkFeeding, schemas } from "./index.ts";
 import type { CommandContext, Commands } from "./index.ts";
 
 async function setup(
@@ -52,6 +52,21 @@ describe("blocks", () => {
       name: "Head",
       locked: null,
     });
+  });
+
+  test("add_block takes an unnamed block's name from R's registry entry", async () => {
+    const base = hello.block_registry[head];
+    if (base === undefined) throw new Error("The fixture has no head block class.");
+    const entry = { ...base, id: "PCA_block", block_name: "PCA" };
+    const store = await openedStore(undefined, {
+      ...hello,
+      block_registry: { ...hello.block_registry, [entry.id]: entry },
+    });
+    const commands = createCommands(store);
+
+    await commands.run("blockr.core-add_block", { registry_id: entry.id, id: "pca" });
+
+    expect(store.board().blocks.pca?.name).toBe("PCA");
   });
 
   test("add_block changes the state its class starts a block with by the state args given", async () => {
@@ -624,15 +639,18 @@ describe("stacks", () => {
     });
   });
 
-  test("add_stack names a stack it is given no name for, and mints its id", async () => {
+  test("add_stack names a stack it is given no name for by the first free Stack n, and mints its id", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
     await commands.run("blockr.core-add_stack");
+    await commands.run("blockr.core-add_stack");
 
-    const [id = ""] = added(board.stacks, store.board().stacks);
-    expect(isId(id)).toBe(true);
-    expect(store.board().stacks[id]).toEqual({ name: "Stack", blocks: [], color: null });
+    const ids = added(board.stacks, store.board().stacks);
+    expect(ids).toHaveLength(2);
+    for (const id of ids) expect(isId(id)).toBe(true);
+    expect(store.board().stacks[ids[0] ?? ""]).toEqual({ name: "Stack 1", blocks: [], color: null });
+    expect(store.board().stacks[ids[1] ?? ""]).toEqual({ name: "Stack 2", blocks: [], color: null });
   });
 
   test("change_stack sets a stack's blocks, taking them out of the stack they are in", async () => {
@@ -653,8 +671,8 @@ describe("stacks", () => {
     await commands.run("blockr.core-add_stack", { id: "s2", blocks: ["c"], color: "#66c2a5" });
     await commands.run("blockr.core-add_stack", { id: "s3", blocks: ["d"] });
 
-    expect(store.board().stacks.s2).toStrictEqual({ name: "Stack", blocks: ["c"], color: "#66c2a5" });
-    expect(store.board().stacks.s3).toStrictEqual({ name: "Stack", blocks: ["d"], color: null });
+    expect(store.board().stacks.s2).toStrictEqual({ name: "Stack 1", blocks: ["c"], color: "#66c2a5" });
+    expect(store.board().stacks.s3).toStrictEqual({ name: "Stack 2", blocks: ["d"], color: null });
   });
 
   test("change_stack sets a stack's colour, or clears it with null, and keeps its blocks", async () => {
@@ -875,9 +893,4 @@ describe("the schemas", () => {
     expect(schemas.blockId.pattern).toBe("\\D");
   });
 
-  test("defaultBlockName() names a block as R names it by its class", () => {
-    expect(defaultBlockName("blockr.core-head_block")).toBe("Head");
-    expect(defaultBlockName("blockr.dplyr-filter_expr_block")).toBe("Filter expr");
-    expect(defaultBlockName("my_block")).toBe("My");
-  });
 });

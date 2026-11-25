@@ -52,13 +52,13 @@ function statuses(replies: [BlockId, Outcome["status"]][] = []) {
 }
 
 function plain(blocks: BlockId[], priority = 0): Plain {
-  const oneTime = createOneTime(blocks, undefined, priority, statuses(), inputs);
+  const oneTime = createOneTime(blocks, undefined, priority, statuses());
   if (oneTime instanceof Error || "params" in oneTime) throw new Error("No one-time evaluation.");
   return oneTime;
 }
 
 function withParams(blocks: BlockId[], priority = 0): WithParams {
-  const oneTime = createOneTime(blocks, { save: true }, priority, statuses(), inputs);
+  const oneTime = createOneTime(blocks, { save: true }, priority, statuses());
   if (oneTime instanceof Error || !("params" in oneTime)) {
     throw new Error("No one-time evaluation with parameters.");
   }
@@ -103,7 +103,7 @@ function oneTimePart(oneTimes: ReadonlyMap<number, OneTime>, id: number, block: 
 describe("a new one-time evaluation", () => {
   test("without parameters leaves out the blocks that the board lacks, and rejects where that leaves none", () => {
     expect(plain(["c", "z"], 1)).toEqual({ blocks: new Set(["c"]), priority: 1 });
-    expect(errorMessage(createOneTime(["z", "y"], undefined, 0, statuses(), inputs))).toBe(
+    expect(errorMessage(createOneTime(["z", "y"], undefined, 0, statuses()))).toBe(
       'The board holds none of the blocks "z" and "y" to evaluate.',
     );
   });
@@ -113,8 +113,8 @@ describe("a new one-time evaluation", () => {
     expect([...oneTime.parts.keys()]).toEqual(["d", "b"]);
     expect(oneTime.parts.get("b")).toEqual({ recipe: undefined, sent: undefined, result: undefined });
 
-    expect(errorMessage(createOneTime([], {}, 0, statuses(), inputs))).toBe("An evaluation with parameters names no block.");
-    expect(errorMessage(createOneTime(["b", "z"], {}, 0, statuses(), inputs))).toBe(
+    expect(errorMessage(createOneTime([], {}, 0, statuses()))).toBe("An evaluation with parameters names no block.");
+    expect(errorMessage(createOneTime(["b", "z"], {}, 0, statuses()))).toBe(
       'The board holds no block "z" to evaluate.',
     );
     const loose = createBoard({ c: "merge_block" });
@@ -129,10 +129,10 @@ describe("a new one-time evaluation", () => {
       running: new Set(),
       before: new Map(),
     }).statuses;
-    expect(errorMessage(createOneTime(["c"], {}, 0, waiting, looseInputs))).toBe(
+    expect(errorMessage(createOneTime(["c"], {}, 0, waiting))).toBe(
       'Block "c" is waiting for its inputs "x" and "y" to be linked. Its evaluation with parameters is not sent.',
     );
-    expect(errorMessage(createOneTime(["b"], {}, 0, statuses([["a", "error"]]), inputs))).toBe(
+    expect(errorMessage(createOneTime(["b"], {}, 0, statuses([["a", "error"]])))).toBe(
       'Block "b" is waiting for block "a". Its evaluation with parameters is not sent.',
     );
   });
@@ -143,7 +143,7 @@ describe("a new one-time evaluation", () => {
       ["b", "waiting"],
     ]);
     expect(now.get("b")?.status).toBe("waiting");
-    const oneTime = createOneTime(["b"], { save: true }, 0, now, inputs);
+    const oneTime = createOneTime(["b"], { save: true }, 0, now);
     if (oneTime instanceof Error || !("params" in oneTime)) throw new Error("No one-time evaluation with parameters.");
     expect([...oneTime.parts.keys()]).toEqual(["b"]);
   });

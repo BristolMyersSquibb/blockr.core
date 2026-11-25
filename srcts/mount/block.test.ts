@@ -1174,13 +1174,14 @@ describe("a request", () => {
     ]);
   });
 
-  test("rejects with the statuses of the inputs that could not be evaluated, and does not go to R", async () => {
+  test("rejects with each block it reads that could not be evaluated, its status and the input it feeds, and does not go to R", async () => {
     const { r, host } = await mounted();
 
     const max = host.request("n_max");
     const rejected = expect(max).rejects.toMatchObject({
       status: null,
-      inputs: [{ input: "data", status: { status: "failed", conditions: [failure] } }],
+      notReady: [{ block: "a", status: { status: "failed", conditions: [failure] }, input: "data" }],
+      unlinked: [],
       message: 'The request "n_max" of block "b" did not go to R, since an input it reads is not ready: "data" reads failed.',
     });
     await tick();
@@ -1191,13 +1192,18 @@ describe("a request", () => {
     expect(requests(r)).toHaveLength(0);
   });
 
-  test("rejects where no link feeds an input it reads", async () => {
+  test("rejects with each input it reads that no link feeds", async () => {
     const { store, host } = await mounted();
     store.apply({ links: { rm: ["ab"] } });
 
-    await expect(host.request("n_max")).rejects.toThrow(
-      'The request "n_max" of block "b" did not go to R, since no link feeds its input "data".',
-    );
+    const max = host.request("n_max");
+    await expect(max).rejects.toBeInstanceOf(RequestError);
+    await expect(max).rejects.toMatchObject({
+      status: null,
+      notReady: [],
+      unlinked: ["data"],
+      message: 'The request "n_max" of block "b" did not go to R, since no link feeds its input "data".',
+    });
   });
 
   test("asks again where R replies missing, once the inputs are evaluated again", async () => {

@@ -25,7 +25,7 @@ include_mermaid <- function(name,
     cfg <- tempfile(fileext = ".json")
     on.exit(unlink(cfg))
     writeLines(
-      sprintf('{"args":[%s]}', paste0('"', chromium_args, '"', collapse = ",")),
+      json_str(list(args = I(chromium_args)), auto_unbox = TRUE),
       cfg
     )
     system2(
@@ -230,15 +230,14 @@ random_uuid <- function() {
 id_word_cache <- new.env(parent = emptyenv())
 
 id_words <- function() {
-
-  if (is.null(id_word_cache[["words"]])) {
-    id_word_cache[["words"]] <- list(
+  rlang::env_cache(
+    id_word_cache,
+    "words",
+    list(
       adjectives = read_id_words("adjectives"),
       animals = read_id_words("animals")
     )
-  }
-
-  id_word_cache[["words"]]
+  )
 }
 
 read_id_words <- function(kind) {
@@ -338,6 +337,10 @@ na_to_empty <- function(x) replace(x, is.na(x), "")
 #' for `getOption()` and upper case for environment variables. In case no value
 #' is available for a given `name`, `default` is returned.
 #'
+#' The `blockr_flag()` reader reads a blockr option that is `TRUE` or `FALSE`.
+#' It trims a string before converting it with [base::as.logical()].
+#' Any other value must already be `TRUE` or `FALSE`.
+#'
 #' @param name Option name
 #' @param default Default value
 #'
@@ -358,9 +361,11 @@ na_to_empty <- function(x) replace(x, is.na(x), "")
 #' Sys.unsetenv("BLOCKR_TEST-EXAMPLE")
 #' blockr_option("test-example", "default")
 #'
-#' @return The value set as option `name` or `default` if not set. In case of
-#' the option being available only as environment variable, the value will be
-#' a string and if available as [base::options()] entry it may be of any R type.
+#' @return The `blockr_option()` reader returns the value set as option `name`
+#' or `default` if not set. In case of the option being available only as
+#' environment variable, the value will be a string and if available as
+#' [base::options()] entry it may be of any R type.
+#' The `blockr_flag()` reader returns `TRUE` or `FALSE`.
 #'
 #' @export
 blockr_option <- function(name, default) {
@@ -392,6 +397,26 @@ blockr_option <- function(name, default) {
     "and option {opt}.",
     class = "conflicing_blockr_option"
   )
+}
+
+#' @rdname blockr_option
+#' @export
+blockr_flag <- function(name, default) {
+
+  x <- blockr_option(name, default)
+
+  if (is.character(x)) {
+    x <- as.logical(trimws(x))
+  }
+
+  if (!is_bool(x)) {
+    blockr_abort(
+      "The blockr option `{name}` is TRUE or FALSE.",
+      class = paste0(name, "_invalid")
+    )
+  }
+
+  x
 }
 
 #' @param ... Option key value pairs as named arguments
@@ -583,70 +608,4 @@ format_head <- function(x, n = 3L, nested = FALSE) {
   }
 
   if (nested) paste0("[", res, "]") else res
-}
-
-# The lines of `x`, a list, one for each element:
-# "name: value" where the list has names, and "- value" where it has none.
-# A value stays on its element's line, as `format_head()` gives it,
-# unless it is a list that nests more than two deep,
-# or whose line is wider than the console.
-# Such a list goes below, as the lines of its elements, indented by two spaces.
-format_lines <- function(x, indent = "") {
-
-  fits <- function(value, line) {
-    !is.list(value) || !length(value) ||
-      (list_depth(value) <= 2L && nchar(line) <= getOption("width", 80L))
-  }
-
-  inner <- paste0(indent, "  ")
-
-  if (is_named_list(x)) {
-
-    lines <- Map(
-      function(name, value) {
-
-        line <- paste0(indent, name, ": ", format_head(value))
-
-        if (fits(value, line)) {
-          return(line)
-        }
-
-        c(paste0(indent, name, ":"), format_lines(value, inner))
-      },
-      names(x),
-      x
-    )
-
-    return(unlst(lines))
-  }
-
-  lines <- lapply(
-    x,
-    function(value) {
-
-      line <- paste0(indent, "- ", format_head(value))
-
-      if (fits(value, line)) {
-        return(line)
-      }
-
-      res <- format_lines(value, inner)
-      res[1L] <- paste0(indent, "- ", substring(res[1L], nchar(inner) + 1L))
-
-      res
-    }
-  )
-
-  unlst(lines)
-}
-
-# How deep lists nest in `x`: 0 where it is not a list or is empty,
-# and otherwise one more than in its deepest element.
-list_depth <- function(x) {
-
-  if (!is.list(x) || !length(x)) {
-    return(0L)
-  }
-
-  1L + max(int_ply(x, list_depth))
 }

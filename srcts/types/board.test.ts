@@ -93,6 +93,7 @@ function entry(id: string, inputs: readonly string[]): RegistryEntry {
     module: "",
     version: 1,
     schema: {},
+    block_name: id,
     state: {},
     requests: {},
   };

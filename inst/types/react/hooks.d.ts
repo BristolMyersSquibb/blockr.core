@@ -36,6 +36,7 @@ export interface RequestOptions {
 export declare function useRequest<S extends State>(host: BlockHost<S>, name: string, options?: RequestOptions): Answered;
 export declare function useRequest<V extends Json>(host: OptionHost<V>, name: string, options?: RequestOptions): Answered;
 export declare function useBoard(core: Pick<CoreApi, "store">): Board;
+export declare function useBoard<T>(core: Pick<CoreApi, "store">, select: (board: Board) => T): T;
 export declare function useStatus(core: {
     readonly scheduler: Pick<Scheduler, "status" | "subscribe">;
 }, block: BlockId): BlockStatus | undefined;

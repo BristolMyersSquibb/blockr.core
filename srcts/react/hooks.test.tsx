@@ -1,5 +1,6 @@
 // The hooks through which a component that holds CoreApi follows it, drawn
-// with React on notifications that the test sets, as CoreApi would hold them.
+// with React on notifications that the test sets, as CoreApi would hold them,
+// and on the board of the fixture hello, which a store opened.
 
 import { act } from "react";
 import type { ReactElement } from "react";
@@ -7,8 +8,10 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, test } from "vitest";
 import { holding } from "../testing/notifications.ts";
 import { step } from "../testing/react.ts";
+import { openedStore } from "../testing/store.ts";
+import type { Board } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../types/core-api.ts";
-import { useNotified } from "./index.ts";
+import { useBoard, useNotified } from "./index.ts";
 
 // A notification that core's Edit board plugin raised, about the board object
 // given, or about the board.
@@ -78,5 +81,80 @@ describe("useNotified()", () => {
       root.unmount();
     });
     expect(given.listening()).toBe(0);
+  });
+});
+
+describe("useBoard()", () => {
+  // The names of the board's blocks, in their order on the board.
+  const names = (board: Board): string[] => Object.values(board.blocks).map((block) => block.name);
+
+  test("gives what a function takes from the board, given one, and draws again only where that changes", async () => {
+    const core = { store: await openedStore() };
+    const drawn: (readonly string[])[] = [];
+    function Names(): ReactElement {
+      const taken = useBoard(core, (board) => names(board));
+      drawn.push(taken);
+      return <p>{taken.join(", ")}</p>;
+    }
+    const el = document.createElement("div");
+    const root = createRoot(el);
+
+    await step(() => {
+      root.render(<Names />);
+    });
+    expect(el.textContent).toBe("Iris, Head, Merge, Wide sepals, Bind, Scatter");
+    expect(drawn).toHaveLength(1);
+
+    // A change of a block's state leaves the blocks' names as they were, so
+    // the component draws nothing again.
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { state: { n: 3, direction: "head" } } } } });
+    });
+    expect(drawn).toHaveLength(1);
+
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { name: "First rows" } } } });
+    });
+    expect(el.textContent).toBe("Iris, First rows, Merge, Wide sepals, Bind, Scatter");
+    expect(drawn).toHaveLength(2);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  test("keeps what the function took the same object while what it takes from a newer board is equal", async () => {
+    const core = { store: await openedStore() };
+    const drawn: (readonly string[])[] = [];
+    function Names({ label }: { label: string }): ReactElement {
+      const taken = useBoard(core, names);
+      drawn.push(taken);
+      return (
+        <p>
+          {label}: {taken.join(", ")}
+        </p>
+      );
+    }
+    const el = document.createElement("div");
+    const root = createRoot(el);
+
+    await step(() => {
+      root.render(<Names label="Blocks" />);
+    });
+    await step(() => {
+      core.store.apply({ blocks: { mod: { b: { state: { n: 3, direction: "head" } } } } });
+    });
+    // Drawn again for its label, the component reads the names as the same
+    // array.
+    await step(() => {
+      root.render(<Names label="The blocks" />);
+    });
+    expect(el.textContent).toBe("The blocks: Iris, Head, Merge, Wide sepals, Bind, Scatter");
+    expect(drawn).toHaveLength(2);
+    expect(drawn[1]).toBe(drawn[0]);
+
+    act(() => {
+      root.unmount();
+    });
   });
 });
