@@ -101,7 +101,7 @@
   R reads the output families that the available packages list as `serve()` builds the app, and two packages that list a family of one class stop the app.
   The startup modules go, with `register_startup_module()`, `register_module()` and the order of packages by their NAMESPACE (#424, #504, #560, #712).
 * A renderer, which `new_renderer()` makes, is a module that draws the
-  outputs of an output family or the value of a board option, under the ID
+  outputs of an output family, under the ID
   `{pkg}-{name}`. An output family holds the renderer that draws its outputs, as core's
   hold `blockr.core-table_output`, `blockr.core-text_output` and
   `blockr.core-plot_output`, and R sends it in each output, with where it
@@ -112,10 +112,9 @@
   A renderer names no board options of its own: the output family names those of its outputs, which every renderer of them reads.
   Another package offers a renderer through a
   function that makes it, and an app draws with it by naming it in the blockr
-  option `renderers`, for an output family or a board option, which R reads before the family's own renderer, so loading a package changes nothing and no package takes the app's choice away. Such a
+  option `renderers`, under the family's class, which R reads before the family's own renderer, so loading a package changes nothing and no package takes the app's choice away. Such a
   renderer may bring requests of its own, which `run_output_class_request()`
-  runs when given the renderer.
-  The key under which the app names a renderer says what it draws, so one renderer may draw several board options (#425, #440, #465, #664).
+  runs when given the renderer (#425, #440, #465, #664).
 * R builds what it tells the client about the packages it has loaded, in its
   reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that

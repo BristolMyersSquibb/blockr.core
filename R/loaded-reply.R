@@ -7,9 +7,8 @@
 # class's module, as `app_plugins()` gives them, what the app's frontend reads
 # of the arguments of `serve()`, `frontend`, as `frontend_reply()` writes it,
 # the app's board options, `options`, each with its package, where R serves
-# its module and the version of its shape, as `app_options()` gives them, the
-# renderers that the app names for board options, by board option, and the
-# versions of the packages that all of these come from.
+# its module and the version of its shape, as `app_options()` gives them, and
+# the versions of the packages that all of these come from.
 # The entry of a class whose output family is open names the board options
 # and renderers of the families that the available packages list, `families`,
 # as `app_families()` gives them.
@@ -17,8 +16,8 @@
 # so that R reads no package's listing for it, in whatever process runs the
 # app.
 # These are the properties `packages`, `block_registry`, `modules`, `plugins`,
-# `frontend`, `options` and `renderers` of inst/protocol/README.md, as R values
-# that `encode_message()` writes as the reply's JSON.
+# `frontend` and `options` of inst/protocol/README.md, as R values that
+# `encode_message()` writes as the reply's JSON.
 # Building them builds no block.
 loaded_reply <- function(registry = block_registry, plugins = list(),
                          frontend = as_json_object(list()),
@@ -27,7 +26,6 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
                          families = app_families()) {
 
   entries <- registry_entries(registry)
-  renderers <- option_renderers(options)
 
   drawn <- lapply(entries, entry_renderers, families)
 
@@ -35,7 +33,7 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
   sources <- c(
     unlst(
       lapply(
-        list(lst_xtr(entries, "block_class"), modules, options, renderers,
+        list(lst_xtr(entries, "block_class"), modules, options,
              unlist(drawn, recursive = FALSE, use.names = FALSE)),
         lst_xtr,
         "package"
@@ -57,8 +55,7 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
     modules = as_json_object(lapply(modules, served_module)),
     plugins = as_json_object(lapply(plugins, plugin_entry_reply)),
     frontend = frontend,
-    options = as_json_object(lapply(options, option_entry_reply)),
-    renderers = as_json_object(lapply(renderers, renderer_reply))
+    options = as_json_object(lapply(options, option_entry_reply))
   )
 }
 
@@ -118,7 +115,7 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x, families),
       output_options = I(
         family_option_ids(x[["block_class"]][["output"]], families)
       ),
-      renderers = I(lapply(unname(renderers), renderer_reply))
+      renderers = I(lapply(unname(renderers), output_renderer_reply))
     )
   )
 }
@@ -191,9 +188,8 @@ option_entry_reply <- function(x) {
   )
 }
 
-# A renderer as R sends it, in an output or under a board option that the app
-# names it for: its ID, which a request of its own names, and where R serves
-# its module.
-renderer_reply <- function(x) {
+# The renderer of an output as R sends it in the output: its ID, which a
+# request of its own names, and where R serves its module.
+output_renderer_reply <- function(x) {
   c(list(id = x[["id"]]), served_module(x[["module"]]))
 }

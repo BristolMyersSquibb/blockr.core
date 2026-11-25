@@ -82,7 +82,6 @@
             "version": 1
           }
         },
-        "renderers": {},
         "lock": { "board": false, "load": false },
         "board": {
           "format": 1,

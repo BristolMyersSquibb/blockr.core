@@ -184,7 +184,7 @@ answer_output <- function(ev, job) {
         parts = shape_output(res),
         requests = output_class_requests(res),
         drawn = drawn,
-        renderer = renderer_reply(drawn)
+        renderer = output_renderer_reply(drawn)
       )
     }
   )

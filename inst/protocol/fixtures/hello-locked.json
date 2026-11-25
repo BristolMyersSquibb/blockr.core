@@ -144,7 +144,6 @@
             "version": 1
           }
         },
-        "renderers": {},
         "lock": { "board": true, "load": true },
         "board": {
           "format": 1,

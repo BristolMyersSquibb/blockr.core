@@ -1,7 +1,7 @@
 #' Renderers
 #'
 #' A renderer is a module that draws the outputs of an output family (see
-#' [new_output_family()]) or the value of a board option.
+#' [new_output_family()]).
 #' A renderer object, which `new_renderer()` makes, holds the renderer's
 #' module, made by [js_module()], its ID and the renderer's own requests.
 #' Its ID is `{pkg}-{name}`, as a registry ID is, where `pkg` is the package
@@ -34,17 +34,8 @@
 #' R reads that choice before the family's own renderer, so loading a package
 #' that offers a renderer changes nothing, and no package takes the choice
 #' away.
-#' A deployment also draws a board option with a renderer, in place of the
-#' board option's UI, by naming the renderer in `renderers` under the board
-#' option's ID.
-#' A key names a board option where an available package lists a board option
-#' of that ID.
-#' R sends the renderer of each such key in its reply to `hello`, under the
-#' key, so one renderer may draw several board options.
-#' Such a renderer reaches R through the requests of the board option that it
-#' draws, so [serve()] refuses one that brings requests of its own.
 #'
-#' A renderer of outputs may bring requests of its own, for what the output
+#' A renderer may bring requests of its own, for what the output
 #' does not hold, such as the labels of a table's columns, which core's table
 #' output does not carry.
 #' R runs a renderer's request as it runs a request of the output class (see
@@ -60,7 +51,7 @@
 #' @param name The name part of the renderer's ID
 #' @param module The renderer's module, made by [js_module()]
 #' @param requests A named list of the renderer's own requests, each a
-#'   function, which only a renderer of outputs has
+#'   function
 #'
 #' @examples
 #' # A renderer that a package such as blockr.ui offers
@@ -147,8 +138,8 @@ print.renderer <- function(x, ...) {
   invisible(x)
 }
 
-# The renderers that the blockr option `renderers` names, by the output class
-# or the board option that each is to draw.
+# The renderers that the blockr option `renderers` names, by the class of the
+# output family whose outputs each is to draw.
 chosen_renderers <- function() {
 
   chosen <- blockr_option("renderers", list())
@@ -157,8 +148,8 @@ chosen_renderers <- function() {
         !all(lgl_ply(chosen, is_renderer))) {
     blockr_abort(
       "The blockr option `renderers` is expected to be a list of renderers, ",
-      "each made by `new_renderer()` and named by the output class or the ",
-      "board option that it draws, as ",
+      "each made by `new_renderer()` and named by the class of the output ",
+      "family whose outputs it draws, as ",
       "`list(table_output = blockr.ui::table_preview())` is.",
       class = "renderers_blockr_option_invalid"
     )
@@ -213,33 +204,6 @@ drawing_renderer <- function(x, out, families = app_families()) {
   }
 
   renderers[[drawn[1L]]]
-}
-
-# The renderers that the app names for board options, by the ID of the board
-# option that each draws, which R sends in its reply to `hello`, since a board
-# option's UI mounts without an output.
-# A key of the blockr option `renderers` names a board option where it is the
-# ID of one that the available packages list, `options`, by ID.
-# A board option's renderer reaches R through the board option's requests, so
-# R refuses one that brings requests of its own.
-option_renderers <- function(options = available_options()) {
-
-  chosen <- chosen_renderers()
-  chosen <- chosen[intersect(names(chosen), names(options))]
-
-  for (option in names(chosen)) {
-
-    if (length(chosen[[option]][["requests"]])) {
-      blockr_abort(
-        "The blockr option `renderers` names renderer ",
-        "{chosen[[option]]$id} for board option {option}, and only a ",
-        "renderer of outputs has requests of its own.",
-        class = "renderers_blockr_option_invalid"
-      )
-    }
-  }
-
-  chosen
 }
 
 # The function of a request of `renderer`, its own.

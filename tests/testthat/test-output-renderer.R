@@ -189,57 +189,6 @@ test_that("the blockr option names renderers for what they draw", {
   check(list(rows))
 })
 
-test_that("a board option keeps its UI unless the app names a renderer", {
-
-  expect_length(option_renderers(), 0L)
-
-  slider <- new_renderer("slider", test_module("slider.js", "blockr.ui"))
-  preview <- new_renderer("preview", test_module("preview.js", "blockr.ui"))
-
-  # One renderer draws two board options, while the key of a family names no
-  # board option
-  withr::local_options(
-    blockr.renderers = list(
-      n_rows = slider,
-      table_output = preview,
-      dark_mode = slider
-    )
-  )
-
-  expect_identical(
-    option_renderers(),
-    list(n_rows = slider, dark_mode = slider)
-  )
-
-  # A key names a board option where an available package lists one
-  expect_identical(
-    option_renderers(list(dark_mode = list())),
-    list(dark_mode = slider)
-  )
-})
-
-test_that("a board option's renderer brings no requests of its own", {
-
-  labels <- new_renderer(
-    "labels",
-    test_module("labels.js"),
-    requests = list(labels = function(result) names(result))
-  )
-
-  # A renderer of outputs may
-  withr::local_options(blockr.renderers = list(table_output = labels))
-
-  expect_length(option_renderers(), 0L)
-
-  withr::local_options(blockr.renderers = list(n_rows = labels))
-
-  expect_error(
-    option_renderers(),
-    "names renderer blockr.test-labels for board option n_rows",
-    class = "renderers_blockr_option_invalid"
-  )
-})
-
 test_that("a request is the drawing renderer's own or else its class's", {
 
   local_output_class(

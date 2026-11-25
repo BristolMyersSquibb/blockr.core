@@ -1,5 +1,4 @@
 import type { Commands } from "../commands/index.ts";
-import type { Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
@@ -23,7 +22,6 @@ export interface MountsOptions {
     readonly commands: Pick<Commands, "run">;
     readonly scheduler: Pick<Scheduler, "evaluate" | "inputs" | "request" | "status" | "subscribe">;
     readonly loader: Loader;
-    readonly renderers?: () => Readonly<Record<string, Renderer>>;
     readonly emit?: (event: OutputEvent) => void;
     readonly measure?: Measure;
     readonly onScreen?: OnScreenOf;

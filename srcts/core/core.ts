@@ -53,7 +53,7 @@ import { isLogged } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OnScreenOf, OutputEvent } from "../mount/index.ts";
-import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index.ts";
+import type { Lock, OptionEntry, PluginEntry } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { asRandId, mintId } from "../store/index.ts";
 import type { Origin, Store } from "../store/index.ts";
@@ -109,9 +109,6 @@ export interface CoreParts {
   readonly randId?: Json | undefined;
   // The locks that the app sets, from R's reply to `hello`.
   readonly lock: Lock;
-  // The renderers that the app names for board options, from R's latest reply
-  // to `hello`.
-  readonly renderers: () => Readonly<Record<string, Renderer>>;
   // The app's plugins, which run on the board, from the reply to `hello` that
   // core starts with for it, by the ids of their classes.
   readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
@@ -218,7 +215,6 @@ export function createCore(parts: CoreParts): Core {
     scheduler,
     loader,
     core: () => api,
-    renderers: parts.renderers,
     raise,
     replied: notifications.replied,
     notify: notifications.notify,

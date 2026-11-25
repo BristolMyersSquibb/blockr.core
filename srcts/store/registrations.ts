@@ -199,8 +199,7 @@ export interface Option {
   // the board option and the board lacks its value, such as one that reads a
   // blockr option.
   readonly default: Json | ((core: CoreApi) => Promise<Json>);
-  // Its UI module, which core mounts with an OptionHost where the app names no
-  // renderer for the board option.
+  // Its UI module, which core mounts with an OptionHost.
   readonly ui: OptionModule;
   // What a new value does on the page, such as switching the theme. Core
   // calls it as each board opens, with the board's value, and again as a delta

@@ -2875,14 +2875,13 @@ function announceTo(listeners, ...args) {
 
 // srcts/mount/option.ts
 function mountOption(deps, el, option) {
-  const { store, loader } = deps;
+  const { store } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
   const def = own(store.options.registered(), option);
   if (def === void 0) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const renderer = own(deps.renderers(), option);
-  const module = renderer === void 0 ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(renderer.id), renderer.id);
+  const module = sourceModule({ option }, deps.optionPackage(option));
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
@@ -2966,20 +2965,6 @@ function mountOption(deps, el, option) {
     el.replaceChildren();
   }
   void (async () => {
-    let mod;
-    try {
-      if (renderer === void 0) {
-        mod = def.ui;
-      } else {
-        const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        const pkg = packageFromId(renderer.id);
-        mod = mountableModule(await loader.load(source, pkg), renderer.module, pkg);
-      }
-    } catch (error) {
-      fail(error);
-      return;
-    }
-    if (ended()) return;
     const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
     const failures = await kept.added;
@@ -2990,15 +2975,12 @@ function mountOption(deps, el, option) {
       return;
     }
     try {
-      const rendered = await mod.render({ el, host, signal: controller.signal });
+      const rendered = await def.ui.render({ el, host, signal: controller.signal });
       if (typeof rendered !== "function") return;
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const why = `failed in render(): ${errorMessage(error)}`;
-      fail(
-        renderer === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageFromId(renderer.id), why, { cause: error })
-      );
+      fail(new Error(`The UI of the board option "${option}" failed in render(): ${errorMessage(error)}`, { cause: error }));
     }
   })();
   function fail(error) {
@@ -3623,7 +3605,6 @@ function createMounts(options) {
   const shelves = createShelves();
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
-  const renderers = options.renderers ?? (() => ({}));
   const raise = options.raise ?? raiseNothing;
   const replied2 = options.replied ?? repliedNothing;
   const notify = options.notify ?? notifyNothing;
@@ -3808,7 +3789,7 @@ function createMounts(options) {
       block
     ),
     mountOption: (el, option) => mountOption(
-      { store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
+      { store, commands, scheduler, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
       el,
       option
     ),
@@ -13445,7 +13426,6 @@ function createCore(parts) {
     scheduler,
     loader,
     core: () => api,
-    renderers: parts.renderers,
     raise,
     replied: notifications.replied,
     notify: notifications.notify,
@@ -14535,7 +14515,6 @@ function start2(options) {
       blockrOptions,
       randId,
       lock: (first ?? reply).lock,
-      renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
       options: reply.options,
       notifications,
@@ -16504,7 +16483,7 @@ function withoutNumber(level) {
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -16860,7 +16839,6 @@ var hello_default = {
             version: 1
           }
         },
-        renderers: {},
         lock: { board: false, load: false },
         board: {
           format: 1,
