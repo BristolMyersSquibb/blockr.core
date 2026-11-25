@@ -979,11 +979,12 @@ function reloadNotification(changed: readonly Changed[]): Omit<Notification, "id
 // it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt).
 // One notification covers the whole opening, which concerns the board.
 function droppedNotification(dropped: readonly Dropped[]): Omit<Notification, "id"> {
-  const lines = dropped.map(({ about }) => {
+  const lines = dropped.map(({ about, package: pkg }) => {
     if ("package" in about) return `- package ${about.package} ${about.version}`;
     if ("block" in about) return `- block "${about.block}" (${about.registry_id})`;
     if ("plugin" in about) return `- plugin "${about.plugin}"`;
-    return `- board option "${about.option}"`;
+    // A board option's id names no package, unlike the ids above.
+    return `- board option "${about.option}"${pkg === null ? "" : ` (${pkg})`}`;
   });
   return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
 }

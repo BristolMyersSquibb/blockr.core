@@ -174,7 +174,7 @@
             "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
             "stacks": {},
             "options": {
-              "n_rows": { "value": 50, "version": 1 }
+              "n_rows": { "value": 50, "version": 1, "package": "blockr.core" }
             },
             "plugins": {}
           }

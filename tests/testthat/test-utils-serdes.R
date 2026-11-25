@@ -53,8 +53,12 @@ test_that("a board is written as a JSON board", {
           "s1": { "name": "Input", "blocks": ["a"], "color": null }
         },
         "options": {
-          "n_rows": { "value": 25, "version": 1 },
-          "dark_mode": { "value": "dark", "version": 1 }
+          "n_rows": { "value": 25, "version": 1, "package": "blockr.core" },
+          "dark_mode": {
+            "value": "dark",
+            "version": 1,
+            "package": "blockr.core"
+          }
         },
         "plugins": {}
       }'
@@ -297,7 +301,9 @@ test_that("the board holds the board options the script gives, by schema", {
 
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board)))$board$options,
-    read_json_strictly('{ "n_rows": { "value": 5, "version": 1 } }')
+    read_json_strictly(
+      '{ "n_rows": { "value": 5, "version": 1, "package": "blockr.core" } }'
+    )
   )
 
   # Core puts the schema of each of its board options beside its module
@@ -400,7 +406,9 @@ test_that("a plugin's state is written by the schema of its class", {
         "blocks": {},
         "links": {},
         "stacks": {},
-        "options": { "tags": { "value": ["draft"], "version": 2 } },
+        "options": {
+          "tags": { "value": ["draft"], "version": 2, "package": "blockr.test" }
+        },
         "plugins": {
           "blockr.test-notes_plugin": {
             "state": {
@@ -521,10 +529,14 @@ test_that("R finds a schema beside the module that a package lists", {
   )
 
   # A board option's ID names no package, so its schema is the one beside the
-  # module of the package that lists it
+  # module of the package that lists it, which the JSON board records
   expect_identical(
     res$options,
-    read_json_strictly('{ "tags": { "value": ["draft"], "version": 1 } }')
+    read_json_strictly(
+      '{
+        "tags": { "value": ["draft"], "version": 1, "package": "blockr.two" }
+      }'
+    )
   )
 })
 
@@ -595,10 +607,19 @@ test_that("a JSON board records the package of each board option", {
     )
   )
 
-  res <- blockr_ser(board)
+  res <- read_json_strictly(encode_message(blockr_ser(board)))
 
-  # The package that lists the board option, while a board option that no
-  # package lists has none
+  # The package that lists the board option, beside its value and among the
+  # board's packages, while a board option that no package lists has none
+  expect_identical(
+    res$board$options,
+    read_json_strictly(
+      '{
+        "tags": { "value": "draft", "version": 1, "package": "blockr.two" },
+        "unlisted": { "value": 1, "version": 1, "package": null }
+      }'
+    )
+  )
   expect_identical(res$packages, list(blockr.two = "0.3.0"))
 
   # R reads no listing for a board that holds no board option

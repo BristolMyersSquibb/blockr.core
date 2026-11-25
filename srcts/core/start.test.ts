@@ -260,7 +260,7 @@ function unfit(): JsonBoard {
     board: {
       ...board,
       blocks: { ...board.blocks, b: { ...b, state: { ...b.state, n: -1 } } },
-      options: { ...board.options, n_rows: { value: 0, version: 1 } },
+      options: { ...board.options, n_rows: { value: 0, version: 1, package: "blockr.core" } },
     },
   };
 }
@@ -1440,7 +1440,10 @@ describe("board options", () => {
   // Opens a board that holds the values given, and answers the hello with
   // which core starts again.
   async function reopen(s: Setup, core: CoreApi, values: Readonly<Record<string, Json>>): Promise<CoreApi> {
-    const options = Object.fromEntries(Object.entries(values).map(([id, value]) => [id, { value, version: 1 }]));
+    const listed = withOptions(["zoom"]).options;
+    const options = Object.fromEntries(
+      Object.entries(values).map(([id, value]) => [id, { value, version: 1, package: own(listed, id)?.package ?? null }]),
+    );
     const opening = core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, options } }));
     await tick();
     s.r.answer(withOptions(["zoom"]));

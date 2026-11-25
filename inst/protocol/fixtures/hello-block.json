@@ -102,7 +102,7 @@
             },
             "links": {},
             "stacks": {},
-            "options": { "n_rows": { "value": 50, "version": 1 } },
+            "options": { "n_rows": { "value": 50, "version": 1, "package": "blockr.core" } },
             "plugins": {}
           }
         },

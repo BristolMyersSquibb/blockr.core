@@ -139,6 +139,9 @@ export interface Store {
   // carries it in the reply to `hello`, of each block's state, as the class's
   // entry in the block registry gives it, and of each board option's value, as
   // the reply gives it in `options`, each 1 where none is given.
+  // Beside each board option's value, it also records the package that lists
+  // the board option, as the reply names it in `options`, or null where the
+  // reply names none, since a board option's id names no package.
   jsonBoard(): JsonBoard;
   // The text of the board's file: its JSON board, written with
   // JSON.stringify(), indented by two spaces and ending in a newline, as R
@@ -640,11 +643,17 @@ export function createStore(options: StoreOptions = {}): Store {
     if (next === undefined) {
       throw new Error("The store holds no board until it opens one.");
     }
+    const options = Object.fromEntries(
+      Object.entries(next.options).map(([id, value]) => {
+        const entry = own(hello?.options ?? {}, id);
+        return [id, { value, version: entry?.version ?? 1, package: entry?.package ?? null }];
+      }),
+    );
     const classes = Object.keys(next.plugins);
     const owned = new Set([
       ...classes.flatMap((cls) => packageFromId(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
-      ...Object.keys(next.options).flatMap((id) => own(hello?.options ?? {}, id)?.package ?? []),
+      ...Object.values(options).flatMap((option) => option.package ?? []),
     ]);
     const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {
@@ -662,12 +671,6 @@ export function createStore(options: StoreOptions = {}): Store {
           name: block.name,
           locked: block.locked,
         },
-      ]),
-    );
-    const options = Object.fromEntries(
-      Object.entries(next.options).map(([id, value]) => [
-        id,
-        { value, version: own(hello?.options ?? {}, id)?.version ?? 1 },
       ]),
     );
     const plugins = Object.fromEntries(

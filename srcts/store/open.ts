@@ -68,13 +68,12 @@ const PROPERTIES: readonly string[] = ["id", "name", ...COLLECTIONS];
 // - The value of a board option that no package registers, as `{ option }`,
 //   by the board option's id.
 // The member `package` names the package that what the store dropped comes
-// from: the package itself, or the package that the id of a block's class or
-// of a plugin's class names.
-// It is null where nothing names one. An id may name no package, as that of a
-// block class that an app script defines. A board option's id never names
-// one, and the JSON board does not record which package lists each board
-// option. The JSON board's `packages` lists that package all the same, so the
-// store names the package in a record of its own where R could not load it.
+// from: the package itself, the package that the id of a block's class or of a
+// plugin's class names, or the package that the JSON board records beside a
+// board option's value.
+// It is null where nothing names one, as for a block class that an app script
+// defines, whose id names no package, or for a board option that no package
+// listed where the board was written.
 export interface Dropped {
   readonly about:
     | { readonly package: string; readonly version: string }
@@ -122,7 +121,7 @@ export function checkJsonBoard(json: unknown): JsonBoard {
   if (lacking.length > 0) {
     throw new StoreError(refused, [`The board holds its ${listing(lacking)} in no object by id.`]);
   }
-  checkVersions(board);
+  checkRecorded(board);
   return json as unknown as JsonBoard;
 }
 
@@ -131,10 +130,11 @@ function isVersion(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1;
 }
 
-// The versions that a JSON board records, which its migrations key on, each
-// beside what it versions: one for each plugin's state, one for each block's
-// state and one for each board option's value.
-function checkVersions(board: Readonly<Record<string, unknown>>): void {
+// What a JSON board records beside what the board holds: the versions that its
+// migrations key on, one for each plugin's state, one for each block's state and
+// one for each board option's value, and the package that lists each board
+// option, or null for none.
+function checkRecorded(board: Readonly<Record<string, unknown>>): void {
   const failures: string[] = [];
   for (const [cls, plugin] of Object.entries(board.plugins as Readonly<Record<string, unknown>>)) {
     if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
@@ -147,16 +147,25 @@ function checkVersions(board: Readonly<Record<string, unknown>>): void {
     }
   }
   for (const [id, option] of Object.entries(board.options as Readonly<Record<string, unknown>>)) {
-    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version)) {
-      failures.push(`The board option "${id}" is recorded as no value with the version of its shape.`);
+    if (
+      !isObject(option) ||
+      !Object.hasOwn(option, "value") ||
+      !isVersion(option.version) ||
+      !(option.package === null || typeof option.package === "string")
+    ) {
+      failures.push(
+        `The board option "${id}" is recorded as no value with the version of its shape and the package that lists it.`,
+      );
     }
   }
   if (failures.length > 0) throw new StoreError(refused, failures);
 }
 
 // The board that a JSON board holds, without the versions that it records,
-// which only its migrations read, so that each board option holds its value
-// and each plugin its state, and without what core's board does not hold.
+// which only its migrations read, and without the package of each board
+// option, which only names what the store drops, so that each board option
+// holds its value and each plugin its state, and without what core's board
+// does not hold.
 function unversioned(board: JsonBoard["board"]): Board {
   const record = board as unknown as Readonly<Record<string, unknown>>;
   return {
@@ -322,7 +331,10 @@ export function openJsonBoard(
   });
 
   const unclaimed = Object.keys(migrated.options).filter((id) => registrations.option(id) === undefined);
-  const options: Dropped[] = unclaimed.map((id) => ({ about: { option: id }, package: null }));
+  const options: Dropped[] = unclaimed.map((id) => ({
+    about: { option: id },
+    package: own(json.board.options, id)?.package ?? null,
+  }));
 
   const kept = remove({ ...migrated, options: without(migrated.options, unclaimed) }, gone, registrations);
   const board: Board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };

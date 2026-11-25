@@ -1329,12 +1329,12 @@ function droppingHello(): HelloReply {
     ...HELLO,
     board: {
       ...json,
-      packages: { ...json.packages, "blockr.dplyr": "0.3.0" },
+      packages: { ...json.packages, "blockr.dplyr": "0.3.0", "blockr.zoom": "0.1.0" },
       board: {
         ...json.board,
         blocks: { ...json.board.blocks, x: filter },
         plugins: { ...json.board.plugins, "blockr.gone-gone_plugin": { state: {}, version: 1 } },
-        options: { ...json.board.options, zoom: { value: 2, version: 1 } },
+        options: { ...json.board.options, zoom: { value: 2, version: 1, package: "blockr.zoom" } },
       },
     },
   };
@@ -1351,9 +1351,10 @@ describe("what the user learns", () => {
         [
           "The board opened without:",
           "- package blockr.dplyr 0.3.0",
+          "- package blockr.zoom 0.1.0",
           '- block "x" (blockr.dplyr-filter_block)',
           '- plugin "blockr.gone-gone_plugin"',
-          '- board option "zoom"',
+          '- board option "zoom" (blockr.zoom)',
         ].join("\n"),
       ],
     ]);

@@ -83,6 +83,9 @@ shapes that a JSON board holds.
 It holds each board option that the script gives a value, by ID, as its
 \code{value} with the \code{version} of the value's shape (see
 \code{\link[=board_option_version]{board_option_version()}}), and no other.
+Beside the value, it holds the \code{package} that lists the board option, or
+\code{null} where no available package lists it, since a board option's ID names
+no package.
 
 A plugin is written under the ID of its class as its \code{state}, with the
 \code{version} of its class's state (see \code{\link[=new_plugin]{new_plugin()}}).

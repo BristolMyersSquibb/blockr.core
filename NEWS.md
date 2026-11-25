@@ -157,6 +157,9 @@
   the generic `board_option_version()` gives, so that the client migrates
   what a JSON board holds by the versions of its shapes rather than of
   packages.
+  Beside each board option's value, it records the package that lists the
+  board option, since a board option's ID names no package, unlike the IDs of
+  block classes and plugin classes.
   It writes each value by a JSON Schema, so that no shape depends on R's JSON
   writer: core's objects by the schema of a JSON board that the build
   generates from its TypeScript types into `inst/board`, a block's state by
@@ -515,7 +518,7 @@
   So an app script whose board gives `new_n_rows_option(0)` runs, since a board option's constructor checks nothing, but its page shows the errors in place of the board.
   The client's store also refuses an edit that leaves a block's state failing the schema of its class, as it refuses one for a plugin's state or a board option's value, so that a board saved from the app opens again.
   The client drops the value of a board option that no package of the app registers, and names the board option by its ID (#509).
-  Where R could not load the package that lists the board option, the client names that package as well, since a JSON board records it among its packages (#665).
+  It names the package that lists the board option as well, which a JSON board records beside the board option's value, so that the user learns what to install (#665).
 * Core's client calls a board option's `onChange` as each board opens, with the board's value, and again as a delta sets the value, whether or not anything on the page requires the board option.
   Where the board lacks that value, as a board opens or once a delta removed it, core adds the board option to the board with its default first.
   While a block's UI module, a renderer or a board option's UI is mounted, core adds each board option that it names again with its default where a delta removes the value.

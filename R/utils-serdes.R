@@ -31,6 +31,9 @@
 #' It holds each board option that the script gives a value, by ID, as its
 #' `value` with the `version` of the value's shape (see
 #' [board_option_version()]), and no other.
+#' Beside the value, it holds the `package` that lists the board option, or
+#' `null` where no available package lists it, since a board option's ID names
+#' no package.
 #'
 #' A plugin is written under the ID of its class as its `state`, with the
 #' `version` of its class's state (see [new_plugin()]).
@@ -323,9 +326,10 @@ unplain_kind <- function(x) {
 # each plugin and the value of each board option by the schemas beside the
 # modules that packages list for the plugin's class and the board option, core's
 # objects by the schema of a JSON board, once each board option's value is
-# recorded with its version, and each block's state by the schema that its
-# class's UI ships. The block classes are given in `classes`, by block ID, and
-# the board options that the available packages list in `options`, by ID.
+# recorded with its version and its package, and each block's state by the
+# schema that its class's UI ships. The block classes are given in `classes`,
+# by block ID, and the board options that the available packages list in
+# `options`, by ID.
 # R reads the listings of the available packages only for a board that holds a
 # plugin or a board option.
 shape_json_board <- function(x, classes, options = available_options()) {
@@ -349,7 +353,7 @@ shape_json_board <- function(x, classes, options = available_options()) {
 
   x[["board"]][["plugins"]] <- as_json_object(plugins)
 
-  x[["board"]][["options"]] <- versioned_options(x[["board"]][["options"]])
+  x[["board"]][["options"]] <- json_options(x[["board"]][["options"]], options)
 
   x <- shape_by_schema(x, json_board_schema())
 
@@ -363,11 +367,19 @@ shape_json_board <- function(x, classes, options = available_options()) {
 }
 
 # The values of board options, by ID, as a JSON board holds them, each with
-# the version of its shape.
-versioned_options <- function(x) {
+# the version of its shape and the package that lists the board option among
+# the board options in `options`, by ID, or `NA` for one that no package lists,
+# which R writes as `null`.
+json_options <- function(x, options) {
   as_json_object(
     Map(
-      function(value, id) list(value = value, version = option_version(id)),
+      function(value, id) {
+        list(
+          value = value,
+          version = option_version(id),
+          package = coal(options[[id]][["package"]], NA_character_)
+        )
+      },
       x,
       names(x)
     )

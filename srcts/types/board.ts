@@ -100,10 +100,15 @@ export interface JsonBlock extends Block {
 }
 
 // A board option's value as a JSON board holds it, with the version of the
-// value's shape, which R's `board_option_version()` gives.
+// value's shape, which R's `board_option_version()` gives, and the package
+// that lists the board option, or null where no package lists it.
+// A board option's id names no package, unlike the id of a block's class or of
+// a plugin's class. So the JSON board records the package here, and a board
+// that opens without the package names it.
 export interface JsonOption {
   readonly value: Json;
   readonly version: number;
+  readonly package: string | null;
 }
 
 // A plugin's state as a JSON board holds it, under the id of the plugin's

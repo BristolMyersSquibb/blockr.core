@@ -6048,13 +6048,13 @@ function checkJsonBoard(json) {
   if (lacking2.length > 0) {
     throw new StoreError(refused, [`The board holds its ${listing(lacking2)} in no object by id.`]);
   }
-  checkVersions(board);
+  checkRecorded(board);
   return json;
 }
 function isVersion(value2) {
   return typeof value2 === "number" && Number.isInteger(value2) && value2 >= 1;
 }
-function checkVersions(board) {
+function checkRecorded(board) {
   const failures = [];
   for (const [cls, plugin] of Object.entries(board.plugins)) {
     if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
@@ -6067,8 +6067,10 @@ function checkVersions(board) {
     }
   }
   for (const [id2, option] of Object.entries(board.options)) {
-    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version)) {
-      failures.push(`The board option "${id2}" is recorded as no value with the version of its shape.`);
+    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version) || !(option.package === null || typeof option.package === "string")) {
+      failures.push(
+        `The board option "${id2}" is recorded as no value with the version of its shape and the package that lists it.`
+      );
     }
   }
   if (failures.length > 0) throw new StoreError(refused, failures);
@@ -6187,7 +6189,10 @@ function openJsonBoard(json, reply, registrations) {
     return { about: { block: id2, registry_id: registryId2 }, package: packageFromId(registryId2) };
   });
   const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
-  const options = unclaimed.map((id2) => ({ about: { option: id2 }, package: null }));
+  const options = unclaimed.map((id2) => ({
+    about: { option: id2 },
+    package: own(json.board.options, id2)?.package ?? null
+  }));
   const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
   const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
   const failures = check(board, reply.block_registry, registrations);
@@ -6602,11 +6607,17 @@ function createStore(options = {}) {
     if (next === void 0) {
       throw new Error("The store holds no board until it opens one.");
     }
+    const options2 = Object.fromEntries(
+      Object.entries(next.options).map(([id3, value2]) => {
+        const entry = own(hello?.options ?? {}, id3);
+        return [id3, { value: value2, version: entry?.version ?? 1, package: entry?.package ?? null }];
+      })
+    );
     const classes2 = Object.keys(next.plugins);
     const owned = /* @__PURE__ */ new Set([
       ...classes2.flatMap((cls) => packageFromId(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
-      ...Object.keys(next.options).flatMap((id3) => own(hello?.options ?? {}, id3)?.package ?? [])
+      ...Object.values(options2).flatMap((option) => option.package ?? [])
     ]);
     const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {
@@ -6624,12 +6635,6 @@ function createStore(options = {}) {
           name: block.name,
           locked: block.locked
         }
-      ])
-    );
-    const options2 = Object.fromEntries(
-      Object.entries(next.options).map(([id3, value2]) => [
-        id3,
-        { value: value2, version: own(hello?.options ?? {}, id3)?.version ?? 1 }
       ])
     );
     const plugins = Object.fromEntries(
@@ -14833,11 +14838,11 @@ function reloadNotification(changed) {
   );
 }
 function droppedNotification(dropped) {
-  const lines = dropped.map(({ about }) => {
+  const lines = dropped.map(({ about, package: pkg }) => {
     if ("package" in about) return `- package ${about.package} ${about.version}`;
     if ("block" in about) return `- block "${about.block}" (${about.registry_id})`;
     if ("plugin" in about) return `- plugin "${about.plugin}"`;
-    return `- board option "${about.option}"`;
+    return `- board option "${about.option}"${pkg === null ? "" : ` (${pkg})`}`;
   });
   return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
 }
@@ -16974,7 +16979,7 @@ var hello_default = {
             },
             stacks: { s1: { name: "Input", blocks: ["a", "b"], color: null } },
             options: {
-              n_rows: { value: 50, version: 1 }
+              n_rows: { value: 50, version: 1, package: "blockr.core" }
             },
             plugins: {}
           }
