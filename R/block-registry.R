@@ -204,7 +204,7 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
       )
     }
 
-    if (grepl("-fill$", icon)) {
+    if (grepl("[-[:space:]]fill$", icon, ignore.case = TRUE)) {
       blockr_warn(
         "Using block icons with 'fill' style, such as {icon} is discouraged.",
         class = "block_icon_fill_discouraged",
@@ -213,11 +213,15 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
       )
     }
 
-    if (!icon %in% bsicon_icons()) {
-      blockr_abort("Unknown icon {icon}.", class = "block_icon_invalid")
-    }
-
-    icon <- as.character(bsicons::bs_icon(icon))
+    icon <- tryCatch(
+      as.character(bsicons::bs_icon(icon)),
+      error = function(e) {
+        blockr_abort(
+          "{conditionMessage(e)}",
+          class = "block_icon_invalid"
+        )
+      }
+    )
   }
 
   cls <- constructor_class(ctor)
@@ -328,10 +332,6 @@ default_icon <- function(category = default_category()) {
 #' @rdname register_block
 #' @export
 default_category <- function() "uncategorized"
-
-bsicon_icons <- function() {
-  get("icon_info", envir = asNamespace("bsicons"), mode = "list")$name
-}
 
 #' @rdname register_block
 #' @export

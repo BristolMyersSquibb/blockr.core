@@ -353,7 +353,7 @@ frontend_args.frontend_plugin <- function(x, ...) {
   # R reads the arguments unevaluated, so that one that calls a function of a
   # package that the app has not loaded, as `navbar = default_navbar()`
   # without blockr.dock, fails with this error too.
-  nms <- dots_names(substitute(list(...)))
+  nms <- coal(...names(), character(...length()), fail_all = FALSE)
 
   if (length(nms)) {
     blockr_abort(
@@ -732,7 +732,7 @@ check_plugin_packages <- function(packages, listed) {
 format.plugin <- function(x, ...) {
   c(
     paste0("<", class(x)[1L], "> ", plugin_class_id(x)),
-    format_lines(plugin_state(x))
+    format_state(plugin_state(x))
   )
 }
 

@@ -217,7 +217,7 @@ serve.character <- function(x, ..., blocks = available_blocks(),
 #' @export
 serve.block <- function(x, ..., data = list()) {
 
-  dots <- dots_names(substitute(list(...)))
+  dots <- coal(...names(), character(...length()), fail_all = FALSE)
 
   if (length(dots) && length(data)) {
     dots <- arg_labels(dots)
@@ -778,13 +778,6 @@ check_class_rows <- function(x, what, listing, class, yaml = FALSE) {
   }
 
   invisible(x)
-}
-
-# The names of the arguments that the call `list(...)` holds, unevaluated,
-# with "" for an argument that has none.
-dots_names <- function(call) {
-  args <- as.list(call)[-1L]
-  coal(names(args), character(length(args)), fail_all = FALSE)
 }
 
 # The arguments of the names given, as a message names them: each name in

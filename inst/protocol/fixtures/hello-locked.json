@@ -42,6 +42,7 @@
               "required": ["package"],
               "additionalProperties": false
             },
+            "block_name": "Dataset",
             "state": { "package": "datasets" },
             "options": [],
             "requests": {
@@ -88,6 +89,7 @@
               "required": ["n", "direction"],
               "additionalProperties": false
             },
+            "block_name": "Head",
             "state": { "n": 6, "direction": "head" },
             "options": [],
             "requests": {

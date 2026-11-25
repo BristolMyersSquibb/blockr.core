@@ -117,6 +117,54 @@ test_that("registry", {
   expect_error(default_icon(1), class = "block_category_invalid")
 })
 
+test_that("registration lets bsicons validate icon names", {
+
+  curr <- list_blocks()
+  withr::defer(unregister_blocks(setdiff(list_blocks(), curr)))
+
+  for (icon in c("arrow up", "Table", "Database", "file earmark")) {
+    expect_s3_class(
+      register_block(
+        new_class_merge_block,
+        "Merge",
+        "Merge",
+        icon = icon,
+        overwrite = TRUE
+      ),
+      "block_registry_entry"
+    )
+  }
+
+  expect_error(
+    register_block(
+      new_class_merge_block,
+      "Merge",
+      "Merge",
+      icon = "arow-up",
+      overwrite = TRUE
+    ),
+    "arrow-up",
+    fixed = TRUE,
+    class = "block_icon_invalid"
+  )
+
+  for (icon in c("star fill", "Star-Fill")) {
+    rlang::reset_warning_verbosity(
+      paste0("block_icon_", icon, "_discouraged")
+    )
+    expect_warning(
+      register_block(
+        new_class_merge_block,
+        "Merge",
+        "Merge",
+        icon = icon,
+        overwrite = TRUE
+      ),
+      class = "block_icon_fill_discouraged"
+    )
+  }
+})
+
 test_that("a block class's registry id comes from the class alone", {
 
   local_declared(block_registry)
@@ -276,12 +324,9 @@ test_that("registry entries print", {
 
 test_that("loading core registers none of its block classes", {
 
-  skip_on_covr()
-
   local_empty_declarations()
 
-  # Outside covr, the load hook traces no block class, and declares core's
-  # modules again
+  # The load hook declares core's modules again.
   .onLoad("", "blockr.core")
 
   expect_identical(list_blocks(), character())
@@ -330,6 +375,10 @@ test_that("an app offers the block classes that `blocks` gives", {
   head <- entries[["blockr.core-head_block"]]
 
   expect_identical(head[["block_class"]], head_block)
+  expect_identical(
+    rlang::obj_address(head[["block_class"]]),
+    rlang::obj_address(get("head_block", envir = asNamespace("blockr.core")))
+  )
   expect_identical(head[["state"]], list(n = 6L, direction = "head"))
 
   # The schema that the module ships describes each state arg, as the JSDoc

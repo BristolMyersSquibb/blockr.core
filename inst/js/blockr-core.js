@@ -924,6 +924,7 @@ function unevaluated(revision, running2) {
     stderr: "",
     summary: null,
     reason: null,
+    keptWaiting: null,
     unsent: null
   };
 }
@@ -938,6 +939,7 @@ function failedToSend(failure, revision, evaluated, running2) {
     stderr: "",
     summary: null,
     reason: null,
+    keptWaiting: null,
     unsent: failure.message
   };
 }
@@ -958,10 +960,11 @@ function replied(outcome, revision, running2) {
     stderr: outcome.stderr,
     summary: outcome.summary,
     reason: outcome.reason,
+    keptWaiting: null,
     unsent: null
   };
 }
-function waiting(why, revision, evaluated, running2) {
+function waiting(kept, revision, evaluated, running2) {
   return {
     status: "waiting",
     revision,
@@ -971,7 +974,8 @@ function waiting(why, revision, evaluated, running2) {
     stdout: "",
     stderr: "",
     summary: null,
-    reason: why,
+    reason: waitingFor(kept),
+    keptWaiting: kept,
     unsent: null
   };
 }
@@ -987,7 +991,7 @@ function waitingFor(what) {
   return `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
 }
 function sameStatus(a, b) {
-  return a.status === b.status && a.revision === b.revision && a.evaluated === b.evaluated && a.running === b.running && a.stdout === b.stdout && a.stderr === b.stderr && a.summary === b.summary && a.reason === b.reason && a.unsent === b.unsent && a.conditions.length === b.conditions.length && a.conditions.every((condition, i) => condition === b.conditions[i]);
+  return a.status === b.status && a.revision === b.revision && a.evaluated === b.evaluated && a.running === b.running && a.stdout === b.stdout && a.stderr === b.stderr && a.summary === b.summary && a.reason === b.reason && jsonEqual(a.keptWaiting, b.keptWaiting) && a.unsent === b.unsent && a.conditions.length === b.conditions.length && a.conditions.every((condition, i) => condition === b.conditions[i]);
 }
 function blockStatuses(input2) {
   const statuses = /* @__PURE__ */ new Map();
@@ -998,8 +1002,8 @@ function blockStatuses(input2) {
     const outcome = input2.outcomes.get(id2);
     const failure = input2.unsent.get(id2);
     const running2 = input2.running.has(id2);
-    const reason = keptWaiting(input2.inputs.get(id2), statuses);
-    const now = reason !== void 0 ? waiting(reason, revision, outcome?.revision ?? null, running2) : failure !== void 0 ? failedToSend(failure, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
+    const kept = keptWaiting(input2.inputs.get(id2), statuses);
+    const now = kept !== null ? waiting(kept, revision, outcome?.revision ?? null, running2) : failure !== void 0 ? failedToSend(failure, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
     const before = input2.before.get(id2);
     if (before !== void 0 && sameStatus(before, now)) {
       statuses.set(id2, before);
@@ -1015,23 +1019,23 @@ function blockStatuses(input2) {
 }
 function keptWaiting(inputs, statuses) {
   const unlinked = inputs?.unlinked ?? [];
-  if (unlinked.length > 0) return waitingFor({ unlinked });
+  if (unlinked.length > 0) return { unlinked };
   const reads = (inputs?.recipe ?? []).flatMap((read) => read.block ?? []);
   const blocked = [...new Set(reads)].filter((up) => {
     const status = statuses.get(up)?.status;
     return status === "failed" || status === "invalid" || status === "waiting";
   });
-  return blocked.length > 0 ? waitingFor({ upstream: blocked }) : void 0;
+  return blocked.length > 0 ? { upstream: blocked } : null;
 }
-function waitingError(id2, status) {
-  const why = status.reason ?? "This block is waiting.";
+function waitingError(id2, kept) {
+  const why = waitingFor(kept);
   return new Error(
     `${why.replace(/^This block/, `Block "${id2}"`)} Its evaluation with parameters is not sent.`
   );
 }
 
 // srcts/scheduler/evaluations.ts
-function createOneTime(blocks, params, priority, statuses, inputs) {
+function createOneTime(blocks, params, priority, statuses) {
   if (params === void 0) {
     const onBoard = new Set(blocks.filter((id2) => statuses.has(id2)));
     if (onBoard.size === 0) {
@@ -1047,10 +1051,8 @@ function createOneTime(blocks, params, priority, statuses, inputs) {
   }
   const parts = /* @__PURE__ */ new Map();
   for (const id2 of blocks) {
-    const status = statuses.get(id2);
-    if (status !== void 0 && keptWaiting(inputs.get(id2), statuses) !== void 0) {
-      return waitingError(id2, status);
-    }
+    const kept = statuses.get(id2)?.keptWaiting ?? null;
+    if (kept !== null) return waitingError(id2, kept);
     parts.set(id2, { recipe: void 0, sent: void 0, result: void 0 });
   }
   return { priority, params, parts };
@@ -1278,9 +1280,9 @@ function evaluationPlan(input2) {
     for (const item of queued) {
       if (item.oneTime !== void 0) {
         if (rejected.has(item.oneTime)) continue;
-        const status = statuses.get(item.block);
-        if (status !== void 0 && keptWaiting(input2.inputs.get(item.block), statuses) !== void 0) {
-          reject.push({ oneTime: item.oneTime, error: waitingError(item.block, status) });
+        const kept = statuses.get(item.block)?.keptWaiting ?? null;
+        if (kept !== null) {
+          reject.push({ oneTime: item.oneTime, error: waitingError(item.block, kept) });
           rejected.add(item.oneTime);
           continue;
         }
@@ -1627,7 +1629,7 @@ function createScheduler(options) {
     if (evaluation === void 0 || ended()) return;
     if (reply.status === "missing") lacking(reply.missing);
     const outcome = replyOutcome(reply, evaluation.revision);
-    if (outcome !== void 0 && evaluation.revision === revisions.value.get(evaluation.block) && keptWaiting(inputs.value.get(evaluation.block), statuses.value) === void 0) {
+    if (outcome !== void 0 && evaluation.revision === revisions.value.get(evaluation.block) && statuses.value.get(evaluation.block)?.keptWaiting === null) {
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
       if (unsentEvaluations.value.has(evaluation.block)) {
         const rest = new Map(unsentEvaluations.value);
@@ -1683,7 +1685,6 @@ function createScheduler(options) {
           graph: graph.value,
           revisions: revisions.value,
           statuses: statuses.value,
-          inputs: inputs.value,
           needs: needs.value,
           sent: sent2.value.values(),
           asked: asked.value.values(),
@@ -1817,7 +1818,7 @@ function createScheduler(options) {
           if ("error" in result) reject(asError(result.error));
           else resolve(result.statuses);
         });
-        const oneTime = createOneTime([...new Set(blocks)], params, at, statuses.value, inputs.value);
+        const oneTime = createOneTime([...new Set(blocks)], params, at, statuses.value);
         if (oneTime instanceof Error) {
           update({ oneTimes: oneTimes.value, settled: [[id2, { error: oneTime }]] });
         } else {
@@ -2276,16 +2277,16 @@ var ATTEMPTS = 3;
 var RequestError = class extends Error {
   status;
   conditions;
-  inputs;
-  blocks;
+  notReady;
+  unlinked;
   constructor(message, fields = {}) {
     const conditions = fields.conditions ?? [];
     super([message, ...conditions.map((condition) => `- ${condition.message}`)].join("\n"));
     this.name = "RequestError";
     this.status = fields.status ?? null;
     this.conditions = conditions;
-    this.inputs = fields.inputs ?? [];
-    this.blocks = fields.blocks ?? [];
+    this.notReady = fields.notReady ?? [];
+    this.unlinked = fields.unlinked ?? [];
   }
 };
 async function blockRequest(deps, block, entry, name3, given, opts) {
@@ -2374,7 +2375,10 @@ async function evaluateReads(deps, block, entry, name3, names, signal5) {
   if (inputs === void 0) throw new Error(`Block "${block}" left the board, so its request "${name3}" did not go to R.`);
   const unlinked = inputs.unlinked.filter((input2) => names.includes(input2));
   if (unlinked.length > 0) {
-    throw new RequestError(`${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`);
+    throw new RequestError(
+      `${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`,
+      { unlinked }
+    );
   }
   const read = inputs.recipe.filter(
     (input2) => names.includes(input2.input) || names.includes("...") && !entry.inputs.includes(input2.input)
@@ -2382,15 +2386,15 @@ async function evaluateReads(deps, block, entry, name3, names, signal5) {
   const upstream = [...new Set(read.flatMap((input2) => input2.block ?? []))];
   if (upstream.length === 0) return read.map((input2) => ({ input: input2.input }));
   const statuses = await deps.scheduler.evaluate(upstream, void 0, signal5 === void 0 ? {} : { signal: signal5 });
-  const unready = read.flatMap((input2) => {
+  const notReady = read.flatMap((input2) => {
     if (input2.block === void 0) return [];
     const status = own(statuses, input2.block);
-    return status === void 0 || status.status === "ready" ? [] : [{ input: input2.input, status }];
+    return status === void 0 || status.status === "ready" ? [] : [{ block: input2.block, status, input: input2.input }];
   });
-  if (unready.length > 0) {
-    const listed = unready.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
+  if (notReady.length > 0) {
+    const listed = notReady.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since an input it reads is not ready: ${listed.join(", ")}.`, {
-      inputs: unready
+      notReady
     });
   }
   return read.map(
@@ -2972,7 +2976,7 @@ function mountOutput(deps, el, block) {
           reject(
             new RequestError(
               `The request "${name3}" of the output of block "${block}" did not go to R, since the block reads ${status.status}.`,
-              { blocks: [{ block, status }] }
+              { notReady: [{ block, status }] }
             )
           );
           return true;
@@ -4780,14 +4784,6 @@ function mintId(taken, randId = "adjective_animal") {
   while (taken(`${id2}_${String(n)}`)) n++;
   return `${id2}_${String(n)}`;
 }
-function sentenceCase(id2) {
-  const words = id2.replace(/([A-Z])/g, " $1").replace(/[_\-.]/g, " ").trim().split(" ");
-  const [first = "", ...rest] = words;
-  return [
-    first.charAt(0).toUpperCase() + first.slice(1).toLowerCase(),
-    ...rest.map((word) => word.toLowerCase())
-  ].join(" ");
-}
 var draws = {
   adjective_animal: () => `${pick(adjectives)}_${pick(animals)}`,
   adjective_adjective_animal: () => {
@@ -5481,7 +5477,7 @@ function expand(delta, board, registrations) {
       try {
         patches2 = def.state.update(expanded, board, id2);
       } catch (error) {
-        failures.push(`The plugin class "${id2}" failed to update the delta for its plugin: ${errorMessage(error)}`);
+        failures.push(thrown(id2, `The plugin class "${id2}" failed to update the delta for its plugin`, error));
         continue;
       }
       const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
@@ -5515,7 +5511,7 @@ function afterStep(board, before, registrations) {
     try {
       returned = def.state.afterStep(board, before, id2);
     } catch (error) {
-      failures.push(`The afterStep of the plugin class "${id2}" failed: ${errorMessage(error)}`);
+      failures.push(thrown(id2, `The afterStep of the plugin class "${id2}" failed`, error));
       continue;
     }
     const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
@@ -5550,6 +5546,11 @@ function expandCore(delta, board) {
     ...incident.length === 0 ? {} : { links: { ...delta.links, rm: [...linksRm, ...incident] } },
     ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
   };
+}
+function thrown(id2, of, error) {
+  const failure = `${of}: ${errorMessage(error)}`;
+  log.error(new Error(failure, { cause: error }), { "blockr.plugin.class_id": id2 });
+  return failure;
 }
 function misplaced(id2, patches2, of) {
   if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
@@ -6548,7 +6549,7 @@ function coreCommands(store) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
+    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? entry.block_name, locked: null }];
   }
   function inputFailures(board2, to, given) {
     const registry = store.blockRegistry();
@@ -6740,19 +6741,24 @@ function coreCommands(store) {
           ...stackId,
           description: "The new stack's id, which is minted where it is left out."
         },
-        name: { ...name2, description: `The new stack's name, "Stack" where it is left out.` },
+        name: {
+          ...name2,
+          description: `The new stack's name, the first free "Stack n" where it is left out.`
+        },
         blocks: { ...blockIds, description: "The blocks of the new stack, in order." },
         color: {
           ...color,
           description: "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own."
         }
       }),
-      run(board2, { id: id2, name: name3 = "Stack", blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
+      run(board2, { id: id2, name: name3, blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
         const stack = id2 ?? mintId2((id3) => Object.hasOwn(board2.stacks, id3));
         const left2 = leave(board2, stack, blocks2);
         return {
           stacks: {
-            add: { [stack]: { name: name3, blocks: blocks2, color: color2 } },
+            add: {
+              [stack]: { name: name3 ?? suggestedName(Object.values(board2.stacks)), blocks: blocks2, color: color2 }
+            },
             ...Object.keys(left2).length === 0 ? {} : { mod: left2 }
           }
         };
@@ -6852,10 +6858,11 @@ function linkFeeding(board, registry, to, input2, except) {
   if (inputs === void 0 || inputs.includes("...")) return void 0;
   return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
 }
-function defaultBlockName(registryId2) {
-  const pkg = packageFromId(registryId2);
-  const name3 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
-  return sentenceCase(name3.replace(/_block$/, ""));
+function suggestedName(stacks) {
+  const names = new Set(stacks.map((stack) => stack.name));
+  let n = 1;
+  while (names.has(`Stack ${String(n)}`)) n++;
+  return `Stack ${String(n)}`;
 }
 function cycleFailures(board, from, to, except) {
   if (from === to) return [`The link would join block "${to}" to itself.`];
@@ -6904,26 +6911,48 @@ function command(def) {
 
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
+  // The id of the command that was stopped, such as
+  // "blockr.core-remove_block". It is left out only where the store refused a
+  // batch as a whole, after the dry run of each command's deltas had passed,
+  // which the first line says. There, a plugin class's afterStep failed, or
+  // returned what the store refuses, and the failures name the class.
+  command;
+  // What stopped the command:
+  // - "registry": the command registry refused to run it, as where no command
+  //   has its id, its args fail their schema or the store holds no board.
+  // - "preflight": its preflight() answered false. The assistant's edit tool
+  //   reads this to tell the model what to check.
+  // - "command": the command refused, throwing the refusal() of its context.
+  // - "code": the command's own preflight(), prepare() or run() threw
+  //   anything else. That is the cause, and the command registry has logged
+  //   it at error.
+  // - "store": the store refused its deltas. The StoreError is the cause.
+  by;
   failures;
   // The command's place in the batch that run() or plan() was given, counted
-  // from 0, where the command refused as one of a batch.
+  // from 0, where it was stopped as one of a batch.
   index;
-  // False where the command failed its preflight, its preflight() answering
-  // false, and left out otherwise, as a command's `undo` is false only where it
-  // takes no undo step. The assistant's edit tool reads it to tell the model
-  // what to check. A preflight() that throws the refusal() of its context
-  // leaves it out, since that refusal says why.
-  preflight;
-  constructor(message, failures, options) {
-    super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
+  constructor(fields) {
+    super(
+      [firstLine(fields), ...fields.failures.map((failure) => `- ${failure}`)].join("\n"),
+      fields.cause === void 0 ? void 0 : { cause: fields.cause }
+    );
     this.name = "CommandError";
-    this.failures = failures;
-    if (options?.index !== void 0) this.index = options.index;
-    if (options?.preflight === false) this.preflight = false;
+    this.by = fields.by;
+    this.failures = fields.failures;
+    if (fields.command !== void 0) this.command = fields.command;
+    if (fields.index !== void 0) this.index = fields.index;
   }
 };
-function refusal(id2, failures, options) {
-  return new CommandError(`The command "${id2}" refused to run`, failures, options);
+function firstLine({ command: command2, by, index }) {
+  if (command2 === void 0) return "The store refused the batch as a whole, after the deltas of each command had passed";
+  if (index !== void 0) return `The batch was refused at command ${String(index + 1)}, "${command2}"`;
+  if (by === "code") return `The command "${command2}" failed`;
+  if (by === "store") return `The store refused the deltas of the command "${command2}"`;
+  return `The command "${command2}" refused to run`;
+}
+function refusal(id2, failures, by = "command") {
+  return new CommandError({ command: id2, by, failures });
 }
 var DROPPED = "A board opened while it prepared, which drops it.";
 function createCommands(store, options = {}) {
@@ -6971,21 +7000,21 @@ function createCommands(store, options = {}) {
   function lookup(id2, given) {
     const item = commands.value.get(id2);
     if (item === void 0) {
-      throw refusal(id2, [`No command "${id2}" is registered.`]);
+      throw refusal(id2, [`No command "${id2}" is registered.`], "registry");
     }
     const args = given ?? {};
     const failures = item.validate?.(args) ?? [];
     if (failures.length > 0) {
-      throw refusal(id2, failures.map((failure) => `The args ${failure}`));
+      throw refusal(id2, failures.map((failure) => `The args ${failure}`), "registry");
     }
     return { item, args };
   }
   function current2(id2) {
     if (ended()) {
-      throw refusal(id2, ["Another board opened in a new store, so this command registry runs no command."]);
+      throw refusal(id2, ["Another board opened in a new store, so this command registry runs no command."], "registry");
     }
     if (!store.hasBoard()) {
-      throw refusal(id2, ["The store holds no board until it opens one."]);
+      throw refusal(id2, ["The store holds no board until it opens one."], "registry");
     }
     return store.board();
   }
@@ -6995,7 +7024,7 @@ function createCommands(store, options = {}) {
       throw refusal(
         command2.id,
         [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
-        { preflight: false }
+        "preflight"
       );
     }
   }
@@ -7013,7 +7042,7 @@ function createCommands(store, options = {}) {
   async function prepared(item, board, args) {
     const { command: command2 } = item;
     const input2 = await prepare(item, board, args);
-    if (ended()) throw refusal(command2.id, [DROPPED]);
+    if (ended()) throw refusal(command2.id, [DROPPED], "registry");
     const now = current2(command2.id);
     allow(item, now, args);
     return build(item, now, input2);
@@ -7055,14 +7084,14 @@ function createCommands(store, options = {}) {
           allow(item, board, args);
           if (command2.prepare !== void 0 && !inputs.has(index)) {
             inputs.set(index, await within(() => prepare(item, board, args)));
-            if (ended()) throw refusal(command2.id, [DROPPED]);
+            if (ended()) throw refusal(command2.id, [DROPPED], "registry");
             if (store.board() !== start2) {
               again = true;
               break;
             }
           }
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
-          board = store.dryRun(built);
+          board = byStore(command2.id, () => store.dryRun(built));
         } catch (error) {
           throw inBatch(index, command2.id, error);
         }
@@ -7075,7 +7104,7 @@ function createCommands(store, options = {}) {
     return traced(
       "command batch",
       { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(batch2, (built) => store.apply(built, origin))
+      () => planned(batch2, (built) => byStore(void 0, () => store.apply(built, origin)))
     );
   }
   async function traced(name3, attributes, run) {
@@ -7138,7 +7167,7 @@ function createCommands(store, options = {}) {
         const { item, args } = lookup(target2, given);
         const step2 = deltas(item, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        return within(() => store.apply(ready, origin));
+        return within(() => byStore(target2, () => store.apply(ready, origin)));
       });
     },
     async plan(target2, given) {
@@ -7156,27 +7185,25 @@ function isCommandId(id2) {
   const pkg = packageFromId(id2);
   return pkg !== null && id2.length > pkg.length + 1;
 }
-var loggedErrors = /* @__PURE__ */ new WeakSet();
 function isLogged(error) {
-  return error instanceof CommandError && loggedErrors.has(error);
+  return error instanceof CommandError && error.by === "code";
 }
 function inBatch(index, id2, error) {
-  const named4 = error instanceof CommandError || error instanceof StoreError;
-  const refused2 = new CommandError(
-    `The batch was refused at command ${String(index + 1)}, "${id2}"`,
-    named4 ? error.failures : [errorMessage(error)],
-    { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
-  );
-  if (isLogged(error)) loggedErrors.add(refused2);
-  return refused2;
+  if (!(error instanceof CommandError)) return error;
+  return new CommandError({ command: id2, by: error.by, failures: error.failures, index, cause: error.cause });
+}
+function byStore(id2, fn) {
+  try {
+    return fn();
+  } catch (error) {
+    if (!(error instanceof StoreError)) throw error;
+    throw new CommandError({ command: id2, by: "store", failures: error.failures, cause: error });
+  }
 }
 function failed(command2, error) {
   if (error instanceof CommandError) return error;
-  const failure = new CommandError(`The command "${command2.id}" failed`, [errorMessage(error)], {
-    cause: error
-  });
+  const failure = new CommandError({ command: command2.id, by: "code", failures: [errorMessage(error)], cause: error });
   log.error(failure);
-  loggedErrors.add(failure);
   return failure;
 }
 function attempt2(command2, fn) {
@@ -8282,7 +8309,6 @@ import { flushSync as flushSync2 } from "react-dom";
 import { ComboBox, ComboBoxItem as ComboBoxItem2, ComboBoxSection, Form, Select, SelectItem, Text as Text2, TextField as TextField2, useBoard } from "@blockr/core/react";
 import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
-  const board = useBoard(core);
   const registry = core.blockRegistry();
   const edits = useEdits(core);
   const [picked, setPicked] = useState7(void 0);
@@ -8302,16 +8328,16 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
     filter
   );
   const entry = picked === void 0 ? void 0 : own(registry, picked);
-  const link = linkChoice(mode, board, registry, entry);
+  const link = useBoard(core, (board) => linkChoice(mode, board, core.blockRegistry(), entry));
   const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
   const places = link.kind === "name" ? link.places : void 0;
   const position = places === void 0 ? void 0 : place !== void 0 && place <= places.length ? place : places.length + 1;
-  const on = mode.kind === "on" ? own(board.links, mode.link) : void 0;
+  const on = useBoard(core, (board) => mode.kind === "on" ? own(board.links, mode.link) : void 0);
   if (mode.kind === "on" && on === void 0) return null;
   function check2() {
     return {
       ...entry === void 0 ? { registry: "Pick the class of the new block." } : {},
-      ...optional2("id", blockIdError(id2, board)),
+      ...optional2("id", blockIdError(id2, core.store.board())),
       ...link.kind === "name" ? optional2("input", inputNameError(inputName, link.taken)) : {}
     };
   }
@@ -8441,7 +8467,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
                 setErrors((now) => without3(now, "id"));
               },
               onBlur: () => {
-                setErrors((now) => ({ ...now, ...optional2("id", blockIdError(id2, board)) }));
+                setErrors((now) => ({ ...now, ...optional2("id", blockIdError(id2, core.store.board())) }));
               }
             }
           ),
@@ -8450,7 +8476,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
             {
               label: "Name",
               value: name3,
-              placeholder: entry === void 0 ? void 0 : defaultBlockName(entry.id),
+              placeholder: entry?.block_name,
               description: "Optional. The class's name where left empty.",
               autoComplete: "off",
               onChange: setName
@@ -9194,13 +9220,14 @@ var createLinkForm = {
     const given = picked === void 0 ? {} : startOf(picked);
     if ("input" in target2) {
       const input2 = target2.input === "" ? {} : { input: target2.input };
-      return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: { ...given, to: target2.block, ...input2 }, fixed: "to", ...input2, done }));
+      const fixedInput2 = target2.input === "" ? {} : { fixedInput: target2.input };
+      return drawForm(el, /* @__PURE__ */ jsx9(LinkForm, { core, start: { ...given, to: target2.block, ...input2 }, fixed: "to", ...fixedInput2, done }));
     }
-    if (!("block" in target2)) return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: given, done }));
+    if (!("block" in target2)) return drawForm(el, /* @__PURE__ */ jsx9(LinkForm, { core, start: given, done }));
     const { block } = target2;
     const fixed2 = given.to === block ? "to" : "from";
     const start2 = fixed2 === "to" ? { ...given, to: block } : { ...given, from: block };
-    return drawForm(el, /* @__PURE__ */ jsx9(AddLink, { core, start: start2, fixed: fixed2, done }));
+    return drawForm(el, /* @__PURE__ */ jsx9(LinkForm, { core, start: start2, fixed: fixed2, done }));
   }
 };
 var editLinkForm = {
@@ -9218,63 +9245,70 @@ function startOf(picked) {
     ...typeof input2 === "string" ? { input: input2 } : {}
   };
 }
-function AddLink({ core, start: start2, fixed: fixed2, input: input2, done }) {
-  const board = useBoard3(core);
-  return /* @__PURE__ */ jsx9(
-    LinkForm,
-    {
-      core,
-      board,
-      start: start2,
-      ...fixed2 === void 0 ? {} : { fixed: fixed2 },
-      ...input2 === void 0 ? {} : { fixedInput: input2 },
-      done
-    }
-  );
-}
 function fixedEnd(board, end, block, input2) {
   const name3 = block === void 0 ? "" : blockName(board, block);
   if (end === "from") return `A link from "${name3}".`;
   return input2 === void 0 ? `A link into "${name3}".` : `A link into the input "${input2}" of "${name3}".`;
 }
 function EditLink({ core, id: id2, done }) {
-  const board = useBoard3(core);
-  const link = own(board.links, id2);
-  return link === void 0 ? null : /* @__PURE__ */ jsx9(LinkForm, { core, board, editing: { id: id2, link }, done });
+  const link = useBoard3(core, (board) => own(board.links, id2));
+  return link === void 0 ? null : /* @__PURE__ */ jsx9(LinkForm, { core, editing: { id: id2, link }, done });
 }
 function LinkForm({
   core,
-  board,
   start: start2 = {},
   fixed: fixed2,
   fixedInput: fixedInput2,
   editing,
   done
 }) {
-  const registry = core.blockRegistry();
   const except = editing?.id;
   const [from, setFrom] = useState9(editing?.link.from ?? start2.from);
   const [to, setTo] = useState9(editing?.link.to ?? start2.to);
   const [input2, setInput] = useState9(editing?.link.input ?? start2.input);
-  const [name3, setName] = useState9(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  const [name3, setName] = useState9(
+    () => editing !== void 0 && isVariadicBlock(core.store.board(), core.blockRegistry(), editing.link.to) ? editing.link.input : ""
+  );
   const [place, setPlace] = useState9(void 0);
   const [errors, setErrors] = useState9({});
   const [busy, setBusy] = useState9(false);
   const edits = useEdits(core);
-  const others = withoutLink(board, except);
-  const held3 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
-  const source = held3(from) ? from : void 0;
-  const target2 = held3(to) ? to : void 0;
-  const { fromOptions, toOptions } = ends(others, registry, source, target2);
+  const { source, target: target2, fromOptions, toOptions, variadic: variadic2, offered, chosen, hint, taken, among, fixedLine, targetName, few } = useBoard3(
+    core,
+    (board) => {
+      const registry = core.blockRegistry();
+      const others = withoutLink(board, except);
+      const held3 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
+      const source2 = held3(from) ? from : void 0;
+      const target3 = held3(to) ? to : void 0;
+      const free = target3 === void 0 ? [] : freeInputs(others, registry, target3) ?? [];
+      const variadic3 = isVariadic(free);
+      const offered2 = !variadic3 && editing !== void 0 && target3 === editing.link.to ? classInputs(board, registry, target3) : free;
+      const chosen2 = variadic3 ? void 0 : input2 !== void 0 && offered2.includes(input2) ? input2 : free[0];
+      return {
+        source: source2,
+        target: target3,
+        ...ends(others, registry, source2, target3),
+        variadic: variadic3,
+        offered: offered2,
+        chosen: chosen2,
+        // What the form says below the input where another link feeds the one
+        // picked, so that applying the form swaps the inputs of the two links.
+        hint: editing !== void 0 && target3 === editing.link.to && chosen2 !== void 0 ? swapHint(board, registry, editing, chosen2) : void 0,
+        taken: target3 === void 0 ? [] : namesInto(board, target3, except),
+        // Where the link goes into a variadic block, the block's other links
+        // and the place that the link falls in where nothing moves it, which
+        // the form offers until the user picks another.
+        among: target3 === void 0 || !variadic3 ? void 0 : placeAmong(board, target3, except),
+        fixedLine: fixed2 === void 0 ? void 0 : fixedEnd(board, fixed2, fixed2 === "from" ? from : to, fixedInput2),
+        targetName: target3 === void 0 ? "" : blockName(board, target3),
+        // Whether the board holds fewer blocks than a link joins.
+        few: Object.keys(board.blocks).length < 2
+      };
+    }
+  );
   const fromSearch = useSearch(fromOptions, blockTexts);
   const toSearch = useSearch(toOptions, blockTexts);
-  const free = target2 === void 0 ? [] : freeInputs(others, registry, target2) ?? [];
-  const variadic2 = isVariadic(free);
-  const offered = !variadic2 && editing !== void 0 && target2 === editing.link.to ? classInputs(board, registry, target2) : free;
-  const chosen = variadic2 ? void 0 : input2 !== void 0 && offered.includes(input2) ? input2 : free[0];
-  const hint = editing !== void 0 && target2 === editing.link.to && chosen !== void 0 ? swapHint(board, registry, editing, chosen) : void 0;
-  const taken = target2 === void 0 ? [] : namesInto(board, target2, except);
-  const among = target2 === void 0 || !variadic2 ? void 0 : placeAmong(board, target2, except);
   const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
   function check2() {
     return {
@@ -9307,6 +9341,7 @@ function LinkForm({
       focusFirstInvalid(form);
       return;
     }
+    const board = core.store.board();
     const title = editing === void 0 ? "Could not add the link." : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
     const calls = batch2(source, target2);
     setBusy(true);
@@ -9322,7 +9357,7 @@ function LinkForm({
         void submit(event);
       },
       children: [
-        fixed2 === void 0 ? null : /* @__PURE__ */ jsx9("p", { className: styles.hint, children: fixedEnd(board, fixed2, fixed2 === "from" ? from : to, fixedInput2) }),
+        fixedLine === void 0 ? null : /* @__PURE__ */ jsx9("p", { className: styles.hint, children: fixedLine }),
         /* @__PURE__ */ jsxs7("div", { className: fixed2 === void 0 ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid", children: [
           fixed2 === "from" ? null : /* @__PURE__ */ jsx9(
             ComboBox3,
@@ -9366,7 +9401,7 @@ function LinkForm({
             {
               label: "Input name",
               value: name3,
-              description: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
+              description: `Optional. The block "${targetName}" takes any number of links, each by its name or, where it has none, by its position.`,
               errorMessage: errors.input,
               isInvalid: errors.input !== void 0,
               autoComplete: "off",
@@ -9409,7 +9444,7 @@ function LinkForm({
             children: (item) => /* @__PURE__ */ jsx9(SelectItem2, { id: item.id, children: item.id })
           }
         ),
-        editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx9("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
+        editing === void 0 && few ? /* @__PURE__ */ jsx9("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
         /* @__PURE__ */ jsx9("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx9("button", { type: "submit", className: classes.primary, disabled: busy, children: editing === void 0 ? "Add link" : "Apply" }) }),
         /* @__PURE__ */ jsx9(Refusal, { refusal: edits.refusal })
       ]
@@ -9636,15 +9671,9 @@ function suggestedColor(stacks) {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
   return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
 }
-function suggestedName(stacks) {
-  const names = new Set(stacks.map((stack) => stack.name));
-  let n = 1;
-  while (names.has(`Stack ${String(n)}`)) n++;
-  return `Stack ${String(n)}`;
-}
 var createStackForm = {
   render({ el, core, target: target2, done }) {
-    return drawForm(el, /* @__PURE__ */ jsx10(AddStack, { core, given: heldBlocks(core.store.board(), target2), done }));
+    return drawForm(el, /* @__PURE__ */ jsx10(StackForm, { core, given: heldBlocks(core.store.board(), target2), done }));
   }
 };
 var editStackForm = {
@@ -9653,14 +9682,9 @@ var editStackForm = {
     return drawForm(el, /* @__PURE__ */ jsx10(EditStack, { core, id: target2.stack, done }));
   }
 };
-function AddStack({ core, given, done }) {
-  const board = useBoard4(core);
-  return /* @__PURE__ */ jsx10(StackForm, { core, board, given, done });
-}
 function EditStack({ core, id: id2, done }) {
-  const board = useBoard4(core);
-  const stack = own(board.stacks, id2);
-  return stack === void 0 ? null : /* @__PURE__ */ jsx10(StackForm, { core, board, editing: { id: id2, stack }, done });
+  const stack = useBoard4(core, (board) => own(board.stacks, id2));
+  return stack === void 0 ? null : /* @__PURE__ */ jsx10(StackForm, { core, editing: { id: id2, stack }, done });
 }
 function stackColor(color2) {
   return typeof color2 === "string" ? color2 : color2.toString("hex");
@@ -9670,42 +9694,52 @@ function sameColor(a, b) {
 }
 function StackForm({
   core,
-  board,
   given = [],
   editing,
   done
 }) {
-  const registry = core.blockRegistry();
-  const stacks = Object.values(board.stacks);
   const [name3, setName] = useState10(editing?.stack.name ?? "");
-  const [color2, setColor] = useState10(() => editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
+  const [color2, setColor] = useState10(
+    () => editing === void 0 ? suggestedColor(Object.values(core.store.board().stacks)) : editing.stack.color
+  );
   const [blocks, setBlocks] = useState10(editing?.stack.blocks ?? given);
   const fixed2 = editing === void 0 && given.length > 0;
   const [busy, setBusy] = useState10(false);
   const edits = useEdits(core);
-  const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
-  const holder = /* @__PURE__ */ new Map();
-  for (const [id2, stack] of Object.entries(board.stacks)) {
-    if (id2 === editing?.id) continue;
-    for (const block of stack.blocks) holder.set(block, stack.name);
-  }
-  const options = Object.keys(board.blocks).map((id2) => {
-    const item = blockItem(board, registry, id2);
-    const other = holder.get(id2);
-    return other === void 0 ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} \xB7 leaves the stack ${other}` };
+  const { options, kept, fallbackName, line } = useBoard4(core, (board) => {
+    const registry = core.blockRegistry();
+    const holder = /* @__PURE__ */ new Map();
+    for (const [id2, stack] of Object.entries(board.stacks)) {
+      if (id2 === editing?.id) continue;
+      for (const block of stack.blocks) holder.set(block, stack.name);
+    }
+    const kept2 = blocks.filter((block) => Object.hasOwn(board.blocks, block));
+    return {
+      // The blocks, those in no stack first, and those in another stack, which
+      // say that they leave it.
+      options: Object.keys(board.blocks).map((id2) => {
+        const item = blockItem(board, registry, id2);
+        const other = holder.get(id2);
+        return other === void 0 ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} \xB7 leaves the stack ${other}` };
+      }),
+      kept: kept2,
+      fallbackName: editing === void 0 ? suggestedName(Object.values(board.stacks)) : editing.stack.name,
+      // The line that names the new stack's blocks, where the target fixes
+      // them.
+      line: fixed2 ? stackOf(board, kept2) : void 0
+    };
   });
   const search = useSearch(options, blockTexts, "The board holds no block.");
   const sections = [
     { id: "free", title: "In no stack", items: search.items.filter((item) => item.free) },
     { id: "held", title: "In another stack", items: search.items.filter((item) => !item.free) }
   ].filter((section) => section.items.length > 0);
-  const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
   function batch2() {
     const trimmed = name3.trim();
     const hex3 = color2 === null ? null : stackColor(color2);
     if (editing === void 0) {
       const id3 = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
-      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, name: trimmed === "" ? fallbackName : trimmed } }];
+      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, ...trimmed === "" ? {} : { name: trimmed } } }];
     }
     const { id: id2, stack } = editing;
     const changed = {
@@ -9733,7 +9767,7 @@ function StackForm({
         void submit(event);
       },
       children: [
-        fixed2 ? /* @__PURE__ */ jsx10("p", { className: styles.hint, children: stackOf(board, kept) }) : null,
+        line === void 0 ? null : /* @__PURE__ */ jsx10("p", { className: styles.hint, children: line }),
         /* @__PURE__ */ jsxs8("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx10(
             TextField5,
@@ -10907,14 +10941,14 @@ async function evaluateReads2(deps, what, blocks, signal5) {
   }
   const unique = [...new Set(blocks)];
   const statuses = await deps.scheduler.evaluate(unique, void 0, signal5 === void 0 ? {} : { signal: signal5 });
-  const unready = unique.flatMap((block) => {
+  const notReady = unique.flatMap((block) => {
     const status = own(statuses, block);
     return status === void 0 || status.status === "ready" ? [] : [{ block, status }];
   });
-  if (unready.length > 0) {
-    const listed = unready.map(({ block, status }) => `"${block}" reads ${status.status}`);
+  if (notReady.length > 0) {
+    const listed = notReady.map(({ block, status }) => `"${block}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since a block it reads is not ready: ${listed.join(", ")}.`, {
-      blocks: unready
+      notReady
     });
   }
   const left2 = unique.filter((block) => own(statuses, block) === void 0);

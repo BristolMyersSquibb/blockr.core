@@ -133,14 +133,14 @@ async function evaluateReads(
   }
   const unique = [...new Set(blocks)];
   const statuses = await deps.scheduler.evaluate(unique, undefined, signal === undefined ? {} : { signal });
-  const unready = unique.flatMap((block) => {
+  const notReady = unique.flatMap((block) => {
     const status = own(statuses, block);
     return status === undefined || status.status === "ready" ? [] : [{ block, status }];
   });
-  if (unready.length > 0) {
-    const listed = unready.map(({ block, status }) => `"${block}" reads ${status.status}`);
+  if (notReady.length > 0) {
+    const listed = notReady.map(({ block, status }) => `"${block}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since a block it reads is not ready: ${listed.join(", ")}.`, {
-      blocks: unready,
+      notReady,
     });
   }
   const left = unique.filter((block) => own(statuses, block) === undefined);

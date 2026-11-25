@@ -7,7 +7,7 @@ glue_block <- new_block_class(
   inputs = "...",
   expr = function(text = "") {
     bbquote(
-      glue::glue(.(text), .envir = list2env(list(...), parent = baseenv()))
+      glue::glue(.(text), .envir = list2env(list(...), parent = environment()))
     )
   },
   ui = js_module("js/glue-block.js")

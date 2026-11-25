@@ -128,11 +128,11 @@ export interface Commands {
   // args, which fit the schema of its args.
   preflight(id: string, args?: Json): boolean;
   // Runs the command and applies its deltas as one step of the origin, "user"
-  // unless given, or rejects with what refused it, having changed nothing. It
-  // resolves with whether the step took an undo step, as the store's apply()
-  // returns it: none where the command has `undo: false` or changes nothing
-  // besides board options. A command that does not prepare is applied before
-  // run() returns.
+  // unless given, or rejects with a CommandError that says what stopped it,
+  // having changed nothing. It resolves with whether the step took an undo
+  // step, as the store's apply() returns it: none where the command has
+  // `undo: false` or changes nothing besides board options. A command that
+  // does not prepare is applied before run() returns.
   // Through `CoreApi`, core tells the user why the command was refused, or
   // hands that notification to the notifier in `opts`, before run() rejects
   // (../core/core.ts). The command registry itself ignores the notifier.
@@ -163,45 +163,67 @@ export interface Commands {
   plan(batch: readonly { readonly id: string; readonly args?: Json }[]): Promise<Delta[]>;
 }
 
-// What the command registry rejects with where it refuses to run a command, or
-// a command fails, with each failure in a sentence. What the store refuses it
-// rejects with as the store throws it, but for a command of a batch.
-// Where it refuses a batch, the CommandError gives the index of the command
-// that refused, and has what refused it as its cause: the command's own
-// CommandError, or the StoreError with which the store refused its deltas.
+// What the command registry rejects with, whatever stopped a command that it
+// runs or plans, alone or as one of a batch. It names the command by its id,
+// says in `by` what stopped it, and gives each failure in a sentence. Its
+// message says the same: a first line that names the command and what stopped
+// it, then a line for each failure.
 export class CommandError extends Error {
+  // The id of the command that was stopped, such as
+  // "blockr.core-remove_block". It is left out only where the store refused a
+  // batch as a whole, after the dry run of each command's deltas had passed,
+  // which the first line says. There, a plugin class's afterStep failed, or
+  // returned what the store refuses, and the failures name the class.
+  readonly command?: string;
+  // What stopped the command:
+  // - "registry": the command registry refused to run it, as where no command
+  //   has its id, its args fail their schema or the store holds no board.
+  // - "preflight": its preflight() answered false. The assistant's edit tool
+  //   reads this to tell the model what to check.
+  // - "command": the command refused, throwing the refusal() of its context.
+  // - "code": the command's own preflight(), prepare() or run() threw
+  //   anything else. That is the cause, and the command registry has logged
+  //   it at error.
+  // - "store": the store refused its deltas. The StoreError is the cause.
+  readonly by: "registry" | "preflight" | "command" | "code" | "store";
   readonly failures: readonly string[];
   // The command's place in the batch that run() or plan() was given, counted
-  // from 0, where the command refused as one of a batch.
+  // from 0, where it was stopped as one of a batch.
   readonly index?: number;
-  // False where the command failed its preflight, its preflight() answering
-  // false, and left out otherwise, as a command's `undo` is false only where it
-  // takes no undo step. The assistant's edit tool reads it to tell the model
-  // what to check. A preflight() that throws the refusal() of its context
-  // leaves it out, since that refusal says why.
-  readonly preflight?: false;
 
-  constructor(
-    message: string,
-    failures: readonly string[],
-    options?: ErrorOptions & { readonly index?: number; readonly preflight?: false },
-  ) {
-    super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
+  constructor(fields: Pick<CommandError, "command" | "by" | "failures" | "index"> & { readonly cause?: unknown }) {
+    super(
+      [firstLine(fields), ...fields.failures.map((failure) => `- ${failure}`)].join("\n"),
+      fields.cause === undefined ? undefined : { cause: fields.cause },
+    );
     this.name = "CommandError";
-    this.failures = failures;
-    if (options?.index !== undefined) this.index = options.index;
-    if (options?.preflight === false) this.preflight = false;
+    this.by = fields.by;
+    this.failures = fields.failures;
+    if (fields.command !== undefined) this.command = fields.command;
+    if (fields.index !== undefined) this.index = fields.index;
   }
 }
 
+// The first line of a CommandError's message, which says what stopped the
+// command.
+function firstLine({ command, by, index }: Pick<CommandError, "command" | "by" | "index">): string {
+  if (command === undefined) return "The store refused the batch as a whole, after the deltas of each command had passed";
+  if (index !== undefined) return `The batch was refused at command ${String(index + 1)}, "${command}"`;
+  if (by === "code") return `The command "${command}" failed`;
+  if (by === "store") return `The store refused the deltas of the command "${command}"`;
+  return `The command "${command}" refused to run`;
+}
+
 // The CommandError of a command that refuses to run, with each failure in a
-// sentence.
+// sentence. By default, the command itself refuses. The command registry
+// passes "registry" for its own refusals, and "preflight" where the command's
+// preflight() answered false.
 export function refusal(
   id: string,
   failures: readonly string[],
-  options?: { readonly preflight?: false },
+  by: "registry" | "preflight" | "command" = "command",
 ): CommandError {
-  return new CommandError(`The command "${id}" refused to run`, failures, options);
+  return new CommandError({ command: id, by, failures });
 }
 
 // Why the command registry drops a command that was still in its prepare() as
@@ -291,22 +313,22 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   function lookup(id: string, given: Json | undefined): { item: Registered; args: Json } {
     const item = commands.value.get(id);
     if (item === undefined) {
-      throw refusal(id, [`No command "${id}" is registered.`]);
+      throw refusal(id, [`No command "${id}" is registered.`], "registry");
     }
     const args = given ?? {};
     const failures = item.validate?.(args) ?? [];
     if (failures.length > 0) {
-      throw refusal(id, failures.map((failure) => `The args ${failure}`));
+      throw refusal(id, failures.map((failure) => `The args ${failure}`), "registry");
     }
     return { item, args };
   }
 
   function current(id: string): Board {
     if (ended()) {
-      throw refusal(id, ["Another board opened in a new store, so this command registry runs no command."]);
+      throw refusal(id, ["Another board opened in a new store, so this command registry runs no command."], "registry");
     }
     if (!store.hasBoard()) {
-      throw refusal(id, ["The store holds no board until it opens one."]);
+      throw refusal(id, ["The store holds no board until it opens one."], "registry");
     }
     return store.board();
   }
@@ -317,7 +339,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       throw refusal(
         command.id,
         [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
-        { preflight: false },
+        "preflight",
       );
     }
   }
@@ -345,7 +367,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   async function prepared(item: Registered, board: Board, args: Json): Promise<Delta[]> {
     const { command } = item;
     const input = await prepare(item, board, args);
-    if (ended()) throw refusal(command.id, [DROPPED]);
+    if (ended()) throw refusal(command.id, [DROPPED], "registry");
     const now = current(command.id);
     allow(item, now, args);
     return build(item, now, input);
@@ -367,9 +389,11 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // The registry first checks every command's args against its schema. Then
   // it plans each command as it plans one alone: the first on the store's
   // board, and each later one on the board that a dry run of the deltas before
-  // it gives. The dry run checks those deltas as apply() would. A dry run
-  // follows the last command too, so that a refusal by the store always names
-  // the command whose deltas it refused.
+  // it gives. The dry run checks those deltas as apply() would, but calls no
+  // afterStep of a plugin's class. A dry run follows the last command too, so
+  // that where the store refuses a command's deltas, the refusal names that
+  // command. After that, only an afterStep can make the store refuse the
+  // batch, which then names no command (runBatch(), below).
   // A command that prepares is built once its prepare() resolves. Where the
   // board has changed meanwhile, the registry plans the batch again from its
   // first command, on the board as it is then. Each command keeps what its
@@ -414,14 +438,14 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
           allow(item, board, args);
           if (command.prepare !== undefined && !inputs.has(index)) {
             inputs.set(index, await within(() => prepare(item, board, args)));
-            if (ended()) throw refusal(command.id, [DROPPED]);
+            if (ended()) throw refusal(command.id, [DROPPED], "registry");
             if (store.board() !== start) {
               again = true;
               break;
             }
           }
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
-          board = store.dryRun(built);
+          board = byStore(command.id, () => store.dryRun(built));
         } catch (error) {
           throw inBatch(index, command.id, error);
         }
@@ -433,10 +457,16 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // Applies the deltas of the commands of a batch as one step of the origin.
   // The batch runs in one span, which names the ids of its commands in order,
   // since the store applies their deltas at once.
+  // The store can still refuse the step once the dry run of each command's
+  // deltas has passed. The store's apply() runs the afterStep of each plugin's
+  // class, and its dry run does not. That refusal names no command, since an
+  // afterStep gets only the boards before and after the step as a whole.
+  // Where an afterStep threw, the store has logged that at error
+  // (../store/expand.ts).
   function runBatch(batch: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<boolean> {
     const ids = batch.map(({ id }) => id);
     return traced("command batch", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
-      planned(batch, (built) => store.apply(built, origin)),
+      planned(batch, (built) => byStore(undefined, () => store.apply(built, origin))),
     );
   }
 
@@ -523,7 +553,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         const { item, args } = lookup(target, given);
         const step = deltas(item, args);
         const ready = Array.isArray(step) ? step : await step;
-        return within(() => store.apply(ready, origin));
+        return within(() => byStore(target, () => store.apply(ready, origin)));
       });
     },
     async plan(target: string | readonly { readonly id: string; readonly args?: Json }[], given?: Json) {
@@ -547,30 +577,32 @@ export function isCommandId(id: string): boolean {
   return pkg !== null && id.length > pkg.length + 1;
 }
 
-// The CommandErrors that failed() logged, and those with which the command
-// registry refuses a batch for one of them, so that CoreApi does not log one
-// again as it tells the user why an edit failed (../core/core.ts).
-const loggedErrors = new WeakSet<CommandError>();
-
-// Whether the command registry logged what the error reports already, as
-// what a command's own code threw, alone or as one of a batch.
+// Whether the command registry logged what the error reports already: what a
+// command's own code threw, alone or as one of a batch. So CoreApi does not
+// log it again as it tells the user why an edit failed (../core/core.ts).
 export function isLogged(error: unknown): boolean {
-  return error instanceof CommandError && loggedErrors.has(error);
+  return error instanceof CommandError && error.by === "code";
 }
 
-// The CommandError with which the command registry refuses a batch, for what
-// refused the command at the index: the command's own CommandError, or the
-// StoreError with which the store refused its deltas. It keeps that error as
-// its cause, with its failures, and counts as logged where that error does.
-function inBatch(index: number, id: string, error: unknown): CommandError {
-  const named = error instanceof CommandError || error instanceof StoreError;
-  const refused = new CommandError(
-    `The batch was refused at command ${String(index + 1)}, "${id}"`,
-    named ? error.failures : [errorMessage(error)],
-    { cause: error, index, preflight: error instanceof CommandError ? error.preflight : undefined },
-  );
-  if (isLogged(error)) loggedErrors.add(refused);
-  return refused;
+// The CommandError with which the command registry refuses a batch, where a
+// CommandError stopped the command at the index. It says what that error
+// says, and gives the index. Any other error is a bug, and the batch rejects
+// with it as it is, as a command alone does.
+function inBatch(index: number, id: string, error: unknown): unknown {
+  if (!(error instanceof CommandError)) return error;
+  return new CommandError({ command: id, by: error.by, failures: error.failures, index, cause: error.cause });
+}
+
+// What `fn` returns, which hands the store the deltas of the command whose id
+// is given, or of a batch as a whole. Where the store refuses them, it throws
+// a CommandError whose `by` is "store", with the StoreError as its cause.
+function byStore<T>(id: string | undefined, fn: () => T): T {
+  try {
+    return fn();
+  } catch (error) {
+    if (!(error instanceof StoreError)) throw error;
+    throw new CommandError({ command: id, by: "store", failures: error.failures, cause: error });
+  }
 }
 
 // What a command's own preflight(), prepare() or run() threw, as a CommandError
@@ -579,11 +611,8 @@ function inBatch(index: number, id: string, error: unknown): CommandError {
 // threw.
 function failed(command: Command<Json, unknown>, error: unknown): CommandError {
   if (error instanceof CommandError) return error;
-  const failure = new CommandError(`The command "${command.id}" failed`, [errorMessage(error)], {
-    cause: error,
-  });
+  const failure = new CommandError({ command: command.id, by: "code", failures: [errorMessage(error)], cause: error });
   log.error(failure);
-  loggedErrors.add(failure);
   return failure;
 }
 

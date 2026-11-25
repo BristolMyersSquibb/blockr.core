@@ -29,6 +29,8 @@ Encoding: UTF-8
 Language: en-US
 Roxygen: list(markdown = TRUE, roclets = c("collate", "namespace", "rd",
     "blockr.core::block_registration_roclet"))
+Depends:
+    R (>= 4.1.3)
 Imports:
     shiny (>= 1.14.0),
     htmltools,
@@ -41,7 +43,7 @@ Imports:
     utils,
     vctrs,
     generics,
-    rlang,
+    rlang (>= 1.0.0),
     evaluate,
     cli,
     glue,
@@ -76,6 +78,7 @@ Suggests:
     otelsdk,
     pkgload
 Config/testthat/edition: 3
+Config/covr/full_traversal: true
 VignetteBuilder: quarto
 Config/roxygen2/version: 8.0.0
 Collate: 
@@ -88,7 +91,6 @@ Collate:
     'utils-cnd.R'
     'utils-assertions.R'
     'block-class.R'
-    'block-coverage.R'
     'block-eval.R'
     'block-fixture.R'
     'block-registry.R'

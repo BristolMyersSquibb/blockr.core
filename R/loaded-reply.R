@@ -79,8 +79,9 @@ package_versions <- function(packages) {
 # `RegistryEntry` of srcts/types/registry.ts: the metadata that registration
 # gives, with `register_block()`'s `link` as `url`, and what the client cannot
 # read off a class that stays in R. Those are its data inputs, where R serves
-# its UI module, the schema of its state that the module ships, the state a
-# new block starts with, the board options that its UI module reads itself,
+# its UI module, the schema of its state that the module ships, the name a new
+# block gets where its constructor gets none, the state a new block starts
+# with, the board options that its UI module reads itself,
 # its requests, the board options that its output family reads and the
 # renderers of its outputs, `renderers` from `entry_renderers()`. A class whose
 # module ships no schema has the empty schema, which allows any state, and its
@@ -112,6 +113,7 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x, families),
     list(
       version = x[["block_class"]][["version"]],
       schema = coal(x[["schema"]], as_json_object(list()), fail_all = FALSE),
+      block_name = default_block_name(x[["block_class"]][["class"]]),
       state = entry_state(x),
       options = I(option_ctor_ids(x[["block_class"]][["options"]])),
       requests = as_json_object(lapply(x[["requests"]], request_entry_reply)),

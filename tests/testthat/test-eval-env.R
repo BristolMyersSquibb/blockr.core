@@ -23,7 +23,7 @@ test_that("attach_default_packages reads a string as as.logical() does", {
 
   withr::local_options(blockr.attach_default_packages = NULL)
 
-  withr::local_envvar(BLOCKR_ATTACH_DEFAULT_PACKAGES = "TRUE")
+  withr::local_envvar(BLOCKR_ATTACH_DEFAULT_PACKAGES = " TRUE")
   expect_equal(eval(quote(head(1:10, 3)), eval_env(list())), 1:3)
 
   withr::local_envvar(BLOCKR_ATTACH_DEFAULT_PACKAGES = "false")
@@ -36,6 +36,10 @@ test_that("attach_default_packages reads a string as as.logical() does", {
     class = "attach_default_packages_invalid",
     fixed = TRUE
   )
+
+  withr::local_envvar(BLOCKR_ATTACH_DEFAULT_PACKAGES = "")
+  withr::local_options(blockr.attach_default_packages = 1)
+  expect_error(eval_env(list()), class = "attach_default_packages_invalid")
 })
 
 test_that("non-default base packages remain namespace-only", {

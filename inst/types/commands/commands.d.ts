@@ -40,17 +40,15 @@ export interface Commands {
     }[]): Promise<Delta[]>;
 }
 export declare class CommandError extends Error {
+    readonly command?: string;
+    readonly by: "registry" | "preflight" | "command" | "code" | "store";
     readonly failures: readonly string[];
     readonly index?: number;
-    readonly preflight?: false;
-    constructor(message: string, failures: readonly string[], options?: ErrorOptions & {
-        readonly index?: number;
-        readonly preflight?: false;
+    constructor(fields: Pick<CommandError, "command" | "by" | "failures" | "index"> & {
+        readonly cause?: unknown;
     });
 }
-export declare function refusal(id: string, failures: readonly string[], options?: {
-    readonly preflight?: false;
-}): CommandError;
+export declare function refusal(id: string, failures: readonly string[], by?: "registry" | "preflight" | "command"): CommandError;
 export interface CommandsOptions {
     readonly signal?: AbortSignal;
     readonly lock?: Lock;

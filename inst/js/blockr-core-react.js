@@ -142,14 +142,26 @@ function readAlike(a, b, state) {
     return false;
   }
 }
-function useBoard(core) {
+function useBoard(core, select) {
   const subscribe = useCallback(
     (notify) => core.store.subscribe(() => {
       notify();
     }),
     [core]
   );
-  return useSyncExternalStore(subscribe, () => core.store.board());
+  const read = useMemo(() => {
+    if (select === void 0) return () => core.store.board();
+    let last;
+    return () => {
+      const board = core.store.board();
+      if (last?.board !== board) {
+        const value = select(board);
+        last = { board, value: last !== void 0 && jsonEqual(last.value, value) ? last.value : value };
+      }
+      return last.value;
+    };
+  }, [core, select]);
+  return useSyncExternalStore(subscribe, read);
 }
 function useStatus(core, block) {
   const subscribe = useCallback(

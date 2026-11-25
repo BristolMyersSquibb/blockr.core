@@ -292,11 +292,20 @@ thematic_plot_theme <- function(theme) {
 draw_png <- function(draw, size, theme, record = FALSE, apply_theme = TRUE) {
 
   file <- tempfile(fileext = ".png")
-  on.exit(unlink(file))
+  prev <- grDevices::dev.cur()
+  recording <- NULL
 
-  recording <- with_device(
-    function() open_png(file, size, coal(theme[["bg"]], "white")),
-    function(dev) {
+  on.exit({
+    unlink(file)
+    if (prev != 1L && prev %in% grDevices::dev.list()) {
+      grDevices::dev.set(prev)
+    }
+  })
+
+  shiny::plotPNG(
+    function() {
+
+      dev <- grDevices::dev.cur()
 
       if (record) {
         grDevices::dev.control("enable")
@@ -310,27 +319,17 @@ draw_png <- function(draw, size, theme, record = FALSE, apply_theme = TRUE) {
 
       if (record && dev %in% grDevices::dev.list()) {
         grDevices::dev.set(dev)
-        grDevices::recordPlot()
+        recording <<- grDevices::recordPlot()
       }
-    }
+    },
+    filename = file,
+    width = round(size$width * size$ratio),
+    height = round(size$height * size$ratio),
+    res = 72 * size$ratio,
+    bg = coal(theme[["bg"]], "white")
   )
 
   list(png = readBin(file, "raw", file.size(file)), recording = recording)
-}
-
-open_png <- function(file, size, bg) {
-
-  width <- round(size$width * size$ratio)
-  height <- round(size$height * size$ratio)
-  res <- 72 * size$ratio
-
-  if (pkg_avail("ragg")) {
-    ragg::agg_png(file, width = width, height = height, units = "px",
-                  res = res, background = bg)
-  } else {
-    grDevices::png(file, width = width, height = height, units = "px",
-                   res = res, bg = bg)
-  }
 }
 
 # Calls `code` with a device that `open` opens, and closes that device again.

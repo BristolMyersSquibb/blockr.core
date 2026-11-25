@@ -20,11 +20,15 @@
 // below its button. Where it refuses a board action that a row's menu ran,
 // the plugin shows why in a banner below the table, naming the block, until
 // the user opens the menu of one of the table's rows again.
+// The section takes from the board only each block's ID, name and class. So
+// it draws again only where one of those changes, and not for a change of a
+// block's state.
 
 import type { ReactElement } from "react";
+import { useBoard } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
-import type { Block, Board } from "../../types/board.ts";
-import type { CoreApi } from "../../types/core-api.ts";
+import type { BlockId, Board } from "../../types/board.ts";
+import type { BlockRegistry, CoreApi } from "../../types/core-api.ts";
 import { Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
@@ -41,18 +45,18 @@ const COLUMNS = [
   { id: "class", name: "Class" },
 ] as const;
 
-export function BlocksSection({ core, board }: { core: CoreApi; board: Board }): ReactElement {
-  const registry = core.blockRegistry();
-  const className = (block: Block): string => own(registry, block.registry_id)?.name ?? block.registry_id;
-  const view = useTableView(Object.entries(board.blocks), ([id, block]) => `${block.name} ${id} ${className(block)}`);
-  const count = Object.keys(board.blocks).length;
+export function BlocksSection({ core }: { core: CoreApi }): ReactElement {
+  const blocks = useBoard(core, (board) => blockRows(board, core.blockRegistry()));
+  const adds = useBoard(core, () => offers(core, ROLE, BOARD));
+  const view = useTableView(blocks, (block) => `${block.name} ${block.id} ${block.cls}`);
+  const count = blocks.length;
   // The menus of the table's rows, which say why one was refused below the
   // table.
   const menus = useMenus(core);
 
   return (
     <Section title="Blocks" count={count}>
-      {offers(core, ROLE, BOARD) ? (
+      {adds ? (
         <Part title="Add a block">
           <Advanced core={core} role={ROLE} target={BOARD} />
         </Part>
@@ -72,14 +76,14 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
                 kind="block"
                 label="The board's blocks"
                 columns={COLUMNS}
-                rows={view.rows.map(([id, block]) => ({
-                  id,
+                rows={view.rows.map((block) => ({
+                  id: block.id,
                   text: block.name,
                   menuLabel: `Actions of the block ${block.name}`,
                   cells: [
                     { content: <span className="bc:font-medium">{block.name}</span>, className: WRAP },
-                    { content: id, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
-                    { content: className(block), className: `${WRAP} bc:text-text-muted` },
+                    { content: block.id, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
+                    { content: block.cls, className: `${WRAP} bc:text-text-muted` },
                   ],
                 }))}
               />
@@ -91,4 +95,14 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
       </Part>
     </Section>
   );
+}
+
+// Each block of the board as its row shows it: its ID, its name and the name
+// of its class, or the class's registry id where the block registry lacks it.
+function blockRows(board: Board, registry: BlockRegistry): { readonly id: BlockId; readonly name: string; readonly cls: string }[] {
+  return Object.entries(board.blocks).map(([id, block]) => ({
+    id,
+    name: block.name,
+    cls: own(registry, block.registry_id)?.name ?? block.registry_id,
+  }));
 }

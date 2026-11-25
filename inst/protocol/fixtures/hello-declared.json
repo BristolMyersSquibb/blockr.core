@@ -28,6 +28,7 @@
             "module": "blockr-modules/8ae8c1b3/count-block.js",
             "version": 1,
             "schema": {},
+            "block_name": "Count",
             "state": { "n": 3 },
             "options": [],
             "requests": {},
@@ -63,6 +64,7 @@
                 "sep": { "type": "string", "description": "Separator." }
               }
             },
+            "block_name": "Letters",
             "state": { "columns": ["x"], "sep": "," },
             "options": [],
             "requests": {
