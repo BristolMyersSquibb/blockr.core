@@ -84,7 +84,8 @@ export interface CoreParts {
   // The store as frontends and plugins see it, and the command registry.
   // The store's open() starts core again for the board it opens, and its
   // check() and read() first import the migrations that the text needs
-  // (./start.ts).
+  // (./start.ts). Its read() then tells the user what it left out of the
+  // board, as opening a board does.
   // CoreApi hands out both with what tells the user why they refused an edit
   // (refusing(), below).
   readonly store: Store;

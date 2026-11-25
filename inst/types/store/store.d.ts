@@ -26,7 +26,9 @@ export interface Store {
         notifier?(notifications: readonly Notification[]): void;
     }): Promise<Dropped[]>;
     check(text: string): Promise<Dropped[]>;
-    read(text: string): Promise<{
+    read(text: string, opts?: {
+        notifier?(notifications: readonly Notification[]): void;
+    }): Promise<{
         board: Board;
         dropped: Dropped[];
     }>;

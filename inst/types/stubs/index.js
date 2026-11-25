@@ -14518,7 +14518,7 @@ function start2(options) {
         ...store,
         open: (given, opts) => reopen(given, controller, opts),
         check: (text) => afterMigrations(text, store, () => store.check(text)),
-        read: (text) => afterMigrations(text, store, () => store.read(text))
+        read: (text, opts) => readBoard(text, store, notifications, opts)
       },
       commands,
       boardActions,
@@ -14581,7 +14581,7 @@ function start2(options) {
         raise(coreNotification("board_open_failed", "error", why));
       }
     }
-    if (dropped.length > 0) raise(droppedNotification(dropped));
+    if (dropped.length > 0) raise(droppedNotification(dropped, OPENED_WITHOUT));
     if (alone) {
       try {
         options.frontEnds?.card?.(core, signal5);
@@ -14705,6 +14705,12 @@ function start2(options) {
     await migrations.prepare(text, store.blockRegistry());
     return run();
   }
+  async function readBoard(text, store, notifications, opts) {
+    const notifier = givenNotifier(opts, "read()");
+    const read = await afterMigrations(text, store, () => store.read(text));
+    if (read.dropped.length > 0) notifications.raiseAgain(droppedNotification(read.dropped, READ_WITHOUT), notifier);
+    return read;
+  }
   let queue = Promise.resolve();
   function reopen(given, of, opts) {
     let notifier;
@@ -14804,14 +14810,16 @@ function reloadNotification(changed) {
     `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`
   );
 }
-function droppedNotification(dropped) {
+var OPENED_WITHOUT = "The board opened without:";
+var READ_WITHOUT = "Core read a board and left out:";
+function droppedNotification(dropped, first) {
   const lines = dropped.map((item2) => {
     if ("option" in item2) return `- board option "${item2.option}"`;
     if ("block" in item2) return `- block "${item2.block}" (${item2.registry_id})`;
     if ("plugin" in item2) return `- plugin "${item2.plugin}"`;
     return `- package ${item2.package} ${item2.version}`;
   });
-  return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
+  return coreNotification("board_objects_dropped", "warning", [first, ...lines].join("\n"));
 }
 function listedDefault(exports, module, pkg) {
   const def = moduleExports(exports, module, pkg).default;

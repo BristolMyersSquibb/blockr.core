@@ -21,13 +21,15 @@
 //   failure raised twice, as by two mounts of one module, is one notification,
 //   which holds until each raise of it is withdrawn. Core raises each refusal
 //   of what the user asked for anew instead, such as an edit that the store
-//   refuses: it withdraws the notification that holds already, so that a
-//   frontend that has shown it shows it again.
+//   refuses, and so each note of what the store's read() left out of a board:
+//   it withdraws the notification that holds already, so that a frontend that
+//   has shown it shows it again.
 // - Those that the modules of packages raise, a plugin's through notify() and
 //   one that core mounts through its host, each with an id of its own.
 // A call whose caller passes a notifier gets the notifications of a reply to
-// its request, or of its refusal, in place of the holder, which then holds
-// none of them and withdraws none that earlier calls raised
+// its request, of its refusal, or of what its read left out, in place of the
+// holder, which then holds none of them and withdraws none that earlier calls
+// raised
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#taking-a-calls-notifications).
 // Each notification that a notifier gets is made as the holder would hold it,
 // with the same id. The holder logs what a notifier throws at error, so that
@@ -60,10 +62,11 @@ export interface Holder {
   // Raises one of core's own notifications, and returns what withdraws it.
   readonly raise: Raise;
   // Raises one of core's own notifications of a refusal of what the user
-  // asked for, such as an edit that the store refuses. It holds until the
-  // board ends. Where the same notification holds already, it withdraws that
-  // one first, so that a frontend that has shown it shows it again. Otherwise
-  // the same refusal would be one notification, which a frontend shows once.
+  // asked for, such as an edit that the store refuses, or of what the store's
+  // read() left out of a board. It holds until the board ends. Where the same
+  // notification holds already, it withdraws that one first, so that a
+  // frontend that has shown it shows it again. Otherwise the same refusal
+  // would be one notification, which a frontend shows once.
   // Given the call's notifier, it hands the notifier the notification instead,
   // and leaves what holds as it is.
   readonly raiseAgain: (notification: Omit<Notification, "id">, notifier?: Notifier) => void;

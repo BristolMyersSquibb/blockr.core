@@ -102,6 +102,10 @@
 // UI modules of the block classes whose older states the text holds, as it
 // does before an opening.
 // So both migrate those states as opening the text would.
+// Where read() leaves anything out of the board it resolves with, core raises
+// a notification that names it, as it does as a board opens. It raises it
+// anew for each read, so that a frontend that has shown it shows it again.
+// A caller that shows it itself passes a notifier, which takes it instead.
 //
 // Core takes a later reply to hello, as of a later session or of the hello with
 // which core starts again, in one of three ways:
@@ -598,7 +602,7 @@ export function start(options: StartOptions): Started {
         ...store,
         open: (given, opts) => reopen(given, controller, opts),
         check: (text) => afterMigrations(text, store, () => store.check(text)),
-        read: (text) => afterMigrations(text, store, () => store.read(text)),
+        read: (text, opts) => readBoard(text, store, notifications, opts),
       },
       commands,
       boardActions,
@@ -665,7 +669,7 @@ export function start(options: StartOptions): Started {
         raise(coreNotification("board_open_failed", "error", why));
       }
     }
-    if (dropped.length > 0) raise(droppedNotification(dropped));
+    if (dropped.length > 0) raise(droppedNotification(dropped, OPENED_WITHOUT));
 
     if (alone) {
       try {
@@ -837,6 +841,19 @@ export function start(options: StartOptions): Started {
     return run();
   }
 
+  // What the store's read() resolves with, once core has imported the
+  // migrations that the text needs. Where the read left anything out of the
+  // board, core tells the user what, anew for each read, or hands that
+  // notification to the notifier in `opts`, before read() resolves.
+  // A notifier that is no function is refused at once, with a TypeError,
+  // before anything is read.
+  async function readBoard(text: string, store: Store, notifications: Holder, opts: Parameters<Store["read"]>[1]): ReturnType<Store["read"]> {
+    const notifier = givenNotifier(opts, "read()");
+    const read = await afterMigrations(text, store, () => store.read(text));
+    if (read.dropped.length > 0) notifications.raiseAgain(droppedNotification(read.dropped, READ_WITHOUT), notifier);
+    return read;
+  }
+
   // Openings run one at a time.
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -974,18 +991,25 @@ function reloadNotification(changed: readonly Changed[]): Omit<Notification, "id
   );
 }
 
-// The notification that names what the store dropped as a board opened, one
-// line for each, with the package of each that names one, as Board objects has
-// it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt).
-// One notification covers the whole opening, which concerns the board.
-function droppedNotification(dropped: readonly Dropped[]): Omit<Notification, "id"> {
+// The first lines of the notification that names what the store dropped: as
+// a board opened, and as its read() read a board, which another board opens
+// none of.
+const OPENED_WITHOUT = "The board opened without:";
+const READ_WITHOUT = "Core read a board and left out:";
+
+// The notification that names what the store dropped, under the first line
+// given, one line for each, with the package of each that names one, as Board
+// objects has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt).
+// One notification covers the whole opening, or the whole read, which
+// concerns the board.
+function droppedNotification(dropped: readonly Dropped[], first: string): Omit<Notification, "id"> {
   const lines = dropped.map((item) => {
     if ("option" in item) return `- board option "${item.option}"`;
     if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
     if ("plugin" in item) return `- plugin "${item.plugin}"`;
     return `- package ${item.package} ${item.version}`;
   });
-  return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
+  return coreNotification("board_objects_dropped", "warning", [first, ...lines].join("\n"));
 }
 
 // The default export of a module that R serves for a plugin class or a board

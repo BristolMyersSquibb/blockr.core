@@ -1400,6 +1400,74 @@ describe("a board opened later", () => {
     expect(s.r.sent.slice(sent)).toEqual([]);
   });
 
+  test("tells the user what the store's read() that CoreApi gives leaves out of a board, anew for each read, or hands that to the read's notifier", async () => {
+    const s = await started({ [BASIC]: frontEnd().exports });
+    const board = s.core.store.board();
+    // A copied board with a block whose class the app lacks, of a package
+    // that R did not load.
+    const filter = { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter", locked: null };
+    const copied = JSON.stringify({
+      ...hello.board,
+      packages: { ...hello.board.packages, "blockr.dplyr": "0.1.4" },
+      board: { ...hello.board.board, name: "Copied", blocks: { ...hello.board.board.blocks, x: filter } },
+    });
+    const dropped = (): Notification[] => s.core.notifications.get().filter((n) => notificationCode(n) === "board_objects_dropped");
+    const taken: (readonly Notification[])[] = [];
+    const notifier = (notifications: readonly Notification[]): void => {
+      taken.push(notifications);
+    };
+
+    // The read's notifier takes the notification, and core raises none.
+    const read = await s.core.store.read(copied, { notifier });
+    expect(read.board.name).toBe("Copied");
+    expect(Object.hasOwn(read.board.blocks, "x")).toBe(false);
+    expect(read.dropped).toEqual([
+      { package: "blockr.dplyr", version: "0.1.4" },
+      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+    ]);
+    expect(dropped()).toEqual([]);
+    expect(taken.map((notifications) => notifications.map(({ severity, message, source, about }) => ({ severity, message, source, about })))).toEqual([
+      [
+        {
+          severity: "warning",
+          message: 'Core read a board and left out:\n- package blockr.dplyr 0.1.4\n- block "x" (blockr.dplyr-filter_block)',
+          source: { kind: "core", code: "board_objects_dropped" },
+          about: undefined,
+        },
+      ],
+    ]);
+
+    // Without a notifier, core raises the same notification, with the same
+    // id, which concerns the board.
+    await s.core.store.read(copied);
+    expect(dropped()).toEqual(taken[0]);
+    // Core raises it anew for the next read, so that a frontend that has
+    // shown it shows it again.
+    const heard: number[] = [];
+    s.core.notifications.subscribe((all) => {
+      heard.push(all.filter((n) => notificationCode(n) === "board_objects_dropped").length);
+    });
+    await s.core.store.read(copied);
+    expect(heard).toEqual([0, 1]);
+    expect(dropped()).toEqual(taken[0]);
+
+    // A read that leaves nothing out raises nothing and hands the notifier
+    // nothing.
+    const whole = JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Whole" } });
+    await expect(s.core.store.read(whole, { notifier })).resolves.toMatchObject({ dropped: [] });
+    await s.core.store.read(whole);
+    expect(taken).toHaveLength(1);
+    expect(heard).toEqual([0, 1]);
+    // A notifier that is no function is refused at once.
+    await expect(s.core.store.read(copied, { notifier: "quiet" as never })).rejects.toThrow(
+      new TypeError("The `notifier` of read() is a function."),
+    );
+    expect(heard).toEqual([0, 1]);
+    // The board on the page stays open.
+    expect(s.started.core()).toBe(s.core);
+    expect(s.core.store.board()).toBe(board);
+  });
+
   test("shows why where R refuses the hello with which core starts again", async () => {
     let failed: Error | undefined;
     const s = await started({ [BASIC]: frontEnd().exports }, hello, { fail: (error) => (failed = error) });

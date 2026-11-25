@@ -934,6 +934,9 @@
   Unlike `check()`, it reads a text under the load lock as well, since the load lock fixes only which board the app shows.
   Through `CoreApi`, core first imports the migrations of the block classes whose older states the text holds, as it does before it opens a board.
   It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
+  Where `read()` leaves anything out, core tells the user what through the warning `board_objects_dropped`, which it raises as a board opens as well.
+  The warning starts with `Core read a board and left out:`, and core raises it anew for each read.
+  A caller that shows the warning itself passes a `notifier` in the options of `read()`, which then takes it in place of core (#878).
 * A plugin class may give `afterStep(board, before, plugin)`, which returns the patches to its plugin's state that follow from a step as a whole.
   The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.
   It gets the board that the step leaves and the board that the step started from.
