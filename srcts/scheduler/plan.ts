@@ -5,8 +5,7 @@
 
 import type { Graph } from "../graph/index.ts";
 import type { BlockId } from "../types/board.ts";
-import type { Inputs } from "./recipes.ts";
-import { keptWaiting, waitingError } from "./status.ts";
+import { waitingError } from "./status.ts";
 import type { BlockStatus } from "./status.ts";
 
 // How long anything else may wait in R behind an evaluation below evaluation
@@ -67,9 +66,6 @@ export function evaluationPlan(input: {
   readonly graph: Graph;
   readonly revisions: ReadonlyMap<BlockId, number>;
   readonly statuses: ReadonlyMap<BlockId, BlockStatus>;
-  // Each block's inputs, by which an input or a block upstream keeps it
-  // waiting.
-  readonly inputs: ReadonlyMap<BlockId, Inputs>;
   // The blocks needed, each at its evaluation priority.
   readonly needs: ReadonlyMap<BlockId, number>;
   readonly sent: Iterable<Sent>;
@@ -219,13 +215,14 @@ export function evaluationPlan(input: {
   if (!input.holding) {
     for (const item of queued) {
       // A one-time evaluation with parameters whose block an input or a block
-      // upstream keeps waiting rejects, whether R has room for another
-      // evaluation or not. One whose block R says waits goes to R.
+      // upstream keeps waiting, as the block's status says in `keptWaiting`,
+      // rejects, whether R has room for another evaluation or not. One whose
+      // block R says waits goes to R.
       if (item.oneTime !== undefined) {
         if (rejected.has(item.oneTime)) continue;
-        const status = statuses.get(item.block);
-        if (status !== undefined && keptWaiting(input.inputs.get(item.block), statuses) !== undefined) {
-          reject.push({ oneTime: item.oneTime, error: waitingError(item.block, status) });
+        const kept = statuses.get(item.block)?.keptWaiting ?? null;
+        if (kept !== null) {
+          reject.push({ oneTime: item.oneTime, error: waitingError(item.block, kept) });
           rejected.add(item.oneTime);
           continue;
         }

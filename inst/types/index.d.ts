@@ -8,6 +8,6 @@ export type { BlockRegistry, BoardObject, CoreApi, CoreCode, CoreFailure, CoreSo
 export type { Change, Delta, Dropped, Migration, Option, Options, Origin, Patch, PluginClass, Plugins, Storage, StorageControl, Store, StoreError, } from "./store/index.ts";
 export type { Command, CommandContext, CommandError, Commands } from "./commands/index.ts";
 export type { AdvancedModule, BoardAction, CommandCall, MenuModule, OpenMenu, QuickLevel, QuickRow, Role, ShownLevel, ShownRow, Target, } from "./actions/index.ts";
-export type { BlockStatus, Demand, Scheduler, Status } from "./scheduler/index.ts";
+export type { BlockStatus, Demand, KeptWaiting, Scheduler, Status } from "./scheduler/index.ts";
 export type { Condition, Lock, OutputInfo, Phase } from "./protocol/index.ts";
 export type { ModuleError, RequestError } from "./mount/index.ts";

@@ -924,6 +924,7 @@ function unevaluated(revision, running2) {
     stderr: "",
     summary: null,
     reason: null,
+    keptWaiting: null,
     unsent: null
   };
 }
@@ -938,6 +939,7 @@ function failedToSend(failure, revision, evaluated, running2) {
     stderr: "",
     summary: null,
     reason: null,
+    keptWaiting: null,
     unsent: failure.message
   };
 }
@@ -958,10 +960,11 @@ function replied(outcome, revision, running2) {
     stderr: outcome.stderr,
     summary: outcome.summary,
     reason: outcome.reason,
+    keptWaiting: null,
     unsent: null
   };
 }
-function waiting(why, revision, evaluated, running2) {
+function waiting(kept, revision, evaluated, running2) {
   return {
     status: "waiting",
     revision,
@@ -971,7 +974,8 @@ function waiting(why, revision, evaluated, running2) {
     stdout: "",
     stderr: "",
     summary: null,
-    reason: why,
+    reason: waitingFor(kept),
+    keptWaiting: kept,
     unsent: null
   };
 }
@@ -987,7 +991,7 @@ function waitingFor(what) {
   return `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
 }
 function sameStatus(a, b) {
-  return a.status === b.status && a.revision === b.revision && a.evaluated === b.evaluated && a.running === b.running && a.stdout === b.stdout && a.stderr === b.stderr && a.summary === b.summary && a.reason === b.reason && a.unsent === b.unsent && a.conditions.length === b.conditions.length && a.conditions.every((condition, i) => condition === b.conditions[i]);
+  return a.status === b.status && a.revision === b.revision && a.evaluated === b.evaluated && a.running === b.running && a.stdout === b.stdout && a.stderr === b.stderr && a.summary === b.summary && a.reason === b.reason && jsonEqual(a.keptWaiting, b.keptWaiting) && a.unsent === b.unsent && a.conditions.length === b.conditions.length && a.conditions.every((condition, i) => condition === b.conditions[i]);
 }
 function blockStatuses(input2) {
   const statuses = /* @__PURE__ */ new Map();
@@ -998,8 +1002,8 @@ function blockStatuses(input2) {
     const outcome = input2.outcomes.get(id2);
     const failure = input2.unsent.get(id2);
     const running2 = input2.running.has(id2);
-    const reason = keptWaiting(input2.inputs.get(id2), statuses);
-    const now = reason !== void 0 ? waiting(reason, revision, outcome?.revision ?? null, running2) : failure !== void 0 ? failedToSend(failure, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
+    const kept = keptWaiting(input2.inputs.get(id2), statuses);
+    const now = kept !== null ? waiting(kept, revision, outcome?.revision ?? null, running2) : failure !== void 0 ? failedToSend(failure, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
     const before = input2.before.get(id2);
     if (before !== void 0 && sameStatus(before, now)) {
       statuses.set(id2, before);
@@ -1015,23 +1019,23 @@ function blockStatuses(input2) {
 }
 function keptWaiting(inputs, statuses) {
   const unlinked = inputs?.unlinked ?? [];
-  if (unlinked.length > 0) return waitingFor({ unlinked });
+  if (unlinked.length > 0) return { unlinked };
   const reads = (inputs?.recipe ?? []).flatMap((read) => read.block ?? []);
   const blocked = [...new Set(reads)].filter((up) => {
     const status = statuses.get(up)?.status;
     return status === "failed" || status === "invalid" || status === "waiting";
   });
-  return blocked.length > 0 ? waitingFor({ upstream: blocked }) : void 0;
+  return blocked.length > 0 ? { upstream: blocked } : null;
 }
-function waitingError(id2, status) {
-  const why = status.reason ?? "This block is waiting.";
+function waitingError(id2, kept) {
+  const why = waitingFor(kept);
   return new Error(
     `${why.replace(/^This block/, `Block "${id2}"`)} Its evaluation with parameters is not sent.`
   );
 }
 
 // srcts/scheduler/evaluations.ts
-function createOneTime(blocks, params, priority, statuses, inputs) {
+function createOneTime(blocks, params, priority, statuses) {
   if (params === void 0) {
     const onBoard = new Set(blocks.filter((id2) => statuses.has(id2)));
     if (onBoard.size === 0) {
@@ -1047,10 +1051,8 @@ function createOneTime(blocks, params, priority, statuses, inputs) {
   }
   const parts = /* @__PURE__ */ new Map();
   for (const id2 of blocks) {
-    const status = statuses.get(id2);
-    if (status !== void 0 && keptWaiting(inputs.get(id2), statuses) !== void 0) {
-      return waitingError(id2, status);
-    }
+    const kept = statuses.get(id2)?.keptWaiting ?? null;
+    if (kept !== null) return waitingError(id2, kept);
     parts.set(id2, { recipe: void 0, sent: void 0, result: void 0 });
   }
   return { priority, params, parts };
@@ -1278,9 +1280,9 @@ function evaluationPlan(input2) {
     for (const item of queued) {
       if (item.oneTime !== void 0) {
         if (rejected.has(item.oneTime)) continue;
-        const status = statuses.get(item.block);
-        if (status !== void 0 && keptWaiting(input2.inputs.get(item.block), statuses) !== void 0) {
-          reject.push({ oneTime: item.oneTime, error: waitingError(item.block, status) });
+        const kept = statuses.get(item.block)?.keptWaiting ?? null;
+        if (kept !== null) {
+          reject.push({ oneTime: item.oneTime, error: waitingError(item.block, kept) });
           rejected.add(item.oneTime);
           continue;
         }
@@ -1627,7 +1629,7 @@ function createScheduler(options) {
     if (evaluation === void 0 || ended()) return;
     if (reply.status === "missing") lacking(reply.missing);
     const outcome = replyOutcome(reply, evaluation.revision);
-    if (outcome !== void 0 && evaluation.revision === revisions.value.get(evaluation.block) && keptWaiting(inputs.value.get(evaluation.block), statuses.value) === void 0) {
+    if (outcome !== void 0 && evaluation.revision === revisions.value.get(evaluation.block) && statuses.value.get(evaluation.block)?.keptWaiting === null) {
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
       if (unsentEvaluations.value.has(evaluation.block)) {
         const rest = new Map(unsentEvaluations.value);
@@ -1683,7 +1685,6 @@ function createScheduler(options) {
           graph: graph.value,
           revisions: revisions.value,
           statuses: statuses.value,
-          inputs: inputs.value,
           needs: needs.value,
           sent: sent2.value.values(),
           asked: asked.value.values(),
@@ -1817,7 +1818,7 @@ function createScheduler(options) {
           if ("error" in result) reject(asError(result.error));
           else resolve(result.statuses);
         });
-        const oneTime = createOneTime([...new Set(blocks)], params, at, statuses.value, inputs.value);
+        const oneTime = createOneTime([...new Set(blocks)], params, at, statuses.value);
         if (oneTime instanceof Error) {
           update({ oneTimes: oneTimes.value, settled: [[id2, { error: oneTime }]] });
         } else {
