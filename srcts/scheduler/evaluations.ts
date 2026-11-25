@@ -11,8 +11,7 @@ import type { Json } from "../types/json.ts";
 import { quoted } from "../util/index.ts";
 import type { Need } from "./needs.ts";
 import type { Pending } from "./plan.ts";
-import type { Inputs } from "./recipes.ts";
-import { keptWaiting, replied, waitingError } from "./status.ts";
+import { replied, waitingError } from "./status.ts";
 import type { BlockStatus, Outcome } from "./status.ts";
 
 // A one-time evaluation without parameters, waiting on its blocks.
@@ -58,14 +57,14 @@ export interface Next {
 // without parameters leaves out the blocks that the board lacks, and rejects
 // where that leaves none. One with parameters rejects where it names no block,
 // a block that the board lacks, or a block that an input or a block upstream
-// keeps waiting, since no result is in sight. It does not reject a block that
-// R says waits, which it runs, as a save button does.
+// keeps waiting, as the block's status says in `keptWaiting`, since no result
+// is in sight. It does not reject a block that R says waits, which it runs, as
+// a save button does.
 export function createOneTime(
   blocks: readonly BlockId[],
   params: Record<string, Json> | undefined,
   priority: number,
   statuses: ReadonlyMap<BlockId, BlockStatus>,
-  inputs: ReadonlyMap<BlockId, Inputs>,
 ): OneTime | Error {
   if (params === undefined) {
     const onBoard = new Set(blocks.filter((id) => statuses.has(id)));
@@ -83,10 +82,8 @@ export function createOneTime(
   }
   const parts = new Map<BlockId, Part>();
   for (const id of blocks) {
-    const status = statuses.get(id);
-    if (status !== undefined && keptWaiting(inputs.get(id), statuses) !== undefined) {
-      return waitingError(id, status);
-    }
+    const kept = statuses.get(id)?.keptWaiting ?? null;
+    if (kept !== null) return waitingError(id, kept);
     parts.set(id, { recipe: undefined, sent: undefined, result: undefined });
   }
   return { priority, params, parts };

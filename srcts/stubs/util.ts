@@ -21,6 +21,7 @@ export const READY: BlockStatus = Object.freeze({
   stderr: "",
   summary: null,
   reason: null,
+  keptWaiting: null,
   unsent: null,
 });
 

@@ -90,7 +90,7 @@ import {
   Table,
   TableBody,
   TableHeader,
-  useBoard
+  useBoard as useBoard4
 } from "@blockr/core/react";
 
 // srcts/ui/blocks.tsx
@@ -272,6 +272,9 @@ function Pager({ label, view }) {
     ] })
   ] });
 }
+
+// srcts/modules/edit-board/blocks.tsx
+import { useBoard } from "@blockr/core/react";
 
 // srcts/modules/edit-board/menus.tsx
 import { useCallback as useCallback3, useContext, useEffect, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef3, useState as useState7 } from "react";
@@ -460,14 +463,14 @@ var COLUMNS = [
   { id: "id", name: "ID" },
   { id: "class", name: "Class" }
 ];
-function BlocksSection({ core, board }) {
-  const registry = core.blockRegistry();
-  const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
-  const view = useTableView(Object.entries(board.blocks), ([id, block]) => `${block.name} ${id} ${className(block)}`);
-  const count = Object.keys(board.blocks).length;
+function BlocksSection({ core }) {
+  const blocks = useBoard(core, (board) => blockRows(board, core.blockRegistry()));
+  const adds = useBoard(core, () => offers(core, ROLE, BOARD));
+  const view = useTableView(blocks, (block) => `${block.name} ${block.id} ${block.cls}`);
+  const count = blocks.length;
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs6(Section, { title: "Blocks", count, children: [
-    offers(core, ROLE, BOARD) ? /* @__PURE__ */ jsx7(Part, { title: "Add a block", children: /* @__PURE__ */ jsx7(Advanced, { core, role: ROLE, target: BOARD }) }) : null,
+    adds ? /* @__PURE__ */ jsx7(Part, { title: "Add a block", children: /* @__PURE__ */ jsx7(Advanced, { core, role: ROLE, target: BOARD }) }) : null,
     /* @__PURE__ */ jsx7(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx7("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs6(Fragment2, { children: [
       /* @__PURE__ */ jsx7(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx7("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx7(
@@ -478,14 +481,14 @@ function BlocksSection({ core, board }) {
           kind: "block",
           label: "The board's blocks",
           columns: COLUMNS,
-          rows: view.rows.map(([id, block]) => ({
-            id,
+          rows: view.rows.map((block) => ({
+            id: block.id,
             text: block.name,
             menuLabel: `Actions of the block ${block.name}`,
             cells: [
               { content: /* @__PURE__ */ jsx7("span", { className: "bc:font-medium", children: block.name }), className: WRAP },
-              { content: id, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
-              { content: className(block), className: `${WRAP} bc:text-text-muted` }
+              { content: block.id, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
+              { content: block.cls, className: `${WRAP} bc:text-text-muted` }
             ]
           }))
         }
@@ -494,6 +497,13 @@ function BlocksSection({ core, board }) {
       /* @__PURE__ */ jsx7(Pager, { label: "Pages of blocks", view })
     ] }) })
   ] });
+}
+function blockRows(board, registry) {
+  return Object.entries(board.blocks).map(([id, block]) => ({
+    id,
+    name: block.name,
+    cls: own(registry, block.registry_id)?.name ?? block.registry_id
+  }));
 }
 
 // srcts/graph/graph.ts
@@ -609,6 +619,7 @@ function findPath(from, to, downstream) {
 }
 
 // srcts/modules/edit-board/links.tsx
+import { useBoard as useBoard2 } from "@blockr/core/react";
 import { Fragment as Fragment3, jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 var ROLE2 = "add_link_role";
 var COLUMNS2 = [
@@ -616,16 +627,14 @@ var COLUMNS2 = [
   { id: "to", name: "To" },
   { id: "input", name: "Input" }
 ];
-function LinksSection({ core, board, locked }) {
-  const links = Object.entries(board.links);
-  const view = useTableView(
-    links,
-    ([, link]) => [blockName(board, link.from), link.from, blockName(board, link.to), link.to, link.input].join(" ")
-  );
-  const variadic = variadicBlocks(board, core.blockRegistry());
+function LinksSection({ core, locked }) {
+  const links = useBoard2(core, (board) => linkRows(board, core.blockRegistry()));
+  const adds = useBoard2(core, () => offers(core, ROLE2, BOARD));
+  const two = useBoard2(core, (board) => Object.keys(board.blocks).length >= 2);
+  const view = useTableView(links, (link) => [link.fromName, link.from, link.toName, link.to, link.input].join(" "));
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs7(Section, { title: "Links", count: links.length, children: [
-    locked ? null : /* @__PURE__ */ jsx8(Part, { title: "Add a link", children: offers(core, ROLE2, BOARD) ? /* @__PURE__ */ jsx8(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx8("p", { className: styles.hint, children: Object.keys(board.blocks).length < 2 ? "A link joins two blocks, so the board needs two blocks first." : "No new link can join two blocks of the board." }) }),
+    locked ? null : /* @__PURE__ */ jsx8(Part, { title: "Add a link", children: adds ? /* @__PURE__ */ jsx8(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx8("p", { className: styles.hint, children: two ? "No new link can join two blocks of the board." : "A link joins two blocks, so the board needs two blocks first." }) }),
     /* @__PURE__ */ jsx8(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs7(Fragment3, { children: [
       /* @__PURE__ */ jsx8(TableSearch, { label: "Search links", view }),
       view.found === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx8(
@@ -636,23 +645,19 @@ function LinksSection({ core, board, locked }) {
           kind: "link",
           label: "The board's links",
           columns: COLUMNS2,
-          rows: view.rows.map(([id, link]) => {
-            const from = blockName(board, link.from);
-            const to = blockName(board, link.to);
-            return {
-              id,
-              text: `${from} \u2192 ${to}`,
-              menuLabel: `Actions of the link from ${from} to ${to}`,
-              cells: [
-                { content: /* @__PURE__ */ jsx8(BlockLabel, { board, id: link.from }), className: WRAP },
-                { content: /* @__PURE__ */ jsx8(BlockLabel, { board, id: link.to }), className: WRAP },
-                {
-                  content: variadic.has(link.to) ? /* @__PURE__ */ jsx8(VariadicInput, { board, id, link }) : /* @__PURE__ */ jsx8("span", { className: "bc:font-mono bc:text-xs", children: link.input }),
-                  className: WRAP
-                }
-              ]
-            };
-          })
+          rows: view.rows.map((link) => ({
+            id: link.id,
+            text: `${link.fromName} \u2192 ${link.toName}`,
+            menuLabel: `Actions of the link from ${link.fromName} to ${link.toName}`,
+            cells: [
+              { content: /* @__PURE__ */ jsx8(BlockLabel, { id: link.from, name: link.fromName }), className: WRAP },
+              { content: /* @__PURE__ */ jsx8(BlockLabel, { id: link.to, name: link.toName }), className: WRAP },
+              {
+                content: link.place === null ? /* @__PURE__ */ jsx8("span", { className: "bc:font-mono bc:text-xs", children: link.input }) : /* @__PURE__ */ jsx8(VariadicInput, { input: link.input, place: link.place }),
+                className: WRAP
+              }
+            ]
+          }))
         }
       ),
       /* @__PURE__ */ jsx8(Refusal, { refusal: menus.refusal }),
@@ -660,24 +665,32 @@ function LinksSection({ core, board, locked }) {
     ] }) })
   ] });
 }
-function BlockLabel({ board, id }) {
+function linkRows(board, registry) {
+  const graph = createGraph(board);
+  return Object.entries(board.links).map(([id, link]) => ({
+    id,
+    from: link.from,
+    fromName: blockName(board, link.from),
+    to: link.to,
+    toName: blockName(board, link.to),
+    input: link.input,
+    place: isVariadicBlock(board, registry, link.to) ? graph.linksInto(link.to).indexOf(id) + 1 : null
+  }));
+}
+function BlockLabel({ id, name }) {
   return /* @__PURE__ */ jsxs7("span", { className: "bc:grid", children: [
-    /* @__PURE__ */ jsx8("span", { children: blockName(board, id) }),
+    /* @__PURE__ */ jsx8("span", { children: name }),
     /* @__PURE__ */ jsx8("span", { className: "bc:font-mono bc:text-xs bc:text-text-muted bc:break-all", children: id })
   ] });
 }
-function VariadicInput({ board, id, link }) {
-  const place = createGraph(board).linksInto(link.to).indexOf(id) + 1;
+function VariadicInput({ input, place }) {
   return /* @__PURE__ */ jsxs7("span", { className: "bc:grid", children: [
-    link.input === "" ? /* @__PURE__ */ jsx8("span", { className: "bc:text-text-muted", children: "No name" }) : /* @__PURE__ */ jsx8("span", { className: "bc:font-mono bc:text-xs", children: link.input }),
+    input === "" ? /* @__PURE__ */ jsx8("span", { className: "bc:text-text-muted", children: "No name" }) : /* @__PURE__ */ jsx8("span", { className: "bc:font-mono bc:text-xs", children: input }),
     /* @__PURE__ */ jsxs7("span", { className: "bc:text-xs bc:text-text-muted", children: [
       "Position ",
       place
     ] })
   ] });
-}
-function variadicBlocks(board, registry) {
-  return new Set(Object.keys(board.blocks).filter((id) => isVariadicBlock(board, registry, id)));
 }
 
 // srcts/modules/edit-board/selection.ts
@@ -718,19 +731,20 @@ function idOf(object, kind) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { ColorSwatch } from "@blockr/core/react";
+import { ColorSwatch, useBoard as useBoard3 } from "@blockr/core/react";
 import { Fragment as Fragment4, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var ROLE3 = "add_stack_role";
 var COLUMNS3 = [
   { id: "name", name: "Name", rowHeader: true },
   { id: "blocks", name: "Blocks" }
 ];
-function StacksSection({ core, board, locked }) {
-  const stacks = Object.entries(board.stacks);
-  const view = useTableView(stacks, ([id, stack]) => [stack.name, id, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
+function StacksSection({ core, locked }) {
+  const stacks = useBoard3(core, stackRows);
+  const adds = useBoard3(core, () => offers(core, ROLE3, BOARD));
+  const view = useTableView(stacks, (stack) => [stack.name, stack.id, ...stack.blocks.map((block) => block.name)].join(" "));
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs8(Section, { title: "Stacks", count: stacks.length, children: [
-    locked || !offers(core, ROLE3, BOARD) ? null : /* @__PURE__ */ jsx9(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx9(Advanced, { core, role: ROLE3, target: BOARD }) }),
+    locked || !adds ? null : /* @__PURE__ */ jsx9(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx9(Advanced, { core, role: ROLE3, target: BOARD }) }),
     /* @__PURE__ */ jsx9(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx9("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs8(Fragment4, { children: [
       /* @__PURE__ */ jsx9(TableSearch, { label: "Search stacks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx9("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx9(
@@ -741,8 +755,8 @@ function StacksSection({ core, board, locked }) {
           kind: "stack",
           label: "The board's stacks",
           columns: COLUMNS3,
-          rows: view.rows.map(([id, stack]) => ({
-            id,
+          rows: view.rows.map((stack) => ({
+            id: stack.id,
             text: stack.name,
             menuLabel: `Actions of the stack ${stack.name}`,
             cells: [
@@ -753,7 +767,7 @@ function StacksSection({ core, board, locked }) {
                 ] }),
                 className: WRAP
               },
-              { content: /* @__PURE__ */ jsx9(StackBlocks, { board, blocks: stack.blocks }), className: WRAP }
+              { content: /* @__PURE__ */ jsx9(StackBlocks, { blocks: stack.blocks }), className: WRAP }
             ]
           }))
         }
@@ -763,16 +777,24 @@ function StacksSection({ core, board, locked }) {
     ] }) })
   ] });
 }
+function stackRows(board) {
+  return Object.entries(board.stacks).map(([id, stack]) => ({
+    id,
+    name: stack.name,
+    color: stack.color,
+    blocks: stack.blocks.map((block) => ({ id: block, name: blockName(board, block) }))
+  }));
+}
 var SHOWN_BLOCKS = 6;
-function StackBlocks({ board, blocks }) {
+function StackBlocks({ blocks }) {
   if (blocks.length === 0) return /* @__PURE__ */ jsx9("span", { className: "bc:text-text-muted", children: "No blocks" });
   const rest = blocks.length - SHOWN_BLOCKS;
   return /* @__PURE__ */ jsxs8("ul", { "aria-label": "Blocks", className: "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0", children: [
     blocks.slice(0, SHOWN_BLOCKS).map((block) => /* @__PURE__ */ jsxs8("li", { className: "bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs", children: [
-      blockName(board, block),
+      block.name,
       " ",
-      /* @__PURE__ */ jsx9("span", { className: "bc:font-mono bc:text-text-muted", children: block })
-    ] }, block)),
+      /* @__PURE__ */ jsx9("span", { className: "bc:font-mono bc:text-text-muted", children: block.id })
+    ] }, block.id)),
     rest > 0 ? /* @__PURE__ */ jsxs8("li", { className: "bc:px-1 bc:text-xs bc:text-text-muted", children: [
       "and ",
       rest,
@@ -789,22 +811,22 @@ var DOT = "bc:size-3! bc:rounded-full!";
 // srcts/modules/edit-board/board.tsx
 import { jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 function EditBoard({ core }) {
-  const board = useBoard(core);
   const locked = core.lock.board;
   return /* @__PURE__ */ jsxs9("div", { className: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default", children: [
     /* @__PURE__ */ jsx10(SelectionBar, { core }),
-    locked ? null : /* @__PURE__ */ jsx10(BlocksSection, { core, board }),
-    /* @__PURE__ */ jsx10(LinksSection, { core, board, locked }),
-    /* @__PURE__ */ jsx10(StacksSection, { core, board, locked })
+    locked ? null : /* @__PURE__ */ jsx10(BlocksSection, { core }),
+    /* @__PURE__ */ jsx10(LinksSection, { core, locked }),
+    /* @__PURE__ */ jsx10(StacksSection, { core, locked })
   ] });
 }
 var SELECTION = "selection";
 function SelectionBar({ core }) {
   const selected = useSelected(core);
   const menus = useMenus(core);
+  const target = { selection: selected };
+  const offered = useBoard4(core, () => selected.length > 0 && core.boardActions.on(target).length > 0);
   const form = menus.shown.get(SELECTION);
   if (selected.length === 0 && form === void 0) return null;
-  const target = { selection: selected };
   return /* @__PURE__ */ jsxs9("div", { role: "region", "aria-label": "Selection", className: "bc:grid bc:gap-2", children: [
     selected.length === 0 ? null : /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:items-center bc:gap-2 bc:rounded-md bc:border bc:border-border-default bc:px-3 bc:py-1.5 bc:text-sm", children: [
       /* @__PURE__ */ jsxs9("span", { "aria-live": "polite", children: [
@@ -812,7 +834,7 @@ function SelectionBar({ core }) {
         " selected"
       ] }),
       /* @__PURE__ */ jsxs9("span", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: [
-        core.boardActions.on(target).length > 0 ? /* @__PURE__ */ jsx10(MenuButton, { menus, target, place: SELECTION, label: "Actions of the selection" }) : null,
+        offered ? /* @__PURE__ */ jsx10(MenuButton, { menus, target, place: SELECTION, label: "Actions of the selection" }) : null,
         /* @__PURE__ */ jsx10(
           Button3,
           {
@@ -863,8 +885,8 @@ function ObjectsTable({
 }) {
   const selected = useSelected(core);
   const keys = useMemo3(() => selectedIds(selected, kind), [selected, kind]);
-  const offered = new Set(rows.flatMap(({ id }) => core.boardActions.on(objectOf(kind, id)).length > 0 ? [id] : []));
-  const actions = offered.size > 0;
+  const offered = useBoard4(core, () => rows.flatMap(({ id }) => core.boardActions.on(objectOf(kind, id)).length > 0 ? [id] : []));
+  const actions = offered.length > 0;
   const span = columns.length + (actions ? 1 : 0);
   return /* @__PURE__ */ jsxs9(
     Table,
@@ -890,7 +912,7 @@ function ObjectsTable({
           return /* @__PURE__ */ jsx10(Row, { id: row.id, textValue: row.text, children: form === void 0 ? [
             ...row.cells.map(({ content, className }, i) => /* @__PURE__ */ jsx10(Cell, { className, children: content }, i)),
             ...actions ? [
-              /* @__PURE__ */ jsx10(Cell, { className: "bc:text-right", children: offered.has(row.id) ? /* @__PURE__ */ jsx10(MenuButton, { menus, target: objectOf(kind, row.id), place: row.id, label: row.menuLabel }) : null }, "actions")
+              /* @__PURE__ */ jsx10(Cell, { className: "bc:text-right", children: offered.includes(row.id) ? /* @__PURE__ */ jsx10(MenuButton, { menus, target: objectOf(kind, row.id), place: row.id, label: row.menuLabel }) : null }, "actions")
             ] : []
           ] : /* @__PURE__ */ jsx10(Cell, { colSpan: span, className: WRAP, children: /* @__PURE__ */ jsx10(
             PlaceForm,

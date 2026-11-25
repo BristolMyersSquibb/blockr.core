@@ -231,8 +231,10 @@
   The reply's conditions hold only what R raised, each with the severity of its class, and R logs the reason at debug.
   A block's status in the client holds the reason beside its summary.
   The scheduler writes the reason of a block that an input or a block upstream keeps waiting, in place of a condition.
+  The status names those inputs or blocks in `keptWaiting`, as `{ upstream: ["u"] }`.
+  For a block that R says waits, `keptWaiting` is null.
   A one-time evaluation with parameters runs a block that R says waits, and the block takes its reply.
-  A card counts the reason in the pill of the messages, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596).
+  A card counts the reason in the pill of the messages, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596, #669).
 * R's `ok` reply to a request or an output carries `conditions`, as its reply to an evaluation does: every message and warning that the request's function or the output's coercion raised.
   R logs each of them.
   Core raises a notification for each condition of an `ok` reply to a request or an output (#601, #606).
@@ -259,6 +261,7 @@
   Such an input says below itself why the host refused a submit, and submits nothing that the state holds already (#772).
   Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a board object through `CoreApi`, as core's own frontend and cards do.
   The hook `useNotified()` takes the board object as `{ block: id }` or `{ plugin: id }`, or null for every notification (#673, #710).
+  Given a function that takes a part of the board, such as each block's name, `useBoard()` gives that part instead, and the component draws again only where that part changes (#857).
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
   Beside the preset, the build package exports the plugin `vendorCheck`, which fails a build that puts code from `node_modules` into one of a package's own files, so that the libraries a package bundles go into its vendor file instead.
   The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.

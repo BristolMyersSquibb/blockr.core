@@ -3,6 +3,11 @@ import type { Condition, Reply } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { Inputs } from "./recipes.ts";
 export type Status = "unevaluated" | "stale" | "waiting" | "invalid" | "ready" | "failed";
+export type KeptWaiting = {
+    readonly unlinked: readonly string[];
+} | {
+    readonly upstream: readonly BlockId[];
+};
 export interface BlockStatus {
     readonly status: Status;
     readonly revision: number;
@@ -13,6 +18,7 @@ export interface BlockStatus {
     readonly stderr: string;
     readonly summary: string | null;
     readonly reason: string | null;
+    readonly keptWaiting: KeptWaiting | null;
     readonly unsent: string | null;
 }
 export interface Outcome {
@@ -33,12 +39,8 @@ export declare function unsent(revision: number, error: string): Unsent;
 export declare function unevaluated(revision: number, running: boolean): BlockStatus;
 export declare function failedToSend(failure: Unsent, revision: number, evaluated: number | null, running: boolean): BlockStatus;
 export declare function replied(outcome: Outcome, revision: number, running: boolean): BlockStatus;
-export declare function waiting(why: string, revision: number, evaluated: number | null, running: boolean): BlockStatus;
-export declare function waitingFor(what: {
-    unlinked: readonly string[];
-} | {
-    upstream: readonly BlockId[];
-}): string;
+export declare function waiting(kept: KeptWaiting, revision: number, evaluated: number | null, running: boolean): BlockStatus;
+export declare function waitingFor(what: KeptWaiting): string;
 export declare function sameStatus(a: BlockStatus, b: BlockStatus): boolean;
 export declare function blockStatuses(input: {
     readonly graph: Graph;
@@ -52,5 +54,4 @@ export declare function blockStatuses(input: {
     statuses: Map<BlockId, BlockStatus>;
     changed: BlockId[];
 };
-export declare function keptWaiting(inputs: Inputs | undefined, statuses: ReadonlyMap<BlockId, BlockStatus>): string | undefined;
-export declare function waitingError(id: BlockId, status: BlockStatus): Error;
+export declare function waitingError(id: BlockId, kept: KeptWaiting): Error;
