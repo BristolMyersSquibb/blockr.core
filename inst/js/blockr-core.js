@@ -8283,7 +8283,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
   const [errors, setErrors] = useState7({});
   const [busy, setBusy] = useState7(false);
   const takes = mode.kind === "after" || mode.kind === "on";
-  const options = useMemo2(() => blockClasses(offeredClasses(registry, takes)), [registry, takes]);
+  const options = useMemo2(() => blockClasses(Object.values(registry).filter((entry2) => !takes || entry2.inputs.length > 0)), [registry, takes]);
   const search = useSearch(
     options,
     (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
@@ -8510,9 +8510,6 @@ function inputNameError(value2, taken) {
 function isVariadic(free) {
   return free.length === 1 && free[0] === "";
 }
-function offeredClasses(registry, taking) {
-  return Object.values(registry).filter((entry) => entry.offered === true && (!taking || entry.inputs.length > 0));
-}
 function blockClasses(entries) {
   return entries.map(classItem).sort(byGroupAndName);
 }
@@ -8624,7 +8621,7 @@ function heldBlocks(board, target2) {
 // srcts/actions/add.tsx
 import { jsx as jsx7 } from "react/jsx-runtime";
 function addingBoardActions(registry) {
-  const adds = (taking) => offeredClasses(registry(), taking).length > 0;
+  const adds = (taking) => Object.values(registry()).some((entry) => !taking || hasInput(entry));
   return [
     {
       id: "blockr.core-add_block_action",
@@ -8691,11 +8688,15 @@ function addingBoardActions(registry) {
     }
   ];
 }
+function hasInput(entry) {
+  return entry.inputs.length > 0;
+}
 function classLevel(core, taking, batch2) {
   const registry = core.blockRegistry();
+  const entries = Object.values(registry).filter((entry) => !taking || hasInput(entry));
   return {
     filter: true,
-    rows: blockClasses(offeredClasses(registry, taking)).map((item) => ({
+    rows: blockClasses(entries).map((item) => ({
       kind: "item",
       label: item.name,
       heading: item.category,

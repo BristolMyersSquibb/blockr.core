@@ -10788,7 +10788,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
   const [errors, setErrors] = useState17({});
   const [busy, setBusy] = useState17(false);
   const takes = mode.kind === "after" || mode.kind === "on";
-  const options = useMemo5(() => blockClasses(offeredClasses(registry, takes)), [registry, takes]);
+  const options = useMemo5(() => blockClasses(Object.values(registry).filter((entry2) => !takes || entry2.inputs.length > 0)), [registry, takes]);
   const search = useSearch(
     options,
     (item2) => [item2.name, item2.description, item2.id, item2.category, item2.pkg ?? "", ...item2.keywords],
@@ -11015,9 +11015,6 @@ function inputNameError(value2, taken) {
 function isVariadic(free) {
   return free.length === 1 && free[0] === "";
 }
-function offeredClasses(registry, taking2) {
-  return Object.values(registry).filter((entry) => entry.offered === true && (!taking2 || entry.inputs.length > 0));
-}
 function blockClasses(entries2) {
   return entries2.map(classItem).sort(byGroupAndName);
 }
@@ -11129,7 +11126,7 @@ function heldBlocks(board, target2) {
 // srcts/actions/add.tsx
 import { jsx as jsx52 } from "react/jsx-runtime";
 function addingBoardActions(registry) {
-  const adds = (taking2) => offeredClasses(registry(), taking2).length > 0;
+  const adds = (taking2) => Object.values(registry()).some((entry) => !taking2 || hasInput(entry));
   return [
     {
       id: "blockr.core-add_block_action",
@@ -11196,11 +11193,15 @@ function addingBoardActions(registry) {
     }
   ];
 }
+function hasInput(entry) {
+  return entry.inputs.length > 0;
+}
 function classLevel(core, taking2, batch2) {
   const registry = core.blockRegistry();
+  const entries2 = Object.values(registry).filter((entry) => !taking2 || hasInput(entry));
   return {
     filter: true,
-    rows: blockClasses(offeredClasses(registry, taking2)).map((item2) => ({
+    rows: blockClasses(entries2).map((item2) => ({
       kind: "item",
       label: item2.name,
       heading: item2.category,
@@ -16515,7 +16516,6 @@ var hello_default = {
         block_registry: {
           "blockr.core-dataset_block": {
             id: "blockr.core-dataset_block",
-            offered: true,
             name: "dataset block",
             description: "Choose a dataset from a package",
             keywords: ["dataset", "data", "import", "package", "source"],
@@ -16559,7 +16559,6 @@ var hello_default = {
           },
           "blockr.core-head_block": {
             id: "blockr.core-head_block",
-            offered: true,
             name: "head/tail block",
             description: "Data head/tail",
             url: "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",
@@ -16603,7 +16602,6 @@ var hello_default = {
           },
           "blockr.core-merge_block": {
             id: "blockr.core-merge_block",
-            offered: true,
             name: "merge block",
             description: "Joining or merging datasets",
             keywords: [
@@ -16659,7 +16657,6 @@ var hello_default = {
           },
           "blockr.core-subset_block": {
             id: "blockr.core-subset_block",
-            offered: true,
             name: "subset block",
             description: "Row and column subsetting",
             keywords: [
@@ -16704,7 +16701,6 @@ var hello_default = {
           },
           "blockr.core-rbind_block": {
             id: "blockr.core-rbind_block",
-            offered: true,
             name: "rbind block",
             description: "Row-binding of datasets",
             keywords: [
@@ -16739,7 +16735,6 @@ var hello_default = {
           },
           "blockr.core-scatter_block": {
             id: "blockr.core-scatter_block",
-            offered: true,
             name: "scatter plot block",
             description: "Scatter plotting",
             keywords: [
@@ -16788,7 +16783,6 @@ var hello_default = {
           },
           "blockr.core-upload_block": {
             id: "blockr.core-upload_block",
-            offered: true,
             name: "data upload block",
             description: "Upload data",
             keywords: ["upload", "file", "import", "data", "session"],

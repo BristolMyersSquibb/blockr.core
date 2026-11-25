@@ -8,9 +8,9 @@
 #' The app's server function hands what the client sends to the evaluator of
 #' the session, which evaluates the blocks.
 #'
-#' Which block classes an app offers is the app's choice, never a board's.
-#' The methods for a board and for a path take them in `blocks`, which
-#' defaults to every block class of every available package, as
+#' An app offers every block class of its block registry.
+#' The methods for a board and for a path take those of packages in `blocks`,
+#' which defaults to every block class of every available package, as
 #' [available_blocks()] gives them.
 #' A script narrows them with plain R, as
 #' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
@@ -66,8 +66,8 @@
 #' So every block on the served board runs, with the name and the other
 #' metadata that its class's registration gives, and so does a block that
 #' `serve()` serves alone.
-#' The app offers none of these classes, so that the client's pickers leave
-#' them out.
+#' The app offers these classes too, so that a user can add a block of any
+#' class that the board shows.
 #' A board with a block of a class that nothing registers fails, naming the
 #' block and the class.
 #' So a script registers a class that it defines itself with
@@ -93,9 +93,8 @@
 #'
 #' A single block is served alone, with fixed data and no board around it, so
 #' that its developer can try it out.
-#' Its app offers no block classes, so that its block registry holds the
-#' block's class alone, which R registers from the class's registration, as
-#' for a board.
+#' Its block registry holds the block's class alone, which R registers from
+#' the class's registration, as for a board.
 #' The page shows the block in a card of its own: its name, its UI, its output
 #' and a line of its status.
 #' R keeps the data for the process, and binds each entry to the block's input
@@ -198,13 +197,11 @@ serve.board <- function(x, ..., blocks = available_blocks(),
   plugins <- app_plugins(plugins)
   check_board_plugins(x, plugins)
   registry <- app_block_registry(blocks)
-  offered_ids <- ls(registry)
   register_board_classes(x, registry)
   frontend <- frontend_reply(..., plugins = plugins)
   serve_app(
     encode_message(blockr_ser(x)),
     registry,
-    offered_ids,
     plugins = plugins,
     frontend = frontend
   )
@@ -220,7 +217,6 @@ serve.character <- function(x, ..., blocks = available_blocks(),
   serve_app(
     read_board_json(x),
     registry,
-    ls(registry),
     plugins = plugins,
     frontend = frontend
   )
@@ -251,13 +247,7 @@ serve.block <- function(x, ..., data = list()) {
   registry <- new.env(parent = emptyenv())
   register_board_classes(board, registry)
 
-  serve_app(
-    encode_message(blockr_ser(board)),
-    registry,
-    character(),
-    data,
-    alone = TRUE
-  )
+  serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
 }
 
 # Refuses a board that the script builds with a plugin of a class
@@ -402,9 +392,6 @@ check_outside_classes <- function(classes) {
 # for a block that `serve()` serves alone, with the data that R binds to the
 # block's inputs.
 # Each session's evaluator reads the app's block registry, `registry`, alone.
-# Its reply to `hello` marks the entries of the classes that the app offers,
-# by their registry ids, `offered_ids`, which a block that `serve()` serves
-# alone leaves empty.
 # The app's plugins, `plugins`, which `app_plugins()` gives, go to the
 # evaluator of every session, which sends them in its reply to `hello`, and so
 # does what the app's frontend reads of the arguments of `serve()`,
@@ -428,16 +415,14 @@ check_outside_classes <- function(classes) {
 # `write_log()`).
 # R also works out here which modules the page imports as it starts, which the
 # page names for the browser to fetch at once (see `page_modules()`).
-serve_app <- function(board, registry, offered_ids, data = list(),
-                      alone = FALSE, plugins = list(),
-                      frontend = as_json_object(list())) {
+serve_app <- function(board, registry, data = list(), alone = FALSE,
+                      plugins = list(), frontend = as_json_object(list())) {
 
   reset_logging()
   get_logger()
   check_client_logger()
 
   force(board)
-  force(offered_ids)
 
   lock <- lock_board(board, data, registry)
 
@@ -463,10 +448,7 @@ serve_app <- function(board, registry, offered_ids, data = list(),
     server = function(input, output, session) {
 
       ev <- new_evaluator(
-        board, data, lock, registry,
-        offered_ids = offered_ids,
-        plugins = plugins,
-        frontend = frontend,
+        board, data, lock, registry, plugins, frontend,
         options = options,
         modules = offered,
         families = families,

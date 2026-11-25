@@ -167,10 +167,8 @@ export interface CoreApi {
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
   readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
-  // The block registry's entries by registry id, as R's reply to `hello` gives
-  // them for the board: the classes that the app offers, which R marks
-  // `offered`, and the class of each block of the opening board. A picker
-  // lists only the classes that the app offers.
+  // The block registry's entries by registry id, for pickers, as R's reply to
+  // `hello` gives them for the board.
   blockRegistry(): BlockRegistry;
   // The board options that packages define, by id, and the value of each, as
   // the board holds it, which is undefined where the board holds none.

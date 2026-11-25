@@ -18,9 +18,7 @@
 // (./roles.ts).
 //
 // The quick action of each is a level with a filter, and a row for each block
-// class that the board action can add, among those that the app offers, which
-// R marks in the block registry's entries, under the heading of its category,
-// with
+// class that the board action can add, under the heading of its category, with
 // the class's icon and its package, as the add menu of blockr.ui's design
 // system lists them
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1199-L1207).
@@ -56,8 +54,8 @@
 // Each fails its offers() in these cases:
 // - The board lock is on, since the store refuses what the board action runs.
 // - The board does not hold what the board action acts on.
-// - Its quick action would hold no row, as where the app offers no class that
-//   it can add.
+// - Its quick action would hold no row, as where the block registry holds no
+//   class that it can add.
 // - For Prepend block on a block, links feed every input of the block.
 // - For Prepend block on an input, a link feeds the input, or the block has no
 //   such input. A variadic block's only input there is its next place, "",
@@ -66,7 +64,7 @@
 // target runs nothing.
 
 import { freeInputs } from "../commands/index.ts";
-import { blockClasses, BlockPicker, offeredClasses } from "../picker/index.ts";
+import { blockClasses, BlockPicker } from "../picker/index.ts";
 import type { AddMode } from "../picker/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -86,9 +84,9 @@ type Registry = () => Readonly<Record<RegistryId, RegistryEntry>>;
 // Core's board actions that add a block, in the order of their table, which
 // read the block registry through `registry`.
 export function addingBoardActions(registry: Registry): BoardAction[] {
-  // Whether the app offers a class that a board action can add, one with an
-  // input where `taking` is true.
-  const adds = (taking: boolean): boolean => offeredClasses(registry(), taking).length > 0;
+  // Whether the block registry holds a class that a board action can add,
+  // one with an input where `taking` is true.
+  const adds = (taking: boolean): boolean => Object.values(registry()).some((entry) => !taking || hasInput(entry));
   return [
     {
       id: "blockr.core-add_block_action",
@@ -165,19 +163,26 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
   ];
 }
 
+// Whether a block class has an input, which a block that takes another's
+// result needs.
+function hasInput(entry: RegistryEntry): boolean {
+  return entry.inputs.length > 0;
+}
+
 // The level of a quick action that adds a block: a filter, and a row for each
-// block class that the app offers, only those with an input where `taking` is
-// true. Picking a row mints the new block's id and runs the batch that `batch`
-// returns for the class, the id and the board as it is then.
+// block class of the block registry, only those with an input where `taking`
+// is true. Picking a row mints the new block's id and runs the batch that
+// `batch` returns for the class, the id and the board as it is then.
 function classLevel(
   core: CoreApi,
   taking: boolean,
   batch: (entry: RegistryEntry, block: BlockId, board: Board) => readonly CommandCall[],
 ): QuickLevel {
   const registry = core.blockRegistry();
+  const entries = Object.values(registry).filter((entry) => !taking || hasInput(entry));
   return {
     filter: true,
-    rows: blockClasses(offeredClasses(registry, taking)).map((item) => ({
+    rows: blockClasses(entries).map((item) => ({
       kind: "item",
       label: item.name,
       heading: item.category,

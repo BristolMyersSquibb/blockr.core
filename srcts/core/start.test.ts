@@ -2313,14 +2313,12 @@ describe("a block that serve() serves alone", () => {
     );
     s.r.session(helloBlock);
     await tick();
-    s.r.options({ board_actions: { rename_role: "blockr.dock-rename_action" } });
+    s.r.options({ board_actions: { append_block_role: "blockr.dock-append_block_action" } });
     const core = await s.started.ready;
 
-    // Rename plays a role on a block whatever classes the app offers, and an
-    // app of a block alone offers none, so that no board action adds a block.
-    const ids = core.boardActions.on({ block: Object.keys(core.store.board().blocks)[0] ?? "" }).map(({ id }) => id);
-    expect(ids).toContain("blockr.core-rename_action");
-    expect(ids).not.toContain("blockr.core-append_block_action");
+    expect(core.boardActions.on({ block: Object.keys(core.store.board().blocks)[0] ?? "" }).map(({ id }) => id)).toContain(
+      "blockr.core-append_block_action",
+    );
   });
 });
 

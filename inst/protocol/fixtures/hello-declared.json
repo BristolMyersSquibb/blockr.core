@@ -19,7 +19,6 @@
         "block_registry": {
           "count_block": {
             "id": "count_block",
-            "offered": true,
             "name": "count block",
             "description": "Count up",
             "keywords": [],
@@ -43,7 +42,6 @@
           },
           "letters_block": {
             "id": "letters_block",
-            "offered": true,
             "name": "letters block",
             "description": "Pick columns",
             "url": "https://example.com/letters",

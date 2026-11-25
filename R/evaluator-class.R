@@ -55,11 +55,7 @@
 # `registry`, which
 # `serve()` built for the app, and by which R evaluates every block and
 # answers every request.
-# It marks the entries of the classes that the app offers, by their registry
-# ids, `offered_ids`, which leave out a class that R registered only for a
-# block of the opening board.
-# Outside an app, as in a test, that is the block registry of the process,
-# and every class of it counts as offered.
+# Outside an app, as in a test, that is the block registry of the process.
 #
 # The results live in an environment keyed by block id.
 # For each block that R evaluated, it holds the revision,
@@ -99,8 +95,7 @@
 # and dropping results.
 # The rest is the protocol, which every evaluator shares.
 new_evaluator <- function(board, data = list(), lock = NULL,
-                          registry = block_registry,
-                          offered_ids = ls(registry), plugins = list(),
+                          registry = block_registry, plugins = list(),
                           frontend = as_json_object(list()),
                           options = app_options(),
                           modules = offered_modules(),
@@ -145,7 +140,6 @@ new_evaluator <- function(board, data = list(), lock = NULL,
 
   ev$data <- data
   ev$registry <- registry
-  ev$offered_ids <- offered_ids
   ev$plugins <- plugins
   ev$frontend <- frontend
   ev$options <- options
@@ -360,8 +354,8 @@ start_session <- function(ev, req, send) {
           capabilities = I(evaluator_capabilities(ev))
         ),
         loaded_reply(
-          ev$registry, ev$offered_ids, ev$plugins, ev$frontend, ev$options,
-          ev$modules, ev$families
+          ev$registry, ev$plugins, ev$frontend, ev$options, ev$modules,
+          ev$families
         ),
         list(lock = ev$locks),
         ev$opening

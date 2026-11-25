@@ -9,12 +9,6 @@ import type { OutputRenderer } from "./outputs.ts";
 
 export interface RegistryEntry {
   readonly id: RegistryId;
-  // Whether the app offers the class, which R says only where it does: for
-  // the classes of `serve()`'s `blocks` and those that the app script
-  // registered. A class that R registered only for a block of the opening
-  // board, which the app does not offer, leaves it out, and a picker lists no
-  // such class.
-  readonly offered?: true;
   // The metadata that registration gives: name, description, url (the link
   // that `register_block()` takes), guidance, keywords, category and icon, the
   // icon as SVG markup.

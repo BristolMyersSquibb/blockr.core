@@ -19,7 +19,6 @@
         "block_registry": {
           "blockr.core-dataset_block": {
             "id": "blockr.core-dataset_block",
-            "offered": true,
             "name": "dataset block",
             "description": "Choose a dataset from a package",
             "keywords": ["dataset", "data", "import", "package", "source"],
@@ -63,7 +62,6 @@
           },
           "blockr.core-head_block": {
             "id": "blockr.core-head_block",
-            "offered": true,
             "name": "head/tail block",
             "description": "Data head/tail",
             "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",

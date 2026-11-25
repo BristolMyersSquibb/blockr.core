@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { BlockId, Board, LinkId, RegistryId } from "../types/board.ts";
+import type { BlockId, Board, LinkId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Done } from "../ui/index.ts";
@@ -36,7 +36,6 @@ export interface ClassItem {
     readonly category: string;
     readonly keywords: readonly string[];
 }
-export declare function offeredClasses(registry: Readonly<Record<RegistryId, RegistryEntry>>, taking: boolean): RegistryEntry[];
 export declare function blockClasses(entries: readonly RegistryEntry[]): ClassItem[];
 export declare function focusFirstInvalid(form: HTMLFormElement): void;
 export declare function blockIdError(value: string, board: Pick<Board, "blocks">): string | undefined;

@@ -151,7 +151,7 @@ protocol_r_values <- function() {
     `hello-block` = list(
       list(
         proto_hello_reply(
-          block_registry = proto_registry("head_block", offered = FALSE),
+          block_registry = proto_registry("head_block"),
           renderers = obj(),
           lock = proto_lock(),
           board = proto_json_board(
@@ -688,10 +688,8 @@ proto_request <- function(inputs = character(), state_args = character(),
 }
 
 # The entries of the block classes named, of core's, as R sends them in the
-# block registry, by registry id, each marked `offered` where the app offers
-# the classes, as an app for a board or a path does, and none where it offers
-# none, as for a block that `serve()` serves alone.
-proto_registry <- function(..., offered = TRUE) {
+# block registry, by registry id.
+proto_registry <- function(...) {
 
   entries <- list(
     dataset_block = obj(
@@ -915,13 +913,6 @@ proto_registry <- function(..., offered = TRUE) {
   )
 
   entries <- entries[c(...)]
-
-  if (offered) {
-    entries <- lapply(
-      entries,
-      function(x) c(x["id"], list(offered = TRUE), x[names(x) != "id"])
-    )
-  }
 
   set_names(unname(entries), chr_xtr(entries, "id"))
 }

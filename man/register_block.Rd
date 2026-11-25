@@ -159,11 +159,11 @@ built before.
 
 Every block class in an app's block registry comes from a registration: a
 package's listing, or the block registry of the process.
-A block on the board that the script serves may be of a class that the app
-does not offer, such as core's static block in an app whose rows leave it
-out.
+A block on the board that the script serves may be of a class that the
+app's rows leave out, such as core's static block.
 Then \code{serve()} registers that class in the app's block registry from its
-registration, so that the block runs, and the app still does not offer it.
+registration, so that the block runs, and the app offers it like the classes
+of its rows.
 A block of a class that nothing registers stops the app, so a script
 registers a class that it defines itself before it serves a board with a
 block of it (see \code{\link[=serve]{serve()}}).
@@ -184,10 +184,9 @@ Each of its properties gives a state arg's type, and may give the arg's
 description (see \code{vignette("create-block")}).
 
 R sends the client what it needs of each entry, in its reply to \code{hello},
-without building a block: whether the app offers the class, the metadata,
-with \code{link} as \code{url}, the data inputs, where R serves the UI module, the
-schema, the state a new block starts with and the requests.
-The client's pickers list only the classes that the app offers. R serves the
+without building a block: the metadata, with \code{link} as \code{url}, the data
+inputs, where R serves the UI module, the schema, the state a new block
+starts with and the requests. R serves the
 module, and the stylesheet beside it, at a URL that holds a hash of the
 file's content, so that no browser runs a changed file from its cache. It
 writes the starting state by the schema of the block's state.

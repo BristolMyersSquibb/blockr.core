@@ -91,18 +91,15 @@ test_that("serve() registers the board's classes from their registrations", {
   # A class that the block registry holds keeps its entry
   expect_identical(get_registry_entry("blockr.core-head_block", registry), head)
 
-  # The reply to `hello` marks the classes that the app offers, those of its
-  # rows and the script's own, and not the class of the static block, which
-  # the app registered for the board alone
+  # The reply to `hello` sends each of them, so that the client offers the
+  # static block too, by the name that its registration gives
   reply <- served_replies(app, hello_message())[[1L]]
-  offered <- lgl_ply(reply$block_registry, function(x) isTRUE(x$offered))
 
-  expect_setequal(
-    names(reply$block_registry)[offered],
-    c("blockr.core-head_block", "note_block")
+  expect_setequal(names(reply$block_registry), ls(registry))
+  expect_identical(
+    reply$block_registry[["blockr.core-static_block"]]$name,
+    "static block"
   )
-  expect_named(reply$block_registry[["blockr.core-static_block"]][1:2],
-               c("id", "name"))
 })
 
 test_that("serve() builds the app's block registry of the classes it offers", {
@@ -286,11 +283,6 @@ test_that("serve() registers the class of a block that it serves alone", {
     get_registry_entry("blockr.core-static_block", registry)$name,
     "static block"
   )
-
-  # The app offers no class
-  reply <- served_replies(app, hello_message())[[1L]]
-
-  expect_null(reply$block_registry[["blockr.core-static_block"]]$offered)
 
   # A class that the script defines needs its registration here too
   expect_error(

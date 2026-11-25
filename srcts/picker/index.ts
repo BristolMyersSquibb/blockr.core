@@ -6,5 +6,5 @@
 // Core's runtime holds the picker. The bundle of the Edit board plugin holds
 // a copy of the checks, as it holds one of srcts/util.
 
-export { blockClasses, blockIdError, BlockPicker, focusFirstInvalid, inputNameError, isVariadic, namesInto, offeredClasses, without } from "./picker.tsx";
+export { blockClasses, blockIdError, BlockPicker, focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "./picker.tsx";
 export type { AddMode, ClassItem } from "./picker.tsx";

@@ -19,7 +19,6 @@
         "block_registry": {
           "blockr.core-dataset_block": {
             "id": "blockr.core-dataset_block",
-            "offered": true,
             "name": "dataset block",
             "description": "Choose a dataset from a package",
             "keywords": ["dataset", "data", "import", "package", "source"],
@@ -63,7 +62,6 @@
           },
           "blockr.core-subset_block": {
             "id": "blockr.core-subset_block",
-            "offered": true,
             "name": "subset block",
             "description": "Row and column subsetting",
             "keywords": [

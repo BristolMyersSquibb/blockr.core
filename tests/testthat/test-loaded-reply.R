@@ -47,9 +47,9 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
 
   expect_named(
     entry,
-    c("id", "offered", "name", "description", "keywords", "category", "icon",
-      "inputs", "module", "version", "schema", "block_name", "state",
-      "options", "requests", "output_options", "renderers")
+    c("id", "name", "description", "keywords", "category", "icon", "inputs",
+      "module", "version", "schema", "block_name", "state", "options",
+      "requests", "output_options", "renderers")
   )
   expect_identical(json(entry$keywords), "[]")
 })

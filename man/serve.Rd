@@ -47,9 +47,9 @@ The app's server function hands what the client sends to the evaluator of
 the session, which evaluates the blocks.
 }
 \details{
-Which block classes an app offers is the app's choice, never a board's.
-The methods for a board and for a path take them in \code{blocks}, which
-defaults to every block class of every available package, as
+An app offers every block class of its block registry.
+The methods for a board and for a path take those of packages in \code{blocks},
+which defaults to every block class of every available package, as
 \code{\link[=available_blocks]{available_blocks()}} gives them.
 A script narrows them with plain R, as
 \code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
@@ -105,8 +105,8 @@ holds the class, and from the listing of the class's package otherwise.
 So every block on the served board runs, with the name and the other
 metadata that its class's registration gives, and so does a block that
 \code{serve()} serves alone.
-The app offers none of these classes, so that the client's pickers leave
-them out.
+The app offers these classes too, so that a user can add a block of any
+class that the board shows.
 A board with a block of a class that nothing registers fails, naming the
 block and the class.
 So a script registers a class that it defines itself with
@@ -132,9 +132,8 @@ to them.
 
 A single block is served alone, with fixed data and no board around it, so
 that its developer can try it out.
-Its app offers no block classes, so that its block registry holds the
-block's class alone, which R registers from the class's registration, as
-for a board.
+Its block registry holds the block's class alone, which R registers from
+the class's registration, as for a board.
 The page shows the block in a card of its own: its name, its UI, its output
 and a line of its status.
 R keeps the data for the process, and binds each entry to the block's input
