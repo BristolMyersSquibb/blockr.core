@@ -516,14 +516,7 @@ block_eval.block <- function(x, expr, env, ...) {
 #' @export
 eval_env <- function(data) {
 
-  defaults <- as.logical(blockr_option("attach_default_packages", FALSE))
-
-  if (!is_bool(defaults)) {
-    blockr_abort(
-      "The blockr option `attach_default_packages` is TRUE or FALSE.",
-      class = "attach_default_packages_invalid"
-    )
-  }
+  defaults <- blockr_flag("attach_default_packages", FALSE)
 
   if (defaults) {
     parent <- default_eval_parent()
@@ -538,18 +531,21 @@ eval_env_default_pkgs <- c(
   "stats", "graphics", "grDevices", "utils", "datasets", "methods"
 )
 
-default_eval_parent <- local({
-  cached <- NULL
-  function() {
-    if (!is.null(cached)) return(cached)
-    parent <- baseenv()
-    for (pkg in rev(eval_env_default_pkgs)) {
-      parent <- pkg_export_env(pkg, parent)
+eval_parent_cache <- new.env(parent = emptyenv())
+
+default_eval_parent <- function() {
+  rlang::env_cache(
+    eval_parent_cache,
+    "parent",
+    {
+      parent <- baseenv()
+      for (pkg in rev(eval_env_default_pkgs)) {
+        parent <- pkg_export_env(pkg, parent)
+      }
+      parent
     }
-    cached <<- parent
-    cached
-  }
-})
+  )
+}
 
 pkg_export_env <- function(pkg, parent) {
   ns <- loadNamespace(pkg)

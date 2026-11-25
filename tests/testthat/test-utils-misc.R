@@ -1,3 +1,31 @@
+test_that("include_mermaid() writes Chromium arguments as JSON", {
+
+  withr::local_dir(withr::local_tempdir())
+  dir.create("mermaid")
+  writeLines("graph TB; A-->B;", file.path("mermaid", "x.mmd"))
+
+  chromium_args <- c(
+    "--no-sandbox",
+    "--user-data-dir=C:\\Users\\me\\mmdc",
+    "--js-flags=\"--max-old-space-size=4096\""
+  )
+  config <- NULL
+
+  with_mocked_bindings(
+    include_mermaid("x", chromium_args),
+    Sys.which = function(x) "mmdc",
+    system2 = function(command, args, ...) {
+      cfg <- args[[which(args == "--puppeteerConfigFile") + 1L]]
+      config <<- yyjsonr::read_json_file(cfg)
+      file.create(args[[which(args == "-o") + 1L]])
+      0L
+    },
+    .package = "base"
+  )
+
+  expect_identical(config[["args"]], chromium_args)
+})
+
 test_that("exprs_to_lang", {
 
   eval_exprs <- function(exprs) {
@@ -382,4 +410,31 @@ test_that("misc", {
                class = "blockr_options_names_invalid")
   expect_error(set_blockr_options(test_opt = "a", test_opt = "b"),
                class = "blockr_options_names_invalid")
+})
+
+test_that("blockr_flag reads TRUE and FALSE by one rule", {
+
+  withr::local_options(blockr.test_flag = NULL)
+  withr::local_envvar(BLOCKR_TEST_FLAG = NA)
+
+  expect_false(blockr_flag("test_flag", FALSE))
+  expect_true(blockr_flag("test_flag", TRUE))
+
+  withr::local_options(blockr.test_flag = TRUE)
+  expect_true(blockr_flag("test_flag", FALSE))
+
+  withr::local_options(blockr.test_flag = 1)
+  expect_error(
+    blockr_flag("test_flag", FALSE),
+    "The blockr option `test_flag` is TRUE or FALSE.",
+    class = "test_flag_invalid",
+    fixed = TRUE
+  )
+
+  withr::local_options(blockr.test_flag = NULL)
+  withr::local_envvar(BLOCKR_TEST_FLAG = " TRUE")
+  expect_true(blockr_flag("test_flag", FALSE))
+
+  withr::local_envvar(BLOCKR_TEST_FLAG = "1")
+  expect_error(blockr_flag("test_flag", FALSE), class = "test_flag_invalid")
 })

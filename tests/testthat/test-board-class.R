@@ -447,8 +447,8 @@ test_that("a board prints its plugins", {
   expect_identical(out[1L], "<board>")
   expect_true("Plugins[1]:" %in% out)
   expect_true("<notes_plugin> blockr.test-notes_plugin" %in% out)
-  expect_true("text: To do" %in% out)
-  expect_true("tags: character()" %in% out)
+  expect_true(" $ text: chr \"To do\"" %in% out)
+  expect_true(" $ tags: chr(0)" %in% out)
 })
 
 test_that("empty variadic link inputs stay unnamed", {

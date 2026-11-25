@@ -35,6 +35,7 @@
 
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
+import { suggestedName } from "../commands/index.ts";
 import {
   Checkbox,
   ColorArea,
@@ -73,14 +74,6 @@ export const PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "
 export function suggestedColor(stacks: readonly Stack[]): string {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
   return PALETTE.find((color) => !used.has(color)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
-}
-
-// "Stack 1", or the first "Stack n" that no stack has.
-export function suggestedName(stacks: readonly Stack[]): string {
-  const names = new Set(stacks.map((stack) => stack.name));
-  let n = 1;
-  while (names.has(`Stack ${String(n)}`)) n++;
-  return `Stack ${String(n)}`;
 }
 
 // Create stack's advanced action.
@@ -190,7 +183,7 @@ function StackForm({
     const hex = color === null ? null : stackColor(color);
     if (editing === undefined) {
       const id = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
-      return [{ id: ADD_STACK, args: { id, blocks: kept, color: hex, name: trimmed === "" ? fallbackName : trimmed } }];
+      return [{ id: ADD_STACK, args: { id, blocks: kept, color: hex, ...(trimmed === "" ? {} : { name: trimmed }) } }];
     }
     const { id, stack } = editing;
     const changed: Record<string, Json> = {

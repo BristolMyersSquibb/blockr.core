@@ -28,3 +28,7 @@ test_that("replayed condition messages with braces do not glue-interpolate", {
   expect_no_error(replay(simpleWarning(brace_msg)))
   expect_no_error(replay(simpleError(brace_msg)))
 })
+
+test_that("replaying a condition keeps a message that is not valid UTF-8", {
+  expect_no_error(suppressWarnings(replay(simpleWarning("bad \xff\n"))))
+})

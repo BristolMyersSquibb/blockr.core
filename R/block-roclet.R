@@ -210,9 +210,9 @@ block_roclet_entry <- function(block, base_url) {
   require_block_tag(block, "blockCategory")
 
   entry <- list(
-    name = block_tag_value(block, "block"),
-    description = block_tag_value(block, "blockDescr"),
-    category = block_tag_value(block, "blockCategory")
+    name = roxygen2::block_get_tag_value(block, "block"),
+    description = roxygen2::block_get_tag_value(block, "blockDescr"),
+    category = roxygen2::block_get_tag_value(block, "blockCategory")
   )
 
   link <- block_link(block, base_url)
@@ -221,7 +221,7 @@ block_roclet_entry <- function(block, base_url) {
     entry[["link"]] <- link
   }
 
-  icon <- block_tag_value(block, "blockIcon")
+  icon <- roxygen2::block_get_tag_value(block, "blockIcon")
 
   if (not_null(icon)) {
     entry[["icon"]] <- icon
@@ -254,16 +254,9 @@ require_block_tag <- function(block, tag) {
   invisible()
 }
 
-block_tag_value <- function(block, tag) {
-
-  hit <- roxygen2::block_get_tag(block, tag)
-
-  if (is.null(hit)) NULL else hit$val
-}
-
 block_keywords <- function(block) {
 
-  value <- block_tag_value(block, "blockKeywords")
+  value <- roxygen2::block_get_tag_value(block, "blockKeywords")
 
   if (is.null(value)) {
     return(character())
@@ -275,12 +268,12 @@ block_keywords <- function(block) {
 }
 
 block_guidance <- function(block) {
-  reflow_text(block_tag_value(block, "blockGuidance"))
+  reflow_text(roxygen2::block_get_tag_value(block, "blockGuidance"))
 }
 
 block_link <- function(block, base_url) {
 
-  explicit <- block_tag_value(block, "blockLink")
+  explicit <- roxygen2::block_get_tag_value(block, "blockLink")
 
   if (not_null(explicit)) {
     return(explicit)
@@ -302,8 +295,8 @@ derived_link <- function(block, base_url) {
   }
 
   topic <- coal(
-    block_tag_value(block, "rdname"),
-    block_tag_value(block, "name"),
+    roxygen2::block_get_tag_value(block, "rdname"),
+    roxygen2::block_get_tag_value(block, "name"),
     block_roclet_ctor(block),
     fail_all = FALSE
   )

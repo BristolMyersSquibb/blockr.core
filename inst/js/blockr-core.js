@@ -2276,16 +2276,16 @@ var ATTEMPTS = 3;
 var RequestError = class extends Error {
   status;
   conditions;
-  inputs;
-  blocks;
+  notReady;
+  unlinked;
   constructor(message, fields = {}) {
     const conditions = fields.conditions ?? [];
     super([message, ...conditions.map((condition) => `- ${condition.message}`)].join("\n"));
     this.name = "RequestError";
     this.status = fields.status ?? null;
     this.conditions = conditions;
-    this.inputs = fields.inputs ?? [];
-    this.blocks = fields.blocks ?? [];
+    this.notReady = fields.notReady ?? [];
+    this.unlinked = fields.unlinked ?? [];
   }
 };
 async function blockRequest(deps, block, entry, name3, given, opts) {
@@ -2374,7 +2374,10 @@ async function evaluateReads(deps, block, entry, name3, names, signal5) {
   if (inputs === void 0) throw new Error(`Block "${block}" left the board, so its request "${name3}" did not go to R.`);
   const unlinked = inputs.unlinked.filter((input2) => names.includes(input2));
   if (unlinked.length > 0) {
-    throw new RequestError(`${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`);
+    throw new RequestError(
+      `${what} did not go to R, since no link feeds its ${unlinked.length === 1 ? "input" : "inputs"} ${quoted(unlinked)}.`,
+      { unlinked }
+    );
   }
   const read = inputs.recipe.filter(
     (input2) => names.includes(input2.input) || names.includes("...") && !entry.inputs.includes(input2.input)
@@ -2382,15 +2385,15 @@ async function evaluateReads(deps, block, entry, name3, names, signal5) {
   const upstream = [...new Set(read.flatMap((input2) => input2.block ?? []))];
   if (upstream.length === 0) return read.map((input2) => ({ input: input2.input }));
   const statuses = await deps.scheduler.evaluate(upstream, void 0, signal5 === void 0 ? {} : { signal: signal5 });
-  const unready = read.flatMap((input2) => {
+  const notReady = read.flatMap((input2) => {
     if (input2.block === void 0) return [];
     const status = own(statuses, input2.block);
-    return status === void 0 || status.status === "ready" ? [] : [{ input: input2.input, status }];
+    return status === void 0 || status.status === "ready" ? [] : [{ block: input2.block, status, input: input2.input }];
   });
-  if (unready.length > 0) {
-    const listed = unready.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
+  if (notReady.length > 0) {
+    const listed = notReady.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since an input it reads is not ready: ${listed.join(", ")}.`, {
-      inputs: unready
+      notReady
     });
   }
   return read.map(
@@ -2972,7 +2975,7 @@ function mountOutput(deps, el, block) {
           reject(
             new RequestError(
               `The request "${name3}" of the output of block "${block}" did not go to R, since the block reads ${status.status}.`,
-              { blocks: [{ block, status }] }
+              { notReady: [{ block, status }] }
             )
           );
           return true;
@@ -4780,14 +4783,6 @@ function mintId(taken, randId = "adjective_animal") {
   while (taken(`${id2}_${String(n)}`)) n++;
   return `${id2}_${String(n)}`;
 }
-function sentenceCase(id2) {
-  const words = id2.replace(/([A-Z])/g, " $1").replace(/[_\-.]/g, " ").trim().split(" ");
-  const [first = "", ...rest] = words;
-  return [
-    first.charAt(0).toUpperCase() + first.slice(1).toLowerCase(),
-    ...rest.map((word) => word.toLowerCase())
-  ].join(" ");
-}
 var draws = {
   adjective_animal: () => `${pick(adjectives)}_${pick(animals)}`,
   adjective_adjective_animal: () => {
@@ -6539,7 +6534,7 @@ function coreCommands(store) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
+    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? entry.block_name, locked: null }];
   }
   function inputFailures(board2, to, given) {
     const registry = store.blockRegistry();
@@ -6731,19 +6726,24 @@ function coreCommands(store) {
           ...stackId,
           description: "The new stack's id, which is minted where it is left out."
         },
-        name: { ...name2, description: `The new stack's name, "Stack" where it is left out.` },
+        name: {
+          ...name2,
+          description: `The new stack's name, the first free "Stack n" where it is left out.`
+        },
         blocks: { ...blockIds, description: "The blocks of the new stack, in order." },
         color: {
           ...color,
           description: "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own."
         }
       }),
-      run(board2, { id: id2, name: name3 = "Stack", blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
+      run(board2, { id: id2, name: name3, blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
         const stack = id2 ?? mintId2((id3) => Object.hasOwn(board2.stacks, id3));
         const left2 = leave(board2, stack, blocks2);
         return {
           stacks: {
-            add: { [stack]: { name: name3, blocks: blocks2, color: color2 } },
+            add: {
+              [stack]: { name: name3 ?? suggestedName(Object.values(board2.stacks)), blocks: blocks2, color: color2 }
+            },
             ...Object.keys(left2).length === 0 ? {} : { mod: left2 }
           }
         };
@@ -6843,10 +6843,11 @@ function linkFeeding(board, registry, to, input2, except) {
   if (inputs === void 0 || inputs.includes("...")) return void 0;
   return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
 }
-function defaultBlockName(registryId2) {
-  const pkg = packageFromId(registryId2);
-  const name3 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
-  return sentenceCase(name3.replace(/_block$/, ""));
+function suggestedName(stacks) {
+  const names = new Set(stacks.map((stack) => stack.name));
+  let n = 1;
+  while (names.has(`Stack ${String(n)}`)) n++;
+  return `Stack ${String(n)}`;
 }
 function cycleFailures(board, from, to, except) {
   if (from === to) return [`The link would join block "${to}" to itself.`];
@@ -8440,7 +8441,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
             {
               label: "Name",
               value: name3,
-              placeholder: entry === void 0 ? void 0 : defaultBlockName(entry.id),
+              placeholder: entry?.block_name,
               description: "Optional. The class's name where left empty.",
               autoComplete: "off",
               onChange: setName
@@ -9635,12 +9636,6 @@ function suggestedColor(stacks) {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
   return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
 }
-function suggestedName(stacks) {
-  const names = new Set(stacks.map((stack) => stack.name));
-  let n = 1;
-  while (names.has(`Stack ${String(n)}`)) n++;
-  return `Stack ${String(n)}`;
-}
 var createStackForm = {
   render({ el, core, target: target2, done }) {
     return drawForm(el, /* @__PURE__ */ jsx10(StackForm, { core, given: heldBlocks(core.store.board(), target2), done }));
@@ -9709,7 +9704,7 @@ function StackForm({
     const hex3 = color2 === null ? null : stackColor(color2);
     if (editing === void 0) {
       const id3 = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
-      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, name: trimmed === "" ? fallbackName : trimmed } }];
+      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, ...trimmed === "" ? {} : { name: trimmed } } }];
     }
     const { id: id2, stack } = editing;
     const changed = {
@@ -10911,14 +10906,14 @@ async function evaluateReads2(deps, what, blocks, signal5) {
   }
   const unique = [...new Set(blocks)];
   const statuses = await deps.scheduler.evaluate(unique, void 0, signal5 === void 0 ? {} : { signal: signal5 });
-  const unready = unique.flatMap((block) => {
+  const notReady = unique.flatMap((block) => {
     const status = own(statuses, block);
     return status === void 0 || status.status === "ready" ? [] : [{ block, status }];
   });
-  if (unready.length > 0) {
-    const listed = unready.map(({ block, status }) => `"${block}" reads ${status.status}`);
+  if (notReady.length > 0) {
+    const listed = notReady.map(({ block, status }) => `"${block}" reads ${status.status}`);
     throw new RequestError(`${what} did not go to R, since a block it reads is not ready: ${listed.join(", ")}.`, {
-      blocks: unready
+      notReady
     });
   }
   const left2 = unique.filter((block) => own(statuses, block) === void 0);

@@ -2,8 +2,6 @@
 
   list2env(core_listing(pkgname), envir = ._BLOCKR_MODULES_)
 
-  trace_block_classes(pkgname)
-
   invisible(NULL)
 } # nocov end
 

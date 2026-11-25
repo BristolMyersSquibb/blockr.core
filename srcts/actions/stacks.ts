@@ -31,6 +31,7 @@
 // Under the board lock, all three fail their offers(), since the store
 // refuses what they run.
 
+import { suggestedName } from "../commands/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { blockName } from "../ui/index.ts";
@@ -39,7 +40,7 @@ import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { PLUS, swatch } from "./icons.ts";
 import { levelItem, nameRow } from "./quick.ts";
 import type { QuickRow } from "./quick.ts";
-import { createStackForm, editStackForm, PALETTE, suggestedColor, suggestedName } from "./stack-form.tsx";
+import { createStackForm, editStackForm, PALETTE, suggestedColor } from "./stack-form.tsx";
 import { heldBlocks } from "./targets.ts";
 
 const CREATE_STACK = "blockr.core-add_stack_action";

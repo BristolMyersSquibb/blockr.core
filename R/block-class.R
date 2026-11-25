@@ -239,7 +239,7 @@ block_constructor <- function(cls) {
   }
 
   ctor <- function() {
-    new_class_block(cls, environment())
+    new_class_block(constructor_class(ctor), environment())
   }
 
   formals(ctor) <- c(
@@ -247,11 +247,13 @@ block_constructor <- function(cls) {
     alist(block_name = NULL, locked = NA)
   )
 
-  structure(
+  ctor <- structure(
     ctor,
     block_class = cls,
     class = c("block_constructor", "function")
   )
+
+  ctor
 }
 
 #' @param path Path of the module, relative to the package's `inst/`
@@ -684,7 +686,26 @@ constructor_class <- function(ctor) {
     )
   }
 
-  attr(ctor, "block_class", exact = TRUE)
+  cls <- attr(ctor, "block_class", exact = TRUE)
+  package <- cls[["package"]]
+
+  if (is.null(package) || !isNamespaceLoaded(package)) {
+    return(cls)
+  }
+
+  # Installation gives a constructor's attribute and environment copies of
+  # its class. Covr traverses the class that the package's namespace binds.
+  ns <- asNamespace(package)
+  bound <- get0(cls[["id"]], envir = ns, inherits = FALSE)
+
+  if (is_block_class(bound) && identical(bound[["id"]], cls[["id"]])) {
+    return(bound)
+  }
+
+  classes <- Filter(is_block_class, mget(ls(ns, all.names = TRUE), ns))
+  found <- match(cls[["id"]], chr_xtr(classes, "id"))
+
+  if (is.na(found)) cls else classes[[found]]
 }
 
 block_state <- function(x) {
@@ -873,7 +894,7 @@ format_block_head <- function(x) {
   c(out, paste0("Name: \"", block_name(x), "\""), dat)
 }
 
-format_block_state <- function(state) {
+format_state <- function(state) {
   trimws(utils::capture.output(utils::str(state))[-1L], "right")
 }
 
@@ -883,7 +904,7 @@ format.block <- function(x, ...) {
   state <- block_state(x)
 
   if (length(state)) {
-    lines <- c("Block state:", format_block_state(state))
+    lines <- c("Block state:", format_state(state))
   } else {
     lines <- "Stateless block"
   }
