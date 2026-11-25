@@ -425,6 +425,15 @@ describe("opening a board", () => {
     expect(seen).toEqual([{ opened: board, dropped }]);
   });
 
+  test("names no package that R did not load where nothing on the board comes from it, as a copied board can list one", async () => {
+    const store = unopened();
+
+    const dropped = await store.open(file({ blocks: { b: head() }, links: {}, stacks: {} }, { "blockr.core": "0.2.0", "blockr.dock": "0.3.0" }));
+
+    expect(dropped).toEqual([]);
+    expect(Object.keys(store.board().blocks)).toEqual(["b"]);
+  });
+
   test("refuses a file above the format it knows, naming both, and a file of today's stack", async () => {
     const store = unopened();
 

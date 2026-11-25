@@ -1471,11 +1471,12 @@ describe("a board opened later", () => {
   test("says what the store's read() that CoreApi gives leaves out and why, in a sentence for each kind of object, with each block by its name", async () => {
     const s = await started({ [BASIC]: frontEnd().exports });
     const block = (registryId: string, name: string) => ({ registry_id: registryId, version: 1, state: {}, name, locked: null });
-    // A copied board with blocks of two packages that R did not load, the
-    // state of a plugin of a third such package, and a fourth such package
-    // that nothing on the board needs. The board also holds a block whose
-    // class blockr.core lacks, the state of a plugin that the app does not
-    // run, and two board options that no package defines.
+    // A copied board with blocks of two packages that R did not load and the
+    // state of a plugin of a third such package. It lists a fourth such
+    // package, which nothing on the board comes from, so the warning leaves
+    // it out. The board also holds a block whose class blockr.core lacks, the
+    // state of a plugin that the app does not run, and two board options that
+    // no package defines.
     const copied = JSON.stringify({
       ...hello.board,
       packages: { ...hello.board.packages, "blockr.dplyr": "0.1.4", "blockr.ggplot": "0.2.0", "blockr.dock": "0.3.0", "blockr.io": "0.1.0" },
@@ -1504,7 +1505,7 @@ describe("a board opened later", () => {
         'The blocks "Filter", "Plot", "Arrange" and "Gone" were left out, since this app lacks the packages blockr.dplyr 0.1.4 and blockr.ggplot 0.2.0 and the class blockr.core-gone_block.',
         'The states of the plugins "blockr.dock-dock_plugin" and "blockr.gone-gone_plugin" were left out, since this app does not run them.',
         'The values of the board options "zoom" and "tilt" were left out, since no package of this app defines them.',
-        "This app lacks the packages blockr.dock 0.3.0 and blockr.io 0.1.0.",
+        "This app lacks the package blockr.dock 0.3.0.",
       ].join("\n"),
     ]);
   });

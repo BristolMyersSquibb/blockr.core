@@ -1359,10 +1359,16 @@ describe("what the user learns", () => {
 
     // A board that opens later starts core and the frontend again, which shows
     // only the toast of what that board dropped.
-    picking(new File([savedAs(page.core, (json) => ({ ...json, packages: { ...json.packages, "blockr.io": "0.1.0" } }))], "board.json"));
+    const read = { registry_id: "blockr.io-read_block", version: 1, state: {}, name: "Read", locked: null };
+    const later = (json: JsonBoard): JsonBoard => ({
+      ...json,
+      packages: { ...json.packages, "blockr.io": "0.1.0" },
+      board: { ...json.board, blocks: { ...json.board.blocks, r: read } },
+    });
+    picking(new File([savedAs(page.core, later)], "board.json"));
     await click(button(page.el, "Open"));
     await page.settled();
-    expect(toasts(page.el)).toEqual([["warning", "Board", "This app lacks the package blockr.io 0.1.0."]]);
+    expect(toasts(page.el)).toEqual([["warning", "Board", 'The board opened without the block "Read", since this app lacks the package blockr.io 0.1.0.']]);
 
     vi.restoreAllMocks();
     picking(new File([savedAs(page.core, renamed("Clean"))], "board.json"));

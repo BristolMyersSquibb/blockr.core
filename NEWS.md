@@ -943,6 +943,7 @@
   Core raises the warning anew for each read.
   The warning of an opening board now takes the same form, with each sentence starting `The board opened without`.
   Both name each block by its name, which the block's entry in `Dropped` now holds.
+  The store now names a package that R did not load only where a block or a plugin's state on the board comes from it, so that a copied board that lists other packages, as the DAG's Copy writes one, warns of nothing it does not hold.
   A caller that shows the warning itself passes a `notifier` in the options of `read()`, which then takes it in place of core (#878).
 * A plugin class may give `afterStep(board, before, plugin)`, which returns the patches to its plugin's state that follow from a step as a whole.
   The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.
