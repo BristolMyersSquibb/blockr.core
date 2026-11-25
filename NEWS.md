@@ -680,7 +680,9 @@
   Where the store refuses a batch as a whole, once the deltas of each command have passed, as where a plugin class's `afterStep` fails, the error names no command, and its first line says that the store refused the batch as a whole (#668).
 * The store logs at error what the `update` or the `afterStep` of a plugin class throws, with its stack, whoever applies the delta: the command registry, an undo or a redo, or a plugin itself.
   The line names the class in the attribute `blockr.plugin.class_id`.
-  The failure with which the store refuses the delta or the step still holds the message alone (#668).
+  The store logs what a migration throws in the same way, as it opens, checks or reads a board.
+  That line names the plugin class, the block class or the board option of the migration, in the attribute `blockr.plugin.class_id`, `blockr.block.registry_id` or `blockr.option.id`.
+  The failure with which the store refuses the delta, the step or the board still holds the message alone (#668, #881).
 * A block class's request takes a file that the client sends only where `new_block_request()` names the argument for it, in `file`.
   That argument may have any name, and the function `run_block_request()` passes it a file through its own argument `file`.
   The block registry marks a request that takes a file with `file`, and the client sends no file with any other request.

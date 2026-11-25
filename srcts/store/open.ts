@@ -13,6 +13,8 @@
 // 2. It migrates what the JSON board holds in an older shape, by the versions
 //    of the shapes that it records: the states of the plugins it keeps, the
 //    states of the blocks and the values of the board options.
+//    What a migration throws refuses the board, and the store logs it at
+//    error (migratedValue(), below).
 // 3. It drops and names each block whose class the block registry lacks, and
 //    each board option value that no package registers.
 // 4. It gives each other plugin of the app whose class has `state` its class's
@@ -38,7 +40,7 @@ import {
 } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit } from "./commit.ts";
-import { StoreError } from "./error.ts";
+import { StoreError, thrown } from "./error.ts";
 import { expand } from "./expand.ts";
 import { droppedPlugins, keptPlugins, pluginsWithDefaults } from "./plugins.ts";
 import type { Registrations } from "./registrations.ts";
@@ -208,7 +210,9 @@ function migrate(
       changed.add("plugins");
       return [
         cls,
-        migratedValue(`The migration of the plugin class "${cls}"`, () => def.migrate?.(frozenCopy(state), from)),
+        migratedValue(`The migration of the plugin class "${cls}"`, { "blockr.plugin.class_id": cls }, () =>
+          def.migrate?.(frozenCopy(state), from),
+        ),
       ];
     }),
   );
@@ -227,8 +231,10 @@ function migrate(
       const fn = registrations.migration(block.registry_id);
       if (fn === undefined) return [id, block];
       changed.add("blocks");
-      const state = migrated(`The migration of the block class "${block.registry_id}"`, () =>
-        fn(frozenCopy(block.state), from),
+      const state = migrated(
+        `The migration of the block class "${block.registry_id}"`,
+        { "blockr.block.registry_id": block.registry_id },
+        () => fn(frozenCopy(block.state), from),
       );
       return [id, { ...block, state }];
     }),
@@ -251,7 +257,9 @@ function migrate(
       changed.add("options");
       return [
         id,
-        migratedValue(`The migration of the board option "${id}"`, () => def.migrate?.(frozenCopy(value), from)),
+        migratedValue(`The migration of the board option "${id}"`, { "blockr.option.id": id }, () =>
+          def.migrate?.(frozenCopy(value), from),
+        ),
       ];
     }),
   );
@@ -263,20 +271,27 @@ function migrate(
 
 // What a migration returns, frozen, or a StoreError naming the migration where
 // it fails or returns no object.
-function migrated(what: string, fn: () => unknown): Readonly<Record<string, Json>> {
-  const out = migratedValue(what, fn);
+function migrated(
+  what: string,
+  attributes: Readonly<Record<string, Json>>,
+  fn: () => unknown,
+): Readonly<Record<string, Json>> {
+  const out = migratedValue(what, attributes, fn);
   if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
   return out;
 }
 
 // What a migration of a value returns, frozen, or a StoreError naming the
 // migration where it fails or returns nothing.
-function migratedValue(what: string, fn: () => unknown): Json {
+// The store logs what the migration throws at error, with its stack, and with
+// the `attributes` that name the class or the board option of the migration
+// (thrown(), ./error.ts).
+function migratedValue(what: string, attributes: Readonly<Record<string, Json>>, fn: () => unknown): Json {
   let out: unknown;
   try {
     out = fn();
   } catch (error) {
-    throw new StoreError(refused, [`${what} failed: ${errorMessage(error)}`]);
+    throw new StoreError(refused, [thrown(`${what} failed`, error, attributes)]);
   }
   if (out === undefined) throw new StoreError(refused, [`${what} returned nothing.`]);
   return frozenCopy(out as Json);

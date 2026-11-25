@@ -5459,6 +5459,11 @@ var StoreError = class extends Error {
     this.failures = failures;
   }
 };
+function thrown(of, error, attributes) {
+  const failure = `${of}: ${errorMessage(error)}`;
+  log.error(new Error(failure, { cause: error }), attributes);
+  return failure;
+}
 
 // srcts/store/expand.ts
 var ROUNDS = 10;
@@ -5477,7 +5482,9 @@ function expand(delta, board, registrations) {
       try {
         patches2 = def.update(expanded, board, id2);
       } catch (error) {
-        failures.push(thrown(id2, `The plugin class "${id2}" failed to update the delta for its plugin`, error));
+        failures.push(
+          thrown(`The plugin class "${id2}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id2 })
+        );
         continue;
       }
       const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
@@ -5511,7 +5518,7 @@ function afterStep(board, before, registrations) {
     try {
       returned = def.afterStep(board, before, id2);
     } catch (error) {
-      failures.push(thrown(id2, `The afterStep of the plugin class "${id2}" failed`, error));
+      failures.push(thrown(`The afterStep of the plugin class "${id2}" failed`, error, { "blockr.plugin.class_id": id2 }));
       continue;
     }
     const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
@@ -5546,11 +5553,6 @@ function expandCore(delta, board) {
     ...incident.length === 0 ? {} : { links: { ...delta.links, rm: [...linksRm, ...incident] } },
     ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
   };
-}
-function thrown(id2, of, error) {
-  const failure = `${of}: ${errorMessage(error)}`;
-  log.error(new Error(failure, { cause: error }), { "blockr.plugin.class_id": id2 });
-  return failure;
 }
 function misplaced(id2, patches2, of) {
   if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
@@ -5824,7 +5826,11 @@ function migrate(board, json, reply, registrations) {
       changed.add("plugins");
       return [
         cls,
-        migratedValue(`The migration of the plugin class "${cls}"`, () => def.migrate?.(frozenCopy(state2), from))
+        migratedValue(
+          `The migration of the plugin class "${cls}"`,
+          { "blockr.plugin.class_id": cls },
+          () => def.migrate?.(frozenCopy(state2), from)
+        )
       ];
     })
   );
@@ -5844,6 +5850,7 @@ function migrate(board, json, reply, registrations) {
       changed.add("blocks");
       const state2 = migrated(
         `The migration of the block class "${block.registry_id}"`,
+        { "blockr.block.registry_id": block.registry_id },
         () => fn(frozenCopy(block.state), from)
       );
       return [id2, { ...block, state: state2 }];
@@ -5866,7 +5873,11 @@ function migrate(board, json, reply, registrations) {
       changed.add("options");
       return [
         id2,
-        migratedValue(`The migration of the board option "${id2}"`, () => def.migrate?.(frozenCopy(value2), from))
+        migratedValue(
+          `The migration of the board option "${id2}"`,
+          { "blockr.option.id": id2 },
+          () => def.migrate?.(frozenCopy(value2), from)
+        )
       ];
     })
   );
@@ -5874,17 +5885,17 @@ function migrate(board, json, reply, registrations) {
   if (changed.size === 0) return board;
   return { ...board, plugins, blocks, options };
 }
-function migrated(what, fn) {
-  const out = migratedValue(what, fn);
+function migrated(what, attributes, fn) {
+  const out = migratedValue(what, attributes, fn);
   if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
   return out;
 }
-function migratedValue(what, fn) {
+function migratedValue(what, attributes, fn) {
   let out;
   try {
     out = fn();
   } catch (error) {
-    throw new StoreError(refused, [`${what} failed: ${errorMessage(error)}`]);
+    throw new StoreError(refused, [thrown(`${what} failed`, error, attributes)]);
   }
   if (out === void 0) throw new StoreError(refused, [`${what} returned nothing.`]);
   return frozenCopy(out);
