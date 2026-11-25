@@ -11,7 +11,7 @@ import { hello } from "../testing/store.ts";
 import type { Board, BlockId } from "../types/board.ts";
 import { inputsByBlock } from "./recipes.ts";
 import { counter, opening } from "./revisions.ts";
-import { blockStatuses, keptWaiting, unsent, waitingError } from "./status.ts";
+import { blockStatuses, sameStatus, unsent, waiting, waitingError } from "./status.ts";
 import type { BlockStatus, Outcome, Unsent } from "./status.ts";
 
 const failure: Condition = {
@@ -130,6 +130,7 @@ describe("statuses", () => {
       stderr: "",
       summary: null,
       reason: null,
+      keptWaiting: null,
       unsent: why,
     });
     expect(found.get("d")).toMatchObject({ status: "stale", evaluated: null, conditions: [], unsent: why });
@@ -190,31 +191,44 @@ describe("statuses", () => {
 
 describe("what keeps a block waiting", () => {
   test("is an input or a block upstream, but not R's reply, which a one-time evaluation runs again", () => {
-    const graph = createGraph(sample);
-    const inputs = inputsByBlock(sample, graph, hello.block_registry, new Set());
     const { statuses: found } = statuses(sample, (revisions) => [
       ["a", outcome("ok", at(revisions, "a"))],
       ["b", outcome("waiting", at(revisions, "b"))],
     ]);
-    expect(found.get("b")?.status).toBe("waiting");
-    expect(keptWaiting(inputs.get("b"), found)).toBeUndefined();
-    expect(keptWaiting(inputs.get("c"), found)).toBe('This block is waiting for block "b".');
+    expect(found.get("a")).toMatchObject({ status: "ready", keptWaiting: null });
+    expect(found.get("b")).toMatchObject({ status: "waiting", reason: unset, keptWaiting: null });
+    expect(found.get("c")).toMatchObject({
+      status: "waiting",
+      reason: 'This block is waiting for block "b".',
+      keptWaiting: { upstream: ["b"] },
+    });
 
-    const loose = createBoard({ c: "merge_block" });
-    const looseGraph = createGraph(loose);
-    const looseInputs = inputsByBlock(loose, looseGraph, hello.block_registry, new Set());
-    expect(keptWaiting(looseInputs.get("c"), statuses(loose).statuses)).toBe(
-      'This block is waiting for its inputs "x" and "y" to be linked.',
-    );
+    const loose = statuses(createBoard({ c: "merge_block", e: "rbind_block" })).statuses;
+    expect(loose.get("c")).toMatchObject({
+      reason: 'This block is waiting for its inputs "x" and "y" to be linked.',
+      keptWaiting: { unlinked: ["x", "y"] },
+    });
+    expect(loose.get("e")).toMatchObject({
+      reason: "This block is waiting for a block to be linked to it.",
+      keptWaiting: { unlinked: ["..."] },
+    });
+  });
+
+  test("counts as a change of the status, even where the reason reads the same", () => {
+    const unlinked = waiting({ unlinked: ["...", "x"] }, 1, null, false);
+    const linked = waiting({ unlinked: ["..."] }, 1, null, false);
+    expect(unlinked.reason).toBe(linked.reason);
+    expect(sameStatus(unlinked, linked)).toBe(false);
+    expect(sameStatus(linked, waiting({ unlinked: ["..."] }, 1, null, false))).toBe(true);
   });
 });
 
 describe("the error of an evaluation with parameters of a waiting block", () => {
   test("names the block and what it waits for", () => {
     const loose = createBoard({ c: "merge_block" });
-    const status = statuses(loose).statuses.get("c");
-    if (status === undefined) throw new Error("Block c has no status.");
-    expect(waitingError("c", status).message).toBe(
+    const kept = statuses(loose).statuses.get("c")?.keptWaiting ?? null;
+    if (kept === null) throw new Error("Nothing keeps block c waiting.");
+    expect(waitingError("c", kept).message).toBe(
       'Block "c" is waiting for its inputs "x" and "y" to be linked. Its evaluation with parameters is not sent.',
     );
   });

@@ -20,11 +20,15 @@
 // forms say why below themselves.
 // Under the board lock, it lists the links alone, and a row shows no "…"
 // unless another package's board action applies to its link.
+// The section takes from the board only what its rows show of each link, and
+// whether the board holds two blocks. So it draws again only where those
+// change, and not for a change of a block's state.
 
 import type { ReactElement } from "react";
 import { createGraph } from "../../graph/index.ts";
+import { useBoard } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
-import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
+import type { BlockId, Board, LinkId } from "../../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../../types/core-api.ts";
 import { blockName, isVariadicBlock, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
@@ -41,12 +45,12 @@ const COLUMNS = [
   { id: "input", name: "Input" },
 ] as const;
 
-export function LinksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
-  const links = Object.entries(board.links);
-  const view = useTableView(links, ([, link]) =>
-    [blockName(board, link.from), link.from, blockName(board, link.to), link.to, link.input].join(" "),
-  );
-  const variadic = variadicBlocks(board, core.blockRegistry());
+export function LinksSection({ core, locked }: { core: CoreApi; locked: boolean }): ReactElement {
+  const links = useBoard(core, (board) => linkRows(board, core.blockRegistry()));
+  const adds = useBoard(core, () => offers(core, ROLE, BOARD));
+  // Whether the board holds two blocks, which a link joins.
+  const two = useBoard(core, (board) => Object.keys(board.blocks).length >= 2);
+  const view = useTableView(links, (link) => [link.fromName, link.from, link.toName, link.to, link.input].join(" "));
   // The menus of the table's rows, which say why one was refused below the
   // table.
   const menus = useMenus(core);
@@ -55,13 +59,11 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
     <Section title="Links" count={links.length}>
       {locked ? null : (
         <Part title="Add a link">
-          {offers(core, ROLE, BOARD) ? (
+          {adds ? (
             <Advanced core={core} role={ROLE} target={BOARD} />
           ) : (
             <p className={styles.hint}>
-              {Object.keys(board.blocks).length < 2
-                ? "A link joins two blocks, so the board needs two blocks first."
-                : "No new link can join two blocks of the board."}
+              {two ? "No new link can join two blocks of the board." : "A link joins two blocks, so the board needs two blocks first."}
             </p>
           )}
         </Part>
@@ -81,27 +83,24 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
                 kind="link"
                 label="The board's links"
                 columns={COLUMNS}
-                rows={view.rows.map(([id, link]) => {
-                  const from = blockName(board, link.from);
-                  const to = blockName(board, link.to);
-                  return {
-                    id,
-                    text: `${from} → ${to}`,
-                    menuLabel: `Actions of the link from ${from} to ${to}`,
-                    cells: [
-                      { content: <BlockLabel board={board} id={link.from} />, className: WRAP },
-                      { content: <BlockLabel board={board} id={link.to} />, className: WRAP },
-                      {
-                        content: variadic.has(link.to) ? (
-                          <VariadicInput board={board} id={id} link={link} />
-                        ) : (
+                rows={view.rows.map((link) => ({
+                  id: link.id,
+                  text: `${link.fromName} → ${link.toName}`,
+                  menuLabel: `Actions of the link from ${link.fromName} to ${link.toName}`,
+                  cells: [
+                    { content: <BlockLabel id={link.from} name={link.fromName} />, className: WRAP },
+                    { content: <BlockLabel id={link.to} name={link.toName} />, className: WRAP },
+                    {
+                      content:
+                        link.place === null ? (
                           <span className="bc:font-mono bc:text-xs">{link.input}</span>
+                        ) : (
+                          <VariadicInput input={link.input} place={link.place} />
                         ),
-                        className: WRAP,
-                      },
-                    ],
-                  };
-                })}
+                      className: WRAP,
+                    },
+                  ],
+                }))}
               />
             )}
             <Refusal refusal={menus.refusal} />
@@ -113,11 +112,40 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
   );
 }
 
+// Each link of the board as its row shows it: its ID, the blocks that it
+// comes from and goes to, each by its ID and its name, and the input that it
+// feeds. For a link into a variadic block, its place among the block's links,
+// from 1, in which the block takes them, and null for a link into another
+// block.
+function linkRows(
+  board: Board,
+  registry: BlockRegistry,
+): {
+  readonly id: LinkId;
+  readonly from: BlockId;
+  readonly fromName: string;
+  readonly to: BlockId;
+  readonly toName: string;
+  readonly input: string;
+  readonly place: number | null;
+}[] {
+  const graph = createGraph(board);
+  return Object.entries(board.links).map(([id, link]) => ({
+    id,
+    from: link.from,
+    fromName: blockName(board, link.from),
+    to: link.to,
+    toName: blockName(board, link.to),
+    input: link.input,
+    place: isVariadicBlock(board, registry, link.to) ? graph.linksInto(link.to).indexOf(id) + 1 : null,
+  }));
+}
+
 // A block as a table shows it: its name, and its id below.
-function BlockLabel({ board, id }: { board: Board; id: BlockId }): ReactElement {
+function BlockLabel({ id, name }: { id: BlockId; name: string }): ReactElement {
   return (
     <span className="bc:grid">
-      <span>{blockName(board, id)}</span>
+      <span>{name}</span>
       <span className="bc:font-mono bc:text-xs bc:text-text-muted bc:break-all">{id}</span>
     </span>
   );
@@ -125,17 +153,11 @@ function BlockLabel({ board, id }: { board: Board; id: BlockId }): ReactElement 
 
 // The input of a link into a variadic block: its name, if any, and its place
 // among the block's links, in which the block takes them.
-function VariadicInput({ board, id, link }: { board: Board; id: LinkId; link: Link }): ReactElement {
-  const place = createGraph(board).linksInto(link.to).indexOf(id) + 1;
+function VariadicInput({ input, place }: { input: string; place: number }): ReactElement {
   return (
     <span className="bc:grid">
-      {link.input === "" ? <span className="bc:text-text-muted">No name</span> : <span className="bc:font-mono bc:text-xs">{link.input}</span>}
+      {input === "" ? <span className="bc:text-text-muted">No name</span> : <span className="bc:font-mono bc:text-xs">{input}</span>}
       <span className="bc:text-xs bc:text-text-muted">Position {place}</span>
     </span>
   );
-}
-
-// The board's variadic blocks.
-function variadicBlocks(board: Pick<Board, "blocks">, registry: BlockRegistry): ReadonlySet<BlockId> {
-  return new Set(Object.keys(board.blocks).filter((id) => isVariadicBlock(board, registry, id)));
 }

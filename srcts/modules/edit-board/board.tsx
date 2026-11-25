@@ -24,8 +24,17 @@
 // its header, which counts what the board holds.
 // It draws nothing of a block's state, which the block's UI sets, nor the
 // board's name or its board options, which the frontend draws.
-// It follows the board through the store, so the next edit reads the board as
-// the last one left it, a block that the user just added among it.
+// Each of its parts follows the part of the board that it shows, through
+// useBoard() of core's React SDK, and draws again only where that part
+// changes. So a change of a block's state, a board option or a plugin's state
+// draws nothing of the plugin. A part takes plain data from the board, such as
+// each block's ID, name and class. The board's own objects would not do, since
+// the store replaces a block's object as the block's state changes.
+// Whether a board action applies to an object follows the board too. So the
+// parts take that from the board as well, such as whether a row shows its "…"
+// button.
+// The next edit reads the board as the last one left it, a block that the user
+// just added among it.
 // Where the store or the command registry refuses an edit, the plugin says why
 // close to the control that made it, in a banner in the colour of an error,
 // under a sentence that names the edit: below the buttons of a form, and below
@@ -64,14 +73,13 @@ import type { Kind } from "./selection.ts";
 import { StacksSection } from "./stacks.tsx";
 
 export function EditBoard({ core }: { core: CoreApi }): ReactElement {
-  const board = useBoard(core);
   const locked = core.lock.board;
   return (
     <div className="bc:grid bc:gap-3 bc:font-sans bc:text-text-default">
       <SelectionBar core={core} />
-      {locked ? null : <BlocksSection core={core} board={board} />}
-      <LinksSection core={core} board={board} locked={locked} />
-      <StacksSection core={core} board={board} locked={locked} />
+      {locked ? null : <BlocksSection core={core} />}
+      <LinksSection core={core} locked={locked} />
+      <StacksSection core={core} locked={locked} />
     </div>
   );
 }
@@ -90,18 +98,19 @@ const SELECTION = "selection";
 function SelectionBar({ core }: { core: CoreApi }): ReactElement | null {
   const selected = useSelected(core);
   const menus = useMenus(core);
+  const target: Target = { selection: selected };
+  // Whether a board action applies to the selection. The bar takes it from the
+  // board, as a table does for its rows.
+  const offered = useBoard(core, () => selected.length > 0 && core.boardActions.on(target).length > 0);
   const form = menus.shown.get(SELECTION);
   if (selected.length === 0 && form === undefined) return null;
-  const target: Target = { selection: selected };
   return (
     <div role="region" aria-label="Selection" className="bc:grid bc:gap-2">
       {selected.length === 0 ? null : (
         <div className="bc:flex bc:items-center bc:gap-2 bc:rounded-md bc:border bc:border-border-default bc:px-3 bc:py-1.5 bc:text-sm">
           <span aria-live="polite">{selected.length} selected</span>
           <span className="bc:ml-auto bc:flex bc:items-center bc:gap-1">
-            {core.boardActions.on(target).length > 0 ? (
-              <MenuButton menus={menus} target={target} place={SELECTION} label="Actions of the selection" />
-            ) : null}
+            {offered ? <MenuButton menus={menus} target={target} place={SELECTION} label="Actions of the selection" /> : null}
             <Button
               variant="quiet"
               onPress={() => {
@@ -207,8 +216,10 @@ export function ObjectsTable({
 }): ReactElement {
   const selected = useSelected(core);
   const keys = useMemo(() => selectedIds(selected, kind), [selected, kind]);
-  const offered = new Set(rows.flatMap(({ id }) => (core.boardActions.on(objectOf(kind, id)).length > 0 ? [id] : [])));
-  const actions = offered.size > 0;
+  // The rows whose object a board action applies to. What applies can change
+  // with any part of the board, so the table takes it from the board.
+  const offered = useBoard(core, () => rows.flatMap(({ id }) => (core.boardActions.on(objectOf(kind, id)).length > 0 ? [id] : [])));
+  const actions = offered.length > 0;
   const span = columns.length + (actions ? 1 : 0);
   return (
     <Table
@@ -251,7 +262,7 @@ export function ObjectsTable({
                   ...(actions
                     ? [
                         <Cell key="actions" className="bc:text-right">
-                          {offered.has(row.id) ? (
+                          {offered.includes(row.id) ? (
                             <MenuButton menus={menus} target={objectOf(kind, row.id)} place={row.id} label={row.menuLabel} />
                           ) : null}
                         </Cell>,

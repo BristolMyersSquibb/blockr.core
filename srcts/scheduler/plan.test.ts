@@ -77,7 +77,6 @@ function plan(fields: Partial<Parameters<typeof evaluationPlan>[0]> = {}) {
     graph,
     revisions,
     statuses: statuses(),
-    inputs,
     needs: new Map(),
     sent: [],
     asked: [],

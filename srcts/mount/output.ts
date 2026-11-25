@@ -695,7 +695,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
           reject(
             new RequestError(
               `The request "${name}" of the output of block "${block}" did not go to R, since the block reads ${status.status}.`,
-              { blocks: [{ block, status }] },
+              { notReady: [{ block, status }] },
             ),
           );
           return true;

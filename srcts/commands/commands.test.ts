@@ -14,7 +14,7 @@ import { recordSpans } from "../testing/spans.ts";
 import { openedStore, withPlugins } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import { CommandError, createCommands } from "./index.ts";
+import { CommandError, createCommands, isLogged } from "./index.ts";
 import type { Command, Commands } from "./index.ts";
 
 async function setup(
@@ -295,21 +295,23 @@ describe("running a command", () => {
     );
     expect(store.board()).toBe(board);
 
-    // Its CommandError says that it failed its preflight, and has no index,
-    // since the command ran alone.
+    // Its CommandError names the command and says that its preflight stopped
+    // it. It has no index, since the command ran alone.
     const error = await rejection(commands.run("blockr.core-remove_block", { id: "zz" }));
-    expect([error.preflight, error.index]).toEqual([false, undefined]);
+    expect([error.command, error.by, error.index]).toEqual(["blockr.core-remove_block", "preflight", undefined]);
     const failed = await rejection(commands.run("blockr.core-change_board", { name: 1 }));
-    expect(failed.preflight).toBeUndefined();
+    expect(failed.by).toBe("registry");
   });
 
-  test("rejects with what the store refused, having changed nothing", async () => {
+  test("rejects with what the store refused, naming the command, with the StoreError as the cause, having changed nothing", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    const refused = commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: "a" });
-    await expect(refused).rejects.toThrow(StoreError);
-    await expect(refused).rejects.toThrow('The board holds block "a" already.');
+    const error = await rejection(commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: "a" }));
+    expect(error.message).toBe('The store refused the deltas of the command "blockr.core-add_block"\n- The board holds block "a" already.');
+    expect([error.command, error.by, error.failures]).toEqual(["blockr.core-add_block", "store", ['The board holds block "a" already.']]);
+    expect(error.cause).toBeInstanceOf(StoreError);
+    expect((error.cause as StoreError).failures).toEqual(error.failures);
     expect(store.board()).toBe(board);
     expect(store.canUndo()).toBe(false);
   });
@@ -328,7 +330,7 @@ describe("running a command", () => {
 
     const failed = commands.run("test.pkg-rename_b", { name: "Top" });
     await expect(failed).rejects.toThrow('The command "test.pkg-rename_b" failed\n- No layout.');
-    await expect(failed).rejects.toHaveProperty("cause", error);
+    await expect(failed).rejects.toMatchObject({ command: "test.pkg-rename_b", by: "code", cause: error });
     reported.restore();
 
     // The line holds the error that run() rejected with, and so the stack of
@@ -356,7 +358,7 @@ describe("running a command", () => {
     );
     // The store refuses a block whose id the board holds already.
     await expect(commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: "a" })).rejects.toThrow(
-      StoreError,
+      'The store refused the deltas of the command "blockr.core-add_block"',
     );
     expect(commands.preflight("blockr.core-remove_block", { id: "zz" })).toBe(false);
     reported.restore();
@@ -595,7 +597,7 @@ describe("the context", () => {
       const refused = commands.run(id, { name: "Top" });
       await expect(refused).rejects.toThrow(CommandError);
       await expect(refused).rejects.toThrow(`The command "${id}" refused to run\n- ${failures.join("")}`);
-      await expect(refused).rejects.toHaveProperty("failures", failures);
+      await expect(refused).rejects.toMatchObject({ command: id, by: "command", failures });
     }
     expect(commands.preflight("test.pkg-in_preflight", { name: "Top" })).toBe(false);
     reported.restore();
@@ -839,9 +841,9 @@ describe("refusing a batch", () => {
     expect(error.message).toBe(
       'The batch was refused at command 2, "blockr.core-remove_block"\n- It fails its preflight on the board as it is, with the args {"id":"zz"}.',
     );
-    expect([error.index, error.preflight]).toEqual([1, false]);
+    expect([error.index, error.command, error.by]).toEqual([1, "blockr.core-remove_block", "preflight"]);
     expect(error.failures).toEqual(['It fails its preflight on the board as it is, with the args {"id":"zz"}.']);
-    expect(error.cause).toBeInstanceOf(CommandError);
+    expect(error.cause).toBeUndefined();
     expect(store.board()).toBe(board);
     expect(store.canUndo("assistant")).toBe(false);
     expect(seen).toEqual([]);
@@ -855,13 +857,12 @@ describe("refusing a batch", () => {
     const error = await rejection(
       commands.run([{ id: "test.pkg-later" }, { id: "blockr.core-change_board", args: { name: 1 } }]),
     );
-    expect(error.index).toBe(1);
-    expect(error.preflight).toBeUndefined();
+    expect([error.index, error.by]).toEqual([1, "registry"]);
     expect(error.failures).toEqual([expect.stringMatching(/^The args fail their schema at \/name:/)]);
     expect(prepare).not.toHaveBeenCalled();
 
     const missing = await rejection(commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }, { id: "test.pkg-nothing" }]));
-    expect(missing.index).toBe(1);
+    expect([missing.index, missing.command, missing.by]).toEqual([1, "test.pkg-nothing", "registry"]);
     expect(missing.failures).toEqual(['No command "test.pkg-nothing" is registered.']);
   });
 
@@ -877,8 +878,7 @@ describe("refusing a batch", () => {
       ]),
     );
 
-    expect(error.index).toBe(1);
-    expect(error.preflight).toBeUndefined();
+    expect([error.index, error.command, error.by]).toEqual([1, "blockr.core-add_block", "store"]);
     expect(error.cause).toBeInstanceOf(StoreError);
     expect(error.failures).toEqual([expect.stringContaining('The board holds block "a" already.')]);
     expect(store.board()).toBe(board);
@@ -899,11 +899,11 @@ describe("refusing a batch", () => {
 
     const error = await rejection(commands.run([{ id: "test.pkg-rename_b", args: { name: "Top" } }]));
     reported.restore();
-    expect(error.index).toBe(0);
+    expect([error.index, error.command, error.by]).toEqual([0, "test.pkg-rename_b", "code"]);
     expect(error.failures).toEqual(["No layout."]);
-    expect(String(error.cause)).toContain('The command "test.pkg-rename_b" failed');
-    // The line holds the command's own CommandError, the batch's cause.
-    expect(reported.lines()[0]?.error).toBe(error.cause);
+    // Its cause is what the command threw, as is the cause of the command's
+    // own CommandError, which the line holds.
+    expect(error.cause).toBe(thrown);
     expect(loggedFailure(reported)).toEqual({ message: 'The command "test.pkg-rename_b" failed\n- No layout.', cause: thrown });
   });
 
@@ -911,8 +911,90 @@ describe("refusing a batch", () => {
     const commands = createCommands(createStore());
 
     const error = await rejection(commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }]));
-    expect(error.index).toBe(0);
+    expect([error.index, error.by]).toEqual([0, "registry"]);
     expect(error.failures).toEqual(["The store holds no board until it opens one."]);
+  });
+});
+
+describe("what stopped a command", () => {
+  test("is named alike for a command alone and for the second command of a batch, which gives the index too", async () => {
+    const { commands } = await setup();
+    const thrown = new Error("No layout.");
+    commands.register({
+      id: "test.pkg-refuses",
+      label: "Refuses",
+      run: (_board, _args, { refusal }) => {
+        throw refusal(["No room."]);
+      },
+    });
+    commands.register({
+      id: "test.pkg-throws",
+      label: "Throws",
+      run: () => {
+        throw thrown;
+      },
+    });
+    // Each command, with what stops it, and the cause of its CommandError
+    // where that is not the store's StoreError.
+    const cases: readonly { readonly id: string; readonly args?: Json; readonly by: CommandError["by"]; readonly cause?: unknown }[] = [
+      { id: "test.pkg-nothing", by: "registry" },
+      { id: "blockr.core-remove_block", args: { id: "zz" }, by: "preflight" },
+      { id: "test.pkg-refuses", by: "command" },
+      { id: "test.pkg-throws", by: "code", cause: thrown },
+      { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "a" }, by: "store" },
+    ];
+    const reported = logged();
+
+    for (const { id, args, by, cause } of cases) {
+      const alone = await rejection(commands.run(id, args));
+      const second = await rejection(commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }, { id, args }]));
+      for (const [error, index] of [
+        [alone, undefined],
+        [second, 1],
+      ] as const) {
+        expect([error.command, error.by, error.index]).toEqual([id, by, index]);
+        if (by === "store") expect(error.cause).toBeInstanceOf(StoreError);
+        else expect(error.cause).toBe(cause);
+        expect(isLogged(error)).toBe(by === "code");
+      }
+    }
+    reported.restore();
+
+    // The command registry logged what the command's own code threw, once for
+    // each run.
+    expect(reported.lines().map((line) => [line.level, line.error?.cause])).toEqual([
+      ["error", thrown],
+      ["error", thrown],
+    ]);
+  });
+
+  test("says that the store refused a batch as a whole, naming no command, where a plugin class's afterStep throws once the deltas of each command have passed", async () => {
+    const thrown = new Error("No room.");
+    const { store, commands } = await setupPlacing(() => {
+      throw thrown;
+    });
+    const board = store.board();
+    const failure = 'The afterStep of the plugin class "test.pkg-placed_plugin" failed: No room.';
+    const reported = logged();
+
+    const batch = await rejection(commands.run(appendG, "assistant"));
+    expect(batch.message).toBe(`The store refused the batch as a whole, after the deltas of each command had passed\n- ${failure}`);
+    expect([batch.command, batch.by, batch.index, batch.failures]).toEqual([undefined, "store", undefined, [failure]]);
+    expect(batch.cause).toBeInstanceOf(StoreError);
+
+    // A command alone names itself all the same.
+    const alone = await rejection(commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: "g" }));
+    reported.restore();
+    expect(alone.message).toBe(`The store refused the deltas of the command "blockr.core-add_block"\n- ${failure}`);
+    expect([alone.command, alone.by, alone.index]).toEqual(["blockr.core-add_block", "store", undefined]);
+    expect(store.board()).toBe(board);
+
+    // The store logged what the afterStep threw, with its stack, once for each
+    // run, and the command registry logged no line of its own.
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", failure, thrown, { "blockr.plugin.class_id": "test.pkg-placed_plugin" }],
+      ["error", failure, thrown, { "blockr.plugin.class_id": "test.pkg-placed_plugin" }],
+    ]);
   });
 });
 
@@ -984,7 +1066,7 @@ describe("a batch with a command that prepares", () => {
     ready.resolve("!");
 
     const error = await rejection(done);
-    expect([error.index, error.preflight]).toEqual([0, false]);
+    expect([error.index, error.by]).toEqual([0, "preflight"]);
     expect(store.board()).toBe(board);
   });
 
@@ -1000,7 +1082,7 @@ describe("a batch with a command that prepares", () => {
     ready.resolve("!");
 
     const error = await rejection(done);
-    expect(error.index).toBe(1);
+    expect([error.index, error.by]).toEqual([1, "registry"]);
     expect(error.failures).toEqual(["A board opened while it prepared, which drops it."]);
     expect(store.board().name).toBe("Iris review");
   });
@@ -1013,9 +1095,9 @@ describe("a batch with a command that prepares", () => {
 
     const error = await rejection(commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }, { id: "test.pkg-later" }]));
     reported.restore();
-    expect(error.index).toBe(1);
+    expect([error.index, error.command, error.by]).toEqual([1, "test.pkg-later", "code"]);
     expect(error.failures).toEqual(["No layout."]);
-    expect(String(error.cause)).toContain('The command "test.pkg-later" failed');
+    expect(error.cause).toBe(thrown);
     expect(loggedFailure(reported)).toEqual({ message: 'The command "test.pkg-later" failed\n- No layout.', cause: thrown });
   });
 });
@@ -1103,7 +1185,7 @@ describe("planning a batch", () => {
         { id: "blockr.core-add_link", args: { from: "zz", to: "g" } },
       ]),
     );
-    expect([error.index, error.preflight]).toEqual([1, false]);
+    expect([error.index, error.by]).toEqual([1, "preflight"]);
     expect(await commands.plan([])).toEqual([]);
   });
 });
