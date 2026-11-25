@@ -844,7 +844,7 @@ describe("starting the page", () => {
     expect(held(core)).toEqual([
       {
         severity: "warning",
-        message: 'The board opened without:\n- block "x" (blockr.dplyr-filter_block)',
+        message: 'The board opened without the block "Filter", since this app lacks the class blockr.dplyr-filter_block.',
         source: { kind: "core", code: "board_objects_dropped" },
       },
     ]);
@@ -1423,14 +1423,14 @@ describe("a board opened later", () => {
     expect(Object.hasOwn(read.board.blocks, "x")).toBe(false);
     expect(read.dropped).toEqual([
       { package: "blockr.dplyr", version: "0.1.4" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
     ]);
     expect(dropped()).toEqual([]);
     expect(taken.map((notifications) => notifications.map(({ severity, message, source, about }) => ({ severity, message, source, about })))).toEqual([
       [
         {
           severity: "warning",
-          message: 'Core read a board and left out:\n- package blockr.dplyr 0.1.4\n- block "x" (blockr.dplyr-filter_block)',
+          message: 'The block "Filter" was left out, since this app lacks the package blockr.dplyr 0.1.4.',
           source: { kind: "core", code: "board_objects_dropped" },
           about: undefined,
         },
@@ -1466,6 +1466,47 @@ describe("a board opened later", () => {
     // The board on the page stays open.
     expect(s.started.core()).toBe(s.core);
     expect(s.core.store.board()).toBe(board);
+  });
+
+  test("says what the store's read() that CoreApi gives leaves out and why, in a sentence for each kind of object, with each block by its name", async () => {
+    const s = await started({ [BASIC]: frontEnd().exports });
+    const block = (registryId: string, name: string) => ({ registry_id: registryId, version: 1, state: {}, name, locked: null });
+    // A copied board with blocks of two packages that R did not load, the
+    // state of a plugin of a third such package, and a fourth such package
+    // that nothing on the board needs. The board also holds a block whose
+    // class blockr.core lacks, the state of a plugin that the app does not
+    // run, and two board options that no package defines.
+    const copied = JSON.stringify({
+      ...hello.board,
+      packages: { ...hello.board.packages, "blockr.dplyr": "0.1.4", "blockr.ggplot": "0.2.0", "blockr.dock": "0.3.0", "blockr.io": "0.1.0" },
+      board: {
+        ...hello.board.board,
+        blocks: {
+          ...hello.board.board.blocks,
+          x: block("blockr.dplyr-filter_block", "Filter"),
+          p: block("blockr.ggplot-plot_block", "Plot"),
+          y: block("blockr.dplyr-arrange_block", "Arrange"),
+          z: block("blockr.core-gone_block", "Gone"),
+        },
+        plugins: { "blockr.dock-dock_plugin": { state: {}, version: 1 }, "blockr.gone-gone_plugin": { state: {}, version: 1 } },
+        options: { ...hello.board.board.options, zoom: { value: 2, version: 1 }, tilt: { value: 0, version: 1 } },
+      },
+    });
+    const taken: string[] = [];
+
+    await s.core.store.read(copied, {
+      notifier(notifications) {
+        taken.push(...notifications.map((notification) => notification.message));
+      },
+    });
+    expect(taken).toEqual([
+      [
+        'The blocks "Filter", "Plot", "Arrange" and "Gone" were left out, since this app lacks the packages blockr.dplyr 0.1.4 and blockr.ggplot 0.2.0 and the class blockr.core-gone_block.',
+        'The states of the plugins "blockr.dock-dock_plugin" and "blockr.gone-gone_plugin" were left out, since this app does not run them.',
+        'The values of the board options "zoom" and "tilt" were left out, since no package of this app defines them.',
+        "This app lacks the packages blockr.dock 0.3.0 and blockr.io 0.1.0.",
+      ].join("\n"),
+    ]);
   });
 
   test("shows why where R refuses the hello with which core starts again", async () => {

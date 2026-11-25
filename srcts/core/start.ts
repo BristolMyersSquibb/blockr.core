@@ -156,7 +156,7 @@ import { fallBack, log, logSettings, serviceName, setUpLogging } from "../log/in
 import type { OtelModule } from "../log/index.ts";
 import { setUpTracing, steps, tracesUrl } from "../trace/index.ts";
 import type { Steps } from "../trace/index.ts";
-import { asError, coreNotification, errorMessage, givenNotifier, isObject, own, packageFromId, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, givenNotifier, isObject, listing, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
@@ -669,7 +669,7 @@ export function start(options: StartOptions): Started {
         raise(coreNotification("board_open_failed", "error", why));
       }
     }
-    if (dropped.length > 0) raise(droppedNotification(dropped, OPENED_WITHOUT));
+    if (dropped.length > 0) raise(droppedNotification(dropped, "opened"));
 
     if (alone) {
       try {
@@ -850,7 +850,7 @@ export function start(options: StartOptions): Started {
   async function readBoard(text: string, store: Store, notifications: Holder, opts: Parameters<Store["read"]>[1]): ReturnType<Store["read"]> {
     const notifier = givenNotifier(opts, "read()");
     const read = await afterMigrations(text, store, () => store.read(text));
-    if (read.dropped.length > 0) notifications.raiseAgain(droppedNotification(read.dropped, READ_WITHOUT), notifier);
+    if (read.dropped.length > 0) notifications.raiseAgain(droppedNotification(read.dropped, "read"), notifier);
     return read;
   }
 
@@ -991,25 +991,47 @@ function reloadNotification(changed: readonly Changed[]): Omit<Notification, "id
   );
 }
 
-// The first lines of the notification that names what the store dropped: as
-// a board opened, and as its read() read a board, which another board opens
-// none of.
-const OPENED_WITHOUT = "The board opened without:";
-const READ_WITHOUT = "Core read a board and left out:";
-
-// The notification that names what the store dropped, under the first line
-// given, one line for each, with the package of each that names one, as Board
-// objects has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt).
-// One notification covers the whole opening, or the whole read, which
+// The notification that names what the store dropped, as Board objects has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt):
+// what the board opened without, or what the store's read() left out of the
+// board that it read, which opens none.
+// One sentence names the blocks that went, by the names that the user knows
+// them by, and the packages that the app lacks for them, or else their
+// classes. One sentence each names the plugins' states and the board options'
+// values that went, and why. A last sentence names the other packages that
+// the app lacks, such as that of a plugin whose state went.
+// One notification covers the whole opening, or the whole read, and
 // concerns the board.
-function droppedNotification(dropped: readonly Dropped[], first: string): Omit<Notification, "id"> {
-  const lines = dropped.map((item) => {
-    if ("option" in item) return `- board option "${item.option}"`;
-    if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
-    if ("plugin" in item) return `- plugin "${item.plugin}"`;
-    return `- package ${item.package} ${item.version}`;
-  });
-  return coreNotification("board_objects_dropped", "warning", [first, ...lines].join("\n"));
+function droppedNotification(dropped: readonly Dropped[], how: "opened" | "read"): Omit<Notification, "id"> {
+  const packages = dropped.flatMap((item) => ("version" in item ? [item] : []));
+  const blocks = dropped.flatMap((item) => ("block" in item ? [item] : []));
+  const plugins = dropped.flatMap((item) => ("plugin" in item ? [item.plugin] : []));
+  const options = dropped.flatMap((item) => ("option" in item ? [item.option] : []));
+  const versions = (items: typeof packages): string[] => items.map((item) => `${item.package} ${item.version}`);
+  const forBlocks = packages.filter((item) => blocks.some((block) => block.package === item.package));
+  const others = packages.filter((item) => !forBlocks.includes(item));
+  const classes = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => block.registry_id);
+  const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes)], "class", "classes")]);
+  // The sentence that says that the objects named went, and why.
+  const went = (names: readonly string[], one: string, several: string, why: (many: boolean) => string): string[] => {
+    if (names.length === 0) return [];
+    const many = names.length > 1;
+    const what = `${many ? several : one} ${quoted(names)}`;
+    return [how === "opened" ? `The board opened without the ${what}, since ${why(many)}.` : `The ${what} ${many ? "were" : "was"} left out, since ${why(many)}.`];
+  };
+  const lines = [
+    ...went(blocks.map((block) => block.name), "block", "blocks", () => `this app lacks ${lacked}`),
+    ...went(plugins, "state of the plugin", "states of the plugins", (many) => `this app does not run ${many ? "them" : "it"}`),
+    ...went(options, "value of the board option", "values of the board options", (many) => `no package of this app defines ${many ? "them" : "it"}`),
+    ...withNoun(versions(others), "package", "packages").map((what) => `This app lacks ${what}.`),
+  ];
+  return coreNotification("board_objects_dropped", "warning", lines.join("\n"));
+}
+
+// The names after their noun, as "the package a" or "the packages a and b",
+// or nothing for no names.
+function withNoun(names: readonly string[], one: string, several: string): string[] {
+  return names.length === 0 ? [] : [`the ${names.length > 1 ? several : one} ${listing(names)}`];
 }
 
 // The default export of a module that R serves for a plugin class or a board

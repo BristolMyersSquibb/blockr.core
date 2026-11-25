@@ -938,7 +938,11 @@
   Through `CoreApi`, core first imports the migrations of the block classes whose older states the text holds, as it does before it opens a board.
   It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
   Where `read()` leaves anything out, core tells the user what through the warning `board_objects_dropped`, which it raises as a board opens as well.
-  The warning starts with `Core read a board and left out:`, and core raises it anew for each read.
+  One sentence of the warning names the blocks that went, with the packages that the app lacks for them, as in `The blocks "Filter" and "Plot" were left out, since this app lacks the packages blockr.dplyr 0.1.4 and blockr.ggplot 0.2.0.`
+  One sentence each says which states of plugins and which values of board options went, and why, and a last one names the other packages that the app lacks.
+  Core raises the warning anew for each read.
+  The warning of an opening board now takes the same form, with each sentence starting `The board opened without`.
+  Both name each block by its name, which the block's entry in `Dropped` now holds.
   A caller that shows the warning itself passes a `notifier` in the options of `read()`, which then takes it in place of core (#878).
 * A plugin class may give `afterStep(board, before, plugin)`, which returns the patches to its plugin's state that follow from a step as a whole.
   The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.

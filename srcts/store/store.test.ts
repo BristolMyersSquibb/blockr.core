@@ -414,7 +414,7 @@ describe("opening a board", () => {
     expect(store.packages()).toBe(hello.packages);
     expect(dropped).toEqual([
       { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
     ]);
 
     const board = store.board();
@@ -784,7 +784,7 @@ describe("opening a board", () => {
     );
 
     expect(dropped).toEqual([
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
     ]);
     const board = store.board();
     expect(dockViews(board)).toEqual({ main: { panels: ["a", "b"] } });
@@ -867,7 +867,7 @@ describe("opening a board", () => {
 
     expect(dropped).toEqual([
       { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
     ]);
     expect(store.board()).toBe(board);
     expect(seen).toEqual([]);
@@ -942,7 +942,7 @@ describe("opening a board", () => {
     // state.
     expect(read.dropped).toEqual([
       { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
     ]);
     expect(read.board.blocks).toEqual({ b: head() });
     expect(read.board.links).toEqual({});

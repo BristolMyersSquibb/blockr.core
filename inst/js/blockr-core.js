@@ -5893,11 +5893,14 @@ function openJsonBoard(json, reply, registrations) {
     package: packageFromId(id2)
   }));
   const migrated2 = migrate({ ...read, plugins: held3 }, json.board, reply, registrations);
-  const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
-  const blocks = gone.map((id2) => {
-    const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
-    return { block: id2, registry_id: registryId2, package: packageFromId(registryId2) };
-  });
+  const lacking = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0);
+  const blocks = lacking.map(([id2, block]) => ({
+    block: id2,
+    name: block.name,
+    registry_id: block.registry_id,
+    package: packageFromId(block.registry_id)
+  }));
+  const gone = lacking.map(([id2]) => id2);
   const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
   const options = unclaimed.map((id2) => ({ option: id2 }));
   const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
@@ -12108,7 +12111,7 @@ function start(options) {
         raise(coreNotification("board_open_failed", "error", why));
       }
     }
-    if (dropped.length > 0) raise(droppedNotification(dropped, OPENED_WITHOUT));
+    if (dropped.length > 0) raise(droppedNotification(dropped, "opened"));
     if (alone) {
       try {
         options.frontEnds?.card?.(core, signal5);
@@ -12235,7 +12238,7 @@ function start(options) {
   async function readBoard(text, store, notifications, opts) {
     const notifier = givenNotifier(opts, "read()");
     const read = await afterMigrations(text, store, () => store.read(text));
-    if (read.dropped.length > 0) notifications.raiseAgain(droppedNotification(read.dropped, READ_WITHOUT), notifier);
+    if (read.dropped.length > 0) notifications.raiseAgain(droppedNotification(read.dropped, "read"), notifier);
     return read;
   }
   let queue = Promise.resolve();
@@ -12337,16 +12340,32 @@ function reloadNotification(changed) {
     `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`
   );
 }
-var OPENED_WITHOUT = "The board opened without:";
-var READ_WITHOUT = "Core read a board and left out:";
-function droppedNotification(dropped, first) {
-  const lines = dropped.map((item) => {
-    if ("option" in item) return `- board option "${item.option}"`;
-    if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
-    if ("plugin" in item) return `- plugin "${item.plugin}"`;
-    return `- package ${item.package} ${item.version}`;
-  });
-  return coreNotification("board_objects_dropped", "warning", [first, ...lines].join("\n"));
+function droppedNotification(dropped, how) {
+  const packages = dropped.flatMap((item) => "version" in item ? [item] : []);
+  const blocks = dropped.flatMap((item) => "block" in item ? [item] : []);
+  const plugins = dropped.flatMap((item) => "plugin" in item ? [item.plugin] : []);
+  const options = dropped.flatMap((item) => "option" in item ? [item.option] : []);
+  const versions = (items) => items.map((item) => `${item.package} ${item.version}`);
+  const forBlocks = packages.filter((item) => blocks.some((block) => block.package === item.package));
+  const others = packages.filter((item) => !forBlocks.includes(item));
+  const classes2 = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => block.registry_id);
+  const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes2)], "class", "classes")]);
+  const went = (names, one2, several, why) => {
+    if (names.length === 0) return [];
+    const many = names.length > 1;
+    const what = `${many ? several : one2} ${quoted(names)}`;
+    return [how === "opened" ? `The board opened without the ${what}, since ${why(many)}.` : `The ${what} ${many ? "were" : "was"} left out, since ${why(many)}.`];
+  };
+  const lines = [
+    ...went(blocks.map((block) => block.name), "block", "blocks", () => `this app lacks ${lacked}`),
+    ...went(plugins, "state of the plugin", "states of the plugins", (many) => `this app does not run ${many ? "them" : "it"}`),
+    ...went(options, "value of the board option", "values of the board options", (many) => `no package of this app defines ${many ? "them" : "it"}`),
+    ...withNoun(versions(others), "package", "packages").map((what) => `This app lacks ${what}.`)
+  ];
+  return coreNotification("board_objects_dropped", "warning", lines.join("\n"));
+}
+function withNoun(names, one2, several) {
+  return names.length === 0 ? [] : [`the ${names.length > 1 ? several : one2} ${listing(names)}`];
 }
 function listedDefault(exports, module, pkg) {
   const def = moduleExports(exports, module, pkg).default;
