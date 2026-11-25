@@ -1595,6 +1595,33 @@ describe("applying a delta", () => {
     }).toThrow(new RegExp(`kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin "test\\.pkg-count_plugin"`));
   });
 
+  test("rejects a delta whose update throws, and logs what it threw at error, naming its class", async () => {
+    const thrown = new Error("The notes are unreadable.");
+    const store = await opened(
+      (store) => {
+        store.plugins.register({
+          ...noted,
+          update: () => {
+            throw thrown;
+          },
+        });
+      },
+      withPlugins(plugin(noted, "Notes", { notes: {} })),
+    );
+    const board = store.board();
+    const failure = 'The plugin class "blockr.notes-notes_plugin" failed to update the delta for its plugin: The notes are unreadable.';
+    const reported = logged();
+
+    expect(() => {
+      store.apply({ name: "Renamed" });
+    }).toThrow(failure);
+    reported.restore();
+    expect(store.board()).toBe(board);
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", failure, thrown, { "blockr.plugin.class_id": "blockr.notes-notes_plugin" }],
+    ]);
+  });
+
   test("rejects a delta that an update follows with a patch outside the state of the plugin it was called for", async () => {
     const outside = (path: string) =>
       opened(
@@ -2121,14 +2148,29 @@ describe("the afterStep of a plugin's class", () => {
     });
   });
 
+  test("refuses the whole step where it throws, changing nothing, and logs what it threw at error, naming its class", async () => {
+    const thrown = new Error("No room.");
+    const store = await placing(() => {
+      throw thrown;
+    });
+    const board = store.board();
+    const seen = changes(store);
+    const failure = 'The afterStep of the plugin class "blockr.dag-dag_plugin" failed: No room.';
+    const reported = logged();
+
+    expect(() => {
+      store.apply(appended);
+    }).toThrow(failure);
+    reported.restore();
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+    expect(store.canUndo()).toBe(false);
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", failure, thrown, { "blockr.plugin.class_id": "blockr.dag-dag_plugin" }],
+    ]);
+  });
+
   const failures: [string, NonNullable<PluginClass["afterStep"]>, string | RegExp][] = [
-    [
-      "throws",
-      () => {
-        throw new Error("No room.");
-      },
-      'The afterStep of the plugin class "blockr.dag-dag_plugin" failed: No room.',
-    ],
     [
       "returns no array of patches",
       () => ({}) as unknown as Patch[],

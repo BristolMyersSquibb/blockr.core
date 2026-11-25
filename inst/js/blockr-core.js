@@ -5477,7 +5477,7 @@ function expand(delta, board, registrations) {
       try {
         patches2 = def.update(expanded, board, id2);
       } catch (error) {
-        failures.push(`The plugin class "${id2}" failed to update the delta for its plugin: ${errorMessage(error)}`);
+        failures.push(thrown(id2, `The plugin class "${id2}" failed to update the delta for its plugin`, error));
         continue;
       }
       const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
@@ -5511,7 +5511,7 @@ function afterStep(board, before, registrations) {
     try {
       returned = def.afterStep(board, before, id2);
     } catch (error) {
-      failures.push(`The afterStep of the plugin class "${id2}" failed: ${errorMessage(error)}`);
+      failures.push(thrown(id2, `The afterStep of the plugin class "${id2}" failed`, error));
       continue;
     }
     const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
@@ -5546,6 +5546,11 @@ function expandCore(delta, board) {
     ...incident.length === 0 ? {} : { links: { ...delta.links, rm: [...linksRm, ...incident] } },
     ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
   };
+}
+function thrown(id2, of, error) {
+  const failure = `${of}: ${errorMessage(error)}`;
+  log.error(new Error(failure, { cause: error }), { "blockr.plugin.class_id": id2 });
+  return failure;
 }
 function misplaced(id2, patches2, of) {
   if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
@@ -6897,26 +6902,48 @@ function command(def) {
 
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
+  // The id of the command that was stopped, such as
+  // "blockr.core-remove_block". It is left out only where the store refused a
+  // batch as a whole, after the dry run of each command's deltas had passed,
+  // which the first line says. There, a plugin class's afterStep failed, or
+  // returned what the store refuses, and the failures name the class.
+  command;
+  // What stopped the command:
+  // - "registry": the command registry refused to run it, as where no command
+  //   has its id, its args fail their schema or the store holds no board.
+  // - "preflight": its preflight() answered false. The assistant's edit tool
+  //   reads this to tell the model what to check.
+  // - "command": the command refused, throwing the refusal() of its context.
+  // - "code": the command's own preflight(), prepare() or run() threw
+  //   anything else. That is the cause, and the command registry has logged
+  //   it at error.
+  // - "store": the store refused its deltas. The StoreError is the cause.
+  by;
   failures;
   // The command's place in the batch that run() or plan() was given, counted
-  // from 0, where the command refused as one of a batch.
+  // from 0, where it was stopped as one of a batch.
   index;
-  // False where the command failed its preflight, its preflight() answering
-  // false, and left out otherwise, as a command's `undo` is false only where it
-  // takes no undo step. The assistant's edit tool reads it to tell the model
-  // what to check. A preflight() that throws the refusal() of its context
-  // leaves it out, since that refusal says why.
-  preflight;
-  constructor(message, failures, options) {
-    super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
+  constructor(fields) {
+    super(
+      [firstLine(fields), ...fields.failures.map((failure) => `- ${failure}`)].join("\n"),
+      fields.cause === void 0 ? void 0 : { cause: fields.cause }
+    );
     this.name = "CommandError";
-    this.failures = failures;
-    if (options?.index !== void 0) this.index = options.index;
-    if (options?.preflight === false) this.preflight = false;
+    this.by = fields.by;
+    this.failures = fields.failures;
+    if (fields.command !== void 0) this.command = fields.command;
+    if (fields.index !== void 0) this.index = fields.index;
   }
 };
-function refusal(id2, failures, options) {
-  return new CommandError(`The command "${id2}" refused to run`, failures, options);
+function firstLine({ command: command2, by, index }) {
+  if (command2 === void 0) return "The store refused the batch as a whole, after the deltas of each command had passed";
+  if (index !== void 0) return `The batch was refused at command ${String(index + 1)}, "${command2}"`;
+  if (by === "code") return `The command "${command2}" failed`;
+  if (by === "store") return `The store refused the deltas of the command "${command2}"`;
+  return `The command "${command2}" refused to run`;
+}
+function refusal(id2, failures, by = "command") {
+  return new CommandError({ command: id2, by, failures });
 }
 var DROPPED = "A board opened while it prepared, which drops it.";
 function createCommands(store, options = {}) {
@@ -6964,21 +6991,21 @@ function createCommands(store, options = {}) {
   function lookup(id2, given) {
     const item = commands.value.get(id2);
     if (item === void 0) {
-      throw refusal(id2, [`No command "${id2}" is registered.`]);
+      throw refusal(id2, [`No command "${id2}" is registered.`], "registry");
     }
     const args = given ?? {};
     const failures = item.validate?.(args) ?? [];
     if (failures.length > 0) {
-      throw refusal(id2, failures.map((failure) => `The args ${failure}`));
+      throw refusal(id2, failures.map((failure) => `The args ${failure}`), "registry");
     }
     return { item, args };
   }
   function current2(id2) {
     if (ended()) {
-      throw refusal(id2, ["Another board opened in a new store, so this command registry runs no command."]);
+      throw refusal(id2, ["Another board opened in a new store, so this command registry runs no command."], "registry");
     }
     if (!store.hasBoard()) {
-      throw refusal(id2, ["The store holds no board until it opens one."]);
+      throw refusal(id2, ["The store holds no board until it opens one."], "registry");
     }
     return store.board();
   }
@@ -6988,7 +7015,7 @@ function createCommands(store, options = {}) {
       throw refusal(
         command2.id,
         [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
-        { preflight: false }
+        "preflight"
       );
     }
   }
@@ -7006,7 +7033,7 @@ function createCommands(store, options = {}) {
   async function prepared(item, board, args) {
     const { command: command2 } = item;
     const input2 = await prepare(item, board, args);
-    if (ended()) throw refusal(command2.id, [DROPPED]);
+    if (ended()) throw refusal(command2.id, [DROPPED], "registry");
     const now = current2(command2.id);
     allow(item, now, args);
     return build(item, now, input2);
@@ -7048,14 +7075,14 @@ function createCommands(store, options = {}) {
           allow(item, board, args);
           if (command2.prepare !== void 0 && !inputs.has(index)) {
             inputs.set(index, await within(() => prepare(item, board, args)));
-            if (ended()) throw refusal(command2.id, [DROPPED]);
+            if (ended()) throw refusal(command2.id, [DROPPED], "registry");
             if (store.board() !== start2) {
               again = true;
               break;
             }
           }
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
-          board = store.dryRun(built);
+          board = byStore(command2.id, () => store.dryRun(built));
         } catch (error) {
           throw inBatch(index, command2.id, error);
         }
@@ -7068,7 +7095,7 @@ function createCommands(store, options = {}) {
     return traced(
       "command batch",
       { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(batch2, (built) => store.apply(built, origin))
+      () => planned(batch2, (built) => byStore(void 0, () => store.apply(built, origin)))
     );
   }
   async function traced(name3, attributes, run) {
@@ -7131,7 +7158,7 @@ function createCommands(store, options = {}) {
         const { item, args } = lookup(target2, given);
         const step2 = deltas(item, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        return within(() => store.apply(ready, origin));
+        return within(() => byStore(target2, () => store.apply(ready, origin)));
       });
     },
     async plan(target2, given) {
@@ -7149,27 +7176,25 @@ function isCommandId(id2) {
   const pkg = packageFromId(id2);
   return pkg !== null && id2.length > pkg.length + 1;
 }
-var loggedErrors = /* @__PURE__ */ new WeakSet();
 function isLogged(error) {
-  return error instanceof CommandError && loggedErrors.has(error);
+  return error instanceof CommandError && error.by === "code";
 }
 function inBatch(index, id2, error) {
-  const named4 = error instanceof CommandError || error instanceof StoreError;
-  const refused2 = new CommandError(
-    `The batch was refused at command ${String(index + 1)}, "${id2}"`,
-    named4 ? error.failures : [errorMessage(error)],
-    { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
-  );
-  if (isLogged(error)) loggedErrors.add(refused2);
-  return refused2;
+  if (!(error instanceof CommandError)) return error;
+  return new CommandError({ command: id2, by: error.by, failures: error.failures, index, cause: error.cause });
+}
+function byStore(id2, fn) {
+  try {
+    return fn();
+  } catch (error) {
+    if (!(error instanceof StoreError)) throw error;
+    throw new CommandError({ command: id2, by: "store", failures: error.failures, cause: error });
+  }
 }
 function failed(command2, error) {
   if (error instanceof CommandError) return error;
-  const failure = new CommandError(`The command "${command2.id}" failed`, [errorMessage(error)], {
-    cause: error
-  });
+  const failure = new CommandError({ command: command2.id, by: "code", failures: [errorMessage(error)], cause: error });
   log.error(failure);
-  loggedErrors.add(failure);
   return failure;
 }
 function attempt2(command2, fn) {
