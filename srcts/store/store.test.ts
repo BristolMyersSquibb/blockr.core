@@ -913,10 +913,12 @@ describe("opening a board", () => {
         },
       },
     );
-    await expect(migrating.check(file({}))).rejects.toThrow(
-      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
-    );
+    const failure = 'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.';
+    const reported = logged();
+    await expect(migrating.check(file({}))).rejects.toThrow(failure);
+    reported.restore();
     expect(migrating.hasBoard()).toBe(false);
+    expect(reported.errors().map((line) => line.message)).toEqual([failure]);
   });
 
   test("reads the board that opening a JSON board's text would give, and what it would drop, holding nothing", async () => {
@@ -1185,9 +1187,11 @@ describe("migrations", () => {
     const failing = store(() => {
       throw new Error("The n is unreadable.");
     });
-    await expect(failing.read(old)).rejects.toThrow(
-      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
-    );
+    const failure = 'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.';
+    const reported = logged();
+    await expect(failing.read(old)).rejects.toThrow(failure);
+    reported.restore();
+    expect(reported.errors().map((line) => line.message)).toEqual([failure]);
   });
 
   test("migrates a plugin's state, given frozen, by the version that the app's plugin of its class carries, and keeps the state of a class without a migration", async () => {
@@ -1234,23 +1238,29 @@ describe("migrations", () => {
     expect(head).not.toHaveBeenCalled();
   });
 
-  test("refuses to open a board that a migration fails on, or that holds a version above today's", async () => {
+  test("refuses to open a board that a migration fails on, logging what the migration threw at error and naming its class, or that holds a version above today's", async () => {
+    const unreadable = new Error("The n is unreadable.");
     const opening = store(() => {
-      throw new Error("The n is unreadable.");
+      throw unreadable;
     });
-    await expect(opening.open(old)).rejects.toThrow(
-      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
-    );
+    const blockFailure = 'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.';
+    const reported = logged();
+    await expect(opening.open(old)).rejects.toThrow(blockFailure);
 
+    const layout = new Error("The layout is unreadable.");
     const failing = store(undefined, {
       ...dock,
       migrate: () => {
-        throw new Error("The layout is unreadable.");
+        throw layout;
       },
     });
-    await expect(failing.open(old)).rejects.toThrow(
-      'The migration of the plugin class "blockr.dock-dock_plugin" failed: The layout is unreadable.',
-    );
+    const pluginFailure = 'The migration of the plugin class "blockr.dock-dock_plugin" failed: The layout is unreadable.';
+    await expect(failing.open(old)).rejects.toThrow(pluginFailure);
+    reported.restore();
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", blockFailure, unreadable, { "blockr.block.registry_id": "blockr.core-head_block" }],
+      ["error", pluginFailure, layout, { "blockr.plugin.class_id": "blockr.dock-dock_plugin" }],
+    ]);
 
     const newer = file(
       { plugins: { [dock.id]: { views: { main: { panels: ["a", "b"] } } } } },
@@ -1368,21 +1378,28 @@ describe("migrating board option values", () => {
     );
   });
 
-  test("refuses a board that holds a value above today's version, or that a migration fails on", async () => {
+  test("refuses a board that holds a value above today's version, or that a migration fails on, logging what the migration threw at error and naming the board option", async () => {
     const opening = store();
     await expect(
       opening.open(file({ options: { seed: 1 } }, undefined, { seed: 3 })),
     ).rejects.toThrow('The board records version 3 of the value of the board option "seed", while R gives version 2.');
 
+    const unreadable = new Error("The seed is unreadable.");
     const failing = store({
       ...seed,
       migrate: () => {
-        throw new Error("The seed is unreadable.");
+        throw unreadable;
       },
     });
+    const failure = 'The migration of the board option "seed" failed: The seed is unreadable.';
+    const reported = logged();
     await expect(
       failing.open(file({ options: { seed: "x" } }, undefined, { seed: 1 })),
-    ).rejects.toThrow('The migration of the board option "seed" failed: The seed is unreadable.');
+    ).rejects.toThrow(failure);
+    reported.restore();
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", failure, unreadable, { "blockr.option.id": "seed" }],
+    ]);
 
     const empty = store({ ...seed, migrate: () => undefined as unknown as Json });
     await expect(
