@@ -968,23 +968,33 @@ describe("what stopped a command", () => {
     ]);
   });
 
-  test("names no command where the store refuses a batch as a whole, once the deltas of each command have passed, as for a plugin class's afterStep that fails", async () => {
+  test("says that the store refused a batch as a whole, naming no command, where a plugin class's afterStep throws once the deltas of each command have passed", async () => {
+    const thrown = new Error("No room.");
     const { store, commands } = await setupPlacing(() => {
-      throw new Error("No room.");
+      throw thrown;
     });
     const board = store.board();
     const failure = 'The afterStep of the plugin class "test.pkg-placed_plugin" failed: No room.';
+    const reported = logged();
 
     const batch = await rejection(commands.run(appendG, "assistant"));
-    expect(batch.message).toBe(`The store refused the deltas of the batch\n- ${failure}`);
+    expect(batch.message).toBe(`The store refused the batch as a whole, after the deltas of each command had passed\n- ${failure}`);
     expect([batch.command, batch.by, batch.index, batch.failures]).toEqual([undefined, "store", undefined, [failure]]);
     expect(batch.cause).toBeInstanceOf(StoreError);
 
     // A command alone names itself all the same.
     const alone = await rejection(commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: "g" }));
+    reported.restore();
     expect(alone.message).toBe(`The store refused the deltas of the command "blockr.core-add_block"\n- ${failure}`);
     expect([alone.command, alone.by, alone.index]).toEqual(["blockr.core-add_block", "store", undefined]);
     expect(store.board()).toBe(board);
+
+    // The store logged what the afterStep threw, with its stack, once for each
+    // run, and the command registry logged no line of its own.
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", failure, thrown, { "blockr.plugin.class_id": "test.pkg-placed_plugin" }],
+      ["error", failure, thrown, { "blockr.plugin.class_id": "test.pkg-placed_plugin" }],
+    ]);
   });
 });
 

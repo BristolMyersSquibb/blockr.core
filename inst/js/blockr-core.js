@@ -5477,7 +5477,7 @@ function expand(delta, board, registrations) {
       try {
         patches2 = def.update(expanded, board, id2);
       } catch (error) {
-        failures.push(`The plugin class "${id2}" failed to update the delta for its plugin: ${errorMessage(error)}`);
+        failures.push(thrown(id2, `The plugin class "${id2}" failed to update the delta for its plugin`, error));
         continue;
       }
       const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
@@ -5511,7 +5511,7 @@ function afterStep(board, before, registrations) {
     try {
       returned = def.afterStep(board, before, id2);
     } catch (error) {
-      failures.push(`The afterStep of the plugin class "${id2}" failed: ${errorMessage(error)}`);
+      failures.push(thrown(id2, `The afterStep of the plugin class "${id2}" failed`, error));
       continue;
     }
     const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
@@ -5546,6 +5546,11 @@ function expandCore(delta, board) {
     ...incident.length === 0 ? {} : { links: { ...delta.links, rm: [...linksRm, ...incident] } },
     ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
   };
+}
+function thrown(id2, of, error) {
+  const failure = `${of}: ${errorMessage(error)}`;
+  log.error(new Error(failure, { cause: error }), { "blockr.plugin.class_id": id2 });
+  return failure;
 }
 function misplaced(id2, patches2, of) {
   if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
@@ -6899,9 +6904,9 @@ function command(def) {
 var CommandError = class extends Error {
   // The id of the command that was stopped, such as
   // "blockr.core-remove_block". It is left out only where the store refused a
-  // batch as a whole, after the dry run of each command's deltas had passed.
-  // There, a plugin class's afterStep failed, or returned what the store
-  // refuses.
+  // batch as a whole, after the dry run of each command's deltas had passed,
+  // which the first line says. There, a plugin class's afterStep failed, or
+  // returned what the store refuses, and the failures name the class.
   command;
   // What stopped the command:
   // - "registry": the command registry refused to run it, as where no command
@@ -6931,7 +6936,7 @@ var CommandError = class extends Error {
   }
 };
 function firstLine({ command: command2, by, index }) {
-  if (command2 === void 0) return "The store refused the deltas of the batch";
+  if (command2 === void 0) return "The store refused the batch as a whole, after the deltas of each command had passed";
   if (index !== void 0) return `The batch was refused at command ${String(index + 1)}, "${command2}"`;
   if (by === "code") return `The command "${command2}" failed`;
   if (by === "store") return `The store refused the deltas of the command "${command2}"`;

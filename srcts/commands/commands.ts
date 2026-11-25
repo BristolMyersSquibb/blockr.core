@@ -171,9 +171,9 @@ export interface Commands {
 export class CommandError extends Error {
   // The id of the command that was stopped, such as
   // "blockr.core-remove_block". It is left out only where the store refused a
-  // batch as a whole, after the dry run of each command's deltas had passed.
-  // There, a plugin class's afterStep failed, or returned what the store
-  // refuses.
+  // batch as a whole, after the dry run of each command's deltas had passed,
+  // which the first line says. There, a plugin class's afterStep failed, or
+  // returned what the store refuses, and the failures name the class.
   readonly command?: string;
   // What stopped the command:
   // - "registry": the command registry refused to run it, as where no command
@@ -207,7 +207,7 @@ export class CommandError extends Error {
 // The first line of a CommandError's message, which says what stopped the
 // command.
 function firstLine({ command, by, index }: Pick<CommandError, "command" | "by" | "index">): string {
-  if (command === undefined) return "The store refused the deltas of the batch";
+  if (command === undefined) return "The store refused the batch as a whole, after the deltas of each command had passed";
   if (index !== undefined) return `The batch was refused at command ${String(index + 1)}, "${command}"`;
   if (by === "code") return `The command "${command}" failed`;
   if (by === "store") return `The store refused the deltas of the command "${command}"`;
@@ -389,9 +389,11 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // The registry first checks every command's args against its schema. Then
   // it plans each command as it plans one alone: the first on the store's
   // board, and each later one on the board that a dry run of the deltas before
-  // it gives. The dry run checks those deltas as apply() would. A dry run
-  // follows the last command too, so that a refusal by the store always names
-  // the command whose deltas it refused.
+  // it gives. The dry run checks those deltas as apply() would, but calls no
+  // afterStep of a plugin's class. A dry run follows the last command too, so
+  // that where the store refuses a command's deltas, the refusal names that
+  // command. After that, only an afterStep can make the store refuse the
+  // batch, which then names no command (runBatch(), below).
   // A command that prepares is built once its prepare() resolves. Where the
   // board has changed meanwhile, the registry plans the batch again from its
   // first command, on the board as it is then. Each command keeps what its
@@ -457,7 +459,10 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // since the store applies their deltas at once.
   // The store can still refuse the step once the dry run of each command's
   // deltas has passed. The store's apply() runs the afterStep of each plugin's
-  // class, and its dry run does not. That refusal names no command.
+  // class, and its dry run does not. That refusal names no command, since an
+  // afterStep gets only the boards before and after the step as a whole.
+  // Where an afterStep threw, the store has logged that at error
+  // (../store/expand.ts).
   function runBatch(batch: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<boolean> {
     const ids = batch.map(({ id }) => id);
     return traced("command batch", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
