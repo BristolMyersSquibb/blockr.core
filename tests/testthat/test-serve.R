@@ -1304,15 +1304,28 @@ test_that("serve() warns of a key of `renderers` that names no family", {
     )
   )
 
-  expect_warning(
-    serve(board),
-    paste(
-      "R ignores the key outer_output of the blockr option `renderers`, since",
-      "it names no output family of the app that gives a renderer."
-    ),
-    fixed = TRUE,
-    class = "renderers_blockr_option_ignored"
-  )
+  # The script registers the class, which then joins every app that it
+  # serves, so it registers it only for these apps
+  local({
+    local_block_class(cls)
+
+    expect_warning(
+      serve(board),
+      paste(
+        "R ignores the key outer_output of the blockr option `renderers`,",
+        "since it names no output family of the app that gives a renderer."
+      ),
+      fixed = TRUE,
+      class = "renderers_blockr_option_ignored"
+    )
+
+    # An app serves without a warning where each key names such a family
+    withr::local_options(
+      blockr.renderers = list(own_output = slider, plot_output = slider)
+    )
+
+    expect_no_warning(serve(board))
+  })
 
   # A block that serve() serves alone reaches its own class's families, beside
   # those that the available packages list, as plot_output
@@ -1326,13 +1339,6 @@ test_that("serve() warns of a key of `renderers` that names no family", {
     fixed = TRUE,
     class = "renderers_blockr_option_ignored"
   )
-
-  # An app serves without a warning where each key names such a family
-  withr::local_options(
-    blockr.renderers = list(own_output = slider, plot_output = slider)
-  )
-
-  expect_no_warning(serve(board))
 })
 
 test_that("the page names the files that it imports, which R serves at once", {
