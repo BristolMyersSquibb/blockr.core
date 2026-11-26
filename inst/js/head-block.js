@@ -1,5 +1,6 @@
 // srcts/modules/head-block/index.tsx
-import { NumberField, reactModule, Stack, ToggleButton, ToggleButtonGroup, useRequest, useValue } from "@blockr/core/react";
+import { FormLayout, NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/ui";
+import { reactModule, useRequest, useValue } from "@blockr/core/react";
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 var ends = [
@@ -10,7 +11,7 @@ function HeadBlock({ host }) {
   const rows = useRequest(host, "n_max");
   const max = Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : void 0;
   const outdated = rows.loading || rows.error !== null;
-  return /* @__PURE__ */ jsxs(Stack, { children: [
+  return /* @__PURE__ */ jsxs(FormLayout, { children: [
     /* @__PURE__ */ jsx(NumberField, { bound: useValue(host, "n"), label: "Number of rows", minValue: 0, maxValue: max, step: 1, outdated }),
     /* @__PURE__ */ jsx(ToggleButtonGroup, { bound: useValue(host, "direction"), label: "Direction", disallowEmptySelection: true, children: ends.map((end) => /* @__PURE__ */ jsx(ToggleButton, { id: end.id, children: end.name }, end.id)) })
   ] });

@@ -29,10 +29,10 @@
 
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
+import { Button } from "@blockr/ui";
+import { TableStateContext } from "react-aria-components";
 import type { BoardAction, Place, PlaceArgs, Target } from "../../actions/index.ts";
-import { TableStateContext } from "../../aria/index.ts";
 import { Mounted } from "../../card/index.ts";
-import { Button } from "../../react/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { ActionsButton, blockName, notifiedReasons } from "../../ui/index.ts";

@@ -48,16 +48,18 @@
 // action says why below its button, in a banner under a sentence that names
 // the edit, and keeps what the user gave. It takes the notifications of the
 // refusal through the notifier of done(), so that core raises none.
-// It draws with core's React SDK on Tailwind CSS, whose theme variables a
-// frontend sets to restyle it, as it restyles core's other UIs.
+// It draws with blockr.ui's components and with Tailwind CSS, from the theme
+// variables that a frontend's theme sets to restyle it, as it restyles core's
+// other UIs.
 
 import { useState } from "react";
 import type { PointerEvent, ReactElement, ReactNode, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
+import { Button, ComboBox, Form, GridList, GridListItem, TextField, useDragAndDrop } from "@blockr/ui";
 import { linkFeeding } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { focusFirstInvalid, inputNameError } from "../picker/index.ts";
-import { Button, ComboBox, Form, GridList, GridListItem, TextField, useBoard, useDragAndDrop } from "../react/index.ts";
+import { useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";
@@ -170,7 +172,7 @@ function InputsForm({
     <Form
       aria-label="Change inputs"
       validationBehavior="aria"
-      className="bc:font-sans bc:text-sm bc:text-text-default"
+      className="bc:font-sans bc:text-sm"
       onSubmit={(event) => {
         void submit(event);
       }}
@@ -652,7 +654,7 @@ function RemoveButton({ label, onPress }: { label: string; onPress: () => void }
   );
 }
 
-// The cross of a button that removes, as the SDK's inputs draw it, in the
+// The cross of a button that removes, as blockr.ui's inputs draw it, in the
 // colour of the text around it.
 function Cross(): ReactElement {
   return (
@@ -664,4 +666,4 @@ function Cross(): ReactElement {
 
 // An input of a variadic block, framed as the actions sidebar of blockr.dock
 // frames it, and faded while the user drags it.
-const ROW = "bc:rounded-md bc:border bc:border-border-default bc:bg-bg-subtle bc:py-1 bc:data-dragging:opacity-60";
+const ROW = "bc:rounded-md bc:border bc:border-border bc:bg-muted bc:py-1 bc:data-dragging:opacity-60";

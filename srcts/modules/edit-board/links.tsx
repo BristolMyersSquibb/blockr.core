@@ -146,7 +146,7 @@ function BlockLabel({ id, name }: { id: BlockId; name: string }): ReactElement {
   return (
     <span className="bc:grid">
       <span>{name}</span>
-      <span className="bc:font-mono bc:text-xs bc:text-text-muted bc:break-all">{id}</span>
+      <span className="bc:font-mono bc:text-xs bc:text-muted-foreground bc:break-all">{id}</span>
     </span>
   );
 }
@@ -156,8 +156,8 @@ function BlockLabel({ id, name }: { id: BlockId; name: string }): ReactElement {
 function VariadicInput({ input, place }: { input: string; place: number }): ReactElement {
   return (
     <span className="bc:grid">
-      {input === "" ? <span className="bc:text-text-muted">No name</span> : <span className="bc:font-mono bc:text-xs">{input}</span>}
-      <span className="bc:text-xs bc:text-text-muted">Position {place}</span>
+      {input === "" ? <span className="bc:text-muted-foreground">No name</span> : <span className="bc:font-mono bc:text-xs">{input}</span>}
+      <span className="bc:text-xs bc:text-muted-foreground">Position {place}</span>
     </span>
   );
 }

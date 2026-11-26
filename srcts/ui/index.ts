@@ -7,13 +7,13 @@
 // It also holds how each runs an edit, and the banner of the Edit board plugin
 // and of the advanced actions that says why one was refused, which marks an
 // error as a card's banners do.
-// They draw their text fields with the SDK's TextField, and the search of a
+// They draw their text fields with blockr.ui's TextField, and the search of a
 // table with its SearchField.
 // The bundles of core's runtime, which holds the advanced actions, of the
 // basic frontend and of the Edit board plugin each hold a copy of it, as each
 // holds one of srcts/util and srcts/card.
 // They follow the board itself through useBoard() of core's React SDK, and
-// draw their selects with the SDK's ComboBox, those that find their items by
+// draw their selects with blockr.ui's ComboBox, those that find their items by
 // more than their names through useSearch(), and a pick of a few values with
 // its Select.
 

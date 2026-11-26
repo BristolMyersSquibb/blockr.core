@@ -7,7 +7,8 @@
 // so the number field marks no number above it.
 
 import type { ReactElement } from "react";
-import { NumberField, reactModule, Stack, ToggleButton, ToggleButtonGroup, useRequest, useValue } from "../../react/index.ts";
+import { FormLayout, NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/ui";
+import { reactModule, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
@@ -24,7 +25,7 @@ function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const max = Array.isArray(rows.answer) && typeof rows.answer[0] === "number" ? rows.answer[0] : undefined;
   const outdated = rows.loading || rows.error !== null;
   return (
-    <Stack>
+    <FormLayout>
       <NumberField bound={useValue(host, "n")} label="Number of rows" minValue={0} maxValue={max} step={1} outdated={outdated} />
       <ToggleButtonGroup bound={useValue(host, "direction")} label="Direction" disallowEmptySelection>
         {ends.map((end) => (
@@ -33,7 +34,7 @@ function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
-    </Stack>
+    </FormLayout>
   );
 }
 

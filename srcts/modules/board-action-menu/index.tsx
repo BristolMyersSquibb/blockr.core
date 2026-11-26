@@ -4,11 +4,10 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#what-a-frontend-gives).
 // The blockr option board_action_menu names it unless the app names another
 // module (../../actions/module.ts).
-// It draws the level that the menu shows with the menu of core's React SDK,
-// React Aria's Menu in core's theme, in a popover at the anchor, so that it
-// looks like the other menus on the page.
-// It draws on Tailwind CSS, whose theme variables a frontend sets to restyle
-// it, as the dock does through blockr.ui's design tokens.
+// It draws the level that the menu shows with the menu of blockr.ui, React
+// Aria's Menu drawn with blockr.ui's theme variables, in a popover at the
+// anchor, so that it looks like the other menus on the page.
+// A frontend restyles it by setting the theme variables in its theme.
 // It draws the rows as the design system draws the block's menu
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1160-L1165):
 // - The rows of each category together, which the menu of a target shows in
@@ -77,10 +76,9 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { Autocomplete, Menu, MenuItem, MenuSection, Popover, Text, TextField } from "@blockr/ui";
+import { Input, Separator, TextField as AriaTextField } from "react-aria-components";
 import type { MenuModule, OpenMenu, ShownLevel, ShownRow } from "../../actions/index.ts";
-import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "../../aria/index.ts";
-import { TextField } from "../../inputs/index.ts";
-import { Menu, MenuItem, MenuSection, Popover } from "../../overlays/index.ts";
 import { ariaShortcuts, matchesShortcut, onMac, shortcutLabel } from "../../util/index.ts";
 
 export const api = 1;
@@ -353,7 +351,7 @@ function Level({
           )}
         </>
       ) : (
-        <p role="alert" className="bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger">
+        <p role="alert" className="bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-destructive-text">
           {level.error}
         </p>
       )}
@@ -415,7 +413,7 @@ function groups(listed: readonly { row: ShownRow; i: number }[]): Group[] {
 // the item finds it, and the tooltip, which assistive technology reads as the
 // item's description. The item's name is given, so that it holds no more
 // than its label and its detail. In a section that picks, as for an item
-// that gives `checked`, the SDK's item draws its tick in a slot at its start.
+// that gives `checked`, blockr.ui's item draws its tick in a slot at its start.
 function Item({
   row,
   index,
@@ -441,7 +439,7 @@ function Item({
     >
       <span
         className={`bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${
-          removes ? "bc:group-data-focused:text-text-danger bc:group-data-hovered:text-text-danger" : ""
+          removes ? "bc:group-data-focused:text-destructive-text bc:group-data-hovered:text-destructive-text" : ""
         }`}
       >
         {icon === undefined ? null : (
@@ -456,14 +454,14 @@ function Item({
         )}
         <span className="bc:min-w-0 bc:truncate">{label}</span>
       </span>
-      {/* The detail and the open icon share one span, which the SDK's item puts
+      {/* The detail and the open icon share one span, which blockr.ui's item puts
           in the column at its right, on the label's line. The open icon is
           taller than the line. The span's negative margins keep the row as
           tall as one without the icon. They sit on the span, not on the icon,
-          since the SDK's grid hides what overflows each of its children. */}
+          since the item's grid hides what overflows each of its children. */}
       {detail === undefined && row.advanced !== true ? null : (
         <span className="bc:-my-1 bc:flex bc:items-center bc:gap-2">
-          {detail === undefined ? null : <span className="bc:min-w-0 bc:truncate bc:text-xs bc:text-text-muted">{detail}</span>}
+          {detail === undefined ? null : <span className="bc:min-w-0 bc:truncate bc:text-xs bc:text-muted-foreground">{detail}</span>}
           {row.advanced === true ? (
             <span
               aria-hidden="true"
@@ -580,11 +578,11 @@ function isFilter(target: EventTarget): target is HTMLInputElement {
 }
 
 // A level's title.
-const TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
+const TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-muted-foreground";
 // The open icon, a button 24 px square at the end of the level's title, and
 // the same at the end of an item.
 const OPEN =
-  "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:focus-visible:ring-2 bc:focus-visible:ring-border-accent";
+  "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border-0 bc:bg-transparent bc:p-0 bc:text-muted-foreground bc:cursor-pointer bc:outline-none bc:hover:bg-accent bc:hover:text-accent-foreground bc:focus-visible:ring-2 bc:focus-visible:ring-ring";
 // The open icon's name, and the key that opens the advanced action, as a click
 // on an open icon does.
 const OPEN_NAME = "Show all options";
@@ -597,14 +595,14 @@ function openTip(win: Window): string {
 }
 // A note in place of rows, as that a level loads or that the filter leaves no
 // row.
-const NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";
+const NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-muted-foreground bc:italic";
 // The filter, part of the menu rather than a field of a form, at the size of
 // the menu's meta text.
 const FILTER =
-  "bc:box-border bc:w-full bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-text-default bc:outline-none";
-const DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border-default";
+  "bc:box-border bc:w-full bc:rounded-sm bc:border bc:border-border bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-inherit bc:outline-none";
+const DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border";
 // A row that removes, on the theme's danger background under the pointer and
 // as the keyboard's row. The background takes the place of the grey one that
-// the SDK's item gives itself for both, so it is marked important, which
+// blockr.ui's item gives itself for both, so it is marked important, which
 // leaves it no rule of the same weight to lose to.
-const REMOVES = "bc:group bc:data-hovered:bg-bg-danger! bc:data-focused:bg-bg-danger!";
+const REMOVES = "bc:group bc:data-hovered:bg-destructive/10! bc:data-focused:bg-destructive/10!";

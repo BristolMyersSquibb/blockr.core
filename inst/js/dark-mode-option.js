@@ -26,7 +26,7 @@ var optionSchemas = {
 };
 
 // srcts/options/ui.tsx
-import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/core/react";
+import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/ui";
 import { reactModule, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 function numberUi(label, min) {
@@ -75,7 +75,7 @@ var darkMode = {
   }
 };
 function setTheme(theme) {
-  document.documentElement.setAttribute("data-bc-theme", theme === "dark" ? "dark" : "light");
+  document.documentElement.setAttribute("data-bk-mode", theme === "dark" ? "dark" : "light");
 }
 function preferredTheme() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";

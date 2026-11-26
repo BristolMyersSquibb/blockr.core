@@ -4,9 +4,9 @@
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
+import { find } from "@blockr/ui/stubs";
 import type { Condition } from "../protocol/index.ts";
 import type { Option } from "../store/index.ts";
-import { find } from "../testing/inputs.ts";
 import { logged } from "../testing/logged.ts";
 import { concerning, held } from "../testing/notifications.ts";
 import { classModule, optionModule } from "../testing/plugins.ts";

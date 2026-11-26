@@ -10,13 +10,22 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
+import {
+  find,
+  labelled,
+  listed,
+  optionFromLabel,
+  optionLabels,
+  picked,
+  selectButton,
+  selectShows,
+  step,
+  type,
+} from "@blockr/ui/stubs";
 import type { HelloReply } from "../protocol/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
-import { find, type } from "../testing/inputs.ts";
 import { held } from "../testing/notifications.ts";
-import { step } from "../testing/react.ts";
-import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked, selectButton, selectShows } from "../testing/select.ts";
 import type { Board, Link } from "../types/board.ts";
 import type { Target } from "./actions.ts";
 
@@ -333,13 +342,11 @@ describe("the block picker, their advanced action,", () => {
     const classes = labelled(form, "Block class");
     expect(classes.value).toBe("mer");
     expect(document.activeElement).toBe(classes);
-    // Opening the list keeps the search, since the field shows no pick. The
-    // list floats on the background of core's theme for what is raised.
+    // Opening the list keeps the search, since the field shows no pick.
     await step(() => {
       classes.click();
     });
     expect(optionLabels(classes)).toEqual(["transform: merge block"]);
-    expect(listFromField(classes)?.parentElement?.className.split(" ")).toContain("bc:bg-bg-raised");
     // A block added after another takes its result, so the picker offers
     // the classes that have an input.
     await step(() => {

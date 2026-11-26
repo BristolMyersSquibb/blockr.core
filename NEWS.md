@@ -1007,6 +1007,15 @@
   The store calls them only for a plugin whose state the board holds.
   Until now a class gave them beside `state`, so a class without state could give them too, and the store never called them.
   The store refuses a class that gives one of them outside its `state`, and core then opens no board (#670).
+* Core draws its UIs with the components of blockr.ui, which it imports, pinned at `BristolMyersSquibb/blockr.ui@js-state`, and drops its own copy of the kit.
+  Core's React SDK, `@blockr/core/react`, holds the hooks and the helpers alone, and `useValue()` returns blockr.ui's `Bound`.
+  A module imports the inputs, the overlays and the other components from `@blockr/ui`, where `Stack` is `FormLayout`.
+  Tests act on the components through the helpers of `@blockr/ui/stubs`, which `@blockr/core/stubs` loads.
+  Core's build preset, `@blockr/core/build`, extends the preset of blockr.ui, so a module's imports of `@blockr/ui` and of React Aria's three packages stay imports too, while `staticImports()` and the vendor check come from `@blockr/ui/build`.
+  Core's stylesheet builds with blockr.ui's preset under the prefix `bc`, so that its classes read blockr.ui's theme variables, and core's Tailwind theme goes, but for the colors of statuses and categories.
+  React, React DOM and React Aria leave core's vendor file for the files of blockr.ui (#866).
+* R puts the entries of blockr.ui into the page's import map beside core's, and blockr.ui's stylesheet on every page ahead of core's.
+  The board option `dark_mode` sets the attribute `data-bk-mode` on the page's root, in place of `data-bc-theme`, and the page's `color-scheme` tag takes `light dark` (#866).
 
 # blockr.core 0.1.4
 

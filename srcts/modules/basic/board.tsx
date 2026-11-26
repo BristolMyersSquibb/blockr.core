@@ -10,9 +10,10 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
+import { Button, Text, Toast, ToastContent, ToastRegion } from "@blockr/ui";
+import type { QueuedToast } from "@blockr/ui";
 import { MARKS, SeverityIcon } from "../../card/index.ts";
-import { Button, Text, Toast, ToastContent, ToastRegion, useBoard } from "../../react/index.ts";
-import type { QueuedToast } from "../../react/index.ts";
+import { useBoard } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Notification } from "../../types/core-api.ts";
@@ -82,7 +83,7 @@ function Page(): ReactElement {
   );
 }
 
-// The toasts, in the SDK's ToastRegion, which draws them one above the other
+// The toasts, in blockr.ui's ToastRegion, which draws them one above the other
 // in the window's bottom right corner, the latest lowest (./toasts.ts).
 function Toasts(): ReactElement {
   const { core, toasts } = useFrontEnd();
@@ -94,7 +95,7 @@ function Toasts(): ReactElement {
   );
 }
 
-// A toast, the SDK's Toast, marked in the colour of its notification's
+// A toast, blockr.ui's Toast, marked in the colour of its notification's
 // severity at its left: what it concerns, with the package that its source
 // names, its message, and a button that closes it. Where core asks for the
 // page to be reloaded, it also offers to reload it.
@@ -111,7 +112,7 @@ function ToastItem({ toast, title }: { toast: QueuedToast<Notification>; title: 
       <ToastContent role={severity === "message" ? "status" : undefined} className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-1">
         <Text slot="title" elementType="p" className="bc:m-0 bc:text-xs bc:font-semibold">
           {title}
-          {pkg === undefined ? null : <span className="bc:font-normal bc:text-text-muted"> · {pkg}</span>}
+          {pkg === undefined ? null : <span className="bc:font-normal bc:text-muted-foreground"> · {pkg}</span>}
         </Text>
         <Text slot="description" elementType="p" className="bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap">
           {notification.message}
@@ -139,7 +140,7 @@ function ToastItem({ toast, title }: { toast: QueuedToast<Notification>; title: 
 // The colour of the mark at a toast's left, for each severity, as a card's
 // pills mark it (../../card/index.ts).
 const LEFT: Readonly<Record<Notification["severity"], string>> = {
-  error: "bc:border-l-border-danger",
-  warning: "bc:border-l-amber-500",
-  message: "bc:border-l-border-accent",
+  error: "bc:border-l-destructive",
+  warning: "bc:border-l-warning",
+  message: "bc:border-l-primary",
 };

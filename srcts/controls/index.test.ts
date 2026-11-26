@@ -3,8 +3,8 @@
 // host.module(), and which the page's import map names `@blockr/core/controls`.
 
 import { expect, test } from "vitest";
+import { find, type } from "@blockr/ui/stubs";
 import { stubBlockHost } from "../stubs/index.ts";
-import { find, type } from "../testing/inputs.ts";
 import { mountOnPage, unmount } from "../testing/modules.ts";
 import type { BlockModule } from "../types/hosts.ts";
 import * as offered from "./index.ts";

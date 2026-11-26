@@ -3,13 +3,11 @@
 // which lists every state a test submits.
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { fieldError, labelled, numberSaid, press, step, toggleButton, toggles, type } from "@blockr/ui/stubs";
 import { PAUSE } from "../../binding/index.ts";
 import { READY, stubBlockHost } from "../../stubs/index.ts";
-import { fieldError, numberSaid, press, toggleButton, toggles, type } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle, unmount, wait } from "../../testing/modules.ts";
-import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
-import { labelled } from "../../testing/select.ts";
 import * as head from "./index.tsx";
 import type { State } from "./state.ts";
 

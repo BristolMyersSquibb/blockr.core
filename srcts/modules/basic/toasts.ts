@@ -6,8 +6,8 @@
 // and each plugin's section those about the plugin. So the toasts show those
 // about the board, a link, a stack, a board option, and a plugin without a
 // section, such as a storage plugin.
-// The toasts are those of core's React SDK, React Aria's, in a queue of the
-// opening (../../overlays/toast.tsx):
+// The toasts are those of blockr.ui, React Aria's, in a queue of the
+// opening:
 // - The toasts sit in the window's bottom right corner, one above the other,
 //   in the order that their notifications came, the latest lowest. The first
 //   line of each names what its notification concerns, with the package that
@@ -20,14 +20,14 @@
 //   faded or that the user closed does not come back while its notification
 //   holds. The frontend keeps the ids of those notifications for the opening,
 //   and forgets each id once core withdraws its notification.
-// - A dialog that the frontend opens, in the modal of core's React SDK, keeps
+// - A dialog that the frontend opens, in the modal of blockr.ui, keeps
 //   the focus inside it and makes the rest of the page inert, but for the
 //   toasts, which React Aria leaves within reach. So while a dialog is open,
 //   the user can still close them, and F6 moves the focus to them.
 // - A message's toast is a status, and a warning's or an error's is an alert,
 //   which a screen reader reads out at once.
 
-import { ToastQueue } from "../../react/index.ts";
+import { ToastQueue } from "@blockr/ui";
 import type { Board, PluginClassId } from "../../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../../types/core-api.ts";
 import { own } from "../../util/index.ts";
@@ -38,7 +38,7 @@ export const SHOWN_FOR = 5000;
 
 // The toasts of one opening.
 export interface Toasts {
-  // The queue of the toasts, which the SDK's ToastRegion draws, each holding
+  // The queue of the toasts, which blockr.ui's ToastRegion draws, each holding
   // its notification.
   readonly queue: ToastQueue<Notification>;
   // Stops following the notifications.

@@ -1,3 +1,4 @@
+import "@blockr/ui/stubs";
 import "../testing/dom.ts";
 export { stubBlockHost } from "./block.ts";
 export type { BlockFixture, StubBlockHost, StubBlockHostOptions } from "./block.ts";

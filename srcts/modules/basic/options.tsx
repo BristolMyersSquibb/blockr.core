@@ -32,10 +32,10 @@ export function OptionsDialog({ onClose }: { onClose: () => void }): ReactElemen
       {categories.size === 0 ? (
         <p className={styles.hint}>The board holds no board options.</p>
       ) : (
-        <div className="bc:grid bc:divide-y bc:divide-border-default">
+        <div className="bc:grid bc:divide-y bc:divide-border">
           {[...categories].map(([category, ids]) => (
             <section key={category} aria-label={category} className="bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0">
-              <h3 className="bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted">{category}</h3>
+              <h3 className="bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-muted-foreground">{category}</h3>
               {ids.map((id) => (
                 <OptionUi key={id} id={id} />
               ))}

@@ -1,6 +1,6 @@
-// The UI of the upload block: a drop zone, the SDK's DropZone, which takes a
+// The UI of the upload block: a drop zone, blockr.ui's DropZone, which takes a
 // file that the user drops on it, and holds a button that picks a file the
-// browser's way, React Aria's FileTrigger with the SDK's Button.
+// browser's way, React Aria's FileTrigger with blockr.ui's Button.
 // The module sends the file to R through the action upload,
 // which keeps the file and answers with its path,
 // which the module then submits as the state arg file_path.
@@ -14,8 +14,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
+import { Button, DropZone, FileTrigger, FormLayout, Text } from "@blockr/ui";
 import { strings } from "../../binding/index.ts";
-import { Button, DropZone, FileTrigger, reactModule, Stack, Text, useValue } from "../../react/index.ts";
+import { reactModule, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -69,7 +70,7 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   // Before then, the block's status says what is missing.
   const said = uploading !== null ? `Uploading ${uploading}…` : held === undefined ? null : `Uploaded ${basename(held)}`;
   return (
-    <Stack>
+    <FormLayout>
       <DropZone
         isDisabled={busy}
         onDrop={(event) => {
@@ -102,7 +103,7 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
           {path.error}
         </p>
       )}
-    </Stack>
+    </FormLayout>
   );
 }
 

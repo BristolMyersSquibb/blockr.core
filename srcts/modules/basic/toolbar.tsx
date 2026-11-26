@@ -9,20 +9,20 @@
 // controls leave out what a lock fixes themselves, as core's own leave out
 // Open under the load lock, since the store opens no other board there.
 //
-// The controls sit in the SDK's Toolbar, in three groups with a Separator of
-// the SDK between each two: the board options, undo and redo, and the storage
+// The controls sit in blockr.ui's Toolbar, in three groups with a Separator of
+// blockr.ui between each two: the board options, undo and redo, and the storage
 // controls. Tab moves the focus into the toolbar and out of it again, and the
 // arrow keys move it between the controls.
 // The toolbar draws the storage controls that core.plugins.storage() gives
 // (./storage.ts), and none where the app runs no storage plugin, each kind in
 // its own look:
 // - A button is one of the toolbar's buttons, greyed out while it is disabled.
-// - A menu is a button that opens a list of what the menu holds, the SDK's
+// - A menu is a button that opens a list of what the menu holds, blockr.ui's
 //   menu. A menu in that list is an item that opens the list of what it
-//   holds beside its row, through the SDK's SubmenuTrigger.
+//   holds beside its row, through blockr.ui's SubmenuTrigger.
 // - A status is text in the muted colour, and in a menu an item that the user
 //   cannot pick.
-// A control's tooltip shows in a tooltip of the SDK in the toolbar, and in a
+// A control's tooltip shows in a tooltip of blockr.ui in the toolbar, and in a
 // menu as the item's description, a muted line below it, since React Aria's
 // menu items take no tooltip.
 // The trigger of a tooltip in the toolbar takes the focus, so that the user
@@ -54,7 +54,7 @@ import {
   Toolbar as SdkToolbar,
   Tooltip,
   TooltipTrigger,
-} from "../../react/index.ts";
+} from "@blockr/ui";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -86,7 +86,7 @@ export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
   }
 
   return (
-    <header className="bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border-default bc:pb-3">
+    <header className="bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border bc:pb-3">
       {renaming ? (
         <NameField
           label="Board name"
@@ -178,7 +178,7 @@ function StorageControls(): ReactElement | null {
     <>
       <Separator orientation="vertical" />
       {drawn.failed ? (
-        <span role="alert" className="bc:font-sans bc:text-sm bc:text-text-danger">
+        <span role="alert" className="bc:font-sans bc:text-sm bc:text-destructive-text">
           <Tipped tooltip={problem}>Storage failed</Tipped>
         </span>
       ) : (
@@ -196,7 +196,7 @@ function Control({ control }: { control: StorageControl }): ReactElement {
       return <StorageMenu label={control.label} items={control.items} />;
     case "status":
       return (
-        <span role="status" className="bc:font-sans bc:text-sm bc:text-text-muted">
+        <span role="status" className="bc:font-sans bc:text-sm bc:text-muted-foreground">
           <Tipped tooltip={control.tooltip}>{control.text}</Tipped>
         </span>
       );
@@ -227,7 +227,7 @@ function StorageButton({ button }: { button: Button }): ReactElement {
     return (
       <>
         {drawn}
-        <span id={reason} className="bc:font-sans bc:text-sm bc:text-text-muted">
+        <span id={reason} className="bc:font-sans bc:text-sm bc:text-muted-foreground">
           {button.tooltip}
         </span>
       </>
@@ -248,7 +248,7 @@ function Tipped({ tooltip, children }: { tooltip: string | undefined; children: 
   return (
     <TooltipTrigger>
       <Focusable>
-        <span role="button" tabIndex={0} className="bc:cursor-default bc:rounded bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-border-accent">
+        <span role="button" tabIndex={0} className="bc:cursor-default bc:rounded-sm bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-ring">
           {children}
         </span>
       </Focusable>
@@ -273,7 +273,7 @@ function StorageMenu({ label, items }: { label: string; items: readonly StorageC
   );
 }
 
-// The buttons, statuses and menus of a menu, as the items of the SDK's menu,
+// The buttons, statuses and menus of a menu, as the items of blockr.ui's menu,
 // each button and status with its tooltip as its description and a button
 // with its shortcut. A status is an item that the user cannot pick. A menu is
 // an item that opens what it holds beside its row.

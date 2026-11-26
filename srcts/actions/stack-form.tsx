@@ -7,7 +7,7 @@
 // A block sits in one stack at most. So the select lists the blocks in no
 // stack first, and apart from them those that another stack holds, naming the
 // stack, which a block that the user picks leaves.
-// It draws a stack's colour with the colours of core's React SDK: a colour
+// It draws a stack's colour with blockr.ui's colours: a colour
 // picker, beside a checkbox that gives the stack a colour. The picker's
 // popover holds the palette's colours among its swatches.
 // Each form runs nothing before the user submits it, through its Add stack
@@ -35,7 +35,6 @@
 
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
-import { suggestedName } from "../commands/index.ts";
 import {
   Checkbox,
   ColorArea,
@@ -48,9 +47,10 @@ import {
   ComboBoxSection,
   Form,
   TextField,
-  useBoard,
-} from "../react/index.ts";
-import type { Color } from "../react/index.ts";
+} from "@blockr/ui";
+import type { Color } from "@blockr/ui";
+import { suggestedName } from "../commands/index.ts";
+import { useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -258,8 +258,8 @@ function StackForm({
   );
 }
 
-// A stack's colour, or none: the SDK's checkbox, which gives the stack a
-// colour, and the SDK's colour picker, which picks it.
+// A stack's colour, or none: blockr.ui's checkbox, which gives the stack a
+// colour, and blockr.ui's colour picker, which picks it.
 // The picker's popover holds the starter kit's parts, an area of the
 // saturation and the brightness, a slider of the hue and a field of the hex,
 // and below them the palette's colours as swatches, in two rows of four,

@@ -1,10 +1,10 @@
 // The UI modules of core's board options, each a React component drawn with
-// an input of core's React SDK and bound to the board option's value, so that
+// an input of blockr.ui and bound to the board option's value, so that
 // it keeps the contract's rules as core's block UIs do
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 
 import type { ReactElement } from "react";
-import { NumberField, ToggleButton, ToggleButtonGroup } from "../inputs/index.ts";
+import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/ui";
 import { reactModule, useValue } from "../react/index.ts";
 import type { ModuleProps } from "../react/index.ts";
 import type { Json } from "../types/json.ts";

@@ -7,9 +7,11 @@
 // board with R played from the protocol's fixtures
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
 // Loading them makes happy-dom, the DOM that the tests run on, do as a
-// browser does where the components of core's React SDK need it
-// (../testing/dom.ts).
+// browser does where core's UIs need it: where blockr.ui's components, which
+// core's UIs draw with, need it, through the stubs of blockr.ui, and where
+// core's basic frontend needs it (../testing/dom.ts).
 
+import "@blockr/ui/stubs";
 import "../testing/dom.ts";
 
 export { stubBlockHost } from "./block.ts";

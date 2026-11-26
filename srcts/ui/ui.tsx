@@ -5,7 +5,7 @@
 // identifier, the banner that says why an edit was refused, and what draws a
 // form in a React root of its own.
 // They are styled with Tailwind CSS under core's prefix. Their colours, fonts
-// and radii come from the variables of core's theme. Core's stylesheet leaves
+// and radii come from blockr.ui's theme variables. Core's stylesheet leaves
 // out Tailwind's reset of the page, and a browser passes its font and colour
 // on to no button, so each piece sets them itself.
 
@@ -13,8 +13,8 @@ import { useRef, useState } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { Button, TextField } from "@blockr/ui";
 import { MARKS, SeverityIcon } from "../card/index.ts";
-import { Button, TextField } from "../react/index.ts";
 import { buttons } from "../styles/index.ts";
 import type { Refused } from "./edits.ts";
 
@@ -22,18 +22,20 @@ export const classes = {
   button: buttons.secondary,
   primary: buttons.primary,
   quiet: buttons.quiet,
-  // The board's page, which draws no background of its own, so that the
-  // page's, which the browser draws in the page's theme, shows to its edges.
-  page: "bc:text-gray-900 bc:dark:text-gray-100",
-  // What sits over the board, as a dialog or a menu does,
-  // on the background that core's theme gives it, bg-raised.
-  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
-  card: "bc:bg-bg-subtle",
+  // The board's page, in the page's colour and the colour of its text,
+  // `background` and `foreground`
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
+  page: "bc:bg-background bc:text-foreground",
+  // What sits over the board, as a dialog or a menu does, in the colours of
+  // every overlay, `popover`.
+  surface: "bc:bg-popover bc:text-popover-foreground",
+  // A card on the page, in the colours of a card, `card`.
+  card: "bc:bg-card bc:text-card-foreground",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0",
 } as const;
 
-// A text field that edits a name in place, the SDK's TextField: Enter or
+// A text field that edits a name in place, blockr.ui's TextField: Enter or
 // leaving the field submits what it holds, unless it is empty or unchanged,
 // and Escape gives up.
 // It has the focus as it is drawn, with the name selected.
@@ -85,7 +87,7 @@ export function NameField({
 
 // The "…" button that opens the menu of board actions of a board object, as
 // a card of the basic frontend and a row of the Edit board plugin draw it,
-// named by the label given, as "Actions of Head". It is a Button of the SDK,
+// named by the label given, as "Actions of Head". It is a Button of blockr.ui,
 // which a row of React Aria's Table hears no press of, so that pressing it in
 // a row does not tick the row.
 export function ActionsButton({

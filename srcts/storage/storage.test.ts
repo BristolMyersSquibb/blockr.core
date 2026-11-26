@@ -3,9 +3,9 @@
 // tests, with the browser's download and file picker played by the test.
 
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { picking } from "@blockr/ui/stubs";
 import type { StorageControl } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
-import { picking } from "../testing/inputs.ts";
 import { coreStorage, fileName } from "./index.ts";
 
 afterEach(() => {

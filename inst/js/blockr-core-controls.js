@@ -2,22 +2,17 @@
 import { Fragment, useLayoutEffect, useRef } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import * as inputs from "@blockr/ui";
 import { bind as bindValue, follow as followRequest } from "@blockr/core/binding";
-import * as inputs from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
+  stack: "bc:grid bc:gap-3 bc:font-sans",
   label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
   legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
-  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
+  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap"
 };
 
 // srcts/util/util.ts

@@ -1,36 +1,16 @@
 // srcts/modules/filebrowser-block/index.tsx
 import { useState } from "react";
-import {
-  Breadcrumb,
-  Breadcrumbs,
-  Button,
-  Cell,
-  Column,
-  reactModule,
-  Row,
-  Select,
-  SelectItem,
-  Stack,
-  Table,
-  TableBody,
-  TableHeader,
-  useRequest,
-  useValue
-} from "@blockr/core/react";
+import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
+import { reactModule, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
+  stack: "bc:grid bc:gap-3 bc:font-sans",
   label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
   legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
-  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
+  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap"
 };
 
 // srcts/util/util.ts
@@ -55,10 +35,10 @@ function jsonEqual(a, b) {
 // srcts/modules/filebrowser-block/index.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
-var FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised";
-var BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border-default bc:p-1 bc:text-sm";
-var HEAD = "bc:text-xs bc:text-text-muted";
-var CHOSEN = "bc:bg-bg-accent/10 bc:font-semibold";
+var FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border bc:bg-popover";
+var BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border bc:p-1 bc:text-sm";
+var HEAD = "bc:text-xs bc:text-muted-foreground";
+var CHOSEN = "bc:bg-primary/10 bc:font-semibold";
 function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
   const volumes = asVolumes(shared);
@@ -107,7 +87,7 @@ function FileBrowserBlock({ host }) {
     })
   ];
   const names = Object.keys(volumes);
-  return /* @__PURE__ */ jsxs(Stack, { children: [
+  return /* @__PURE__ */ jsxs(FormLayout, { children: [
     names.length > 1 && /* @__PURE__ */ jsx(
       Select,
       {
@@ -136,7 +116,7 @@ function FileBrowserBlock({ host }) {
             children: /* @__PURE__ */ jsx(Up, {})
           }
         ),
-        /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-text-muted" }),
+        /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-muted-foreground" }),
         /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:min-w-0", children: /* @__PURE__ */ jsx(
           Breadcrumbs,
           {
@@ -168,11 +148,11 @@ function FileBrowserBlock({ host }) {
                 renderEmptyState: () => loading ? "Loading\u2026" : failed ? null : "This directory is empty.",
                 children: (entry) => /* @__PURE__ */ jsxs(Row, { id: entry.id, "data-current": entry.current || void 0, className: `bc:cursor-pointer ${entry.current ? CHOSEN : ""}`, children: [
                   /* @__PURE__ */ jsx(Cell, { textValue: entry.name, children: /* @__PURE__ */ jsxs("span", { className: "bc:flex bc:items-center bc:gap-2", children: [
-                    entry.dir ? /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-bg-accent" }) : /* @__PURE__ */ jsx(FileIcon, { className: "bc:shrink-0 bc:text-text-muted" }),
+                    entry.dir ? /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-primary" }) : /* @__PURE__ */ jsx(FileIcon, { className: "bc:shrink-0 bc:text-muted-foreground" }),
                     entry.name
                   ] }) }),
-                  /* @__PURE__ */ jsx(Cell, { className: "bc:text-right bc:tabular-nums", children: entry.size === null ? /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", children: "\u2014" }) : sizeText(entry.size) }),
-                  /* @__PURE__ */ jsx(Cell, { className: "bc:tabular-nums bc:text-text-muted", children: modifiedText(entry.modified) })
+                  /* @__PURE__ */ jsx(Cell, { className: "bc:text-right bc:tabular-nums", children: entry.size === null ? /* @__PURE__ */ jsx("span", { className: "bc:text-muted-foreground", children: "\u2014" }) : sizeText(entry.size) }),
+                  /* @__PURE__ */ jsx(Cell, { className: "bc:tabular-nums bc:text-muted-foreground", children: modifiedText(entry.modified) })
                 ] })
               }
             )

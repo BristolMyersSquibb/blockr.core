@@ -54,10 +54,11 @@
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
+import { ComboBox, Form, Select, SelectItem, TextField } from "@blockr/ui";
 import { freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../picker/index.ts";
-import { ComboBox, Form, Select, SelectItem, TextField, useBoard } from "../react/index.ts";
+import { useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";

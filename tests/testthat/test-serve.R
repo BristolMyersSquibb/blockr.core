@@ -819,7 +819,13 @@ test_that("the page names the import map first and starts the client", {
     "<script type=\"importmap\">",
     fixed = TRUE
   )
-  expect_match(page$head, "blockr.core/js/blockr-core.css?v=", fixed = TRUE)
+  # The stylesheet of blockr.ui comes first, with the theme variables that
+  # core's stylesheet reads, and core's after it.
+  at <- function(url) regexpr(url, page$head, fixed = TRUE)
+  ui_css <- at("blockr.ui/js/blockr-ui.css?v=")
+  core_css <- at("blockr.core/js/blockr-core.css?v=")
+  expect_gt(ui_css, 0L)
+  expect_gt(core_css, ui_css)
   expect_match(
     page$html,
     "import { startPage } from \"./blockr.core/js/blockr-core.js?v=",
@@ -867,58 +873,22 @@ test_that("the page shows the loading note in the system's theme at once", {
   )
 })
 
-test_that("the page takes the theme of `dark_mode` where R knows it", {
+test_that("the page leaves its mode to its root, whatever `dark_mode` is", {
 
-  withr::local_options(blockr.dark_mode = NULL)
-  withr::local_envvar(BLOCKR_DARK_MODE = NA)
+  # The board option `dark_mode` sets the attribute `data-bk-mode` on the
+  # page's root, under which blockr.ui's stylesheet sets the browser's
+  # color-scheme in each mode. So R writes `light dark` into the tag, whatever
+  # value the blockr option or the opening board gives.
+  withr::local_options(blockr.dark_mode = "dark")
 
-  # The theme for the blockr option given and the board's value, if any.
-  scheme <- function(option, board_value = NULL) {
-    withr::with_options(
-      list(blockr.dark_mode = option),
-      page_color_scheme(board_value)
-    )
-  }
-
-  # Where neither the board nor the blockr option sets it, the page takes the
-  # theme of the user's system.
-  expect_identical(page_color_scheme(), "light dark")
-
-  # The blockr option, read as the client reads it.
-  for (value in list(TRUE, "TRUE", " true ", "T", "dark")) {
-    expect_identical(scheme(value), "dark")
-  }
-  for (value in list(FALSE, "False", "F", "light")) {
-    expect_identical(scheme(value), "light")
-  }
-  withr::with_envvar(
-    c(BLOCKR_DARK_MODE = "TRUE"),
-    expect_identical(page_color_scheme(), "dark")
-  )
-
-  # A value that the board option does not take, or a blockr option set
-  # twice, leaves the theme of the user's system.
-  expect_identical(scheme("purple"), "light dark")
-  withr::with_envvar(
-    c(BLOCKR_DARK_MODE = "dark"),
-    expect_identical(scheme("light"), "light dark")
-  )
-
-  # The board's own value comes before the blockr option.
-  dark <- new_board(options = new_board_options(new_dark_mode_option("dark")))
-  value <- board_dark_mode(encode_message(blockr_ser(dark)))
-
-  expect_identical(value, "dark")
-  expect_identical(scheme("light", value), "dark")
-  expect_null(board_dark_mode(encode_message(blockr_ser(new_board()))))
-
-  page <- htmltools::renderTags(serve_page(color_scheme = "dark"))
+  page <- htmltools::renderTags(serve_page())
 
   expect_match(
     page$head,
-    "<meta name=\"color-scheme\" content=\"dark\"/>",
+    "<meta name=\"color-scheme\" content=\"light dark\"/>",
     fixed = TRUE
   )
+  expect_false(grepl("data-bc-theme", page$html, fixed = TRUE))
 })
 
 test_that("the page imports the modules of plugins, options and blocks", {
@@ -1256,10 +1226,11 @@ test_that("the page names what the runtime and the modules import up front", {
     link(paste0(sub("^[.]/", "", imports[[name]]), "\""))
   }
 
-  # The runtime imports React, whose entry points import core's vendor file,
-  # which comes without a hash.
-  vendor <- yyjsonr::read_json_file(
-    system.file("js", "preload.json", package = "blockr.core")
+  # The runtime imports React, whose entry points import React's file, which
+  # blockr.ui ships, as blockr.ui's build lists it in the preload.json beside
+  # them, and which comes without a hash.
+  react <- yyjsonr::read_json_file(
+    system.file("js", "preload.json", package = "blockr.ui")
   )[["react.js"]]
 
   # The runtime also imports core's React SDK, which imports its binding.
@@ -1268,7 +1239,7 @@ test_that("the page names what the runtime and the modules import up front", {
   expect_match(page$head, paste0(by_name("react"), "/>"), fixed = TRUE)
   expect_match(
     page$head,
-    link(paste0("blockr.core/js/", sub("^[.]/", "", vendor), "\"/>")),
+    link(paste0("blockr.ui/js/", sub("^[.]/", "", react), "\"/>")),
     fixed = TRUE
   )
   expect_match(

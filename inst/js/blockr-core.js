@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-c5b8952d.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-c863df8c.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -256,7 +256,7 @@ function checkRaised(notification) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-c5b8952d.js";
+import { Validator } from "./vendor-c863df8c.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -2144,8 +2144,8 @@ function linkStylesheet(url) {
 }
 
 // srcts/mount/measure.ts
-var FALLBACK = { bg: "#ffffff", fg: "#000000", accent: "#155dfc" };
-var ACCENT = "--bc-color-bg-accent";
+var FALLBACK = { bg: "#ffffff", fg: "#000000", accent: "#2563eb" };
+var ACCENT = "--bk-color-primary";
 function domMeasure() {
   return {
     info(el) {
@@ -2180,7 +2180,7 @@ function domMeasure() {
       });
       themed.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-bc-theme", "class", "style"]
+        attributeFilter: ["data-bk-mode", "class", "style"]
       });
       stops.push(() => {
         themed.disconnect();
@@ -2435,7 +2435,7 @@ function withoutOptions(module, ids2) {
 function showError(el, message) {
   const box = document.createElement("div");
   box.setAttribute("role", "alert");
-  box.className = "bc:rounded bc:border bc:border-border-danger bc:p-2 bc:font-sans bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap";
+  box.className = "bc:rounded-sm bc:border bc:border-destructive bc:p-2 bc:font-sans bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
   box.textContent = message;
   el.replaceChildren(box);
 }
@@ -3778,10 +3778,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-c5b8952d.js";
+import { computed as computed3, signal as signal4 } from "./vendor-c863df8c.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-c5b8952d.js";
+import { signal as signal3 } from "./vendor-c863df8c.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -5914,7 +5914,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-c5b8952d.js";
+import { computed as computed2, signal as signal2 } from "./vendor-c863df8c.js";
 var STATE_FUNCTIONS = [["update", "an"], ["afterStep", "an"], ["migrate", "a"]];
 function createRegistrations(migration = () => void 0) {
   const classes2 = signal2(/* @__PURE__ */ new Map());
@@ -7936,7 +7936,7 @@ function isThenable2(value2) {
 }
 
 // srcts/ui/blocks.tsx
-import { ComboBoxItem, Text } from "@blockr/core/react";
+import { ComboBoxItem, Text } from "@blockr/ui";
 import { jsx, jsxs } from "react/jsx-runtime";
 function blockItem(board, registry, id2) {
   const block = own(board.blocks, id2);
@@ -8002,7 +8002,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-c5b8952d.js";
+import { useFilter } from "@blockr/ui";
 function useSearch(all, texts, none = "No options", start2 = "") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2(start2);
@@ -8022,12 +8022,13 @@ function useSearch(all, texts, none = "No options", start2 = "") {
 
 // srcts/ui/table.tsx
 import { useState as useState6 } from "react";
-import { SearchField } from "@blockr/core/react";
+import { SearchField } from "@blockr/ui";
 
 // srcts/ui/ui.tsx
 import { useRef as useRef2, useState as useState5 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { Button, TextField } from "@blockr/ui";
 
 // srcts/card/footer.tsx
 import { useCallback as useCallback2, useId, useState as useState3 } from "react";
@@ -8056,7 +8057,7 @@ function Footer({ status, shown: shown2, settled: settled2 }) {
     {
       "aria-busy": status?.running === true,
       "data-status": shown2?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-muted-foreground bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
       children: shown2?.status === "ready" ? shown2.summary : null
     }
   );
@@ -8126,23 +8127,23 @@ var MARKS = {
   error: {
     label: "Error",
     noun: "error",
-    text: "bc:text-text-danger",
-    tint: "bc:bg-red-500/10",
-    border: "bc:border-border-danger"
+    text: "bc:text-destructive-text",
+    tint: "bc:bg-destructive/10",
+    border: "bc:border-destructive"
   },
   warning: {
     label: "Warning",
     noun: "warning",
-    text: "bc:text-text-warning",
-    tint: "bc:bg-amber-500/10",
-    border: "bc:border-amber-500"
+    text: "bc:text-warning-text",
+    tint: "bc:bg-warning/10",
+    border: "bc:border-warning"
   },
   message: {
     label: "Message",
     noun: "message",
-    text: "bc:text-blue-700 bc:dark:text-blue-400",
-    tint: "bc:bg-blue-500/10",
-    border: "bc:border-border-accent"
+    text: "bc:text-primary-text",
+    tint: "bc:bg-primary/10",
+    border: "bc:border-primary"
   }
 };
 function Banner({ severity, message }) {
@@ -8222,28 +8223,19 @@ function useSized(status) {
   return sized || ready;
 }
 
-// srcts/ui/ui.tsx
-import { Button, TextField } from "@blockr/core/react";
-
 // srcts/styles/styles.ts
 var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
+  stack: "bc:grid bc:gap-3 bc:font-sans",
   label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
   legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
-  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
+  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap"
 };
 var buttons = {
-  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
-  secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
-  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
-  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
+  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-primary bc:bg-primary bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-primary-foreground bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
+  secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-inherit bc:cursor-pointer bc:hover:bg-accent bc:hover:text-accent-foreground bc:disabled:cursor-default bc:disabled:opacity-50",
+  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-muted-foreground bc:cursor-pointer bc:hover:bg-accent bc:hover:text-accent-foreground"
 };
 
 // srcts/ui/ui.tsx
@@ -8252,13 +8244,15 @@ var classes = {
   button: buttons.secondary,
   primary: buttons.primary,
   quiet: buttons.quiet,
-  // The board's page, which draws no background of its own, so that the
-  // page's, which the browser draws in the page's theme, shows to its edges.
-  page: "bc:text-gray-900 bc:dark:text-gray-100",
-  // What sits over the board, as a dialog or a menu does,
-  // on the background that core's theme gives it, bg-raised.
-  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
-  card: "bc:bg-bg-subtle",
+  // The board's page, in the page's colour and the colour of its text,
+  // `background` and `foreground`
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
+  page: "bc:bg-background bc:text-foreground",
+  // What sits over the board, as a dialog or a menu does, in the colours of
+  // every overlay, `popover`.
+  surface: "bc:bg-popover bc:text-popover-foreground",
+  // A card on the page, in the colours of a card, `card`.
+  card: "bc:bg-card bc:text-card-foreground",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
 };
@@ -8298,7 +8292,8 @@ import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 // srcts/picker/picker.tsx
 import { useMemo as useMemo2, useState as useState7 } from "react";
 import { flushSync as flushSync2 } from "react-dom";
-import { ComboBox, ComboBoxItem as ComboBoxItem2, ComboBoxSection, Form, Select, SelectItem, Text as Text2, TextField as TextField2, useBoard } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem as ComboBoxItem2, ComboBoxSection, Form, Select, SelectItem, Text as Text2, TextField as TextField2 } from "@blockr/ui";
+import { useBoard } from "@blockr/core/react";
 import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
   const registry = core.blockRegistry();
@@ -8567,7 +8562,7 @@ function byCategory(items) {
   }
   return [...categories].map(([name3, members]) => ({ id: `category:${name3}`, name: name3, items: members }));
 }
-var BADGE = "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted";
+var BADGE = "bc:ml-auto bc:shrink-0 bc:rounded-sm bc:border bc:border-border bc:px-1 bc:text-xs bc:text-muted-foreground";
 function filled(arg, value2) {
   const trimmed = value2.trim();
   return trimmed === "" ? {} : { [arg]: trimmed };
@@ -8817,7 +8812,8 @@ function copyCommand(doc, text) {
 // srcts/actions/inputs.tsx
 import { useState as useState8 } from "react";
 import { flushSync as flushSync3 } from "react-dom";
-import { Button as Button2, ComboBox as ComboBox2, Form as Form2, GridList, GridListItem, TextField as TextField3, useBoard as useBoard2, useDragAndDrop } from "@blockr/core/react";
+import { Button as Button2, ComboBox as ComboBox2, Form as Form2, GridList, GridListItem, TextField as TextField3, useDragAndDrop } from "@blockr/ui";
+import { useBoard as useBoard2 } from "@blockr/core/react";
 import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 var ADD_LINK = "blockr.core-add_link";
 var CHANGE_LINK = "blockr.core-change_link";
@@ -8870,7 +8866,7 @@ function InputsForm({
     {
       "aria-label": "Change inputs",
       validationBehavior: "aria",
-      className: "bc:font-sans bc:text-sm bc:text-text-default",
+      className: "bc:font-sans bc:text-sm",
       onSubmit: (event) => {
         void submit(event);
       },
@@ -9198,12 +9194,13 @@ function RemoveButton({ label, onPress }) {
 function Cross() {
   return /* @__PURE__ */ jsx8("svg", { width: "10", height: "10", viewBox: "0 0 10 10", fill: "none", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx8("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" }) });
 }
-var ROW = "bc:rounded-md bc:border bc:border-border-default bc:bg-bg-subtle bc:py-1 bc:data-dragging:opacity-60";
+var ROW = "bc:rounded-md bc:border bc:border-border bc:bg-muted bc:py-1 bc:data-dragging:opacity-60";
 
 // srcts/actions/link-form.tsx
 import { useState as useState9 } from "react";
 import { flushSync as flushSync4 } from "react-dom";
-import { ComboBox as ComboBox3, Form as Form3, Select as Select2, SelectItem as SelectItem2, TextField as TextField4, useBoard as useBoard3 } from "@blockr/core/react";
+import { ComboBox as ComboBox3, Form as Form3, Select as Select2, SelectItem as SelectItem2, TextField as TextField4 } from "@blockr/ui";
+import { useBoard as useBoard3 } from "@blockr/core/react";
 import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
 var ADD_LINK2 = "blockr.core-add_link";
 var CHANGE_LINK2 = "blockr.core-change_link";
@@ -9652,9 +9649,9 @@ import {
   ComboBox as ComboBox4,
   ComboBoxSection as ComboBoxSection2,
   Form as Form4,
-  TextField as TextField5,
-  useBoard as useBoard4
-} from "@blockr/core/react";
+  TextField as TextField5
+} from "@blockr/ui";
+import { useBoard as useBoard4 } from "@blockr/core/react";
 import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
 var ADD_STACK = "blockr.core-add_stack";
 var CHANGE_STACK = "blockr.core-change_stack";
@@ -10582,8 +10579,7 @@ function kindOf(target2) {
 // srcts/actions/dialog.tsx
 import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
-import { Button as Button3 } from "@blockr/core/react";
-import { Dialog, Heading, Modal } from "@blockr/core/react";
+import { Button as Button3, Dialog, Heading, Modal } from "@blockr/ui";
 import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 var showDialog = (args, at) => {
   const doc = at.el.ownerDocument;
@@ -12420,7 +12416,7 @@ function AloneCard({ core, id: id2 }) {
     "article",
     {
       "aria-label": name3,
-      className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
+      className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border bc:bg-card bc:p-3 bc:font-sans bc:text-card-foreground",
       children: [
         /* @__PURE__ */ jsx12("header", { children: /* @__PURE__ */ jsx12("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
         inputs ? /* @__PURE__ */ jsx12(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,

@@ -5,8 +5,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
+import { step } from "@blockr/ui/stubs";
 import { stubOutputHost } from "../../stubs/index.ts";
-import { mountReact, step } from "../../testing/react.ts";
+import { mountReact } from "../../testing/react.ts";
 import type { OutputFixtures, TextOutput } from "../../types/outputs.ts";
 import * as basicText from "./index.tsx";
 

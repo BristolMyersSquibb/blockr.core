@@ -83,7 +83,7 @@ export function BlocksSection({ core }: { core: CoreApi }): ReactElement {
                   cells: [
                     { content: <span className="bc:font-medium">{block.name}</span>, className: WRAP },
                     { content: block.id, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
-                    { content: block.cls, className: `${WRAP} bc:text-text-muted` },
+                    { content: block.cls, className: `${WRAP} bc:text-muted-foreground` },
                   ],
                 }))}
               />
