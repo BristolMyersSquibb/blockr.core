@@ -116,8 +116,8 @@
 // 2. Where it names a package at another version than the page loaded, core
 //    asks for the page to be reloaded, through a notification that each board
 //    that opens raises again while the versions differ, and goes on with the
-//    reply it used before: for the modules and renderers it loads, and for the
-//    board that opens next. So it loads no module of that package from the new
+//    reply it used before: for the modules it loads, and for the board that
+//    opens next. So it loads no module of that package from the new
 //    reply. The loader imports no module of that package that it has not
 //    imported already, rather than load a second copy of the package.
 // 3. Otherwise core goes on with the new reply.
@@ -323,8 +323,8 @@ export function start(options: StartOptions): Started {
 
   // The first reply to hello, whose locks hold for the page. And the latest
   // reply that names no package at another version than the page loaded,
-  // whose modules and renderers core uses, and with which a board that opens
-  // later starts core again.
+  // whose modules core uses, and with which a board that opens later starts
+  // core again.
   let first: HelloReply | undefined;
   let latest: HelloReply | undefined;
   // The version of each package that the page loaded, from the replies that
@@ -438,9 +438,9 @@ export function start(options: StartOptions): Started {
     opening.noted("hello", helloSent ?? end, end);
   }
 
-  // Makes the reply the one whose modules and renderers core uses, and with
-  // which the board that opens next starts, and keeps the versions of the
-  // packages that it names as those the page loaded.
+  // Makes the reply the one whose modules core uses, and with which the board
+  // that opens next starts, and keeps the versions of the packages that it
+  // names as those the page loaded.
   function adopt(reply: HelloReply): void {
     latest = reply;
     for (const [pkg, version] of Object.entries(reply.packages)) {
@@ -614,7 +614,6 @@ export function start(options: StartOptions): Started {
       blockrOptions,
       randId,
       lock: (first ?? reply).lock,
-      renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
       options: reply.options,
       notifications,

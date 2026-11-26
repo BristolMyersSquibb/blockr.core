@@ -1,4 +1,4 @@
-// A stub of the host of a board option's UI or renderer, which holds the
+// A stub of the host of a board option's UI, which holds the
 // board option's value, keeps a record of what the module submitted and
 // answers the board option's requests from the answers a test gives.
 

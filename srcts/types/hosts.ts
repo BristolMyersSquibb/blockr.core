@@ -1,7 +1,7 @@
 // The hosts that core gives the modules it mounts inside a frontend's layout,
 // each narrowed to the one thing the module draws: a block's UI gets a
-// BlockHost, a board option's UI or renderer an OptionHost, and an output's
-// renderer an OutputHost. A module gets everything it shares with the page
+// BlockHost, a board option's UI an OptionHost, and an output's renderer an
+// OutputHost. A module gets everything it shares with the page
 // through its host, but for a library it imports as it loads, such as React
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 //
@@ -21,7 +21,7 @@ export type State = Readonly<Record<string, Json>>;
 
 // What a module that core mounts exports as its default, beside the JS API
 // major it was built against, as `export const api = 1`: a block class's UI
-// module, a board option's UI or renderer, or an output's renderer. Core calls
+// module, a board option's UI, or an output's renderer. Core calls
 // render() whenever it mounts the module, with the element to draw in, the
 // host, and a signal that it aborts when it unmounts the module. The render()
 // function may be async and may return its cleanup, which core runs when it
@@ -36,8 +36,8 @@ export interface BlockModule<S extends State = State> {
   render(args: { el: HTMLElement; host: BlockHost<S>; signal: AbortSignal }): Rendered;
 }
 
-// A board option's UI, or the renderer that the app names for it, reads its
-// own board option's value alone, so it names no board options.
+// A board option's UI reads its own board option's value alone, so it names no
+// board options.
 export interface OptionModule<V extends Json = Json> {
   render(args: { el: HTMLElement; host: OptionHost<V>; signal: AbortSignal }): Rendered;
 }
@@ -144,8 +144,7 @@ export interface OptionHost<V extends Json = Json> {
   // unless it names another board object, and holds until the function that
   // it returns runs or the mount ends.
   notify(notification: Raised): () => void;
-  // A log whose lines name the package of the module: the renderer's, or else
-  // the package that defines the board option.
+  // A log whose lines name the package that defines the board option.
   readonly log: Log;
 }
 

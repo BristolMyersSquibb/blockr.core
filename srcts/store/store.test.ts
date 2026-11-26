@@ -12,6 +12,7 @@ import type { PluginModule } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, StoreError } from "./index.ts";
+import { createRegistrations } from "./registrations.ts";
 import type {
   Change,
   Delta,
@@ -58,10 +59,19 @@ function pluginState(board: Board, plugin: string): unknown {
 // What draws a plugin of a class whose UI no test here draws.
 const drawn: PluginModule = { render: () => undefined };
 
+// The types of the update and the afterStep that a plugin class gives in its
+// state.
+type Update = NonNullable<NonNullable<PluginClass["state"]>["update"]>;
+type AfterStep = NonNullable<NonNullable<PluginClass["state"]>["afterStep"]>;
+
+// The plugin classes below are checked with `satisfies`, so that TypeScript
+// knows that each has a state, which a test spreads into a class of its own.
+
 // The dock's plugin class, a frontend.
-// Its update drops a removed block's panels from the views of its plugin, the
-// last first, so that each index still names the panel it names on the board.
-const dock: PluginClass = {
+// The update of its state drops a removed block's panels from the views of its
+// plugin, the last first, so that each index still names the panel it names
+// on the board.
+const dock = {
   id: "blockr.dock-dock_plugin",
   frontend: drawn,
   state: {
@@ -82,23 +92,24 @@ const dock: PluginClass = {
       additionalProperties: false,
     },
     default: { views: {} },
-  },
-  update(delta, board, plugin) {
-    const gone = new Set(delta.blocks?.rm ?? []);
-    const patches: Patch[] = [];
-    for (const [view, { panels }] of Object.entries((pluginState(board, plugin) as DockState).views)) {
-      for (let i = panels.length - 1; i >= 0; i--) {
-        if (gone.has(panels[i] ?? "")) {
-          patches.push({ op: "remove", path: `/plugins/${plugin}/views/${view}/panels/${String(i)}` });
+    update(delta, board, plugin) {
+      const gone = new Set(delta.blocks?.rm ?? []);
+      const patches: Patch[] = [];
+      for (const [view, { panels }] of Object.entries((pluginState(board, plugin) as DockState).views)) {
+        for (let i = panels.length - 1; i >= 0; i--) {
+          if (gone.has(panels[i] ?? "")) {
+            patches.push({ op: "remove", path: `/plugins/${plugin}/views/${view}/panels/${String(i)}` });
+          }
         }
       }
-    }
-    return patches;
+      return patches;
+    },
   },
-};
+} satisfies PluginClass;
 
-// The DAG's plugin class, whose update drops a removed block's position.
-const dag: PluginClass = {
+// The DAG's plugin class. The update of its state drops a removed block's
+// position.
+const dag = {
   id: "blockr.dag-dag_plugin",
   ui: drawn,
   state: {
@@ -108,14 +119,14 @@ const dag: PluginClass = {
       required: ["positions"],
     },
     default: { positions: {} },
+    update(delta, board, plugin) {
+      const gone = new Set(delta.blocks?.rm ?? []);
+      return Object.keys((pluginState(board, plugin) as DagState).positions)
+        .filter((id) => gone.has(id))
+        .map((id) => ({ op: "remove", path: `/plugins/${plugin}/positions/${id}` }));
+    },
   },
-  update(delta, board, plugin) {
-    const gone = new Set(delta.blocks?.rm ?? []);
-    return Object.keys((pluginState(board, plugin) as DagState).positions)
-      .filter((id) => gone.has(id))
-      .map((id) => ({ op: "remove", path: `/plugins/${plugin}/positions/${id}` }));
-  },
-};
+} satisfies PluginClass;
 
 // The afterStep of the DAG's class: it places each block that the step adds
 // and that has no position yet. A block goes one rank after the first block
@@ -138,7 +149,7 @@ function placeAdded(board: Board, before: Board, plugin: string): Patch[] {
 
 // A class of notes on blocks, by block id, a removed block's note going with
 // it.
-const noted: PluginClass = {
+const noted = {
   id: "blockr.notes-notes_plugin",
   ui: drawn,
   state: {
@@ -147,14 +158,14 @@ const noted: PluginClass = {
       properties: { notes: { type: "object", additionalProperties: { type: "string" } } },
     },
     default: { notes: {} },
+    update(delta, board, plugin) {
+      const { notes } = pluginState(board, plugin) as NotesState;
+      return (delta.blocks?.rm ?? [])
+        .filter((id) => Object.hasOwn(notes, id))
+        .map((id) => ({ op: "remove", path: `/plugins/${plugin}/notes/${id}` }));
+    },
   },
-  update(delta, board, plugin) {
-    const { notes } = pluginState(board, plugin) as NotesState;
-    return (delta.blocks?.rm ?? [])
-      .filter((id) => Object.hasOwn(notes, id))
-      .map((id) => ({ op: "remove", path: `/plugins/${plugin}/notes/${id}` }));
-  },
-};
+} satisfies PluginClass;
 
 // A storage plugin's class, whose controls save boards to a store of its own.
 function storage(id: string): PluginClass {
@@ -255,11 +266,11 @@ function docked(
 // A store that holds the board of a dock app whose DAG places what each step
 // adds, through the afterStep given, as docked() opens it.
 function placing(
-  afterStep: NonNullable<PluginClass["afterStep"]> = placeAdded,
+  afterStep: AfterStep = placeAdded,
   setup?: (store: Store) => void,
   replied: HelloReply = docking,
 ): Promise<Store> {
-  return docked(setup, { ...dag, afterStep }, replied);
+  return docked(setup, { ...dag, state: { ...dag.state, afterStep } }, replied);
 }
 
 // The deltas of a batch that adds block g and then links block b to it, as
@@ -922,10 +933,12 @@ describe("opening a board", () => {
         },
       },
     );
-    await expect(migrating.check(file({}))).rejects.toThrow(
-      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
-    );
+    const failure = 'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.';
+    const reported = logged();
+    await expect(migrating.check(file({}))).rejects.toThrow(failure);
+    reported.restore();
     expect(migrating.hasBoard()).toBe(false);
+    expect(reported.errors().map((line) => line.message)).toEqual([failure]);
   });
 
   test("reads the board that opening a JSON board's text would give, and what it would drop, holding nothing", async () => {
@@ -1116,14 +1129,17 @@ describe("migrations", () => {
   // under `layout`.
   const migrating: PluginClass = {
     ...dock,
-    migrate(state, version) {
-      const { views } = state as { readonly views: Readonly<Record<string, { layout?: string[] }>> };
-      if (version >= 3) return state;
-      return {
-        views: Object.fromEntries(
-          Object.entries(views).map(([id, view]) => [id, { panels: view.layout ?? [] }]),
-        ),
-      };
+    state: {
+      ...dock.state,
+      migrate(state, version) {
+        const { views } = state as { readonly views: Readonly<Record<string, { layout?: string[] }>> };
+        if (version >= 3) return state;
+        return {
+          views: Object.fromEntries(
+            Object.entries(views).map(([id, view]) => [id, { panels: view.layout ?? [] }]),
+          ),
+        };
+      },
     },
   };
 
@@ -1194,9 +1210,11 @@ describe("migrations", () => {
     const failing = store(() => {
       throw new Error("The n is unreadable.");
     });
-    await expect(failing.read(old)).rejects.toThrow(
-      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
-    );
+    const failure = 'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.';
+    const reported = logged();
+    await expect(failing.read(old)).rejects.toThrow(failure);
+    reported.restore();
+    expect(reported.errors().map((line) => line.message)).toEqual([failure]);
   });
 
   test("migrates a plugin's state, given frozen, by the version that the app's plugin of its class carries, and keeps the state of a class without a migration", async () => {
@@ -1207,7 +1225,7 @@ describe("migrations", () => {
     });
     const opening = unopened(
       (store) => {
-        store.plugins.register({ ...noted, migrate });
+        store.plugins.register({ ...noted, state: { ...noted.state, migrate } });
         dockClasses(store);
       },
       withPlugins(plugin(noted, "Notes", { notes: {} }), replied, { "blockr.notes-notes_plugin": 2 }),
@@ -1243,23 +1261,32 @@ describe("migrations", () => {
     expect(head).not.toHaveBeenCalled();
   });
 
-  test("refuses to open a board that a migration fails on, or that holds a version above today's", async () => {
+  test("refuses to open a board that a migration fails on, logging what the migration threw at error and naming its class, or that holds a version above today's", async () => {
+    const unreadable = new Error("The n is unreadable.");
     const opening = store(() => {
-      throw new Error("The n is unreadable.");
+      throw unreadable;
     });
-    await expect(opening.open(old)).rejects.toThrow(
-      'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
-    );
+    const blockFailure = 'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.';
+    const reported = logged();
+    await expect(opening.open(old)).rejects.toThrow(blockFailure);
 
+    const layout = new Error("The layout is unreadable.");
     const failing = store(undefined, {
       ...dock,
-      migrate: () => {
-        throw new Error("The layout is unreadable.");
+      state: {
+        ...dock.state,
+        migrate: () => {
+          throw layout;
+        },
       },
     });
-    await expect(failing.open(old)).rejects.toThrow(
-      'The migration of the plugin class "blockr.dock-dock_plugin" failed: The layout is unreadable.',
-    );
+    const pluginFailure = 'The migration of the plugin class "blockr.dock-dock_plugin" failed: The layout is unreadable.';
+    await expect(failing.open(old)).rejects.toThrow(pluginFailure);
+    reported.restore();
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", blockFailure, unreadable, { "blockr.block.registry_id": "blockr.core-head_block" }],
+      ["error", pluginFailure, layout, { "blockr.plugin.class_id": "blockr.dock-dock_plugin" }],
+    ]);
 
     const newer = file(
       { plugins: { [dock.id]: { views: { main: { panels: ["a", "b"] } } } } },
@@ -1377,21 +1404,28 @@ describe("migrating board option values", () => {
     );
   });
 
-  test("refuses a board that holds a value above today's version, or that a migration fails on", async () => {
+  test("refuses a board that holds a value above today's version, or that a migration fails on, logging what the migration threw at error and naming the board option", async () => {
     const opening = store();
     await expect(
       opening.open(file({ options: { seed: 1 } }, undefined, { seed: 3 })),
     ).rejects.toThrow('The board records version 3 of the value of the board option "seed", while R gives version 2.');
 
+    const unreadable = new Error("The seed is unreadable.");
     const failing = store({
       ...seed,
       migrate: () => {
-        throw new Error("The seed is unreadable.");
+        throw unreadable;
       },
     });
+    const failure = 'The migration of the board option "seed" failed: The seed is unreadable.';
+    const reported = logged();
     await expect(
       failing.open(file({ options: { seed: "x" } }, undefined, { seed: 1 })),
-    ).rejects.toThrow('The migration of the board option "seed" failed: The seed is unreadable.');
+    ).rejects.toThrow(failure);
+    reported.restore();
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", failure, unreadable, { "blockr.option.id": "seed" }],
+    ]);
 
     const empty = store({ ...seed, migrate: () => undefined as unknown as Json });
     await expect(
@@ -1487,19 +1521,17 @@ describe("applying a delta", () => {
   });
 
   test("runs the update of the class of each plugin whose state the board holds, with the id of the class", async () => {
-    const update = vi.fn<NonNullable<PluginClass["update"]>>((delta, board, id) => noted.update?.(delta, board, id) ?? []);
-    const untouched = vi.fn<NonNullable<PluginClass["update"]>>(() => []);
-    const tools: PluginClass = { id: "blockr.tools-tools_plugin", ui: drawn, update: untouched };
+    const update = vi.fn<Update>((delta, board, id) => noted.state.update(delta, board, id));
+    const untouched = vi.fn<Update>(() => []);
     const store = await opened(
       (store) => {
         store.plugins.register(dock);
-        store.plugins.register({ ...noted, update });
-        store.plugins.register(tools);
+        store.plugins.register({ ...noted, state: { ...noted.state, update } });
+        store.plugins.register({ ...dag, state: { ...dag.state, update: untouched } });
       },
       withPlugins({
         ...plugin(dock, "Dock", { views: { main: { panels: ["a", "b"] } } }),
         ...plugin(noted, "Notes", { notes: { a: "Raw", b: "First rows" } }),
-        ...plugin(tools, "Tools"),
       }),
     );
 
@@ -1507,7 +1539,7 @@ describe("applying a delta", () => {
     expect(dockViews(store.board())).toEqual({ main: { panels: ["a"] } });
     expect(pluginNotes(store.board())).toEqual({ a: "Raw" });
     // Each round calls it with the id of its class, which names its plugin,
-    // and a class whose plugin keeps no state in the board has none to update.
+    // and the board holds no state for the DAG, which the app does not run.
     expect(new Set(update.mock.calls.map(([, , id]) => id))).toEqual(new Set([noted.id]));
     expect(untouched).not.toHaveBeenCalled();
   });
@@ -1518,12 +1550,15 @@ describe("applying a delta", () => {
       (store) => {
         store.plugins.register({
           ...noted,
-          update: (delta, _board, id) =>
-            Object.keys(delta.blocks?.add ?? {}).map((block) => ({
-              op: "add",
-              path: `/plugins/${id}/notes/${block}`,
-              value: "New",
-            })),
+          state: {
+            ...noted.state,
+            update: (delta, _board, id) =>
+              Object.keys(delta.blocks?.add ?? {}).map((block) => ({
+                op: "add",
+                path: `/plugins/${id}/notes/${block}`,
+                value: "New",
+              })),
+          },
         });
       },
       withPlugins(plugin(noted, "Notes", { notes: {} })),
@@ -1543,11 +1578,14 @@ describe("applying a delta", () => {
     return (store) => {
       store.plugins.register({
         ...dock,
-        update(delta, _board, id) {
-          const placed = new Set((delta.patches ?? []).map(({ value }) => value));
-          return Object.keys(delta.blocks?.add ?? {})
-            .filter((block) => !placed.has(block))
-            .map((block) => ({ op: "add", path: `/plugins/${id}/views/main/panels/${at}`, value: block }));
+        state: {
+          ...dock.state,
+          update(delta, _board, id) {
+            const placed = new Set((delta.patches ?? []).map(({ value }) => value));
+            return Object.keys(delta.blocks?.add ?? {})
+              .filter((block) => !placed.has(block))
+              .map((block) => ({ op: "add", path: `/plugins/${id}/views/main/panels/${at}`, value: block }));
+          },
         },
       });
     };
@@ -1587,11 +1625,14 @@ describe("applying a delta", () => {
   test("rejects a delta that keeps expanding, naming the plugins whose updates kept adding", async () => {
     const counting: PluginClass = {
       id: "test.pkg-count_plugin",
-      state: { schema: { type: "object", properties: { count: { type: "integer" } } }, default: { count: 0 } },
-      update(delta, _board, id) {
-        const path = `/plugins/${id}/count`;
-        const last = delta.patches?.filter((patch) => patch.path === path).at(-1);
-        return [{ op: "replace", path, value: Number(last?.value ?? 0) + 1 }];
+      state: {
+        schema: { type: "object", properties: { count: { type: "integer" } } },
+        default: { count: 0 },
+        update(delta, _board, id) {
+          const path = `/plugins/${id}/count`;
+          const last = delta.patches?.filter((patch) => patch.path === path).at(-1);
+          return [{ op: "replace", path, value: Number(last?.value ?? 0) + 1 }];
+        },
       },
     };
     const store = await opened(
@@ -1604,12 +1645,42 @@ describe("applying a delta", () => {
     }).toThrow(new RegExp(`kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin "test\\.pkg-count_plugin"`));
   });
 
+  test("rejects a delta whose update throws, and logs what it threw at error, naming its class", async () => {
+    const thrown = new Error("The notes are unreadable.");
+    const store = await opened(
+      (store) => {
+        store.plugins.register({
+          ...noted,
+          state: {
+            ...noted.state,
+            update: () => {
+              throw thrown;
+            },
+          },
+        });
+      },
+      withPlugins(plugin(noted, "Notes", { notes: {} })),
+    );
+    const board = store.board();
+    const failure = 'The plugin class "blockr.notes-notes_plugin" failed to update the delta for its plugin: The notes are unreadable.';
+    const reported = logged();
+
+    expect(() => {
+      store.apply({ name: "Renamed" });
+    }).toThrow(failure);
+    reported.restore();
+    expect(store.board()).toBe(board);
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", failure, thrown, { "blockr.plugin.class_id": "blockr.notes-notes_plugin" }],
+    ]);
+  });
+
   test("rejects a delta that an update follows with a patch outside the state of the plugin it was called for", async () => {
     const outside = (path: string) =>
       opened(
         (store) => {
           store.plugins.register(dock);
-          store.plugins.register({ ...noted, update: () => [{ op: "replace", path, value: {} }] });
+          store.plugins.register({ ...noted, state: { ...noted.state, update: () => [{ op: "replace", path, value: {} }] } });
         },
         withPlugins({ ...plugin(dock, "Dock", { views: {} }), ...plugin(noted, "Notes", { notes: {} }) }),
       );
@@ -2061,11 +2132,14 @@ describe("the afterStep of a plugin's class", () => {
     // Notes each block that the step adds.
     const noting: PluginClass = {
       ...noted,
-      afterStep(board, before, plugin) {
-        given.push(board);
-        return Object.keys(board.blocks)
-          .filter((id) => !Object.hasOwn(before.blocks, id))
-          .map((id) => ({ op: "add", path: `/plugins/${plugin}/notes/${id}`, value: "Added" }));
+      state: {
+        ...noted.state,
+        afterStep(board, before, plugin) {
+          given.push(board);
+          return Object.keys(board.blocks)
+            .filter((id) => !Object.hasOwn(before.blocks, id))
+            .map((id) => ({ op: "add", path: `/plugins/${plugin}/notes/${id}`, value: "Added" }));
+        },
       },
     };
     const store = await placing(
@@ -2103,13 +2177,16 @@ describe("the afterStep of a plugin's class", () => {
     // brings in line with each position that a delta adds, whoever adds it.
     const reaching: PluginClass = {
       ...dag,
-      afterStep: placeAdded,
-      update(delta, board, plugin) {
-        const prefix = `/plugins/${plugin}/positions/`;
-        const added = (delta.patches ?? []).filter((patch) => patch.op === "add" && patch.path.startsWith(prefix));
-        if (added.length === 0) return [];
-        const xs = [...Object.values(dagPositions(board)), ...added.map((patch) => patch.value as unknown as Position)];
-        return [{ op: "add", path: `/plugins/${plugin}/right`, value: Math.max(...xs.map(({ x }) => x)) }];
+      state: {
+        ...dag.state,
+        afterStep: placeAdded,
+        update(delta, board, plugin) {
+          const prefix = `/plugins/${plugin}/positions/`;
+          const added = (delta.patches ?? []).filter((patch) => patch.op === "add" && patch.path.startsWith(prefix));
+          if (added.length === 0) return [];
+          const xs = [...Object.values(dagPositions(board)), ...added.map((patch) => patch.value as unknown as Position)];
+          return [{ op: "add", path: `/plugins/${plugin}/right`, value: Math.max(...xs.map(({ x }) => x)) }];
+        },
       },
     };
     const store = await docked(undefined, reaching);
@@ -2130,14 +2207,29 @@ describe("the afterStep of a plugin's class", () => {
     });
   });
 
-  const failures: [string, NonNullable<PluginClass["afterStep"]>, string | RegExp][] = [
-    [
-      "throws",
-      () => {
-        throw new Error("No room.");
-      },
-      'The afterStep of the plugin class "blockr.dag-dag_plugin" failed: No room.',
-    ],
+  test("refuses the whole step where it throws, changing nothing, and logs what it threw at error, naming its class", async () => {
+    const thrown = new Error("No room.");
+    const store = await placing(() => {
+      throw thrown;
+    });
+    const board = store.board();
+    const seen = changes(store);
+    const failure = 'The afterStep of the plugin class "blockr.dag-dag_plugin" failed: No room.';
+    const reported = logged();
+
+    expect(() => {
+      store.apply(appended);
+    }).toThrow(failure);
+    reported.restore();
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+    expect(store.canUndo()).toBe(false);
+    expect(reported.lines().map((line) => [line.level, line.message, line.error?.cause, line.attributes])).toEqual([
+      ["error", failure, thrown, { "blockr.plugin.class_id": "blockr.dag-dag_plugin" }],
+    ]);
+  });
+
+  const failures: [string, AfterStep, string | RegExp][] = [
     [
       "returns no array of patches",
       () => ({}) as unknown as Patch[],
@@ -2180,7 +2272,7 @@ describe("the afterStep of a plugin's class", () => {
 
   test("is called after an undo and a redo too, whose steps take its patches back and apply them again, over what another origin changed since", async () => {
     // Keeps the number of blocks on the board.
-    const afterStep = vi.fn<NonNullable<PluginClass["afterStep"]>>((board, _before, plugin) => {
+    const afterStep = vi.fn<AfterStep>((board, _before, plugin) => {
       const blocks = Object.keys(board.blocks).length;
       return (pluginState(board, plugin) as { readonly blocks: number }).blocks === blocks
         ? []
@@ -2191,8 +2283,8 @@ describe("the afterStep of a plugin's class", () => {
       state: {
         schema: { type: "object", properties: { blocks: { type: "integer" } }, required: ["blocks"] },
         default: { blocks: 0 },
+        afterStep,
       },
-      afterStep,
     };
     const store = await opened(
       (store) => store.plugins.register(tally),
@@ -3057,9 +3149,16 @@ describe("registering", () => {
     const register = (def: unknown) => store.plugins.register(def as PluginClass);
     const id = "blockr.dock-dock_plugin";
 
-    expect(() => register({ id, update: "views" })).toThrow(`The plugin class "${id}" has an update that is no function.`);
-    expect(() => register({ id, afterStep: [] })).toThrow(`The plugin class "${id}" has an afterStep that is no function.`);
-    expect(() => register({ id, migrate: 3 })).toThrow(`The plugin class "${id}" has a migrate that is no function.`);
+    const state = { schema: {}, default: {} };
+    expect(() => register({ id, state: { ...state, update: "views" } })).toThrow(
+      `The plugin class "${id}" has a state whose update is no function.`,
+    );
+    expect(() => register({ id, state: { ...state, afterStep: [] } })).toThrow(
+      `The plugin class "${id}" has a state whose afterStep is no function.`,
+    );
+    expect(() => register({ id, state: { ...state, migrate: 3 } })).toThrow(
+      `The plugin class "${id}" has a state whose migrate is no function.`,
+    );
     expect(() => register({ id, start: {} })).toThrow(`The plugin class "${id}" has a start that is no function.`);
     expect(() => register({ id, ui: "blockr.dock-dock" })).toThrow(`The plugin class "${id}" has a ui without a render() function.`);
     expect(() => register({ id, frontend: {} })).toThrow(`The plugin class "${id}" has a frontend without a render() function.`);
@@ -3080,6 +3179,37 @@ describe("registering", () => {
       `The plugin class "${id}" gives a state without a schema and a default.`,
     );
     expect(store.plugins.registered()).toEqual({});
+  });
+
+  test("a plugin class gives update, afterStep and migrate in its state alone, since the store calls them nowhere else", () => {
+    const store = createStoreWithCoreOptions();
+    // As a package that writes its JS without types may register it.
+    const register = (def: unknown) => store.plugins.register(def as PluginClass);
+    const { id, state } = dag;
+    const update = () => [];
+
+    // On a class without state, and on one with state alike.
+    for (const given of [{ id, ui: drawn }, { id, ui: drawn, state }]) {
+      expect(() => register({ ...given, update })).toThrow(`The plugin class "${id}" gives an update outside its state.`);
+      expect(() => register({ ...given, afterStep: update })).toThrow(
+        `The plugin class "${id}" gives an afterStep outside its state.`,
+      );
+      expect(() => register({ ...given, migrate: (old: Json) => old })).toThrow(
+        `The plugin class "${id}" gives a migrate outside its state.`,
+      );
+    }
+    expect(store.plugins.registered()).toEqual({});
+  });
+
+  test("keeps the validator of a plugin class's state, and none for a class without state", () => {
+    const registrations = createRegistrations();
+    registrations.plugins.register(dag);
+    registrations.plugins.register(storage("blockr.core-storage_plugin"));
+
+    expect(registrations.plugin(dag.id)?.validate?.({ positions: {} })).toEqual([]);
+    expect(registrations.plugin(dag.id)?.validate?.({ positions: [] })).not.toEqual([]);
+    expect(registrations.plugin("blockr.core-storage_plugin")).toBeDefined();
+    expect(registrations.plugin("blockr.core-storage_plugin")?.validate).toBeUndefined();
   });
 
   test("registered() returns the same record until a registration changes it", () => {

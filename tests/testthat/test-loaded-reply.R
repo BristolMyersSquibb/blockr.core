@@ -10,7 +10,7 @@ test_that("R tells the client what it loaded in the properties of its reply", {
   expect_named(
     reply,
     c("packages", "block_registry", "modules", "plugins", "frontend",
-      "options", "renderers")
+      "options")
   )
   expect_identical(
     json(reply$packages),
@@ -401,21 +401,6 @@ test_that("the renderer the deployment names for a family is in the entry", {
     json(reply$packages),
     "{\"blockr.core\":\"1.0.0\",\"blockr.ui\":\"1.0.0\"}"
   )
-})
-
-test_that("R names the renderers that the app names for board options", {
-
-  # The app names one for table outputs too, which R sends with each output
-  renderers <- declared_fields()$renderers
-
-  expect_named(renderers, "blockr.test-dark")
-  expect_identical(renderers[["blockr.test-dark"]]$option, "dark_mode")
-  expect_match(
-    renderers[["blockr.test-dark"]]$module,
-    "^blockr.test/js/dark.js\\?v=[0-9a-f]{8}$"
-  )
-
-  expect_identical(json(loaded_reply()$renderers), "{}")
 })
 
 test_that("R names the modules that every loaded package offers", {
