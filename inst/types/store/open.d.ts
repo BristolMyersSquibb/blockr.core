@@ -7,6 +7,7 @@ export type Dropped = {
     readonly version: string;
 } | {
     readonly block: string;
+    readonly name: string;
     readonly registry_id: string;
     readonly package: string | null;
 } | {
