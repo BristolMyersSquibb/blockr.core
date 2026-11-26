@@ -42,10 +42,10 @@ export function expand(
 
     for (const id of Object.keys(board.plugins)) {
       const def = registrations.plugin(id)?.def;
-      if (def?.update === undefined) continue;
+      if (def?.state?.update === undefined) continue;
       let patches: unknown;
       try {
-        patches = def.update(expanded, board, id);
+        patches = def.state.update(expanded, board, id);
       } catch (error) {
         failures.push(
           thrown(`The plugin class "${id}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id }),
@@ -98,10 +98,10 @@ export function afterStep(
 
   for (const id of Object.keys(board.plugins)) {
     const def = registrations.plugin(id)?.def;
-    if (def?.afterStep === undefined) continue;
+    if (def?.state?.afterStep === undefined) continue;
     let returned: unknown;
     try {
-      returned = def.afterStep(board, before, id);
+      returned = def.state.afterStep(board, before, id);
     } catch (error) {
       failures.push(thrown(`The afterStep of the plugin class "${id}" failed`, error, { "blockr.plugin.class_id": id }));
       continue;

@@ -361,7 +361,7 @@
   The generics `board_front_end()` and `board_version()` go.
   The generic `plugin_version()` gives the version of a plugin class's state, which R calls on the plugin that the class's constructor makes, and sends with each of the app's plugins in its reply to `hello`, in place of `board_classes`.
   Beside the module that it lists for each of its plugin classes and board options, a package ships the schema of the class's state or of the board option's value, as `dag.schema.json` beside `dag.js`, where it shipped one schema laid out like the board before.
-  In the client, core registers each plugin class from the default export of its module, which holds the class's `ui` or `frontend` itself and the commands that change its plugins' state, and which the store reads for the schema and the default of the state, its `update` and its `migrate`.
+  In the client, core registers each plugin class from the default export of its module, which holds the class's `ui` or `frontend` itself and the commands that change its plugins' state, and whose `state` the store reads: the schema and the default of the plugin's state, its `update` and its `migrate`.
   The store keeps the state of each plugin whose class has `state` under the ID of its class in the board's `plugins`, and nothing for any other plugin, and a change inside a plugin's state is a patch under `/plugins/{id}`.
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, and calls the `update` of the class of each plugin whose state the board holds.
   The app's plugins, which R sends in its reply to `hello`, are the plugins of every board that the app opens: opening a board keeps the state that it holds for each of them, migrating it by its class's `migrate`, drops every other state and names its plugin, and gives each other plugin of the app whose class has `state` its class's default state.
@@ -951,7 +951,8 @@
   Unlike `check()`, it reads a text under the load lock as well, since the load lock fixes only which board the app shows.
   Through `CoreApi`, core first imports the migrations of the block classes whose older states the text holds, as it does before it opens a board.
   It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
-* A plugin class may give `afterStep(board, before, plugin)`, which returns the patches to its plugin's state that follow from a step as a whole.
+* A plugin class may give `afterStep(board, before, plugin)` in its `state`.
+  It returns the patches to the plugin's state that follow from a step as a whole.
   The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.
   It gets the board that the step leaves and the board that the step started from.
   The store applies what every class returns as one more delta of the step.
@@ -1002,6 +1003,10 @@
   So `prepend_block_role` and `add_link_role` take inputs among their targets, and a board action that an app picks to play one of them names inputs in its `on` too.
   Opened on an input, the block picker and the form of Create link name the input in a line, as `The new block feeds the input "y" of "Merge".` and `A link into the input "y" of "Merge".`, in place of the field of the input.
   Where a new link goes into a variadic block, as on its next place, the block picker before the block and the form of Create link ask for the link's position among the block's links beside the name of its input, since the block takes its links by their order and by their names, as `rbind()` takes its arguments (#827).
+* A plugin class gives `update`, `afterStep` and `migrate` inside its `state`, beside the schema and the default of the plugin's state, as in `state: { schema, default, update }`.
+  The store calls them only for a plugin whose state the board holds.
+  Until now a class gave them beside `state`, so a class without state could give them too, and the store never called them.
+  The store refuses a class that gives one of them outside its `state`, and core then opens no board (#670).
 
 # blockr.core 0.1.4
 

@@ -5248,7 +5248,7 @@ function checkPlugins(board, registrations, changed, failures) {
       failures.push(`The board holds the state of a plugin of the class "${id2}", which no package registered.`);
       continue;
     }
-    if (cls.def.state === void 0) {
+    if (cls.validate === void 0) {
       failures.push(`The board holds the state of a plugin of the class "${id2}", which keeps none.`);
       continue;
     }
@@ -5746,10 +5746,10 @@ function expand(delta, board, registrations) {
     expanded = core;
     for (const id2 of Object.keys(board.plugins)) {
       const def = registrations.plugin(id2)?.def;
-      if (def?.update === void 0) continue;
+      if (def?.state?.update === void 0) continue;
       let patches2;
       try {
-        patches2 = def.update(expanded, board, id2);
+        patches2 = def.state.update(expanded, board, id2);
       } catch (error) {
         failures.push(
           thrown(`The plugin class "${id2}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id2 })
@@ -5782,10 +5782,10 @@ function afterStep(board, before, registrations) {
   const failures = [];
   for (const id2 of Object.keys(board.plugins)) {
     const def = registrations.plugin(id2)?.def;
-    if (def?.afterStep === void 0) continue;
+    if (def?.state?.afterStep === void 0) continue;
     let returned;
     try {
-      returned = def.afterStep(board, before, id2);
+      returned = def.state.afterStep(board, before, id2);
     } catch (error) {
       failures.push(thrown(`The afterStep of the plugin class "${id2}" failed`, error, { "blockr.plugin.class_id": id2 }));
       continue;
@@ -6091,14 +6091,14 @@ function migrate(board, json, reply, registrations) {
         );
         return [cls, state2];
       }
-      if (def.migrate === void 0) return [cls, state2];
+      if (def.state?.migrate === void 0) return [cls, state2];
       changed.add("plugins");
       return [
         cls,
         migratedValue(
           `The migration of the plugin class "${cls}"`,
           { "blockr.plugin.class_id": cls },
-          () => def.migrate?.(frozenCopy(state2), from)
+          () => def.state?.migrate?.(frozenCopy(state2), from)
         )
       ];
     })
@@ -6203,6 +6203,7 @@ function remove(board, gone, registrations) {
 
 // srcts/store/registrations.ts
 import { computed as computed2, signal as signal2 } from "@preact/signals-core";
+var STATE_FUNCTIONS = [["update", "an"], ["afterStep", "an"], ["migrate", "a"]];
 function createRegistrations(migration = () => void 0) {
   const classes2 = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -6233,10 +6234,13 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" is registered already.`);
     }
     const given = def;
-    for (const [member, article] of [["update", "an"], ["afterStep", "an"], ["migrate", "a"], ["start", "a"]]) {
-      if (given[member] !== void 0 && typeof given[member] !== "function") {
-        throw new Error(`The plugin class "${id2}" has ${article} ${member} that is no function.`);
+    for (const [member, article] of STATE_FUNCTIONS) {
+      if (given[member] !== void 0) {
+        throw new Error(`The plugin class "${id2}" gives ${article} ${member} outside its state.`);
       }
+    }
+    if (given.start !== void 0 && typeof given.start !== "function") {
+      throw new Error(`The plugin class "${id2}" has a start that is no function.`);
     }
     for (const member of ["ui", "frontend"]) {
       const drawn3 = given[member];
@@ -6264,11 +6268,16 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
     }
     const what = `the state of the plugin class "${id2}"`;
-    let validate = () => [];
+    let validate;
     const state2 = given.state;
     if (state2 !== void 0) {
       if (!isObject(state2) || !isObject(state2.schema) || !Object.hasOwn(state2, "default")) {
         throw new Error(`The plugin class "${id2}" gives a state without a schema and a default.`);
+      }
+      for (const [member] of STATE_FUNCTIONS) {
+        if (state2[member] !== void 0 && typeof state2[member] !== "function") {
+          throw new Error(`The plugin class "${id2}" has a state whose ${member} is no function.`);
+        }
       }
       validate = compile(what, state2.schema);
       checkInitial(what, validate, state2.default, "default");

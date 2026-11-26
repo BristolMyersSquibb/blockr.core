@@ -206,12 +206,12 @@ function migrate(
         );
         return [cls, state];
       }
-      if (def.migrate === undefined) return [cls, state];
+      if (def.state?.migrate === undefined) return [cls, state];
       changed.add("plugins");
       return [
         cls,
         migratedValue(`The migration of the plugin class "${cls}"`, { "blockr.plugin.class_id": cls }, () =>
-          def.migrate?.(frozenCopy(state), from),
+          def.state?.migrate?.(frozenCopy(state), from),
         ),
       ];
     }),
