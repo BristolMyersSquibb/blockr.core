@@ -11,12 +11,13 @@
 // gives what follows from the step as a whole, which the store applies as one
 // more delta of the step (afterStep(), below).
 // What either function throws refuses the delta or the step, and the store
-// logs it at error (thrown(), below).
+// logs it at error, whoever applies the deltas: the command registry, an undo
+// or a redo, or a plugin itself (thrown(), ./error.ts).
 
-import { log } from "../log/index.ts";
 import type { Board, PluginClassId, Stack, StackId } from "../types/board.ts";
-import { errorMessage, jsonEqual, own, quoted } from "../util/index.ts";
+import { jsonEqual, own, quoted } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
+import { thrown } from "./error.ts";
 import { malformed, overlap, segmentsFromPath } from "./patch.ts";
 import type { Registrations } from "./registrations.ts";
 
@@ -46,7 +47,9 @@ export function expand(
       try {
         patches = def.state.update(expanded, board, id);
       } catch (error) {
-        failures.push(thrown(id, `The plugin class "${id}" failed to update the delta for its plugin`, error));
+        failures.push(
+          thrown(`The plugin class "${id}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id }),
+        );
         continue;
       }
       const wrong = misplaced(id, patches, `The plugin class "${id}" updated the delta for its plugin with`);
@@ -100,7 +103,7 @@ export function afterStep(
     try {
       returned = def.state.afterStep(board, before, id);
     } catch (error) {
-      failures.push(thrown(id, `The afterStep of the plugin class "${id}" failed`, error));
+      failures.push(thrown(`The afterStep of the plugin class "${id}" failed`, error, { "blockr.plugin.class_id": id }));
       continue;
     }
     const wrong = misplaced(id, returned, `The afterStep of the plugin class "${id}" returned`);
@@ -149,20 +152,6 @@ function expandCore(delta: Delta, board: Board): Delta {
       ? {}
       : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }),
   };
-}
-
-// The failure for what the `update` or the `afterStep` of the plugin class `id`
-// threw, which `of` starts. The store logs it at error as it catches it, as
-// core logs every failure that it catches, with what was thrown as the cause
-// and the class's id in `blockr.plugin.class_id`
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#logging).
-// The refusal holds the message alone, so the stack reaches the log only here,
-// whoever applies the deltas: the command registry, an undo or a redo, or a
-// plugin itself.
-function thrown(id: PluginClassId, of: string, error: unknown): string {
-  const failure = `${of}: ${errorMessage(error)}`;
-  log.error(new Error(failure, { cause: error }), { "blockr.plugin.class_id": id });
-  return failure;
 }
 
 // What is wrong with what the `update` or the `afterStep` of the plugin class
