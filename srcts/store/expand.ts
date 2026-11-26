@@ -10,10 +10,14 @@
 // Once the last delta of a step is in, the `afterStep` of each plugin's class
 // gives what follows from the step as a whole, which the store applies as one
 // more delta of the step (afterStep(), below).
+// What either function throws refuses the delta or the step, and the store
+// logs it at error, whoever applies the deltas: the command registry, an undo
+// or a redo, or a plugin itself (thrown(), ./error.ts).
 
 import type { Board, PluginClassId, Stack, StackId } from "../types/board.ts";
-import { errorMessage, jsonEqual, own, quoted } from "../util/index.ts";
+import { jsonEqual, own, quoted } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
+import { thrown } from "./error.ts";
 import { malformed, overlap, segmentsFromPath } from "./patch.ts";
 import type { Registrations } from "./registrations.ts";
 
@@ -38,12 +42,14 @@ export function expand(
 
     for (const id of Object.keys(board.plugins)) {
       const def = registrations.plugin(id)?.def;
-      if (def?.update === undefined) continue;
+      if (def?.state?.update === undefined) continue;
       let patches: unknown;
       try {
-        patches = def.update(expanded, board, id);
+        patches = def.state.update(expanded, board, id);
       } catch (error) {
-        failures.push(`The plugin class "${id}" failed to update the delta for its plugin: ${errorMessage(error)}`);
+        failures.push(
+          thrown(`The plugin class "${id}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id }),
+        );
         continue;
       }
       const wrong = misplaced(id, patches, `The plugin class "${id}" updated the delta for its plugin with`);
@@ -92,12 +98,12 @@ export function afterStep(
 
   for (const id of Object.keys(board.plugins)) {
     const def = registrations.plugin(id)?.def;
-    if (def?.afterStep === undefined) continue;
+    if (def?.state?.afterStep === undefined) continue;
     let returned: unknown;
     try {
-      returned = def.afterStep(board, before, id);
+      returned = def.state.afterStep(board, before, id);
     } catch (error) {
-      failures.push(`The afterStep of the plugin class "${id}" failed: ${errorMessage(error)}`);
+      failures.push(thrown(`The afterStep of the plugin class "${id}" failed`, error, { "blockr.plugin.class_id": id }));
       continue;
     }
     const wrong = misplaced(id, returned, `The afterStep of the plugin class "${id}" returned`);

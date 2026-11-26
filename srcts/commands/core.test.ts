@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
-import { isId, StoreError } from "../store/index.ts";
+import { isId } from "../store/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
 import { hello, openedStore, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
@@ -189,7 +189,7 @@ describe("blocks", () => {
       lock: { board: false, load: false },
       mintId: () => "calm_heron",
       blockrOption: () => Promise.resolve(undefined),
-      refusal: (failures) => new CommandError("The test refused", failures),
+      refusal: (failures) => new CommandError({ command: "blockr.core-add_block", by: "command", failures }),
     };
     expect(() => run?.(store.board(), { registry_id: "blockr.dplyr-filter_block" }, context)).toThrow(
       'The command "blockr.core-add_block" refused to run',
@@ -362,7 +362,7 @@ describe("links", () => {
     );
     // A block that the board lacks fails the preflight without a sentence.
     await expect(commands.run("blockr.core-add_link", { from: "d", to: "zz" })).rejects.toMatchObject({
-      preflight: false,
+      by: "preflight",
     });
   });
 
@@ -748,7 +748,7 @@ describe("the board", () => {
 
     expect(commands.preflight("blockr.core-set_option", { id: "zoom", value: 2 })).toBe(false);
     const refused = commands.run("blockr.core-set_option", { id: "n_rows", value: -1 });
-    await expect(refused).rejects.toThrow(StoreError);
+    await expect(refused).rejects.toMatchObject({ by: "store" });
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
   });
 });
@@ -828,12 +828,12 @@ describe("plugins", () => {
         plugin: dag.id,
         patches: [{ op: "add", path: "/positions/b", value: { x: "left", y: 0 } }],
       }),
-    ).rejects.toThrow(StoreError);
+    ).rejects.toMatchObject({ by: "store" });
     // Removing the whole state would remove what the board holds for the
     // plugin, which the app runs all the same.
     await expect(
       commands.run("blockr.core-set_plugin_state", { plugin: dag.id, patches: [{ op: "remove", path: "" }] }),
-    ).rejects.toThrow(StoreError);
+    ).rejects.toMatchObject({ by: "store" });
     await expect(
       commands.run("blockr.core-set_plugin_state", { plugin: dag.id, patches: [{ op: "move", path: "/positions" }] }),
     ).rejects.toThrow(/The args/);

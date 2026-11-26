@@ -5,9 +5,4 @@
     Output
       <renderer> blockr.ui-preview
       Requests: "labels"
-    Code
-      rows
-    Output
-      <renderer> blockr.test-rows
-      Board option: n_rows
 

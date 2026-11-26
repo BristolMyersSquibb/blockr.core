@@ -104,8 +104,6 @@ export interface HelloReply {
   // The board options that the packages loaded in R list, core's among them,
   // each under its id.
   options: Record<OptionId, OptionEntry>;
-  // The renderers that the app names for board options, by the renderer's id.
-  renderers: Record<string, Renderer>;
   // The locks that the app sets.
   lock: Lock;
   // The opening board, as a JSON board: the one an app script built, which R
@@ -142,15 +140,6 @@ export interface OptionEntry {
   module: string;
   css?: string;
   version: number;
-}
-
-// A renderer that the app names for a board option, which draws the board
-// option's value in place of its UI, while the renderer of an output comes in
-// the output itself.
-export interface Renderer {
-  module: string;
-  css?: string;
-  option: OptionId;
 }
 
 // The locks that the app sets, each true where the app sets it: the board lock,

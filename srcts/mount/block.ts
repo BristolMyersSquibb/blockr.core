@@ -41,7 +41,6 @@
 // aborts as the next board opens, which ends every mount.
 
 import type { Commands } from "../commands/index.ts";
-import type { Renderer } from "../protocol/index.ts";
 import { unevaluated } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Option, Store } from "../store/index.ts";
@@ -94,9 +93,8 @@ export interface Mounts {
   // drawn by the renderer that R names in it, until the returned cleanup runs
   // (./output.ts). It throws where the board holds no such block.
   mountOutput(el: HTMLElement, block: BlockId): () => void;
-  // Mounts a board option's UI, or the renderer that the app names for it,
-  // until the returned cleanup runs (./option.ts). It throws where no package
-  // registers such a board option.
+  // Mounts a board option's UI until the returned cleanup runs (./option.ts).
+  // It throws where no package registers such a board option.
   mountOption(el: HTMLElement, option: OptionId): () => void;
   // Adds the board options to the board, each with its definition's default
   // where the board lacks it, and resolves with why any did not go onto the
@@ -123,9 +121,6 @@ export interface MountsOptions {
   readonly commands: Pick<Commands, "run">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "inputs" | "request" | "status" | "subscribe">;
   readonly loader: Loader;
-  // The renderers that the app names for board options, by the renderer's id,
-  // as R's reply to `hello` gives them. There are none unless given.
-  readonly renderers?: () => Readonly<Record<string, Renderer>>;
   // Hears each event that an output's renderer emits.
   readonly emit?: (event: OutputEvent) => void;
   // Measures an output's element, through the DOM unless given.
@@ -177,7 +172,6 @@ export function createMounts(options: MountsOptions): Mounts {
   const shelves = createShelves();
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? ((): void => undefined);
-  const renderers = options.renderers ?? ((): Readonly<Record<string, Renderer>> => ({}));
   const raise = options.raise ?? raiseNothing;
   const replied = options.replied ?? repliedNothing;
   const notify = options.notify ?? notifyNothing;
@@ -422,7 +416,7 @@ export function createMounts(options: MountsOptions): Mounts {
       ),
     mountOption: (el, option) =>
       mountOption(
-        { store, commands, scheduler, loader, renderers, replaced, keepOptions, raise, replied, notify, refused, optionPackage },
+        { store, commands, scheduler, replaced, keepOptions, raise, replied, notify, refused, optionPackage },
         el,
         option,
       ),

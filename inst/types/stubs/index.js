@@ -2880,15 +2880,13 @@ function announceTo(listeners, ...args) {
 
 // srcts/mount/option.ts
 function mountOption(deps, el, option) {
-  const { store, loader } = deps;
+  const { store } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
   const def = own(store.options.registered(), option);
   if (def === void 0) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const chosen = Object.entries(deps.renderers()).find(([, renderer2]) => renderer2.option === option);
-  const [id2, renderer] = chosen ?? [];
-  const module = id2 === void 0 ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id2), id2);
+  const module = sourceModule({ option }, deps.optionPackage(option));
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
@@ -2972,19 +2970,6 @@ function mountOption(deps, el, option) {
     el.replaceChildren();
   }
   void (async () => {
-    let mod;
-    try {
-      if (renderer === void 0 || id2 === void 0) {
-        mod = def.ui;
-      } else {
-        const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule(await loader.load(source, packageFromId(id2)), renderer.module, packageFromId(id2));
-      }
-    } catch (error) {
-      fail(error);
-      return;
-    }
-    if (ended()) return;
     const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
     const failures = await kept.added;
@@ -2995,15 +2980,12 @@ function mountOption(deps, el, option) {
       return;
     }
     try {
-      const rendered = await mod.render({ el, host, signal: controller.signal });
+      const rendered = await def.ui.render({ el, host, signal: controller.signal });
       if (typeof rendered !== "function") return;
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const why = `failed in render(): ${errorMessage(error)}`;
-      fail(
-        renderer === void 0 || id2 === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageFromId(id2), why, { cause: error })
-      );
+      fail(new Error(`The UI of the board option "${option}" failed in render(): ${errorMessage(error)}`, { cause: error }));
     }
   })();
   function fail(error) {
@@ -3628,7 +3610,6 @@ function createMounts(options) {
   const shelves = createShelves();
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
-  const renderers = options.renderers ?? (() => ({}));
   const raise = options.raise ?? raiseNothing;
   const replied2 = options.replied ?? repliedNothing;
   const notify = options.notify ?? notifyNothing;
@@ -3813,7 +3794,7 @@ function createMounts(options) {
       block
     ),
     mountOption: (el, option) => mountOption(
-      { store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
+      { store, commands, scheduler, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
       el,
       option
     ),
@@ -5267,7 +5248,7 @@ function checkPlugins(board, registrations, changed, failures) {
       failures.push(`The board holds the state of a plugin of the class "${id2}", which no package registered.`);
       continue;
     }
-    if (cls.def.state === void 0) {
+    if (cls.validate === void 0) {
       failures.push(`The board holds the state of a plugin of the class "${id2}", which keeps none.`);
       continue;
     }
@@ -5747,6 +5728,11 @@ var StoreError = class extends Error {
     this.failures = failures;
   }
 };
+function thrown(of, error, attributes) {
+  const failure = `${of}: ${errorMessage(error)}`;
+  log.error(new Error(failure, { cause: error }), attributes);
+  return failure;
+}
 
 // srcts/store/expand.ts
 var ROUNDS = 10;
@@ -5760,12 +5746,14 @@ function expand(delta, board, registrations) {
     expanded = core;
     for (const id2 of Object.keys(board.plugins)) {
       const def = registrations.plugin(id2)?.def;
-      if (def?.update === void 0) continue;
+      if (def?.state?.update === void 0) continue;
       let patches2;
       try {
-        patches2 = def.update(expanded, board, id2);
+        patches2 = def.state.update(expanded, board, id2);
       } catch (error) {
-        failures.push(`The plugin class "${id2}" failed to update the delta for its plugin: ${errorMessage(error)}`);
+        failures.push(
+          thrown(`The plugin class "${id2}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id2 })
+        );
         continue;
       }
       const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
@@ -5794,12 +5782,12 @@ function afterStep(board, before, registrations) {
   const failures = [];
   for (const id2 of Object.keys(board.plugins)) {
     const def = registrations.plugin(id2)?.def;
-    if (def?.afterStep === void 0) continue;
+    if (def?.state?.afterStep === void 0) continue;
     let returned;
     try {
-      returned = def.afterStep(board, before, id2);
+      returned = def.state.afterStep(board, before, id2);
     } catch (error) {
-      failures.push(`The afterStep of the plugin class "${id2}" failed: ${errorMessage(error)}`);
+      failures.push(thrown(`The afterStep of the plugin class "${id2}" failed`, error, { "blockr.plugin.class_id": id2 }));
       continue;
     }
     const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
@@ -6105,11 +6093,15 @@ function migrate(board, json, reply, registrations) {
         );
         return [cls, state2];
       }
-      if (def.migrate === void 0) return [cls, state2];
+      if (def.state?.migrate === void 0) return [cls, state2];
       changed.add("plugins");
       return [
         cls,
-        migratedValue(`The migration of the plugin class "${cls}"`, () => def.migrate?.(frozenCopy(state2), from))
+        migratedValue(
+          `The migration of the plugin class "${cls}"`,
+          { "blockr.plugin.class_id": cls },
+          () => def.state?.migrate?.(frozenCopy(state2), from)
+        )
       ];
     })
   );
@@ -6129,6 +6121,7 @@ function migrate(board, json, reply, registrations) {
       changed.add("blocks");
       const state2 = migrated(
         `The migration of the block class "${block.registry_id}"`,
+        { "blockr.block.registry_id": block.registry_id },
         () => fn(frozenCopy(block.state), from)
       );
       return [id2, { ...block, state: state2 }];
@@ -6151,7 +6144,11 @@ function migrate(board, json, reply, registrations) {
       changed.add("options");
       return [
         id2,
-        migratedValue(`The migration of the board option "${id2}"`, () => def.migrate?.(frozenCopy(value2), from))
+        migratedValue(
+          `The migration of the board option "${id2}"`,
+          { "blockr.option.id": id2 },
+          () => def.migrate?.(frozenCopy(value2), from)
+        )
       ];
     })
   );
@@ -6159,17 +6156,17 @@ function migrate(board, json, reply, registrations) {
   if (changed.size === 0) return board;
   return { ...board, plugins, blocks, options };
 }
-function migrated(what, fn) {
-  const out = migratedValue(what, fn);
+function migrated(what, attributes, fn) {
+  const out = migratedValue(what, attributes, fn);
   if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
   return out;
 }
-function migratedValue(what, fn) {
+function migratedValue(what, attributes, fn) {
   let out;
   try {
     out = fn();
   } catch (error) {
-    throw new StoreError(refused, [`${what} failed: ${errorMessage(error)}`]);
+    throw new StoreError(refused, [thrown(`${what} failed`, error, attributes)]);
   }
   if (out === void 0) throw new StoreError(refused, [`${what} returned nothing.`]);
   return frozenCopy(out);
@@ -6211,6 +6208,7 @@ function remove(board, gone, registrations) {
 
 // srcts/store/registrations.ts
 import { computed as computed2, signal as signal2 } from "@preact/signals-core";
+var STATE_FUNCTIONS = [["update", "an"], ["afterStep", "an"], ["migrate", "a"]];
 function createRegistrations(migration = () => void 0) {
   const classes2 = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -6241,10 +6239,13 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" is registered already.`);
     }
     const given = def;
-    for (const [member, article] of [["update", "an"], ["afterStep", "an"], ["migrate", "a"], ["start", "a"]]) {
-      if (given[member] !== void 0 && typeof given[member] !== "function") {
-        throw new Error(`The plugin class "${id2}" has ${article} ${member} that is no function.`);
+    for (const [member, article] of STATE_FUNCTIONS) {
+      if (given[member] !== void 0) {
+        throw new Error(`The plugin class "${id2}" gives ${article} ${member} outside its state.`);
       }
+    }
+    if (given.start !== void 0 && typeof given.start !== "function") {
+      throw new Error(`The plugin class "${id2}" has a start that is no function.`);
     }
     for (const member of ["ui", "frontend"]) {
       const drawn3 = given[member];
@@ -6272,11 +6273,16 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
     }
     const what = `the state of the plugin class "${id2}"`;
-    let validate = () => [];
+    let validate;
     const state2 = given.state;
     if (state2 !== void 0) {
       if (!isObject(state2) || !isObject(state2.schema) || !Object.hasOwn(state2, "default")) {
         throw new Error(`The plugin class "${id2}" gives a state without a schema and a default.`);
+      }
+      for (const [member] of STATE_FUNCTIONS) {
+        if (state2[member] !== void 0 && typeof state2[member] !== "function") {
+          throw new Error(`The plugin class "${id2}" has a state whose ${member} is no function.`);
+        }
       }
       validate = compile(what, state2.schema);
       checkInitial(what, validate, state2.default, "default");
@@ -7191,26 +7197,48 @@ function command(def) {
 
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
+  // The id of the command that was stopped, such as
+  // "blockr.core-remove_block". It is left out only where the store refused a
+  // batch as a whole, after the dry run of each command's deltas had passed,
+  // which the first line says. There, a plugin class's afterStep failed, or
+  // returned what the store refuses, and the failures name the class.
+  command;
+  // What stopped the command:
+  // - "registry": the command registry refused to run it, as where no command
+  //   has its id, its args fail their schema or the store holds no board.
+  // - "preflight": its preflight() answered false. The assistant's edit tool
+  //   reads this to tell the model what to check.
+  // - "command": the command refused, throwing the refusal() of its context.
+  // - "code": the command's own preflight(), prepare() or run() threw
+  //   anything else. That is the cause, and the command registry has logged
+  //   it at error.
+  // - "store": the store refused its deltas. The StoreError is the cause.
+  by;
   failures;
   // The command's place in the batch that run() or plan() was given, counted
-  // from 0, where the command refused as one of a batch.
+  // from 0, where it was stopped as one of a batch.
   index;
-  // False where the command failed its preflight, its preflight() answering
-  // false, and left out otherwise, as a command's `undo` is false only where it
-  // takes no undo step. The assistant's edit tool reads it to tell the model
-  // what to check. A preflight() that throws the refusal() of its context
-  // leaves it out, since that refusal says why.
-  preflight;
-  constructor(message, failures, options) {
-    super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
+  constructor(fields) {
+    super(
+      [firstLine(fields), ...fields.failures.map((failure) => `- ${failure}`)].join("\n"),
+      fields.cause === void 0 ? void 0 : { cause: fields.cause }
+    );
     this.name = "CommandError";
-    this.failures = failures;
-    if (options?.index !== void 0) this.index = options.index;
-    if (options?.preflight === false) this.preflight = false;
+    this.by = fields.by;
+    this.failures = fields.failures;
+    if (fields.command !== void 0) this.command = fields.command;
+    if (fields.index !== void 0) this.index = fields.index;
   }
 };
-function refusal(id2, failures, options) {
-  return new CommandError(`The command "${id2}" refused to run`, failures, options);
+function firstLine({ command: command2, by, index }) {
+  if (command2 === void 0) return "The store refused the batch as a whole, after the deltas of each command had passed";
+  if (index !== void 0) return `The batch was refused at command ${String(index + 1)}, "${command2}"`;
+  if (by === "code") return `The command "${command2}" failed`;
+  if (by === "store") return `The store refused the deltas of the command "${command2}"`;
+  return `The command "${command2}" refused to run`;
+}
+function refusal(id2, failures, by = "command") {
+  return new CommandError({ command: id2, by, failures });
 }
 var DROPPED = "A board opened while it prepared, which drops it.";
 function createCommands(store, options = {}) {
@@ -7258,21 +7286,21 @@ function createCommands(store, options = {}) {
   function lookup(id2, given) {
     const item2 = commands.value.get(id2);
     if (item2 === void 0) {
-      throw refusal(id2, [`No command "${id2}" is registered.`]);
+      throw refusal(id2, [`No command "${id2}" is registered.`], "registry");
     }
     const args = given ?? {};
     const failures = item2.validate?.(args) ?? [];
     if (failures.length > 0) {
-      throw refusal(id2, failures.map((failure) => `The args ${failure}`));
+      throw refusal(id2, failures.map((failure) => `The args ${failure}`), "registry");
     }
     return { item: item2, args };
   }
   function current2(id2) {
     if (ended()) {
-      throw refusal(id2, ["Another board opened in a new store, so this command registry runs no command."]);
+      throw refusal(id2, ["Another board opened in a new store, so this command registry runs no command."], "registry");
     }
     if (!store.hasBoard()) {
-      throw refusal(id2, ["The store holds no board until it opens one."]);
+      throw refusal(id2, ["The store holds no board until it opens one."], "registry");
     }
     return store.board();
   }
@@ -7282,7 +7310,7 @@ function createCommands(store, options = {}) {
       throw refusal(
         command2.id,
         [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
-        { preflight: false }
+        "preflight"
       );
     }
   }
@@ -7300,7 +7328,7 @@ function createCommands(store, options = {}) {
   async function prepared(item2, board, args) {
     const { command: command2 } = item2;
     const input2 = await prepare(item2, board, args);
-    if (ended()) throw refusal(command2.id, [DROPPED]);
+    if (ended()) throw refusal(command2.id, [DROPPED], "registry");
     const now = current2(command2.id);
     allow(item2, now, args);
     return build(item2, now, input2);
@@ -7342,14 +7370,14 @@ function createCommands(store, options = {}) {
           allow(item2, board, args);
           if (command2.prepare !== void 0 && !inputs.has(index)) {
             inputs.set(index, await within(() => prepare(item2, board, args)));
-            if (ended()) throw refusal(command2.id, [DROPPED]);
+            if (ended()) throw refusal(command2.id, [DROPPED], "registry");
             if (store.board() !== start3) {
               again = true;
               break;
             }
           }
           built.push(...build(item2, board, inputs.has(index) ? inputs.get(index) : args));
-          board = store.dryRun(built);
+          board = byStore(command2.id, () => store.dryRun(built));
         } catch (error) {
           throw inBatch(index, command2.id, error);
         }
@@ -7362,7 +7390,7 @@ function createCommands(store, options = {}) {
     return traced(
       "command batch",
       { "blockr.command.ids": ids3, "blockr.delta.origin": origin },
-      () => planned(batch2, (built) => store.apply(built, origin))
+      () => planned(batch2, (built) => byStore(void 0, () => store.apply(built, origin)))
     );
   }
   async function traced(name2, attributes, run) {
@@ -7425,7 +7453,7 @@ function createCommands(store, options = {}) {
         const { item: item2, args } = lookup(target2, given);
         const step2 = deltas(item2, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        return within(() => store.apply(ready, origin));
+        return within(() => byStore(target2, () => store.apply(ready, origin)));
       });
     },
     async plan(target2, given) {
@@ -7443,27 +7471,25 @@ function isCommandId(id2) {
   const pkg = packageFromId(id2);
   return pkg !== null && id2.length > pkg.length + 1;
 }
-var loggedErrors = /* @__PURE__ */ new WeakSet();
 function isLogged(error) {
-  return error instanceof CommandError && loggedErrors.has(error);
+  return error instanceof CommandError && error.by === "code";
 }
 function inBatch(index, id2, error) {
-  const named5 = error instanceof CommandError || error instanceof StoreError;
-  const refused2 = new CommandError(
-    `The batch was refused at command ${String(index + 1)}, "${id2}"`,
-    named5 ? error.failures : [errorMessage(error)],
-    { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
-  );
-  if (isLogged(error)) loggedErrors.add(refused2);
-  return refused2;
+  if (!(error instanceof CommandError)) return error;
+  return new CommandError({ command: id2, by: error.by, failures: error.failures, index, cause: error.cause });
+}
+function byStore(id2, fn) {
+  try {
+    return fn();
+  } catch (error) {
+    if (!(error instanceof StoreError)) throw error;
+    throw new CommandError({ command: id2, by: "store", failures: error.failures, cause: error });
+  }
 }
 function failed(command2, error) {
   if (error instanceof CommandError) return error;
-  const failure = new CommandError(`The command "${command2.id}" failed`, [errorMessage(error)], {
-    cause: error
-  });
+  const failure = new CommandError({ command: command2.id, by: "code", failures: [errorMessage(error)], cause: error });
   log.error(failure);
-  loggedErrors.add(failure);
   return failure;
 }
 function attempt2(command2, fn) {
@@ -13473,7 +13499,6 @@ function createCore(parts) {
     scheduler,
     loader,
     core: () => api,
-    renderers: parts.renderers,
     raise,
     replied: notifications.replied,
     notify: notifications.notify,
@@ -14563,7 +14588,6 @@ function start2(options) {
       blockrOptions,
       randId,
       lock: (first ?? reply).lock,
-      renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
       options: reply.options,
       notifications,
@@ -16550,7 +16574,7 @@ function withoutNumber(level) {
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -16913,7 +16937,6 @@ var hello_default = {
             version: 1
           }
         },
-        renderers: {},
         lock: { board: false, load: false },
         board: {
           format: 1,

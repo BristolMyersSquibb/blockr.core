@@ -1,7 +1,7 @@
 #' Renderers
 #'
 #' A renderer is a module that draws the outputs of an output family (see
-#' [new_output_family()]) or the value of a board option.
+#' [new_output_family()]).
 #' A renderer object, which `new_renderer()` makes, holds the renderer's
 #' module, made by [js_module()], its ID and the renderer's own requests.
 #' Its ID is `{pkg}-{name}`, as a registry ID is, where `pkg` is the package
@@ -34,11 +34,8 @@
 #' R reads that choice before the family's own renderer, so loading a package
 #' that offers a renderer changes nothing, and no package takes the choice
 #' away.
-#' A renderer that draws a board option names it in `option` and replaces the
-#' board option's UI where the app names it in `renderers` under the board
-#' option's ID, and R sends every such renderer in its reply to `hello`.
 #'
-#' A renderer of outputs may bring requests of its own, for what the output
+#' A renderer may bring requests of its own, for what the output
 #' does not hold, such as the labels of a table's columns, which core's table
 #' output does not carry.
 #' R runs a renderer's request as it runs a request of the output class (see
@@ -54,9 +51,7 @@
 #' @param name The name part of the renderer's ID
 #' @param module The renderer's module, made by [js_module()]
 #' @param requests A named list of the renderer's own requests, each a
-#'   function, which only a renderer of outputs has
-#' @param option The ID of the board option that the renderer draws, or `NULL`
-#'   for a renderer of outputs
+#'   function
 #'
 #' @examples
 #' # A renderer that a package such as blockr.ui offers
@@ -81,7 +76,7 @@
 #' `renderer`.
 #'
 #' @export
-new_renderer <- function(name, module, requests = list(), option = NULL) {
+new_renderer <- function(name, module, requests = list()) {
 
   if (!is_js_module(module)) {
     blockr_abort(
@@ -100,14 +95,6 @@ new_renderer <- function(name, module, requests = list(), option = NULL) {
   package <- module[["package"]]
   id <- if (is.null(package)) name else paste0(package, "-", name)
 
-  if (not_null(option) && !is_nonempty_string(option)) {
-    blockr_abort(
-      "The board option that renderer {id} draws is expected to be named by ",
-      "its ID, a non-empty string.",
-      class = "renderer_invalid"
-    )
-  }
-
   requests <- coal(requests, list(), fail_all = FALSE)
 
   if (!is.list(requests) || !all(lgl_ply(requests, is.function)) ||
@@ -119,21 +106,12 @@ new_renderer <- function(name, module, requests = list(), option = NULL) {
     )
   }
 
-  if (length(requests) && not_null(option)) {
-    blockr_abort(
-      "Renderer {id} draws a board option, and only a renderer of an output ",
-      "class has requests of its own.",
-      class = "renderer_requests_invalid"
-    )
-  }
-
   structure(
     list(
       id = id,
       name = name,
       package = package,
       module = module,
-      option = option,
       requests = requests
     ),
     class = "renderer"
@@ -148,7 +126,6 @@ is_renderer <- function(x) {
 format.renderer <- function(x, ...) {
   c(
     paste0("<renderer> ", x[["id"]]),
-    if (not_null(x[["option"]])) paste0("Board option: ", x[["option"]]),
     if (length(x[["requests"]])) {
       paste0("Requests: ", paste_enum(names(x[["requests"]]), quotes = "\""))
     }
@@ -161,8 +138,8 @@ print.renderer <- function(x, ...) {
   invisible(x)
 }
 
-# The renderers that the blockr option `renderers` names, by the output class
-# or the board option that each is to draw.
+# The renderers that the blockr option `renderers` names, by the class of the
+# output family whose outputs each is to draw.
 chosen_renderers <- function() {
 
   chosen <- blockr_option("renderers", list())
@@ -171,25 +148,11 @@ chosen_renderers <- function() {
         !all(lgl_ply(chosen, is_renderer))) {
     blockr_abort(
       "The blockr option `renderers` is expected to be a list of renderers, ",
-      "each made by `new_renderer()` and named by the output class or the ",
-      "board option that it draws, as ",
+      "each made by `new_renderer()` and named by the class of the output ",
+      "family whose outputs it draws, as ",
       "`list(table_output = blockr.ui::table_preview())` is.",
       class = "renderers_blockr_option_invalid"
     )
-  }
-
-  for (target in names(chosen)) {
-
-    option <- chosen[[target]][["option"]]
-
-    if (not_null(option) && !identical(option, target)) {
-      blockr_abort(
-        "The blockr option `renderers` names renderer ",
-        "{chosen[[target]]$id} for {target}, while it draws board option ",
-        "{option}.",
-        class = "renderers_blockr_option_invalid"
-      )
-    }
   }
 
   chosen
@@ -209,10 +172,7 @@ family_renderers <- function(x, families = app_families()) {
 
   Map(
     function(family, class) {
-      validate_renderer(
-        coal(chosen[[class]], attr(family, "renderer"), fail_all = FALSE),
-        family
-      )
+      coal(chosen[[class]], attr(family, "renderer"), fail_all = FALSE)
     },
     drawing,
     names(drawing)
@@ -244,30 +204,6 @@ drawing_renderer <- function(x, out, families = app_families()) {
   }
 
   renderers[[drawn[1L]]]
-}
-
-# Checks that `x`, the renderer that draws the outputs of family `from`, is a
-# renderer of outputs, as a deployment's choice in `renderers` may not be.
-validate_renderer <- function(x, from) {
-
-  if (!is_renderer(x) || not_null(x[["option"]])) {
-    blockr_abort(
-      "The renderer of output family {class(from)[1L]} is expected to be a ",
-      "renderer of outputs, which draws no board option.",
-      class = "renderer_invalid"
-    )
-  }
-
-  invisible(x)
-}
-
-# The renderers that the app names for board options, by ID, which R sends in
-# its reply to `hello`, since a board option's UI mounts without an output.
-option_renderers <- function() {
-
-  chosen <- Filter(function(x) not_null(x[["option"]]), chosen_renderers())
-
-  set_names(unname(chosen), chr_xtr(chosen, "id"))
 }
 
 # The function of a request of `renderer`, its own.

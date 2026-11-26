@@ -1,7 +1,7 @@
 import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index.ts";
 import type { Commands } from "../commands/index.ts";
 import type { Loader, Measure } from "../mount/index.ts";
-import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index.ts";
+import type { Lock, OptionEntry, PluginEntry } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
@@ -22,7 +22,6 @@ export interface CoreParts {
     readonly blockrOptions: BlockrOptions;
     readonly randId?: Json | undefined;
     readonly lock: Lock;
-    readonly renderers: () => Readonly<Record<string, Renderer>>;
     readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
     readonly options: Readonly<Record<OptionId, OptionEntry>>;
     readonly notifications: Holder;

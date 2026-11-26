@@ -152,7 +152,6 @@ protocol_r_values <- function() {
       list(
         proto_hello_reply(
           block_registry = proto_registry("head_block"),
-          renderers = obj(),
           lock = proto_lock(),
           board = proto_json_board(
             obj(
@@ -532,11 +531,9 @@ proto_pptx <- function() {
 }
 
 proto_hello_reply <- function(block_registry, lock, ...,
-                              renderers = obj(),
                               plugins = proto_core_plugins()) {
 
   served <- proto_served()
-  served$renderers <- renderers
   served$plugins <- plugins
 
   c(
@@ -570,8 +567,7 @@ proto_served <- function() {
     ),
     plugins = proto_core_plugins(),
     frontend = obj(),
-    options = proto_core_options(),
-    renderers = obj()
+    options = proto_core_options()
   )
 }
 
@@ -1158,8 +1154,7 @@ proto_output <- function(x) {
 # a module that it offers others, its board option grid_gap and its plugin
 # class grid_plugin, a frontend, each with its module, and it gives the state
 # of grid_plugin and the value of grid_gap version 2, its frontend takes a
-# title from `serve()`, and it makes two renderers, one for table outputs and
-# one for the board option dark_mode.
+# title from `serve()`, and it makes a renderer for table outputs.
 # Beside the module of grid_plugin sits a bundle that the module would import,
 # by a name that holds a hash of the bundle's content.
 # Two files of blockr.test sit beside none of its modules, one in a directory
@@ -1176,7 +1171,6 @@ declared_files <- function() {
     `blockr.test/js/grid-gap.js` = "export const api = 1; // grid_gap\n",
     `blockr.test/js/picker.js` = "export const api = 1; // picker\n",
     `blockr.test/js/table.js` = "export const api = 1; // table\n",
-    `blockr.test/js/dark.js` = "export const api = 1; // dark\n",
     `blockr.test/js/grid-lib-493f0854.js` = "export const lib = 1;\n",
     `blockr.test/js/vendor/notes.txt` = "Not served.\n",
     `blockr.test/notes.txt` = "Not served.\n",
@@ -1436,12 +1430,7 @@ declared_fields <- function(...) {
 
   withr::local_options(
     blockr.renderers = list(
-      table_output = new_renderer("table", module("js/table.js")),
-      dark_mode = new_renderer(
-        "dark",
-        module("js/dark.js"),
-        option = "dark_mode"
-      )
+      table_output = new_renderer("table", module("js/table.js"))
     )
   )
 
