@@ -23,7 +23,7 @@ test_that("R writes the JSON board of every fixture as the fixture holds it", {
   }
 })
 
-test_that("serving a fixture registers its classes, and writing it does not", {
+test_that("writing a fixture registers no class, and serving it needs them", {
 
   local_fixture_package()
 
@@ -36,10 +36,13 @@ test_that("serving a fixture registers its classes, and writing it does not", {
 
   expect_false(any(ids %in% list_blocks()))
 
-  # In the app's block registry, which the block registry of the process
-  # leaves as it was
-  registry <- served_registry(serve(board))
+  # The fixture's classes are defined outside a package, so the script
+  # registers them before it serves the board
+  expect_error(serve(board), class = "board_classes_unregistered")
 
-  expect_true(all(ids %in% ls(registry)))
-  expect_false(any(ids %in% list_blocks()))
+  for (cls in unique(lapply(as.list(board_blocks(board)), block_class))) {
+    local_block_class(cls)
+  }
+
+  expect_true(all(ids %in% ls(served_registry(serve(board)))))
 })
