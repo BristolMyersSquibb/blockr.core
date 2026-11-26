@@ -260,7 +260,7 @@ function unfit(): JsonBoard {
     board: {
       ...board,
       blocks: { ...board.blocks, b: { ...b, state: { ...b.state, n: -1 } } },
-      options: { ...board.options, n_rows: { value: 0, version: 1 } },
+      options: { ...board.options, n_rows: { value: 0, version: 1, package: "blockr.core" } },
     },
   };
 }
@@ -1422,8 +1422,8 @@ describe("a board opened later", () => {
     expect(read.board.name).toBe("Copied");
     expect(Object.hasOwn(read.board.blocks, "x")).toBe(false);
     expect(read.dropped).toEqual([
-      { package: "blockr.dplyr", version: "0.1.4" },
-      { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { package: "blockr.dplyr", version: "0.1.4" }, package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     expect(dropped()).toEqual([]);
     expect(taken.map((notifications) => notifications.map(({ severity, message, source, about }) => ({ severity, message, source, about })))).toEqual([
@@ -1475,11 +1475,19 @@ describe("a board opened later", () => {
     // state of a plugin of a third such package. It lists a fourth such
     // package, which nothing on the board comes from, so the warning leaves
     // it out. The board also holds a block whose class blockr.core lacks, the
-    // state of a plugin that the app does not run, and two board options that
-    // no package defines.
+    // state of a plugin that the app does not run, two board options that no
+    // package defines, and a board option of a fifth package that R did not
+    // load, which the warning names for it.
     const copied = JSON.stringify({
       ...hello.board,
-      packages: { ...hello.board.packages, "blockr.dplyr": "0.1.4", "blockr.ggplot": "0.2.0", "blockr.dock": "0.3.0", "blockr.io": "0.1.0" },
+      packages: {
+        ...hello.board.packages,
+        "blockr.dplyr": "0.1.4",
+        "blockr.ggplot": "0.2.0",
+        "blockr.dock": "0.3.0",
+        "blockr.io": "0.1.0",
+        "blockr.shade": "0.4.0",
+      },
       board: {
         ...hello.board.board,
         blocks: {
@@ -1490,7 +1498,12 @@ describe("a board opened later", () => {
           z: block("blockr.core-gone_block", "Gone"),
         },
         plugins: { "blockr.dock-dock_plugin": { state: {}, version: 1 }, "blockr.gone-gone_plugin": { state: {}, version: 1 } },
-        options: { ...hello.board.board.options, zoom: { value: 2, version: 1 }, tilt: { value: 0, version: 1 } },
+        options: {
+          ...hello.board.board.options,
+          zoom: { value: 2, version: 1, package: null },
+          tilt: { value: 0, version: 1, package: null },
+          shade: { value: 1, version: 1, package: "blockr.shade" },
+        },
       },
     });
     const taken: string[] = [];
@@ -1504,6 +1517,7 @@ describe("a board opened later", () => {
       [
         'The blocks "Filter", "Plot", "Arrange" and "Gone" were left out, since this app lacks the packages blockr.dplyr 0.1.4 and blockr.ggplot 0.2.0 and the class blockr.core-gone_block.',
         'The states of the plugins "blockr.dock-dock_plugin" and "blockr.gone-gone_plugin" were left out, since this app does not run them.',
+        'The value of the board option "shade" was left out, since this app lacks the package blockr.shade 0.4.0.',
         'The values of the board options "zoom" and "tilt" were left out, since no package of this app defines them.',
         "This app lacks the package blockr.dock 0.3.0.",
       ].join("\n"),
@@ -1550,7 +1564,10 @@ describe("board options", () => {
   // Opens a board that holds the values given, and answers the hello with
   // which core starts again.
   async function reopen(s: Setup, core: CoreApi, values: Readonly<Record<string, Json>>): Promise<CoreApi> {
-    const options = Object.fromEntries(Object.entries(values).map(([id, value]) => [id, { value, version: 1 }]));
+    const listed = withOptions(["zoom"]).options;
+    const options = Object.fromEntries(
+      Object.entries(values).map(([id, value]) => [id, { value, version: 1, package: own(listed, id)?.package ?? null }]),
+    );
     const opening = core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, options } }));
     await tick();
     s.r.answer(withOptions(["zoom"]));

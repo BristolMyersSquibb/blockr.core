@@ -996,21 +996,27 @@ function reloadNotification(changed: readonly Changed[]): Omit<Notification, "id
 // board that it read, which opens none.
 // One sentence names the blocks that went, by the names that the user knows
 // them by, and the packages that the app lacks for them, or else their
-// classes. One sentence each names the plugins' states and the board options'
-// values that went, and why. A last sentence names the other packages that
+// classes. One sentence names the plugins' states that went, and why.
+// The board options' values that went take one sentence for those whose
+// package the app lacks, which names the package, and one for the rest, which
+// no package of the app defines. A last sentence names the other packages that
 // the app lacks, such as that of a plugin whose state went.
 // One notification covers the whole opening, or the whole read, and
 // concerns the board.
 function droppedNotification(dropped: readonly Dropped[], how: "opened" | "read"): Omit<Notification, "id"> {
-  const packages = dropped.flatMap((item) => ("version" in item ? [item] : []));
-  const blocks = dropped.flatMap((item) => ("block" in item ? [item] : []));
-  const plugins = dropped.flatMap((item) => ("plugin" in item ? [item.plugin] : []));
-  const options = dropped.flatMap((item) => ("option" in item ? [item.option] : []));
+  const packages = dropped.flatMap(({ about }) => ("package" in about ? [about] : []));
+  const blocks = dropped.flatMap(({ about, package: pkg }) => ("block" in about ? [{ ...about, package: pkg }] : []));
+  const plugins = dropped.flatMap(({ about }) => ("plugin" in about ? [about.plugin] : []));
+  const options = dropped.flatMap(({ about, package: pkg }) => ("option" in about ? [{ ...about, package: pkg }] : []));
   const versions = (items: typeof packages): string[] => items.map((item) => `${item.package} ${item.version}`);
   const forBlocks = packages.filter((item) => blocks.some((block) => block.package === item.package));
-  const others = packages.filter((item) => !forBlocks.includes(item));
+  const forOptions = packages.filter((item) => options.some((option) => option.package === item.package));
+  const others = packages.filter((item) => !forBlocks.includes(item) && !forOptions.includes(item));
   const classes = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => block.registry_id);
   const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes)], "class", "classes")]);
+  // The board options whose package the app lacks, and the rest.
+  const lackedOptions = options.filter((option) => forOptions.some((item) => item.package === option.package));
+  const otherOptions = options.filter((option) => !lackedOptions.includes(option));
   // The sentence that says that the objects named went, and why.
   const went = (names: readonly string[], one: string, several: string, why: (many: boolean) => string): string[] => {
     if (names.length === 0) return [];
@@ -1021,7 +1027,18 @@ function droppedNotification(dropped: readonly Dropped[], how: "opened" | "read"
   const lines = [
     ...went(blocks.map((block) => block.name), "block", "blocks", () => `this app lacks ${lacked}`),
     ...went(plugins, "state of the plugin", "states of the plugins", (many) => `this app does not run ${many ? "them" : "it"}`),
-    ...went(options, "value of the board option", "values of the board options", (many) => `no package of this app defines ${many ? "them" : "it"}`),
+    ...went(
+      lackedOptions.map((option) => option.option),
+      "value of the board option",
+      "values of the board options",
+      () => `this app lacks ${listing(withNoun(versions(forOptions), "package", "packages"))}`,
+    ),
+    ...went(
+      otherOptions.map((option) => option.option),
+      "value of the board option",
+      "values of the board options",
+      (many) => `no package of this app defines ${many ? "them" : "it"}`,
+    ),
     ...withNoun(versions(others), "package", "packages").map((what) => `This app lacks ${what}.`),
   ];
   return coreNotification("board_objects_dropped", "warning", lines.join("\n"));

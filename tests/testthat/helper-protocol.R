@@ -952,9 +952,9 @@ proto_declared_board <- function() {
 }
 
 # A board option's value as a JSON board holds it, with the version of its
-# shape.
-proto_option <- function(value, version = 1L) {
-  obj(value = value, version = version)
+# shape and the package that lists the board option, core's unless given.
+proto_option <- function(value, version = 1L, package = "blockr.core") {
+  obj(value = value, version = version, package = package)
 }
 
 # A plugin's state as a JSON board holds it, with the version of its class's

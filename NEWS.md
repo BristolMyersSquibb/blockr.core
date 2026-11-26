@@ -148,8 +148,8 @@
   each plugin whose constructor gives it any, and the values of the board
   options the script gives, beside the version of the format and the
   versions of the packages that the board's content comes from: those of the
-  plugins' classes, which the ID of each class names, and those of the
-  blocks' classes.
+  plugins' classes, which the ID of each class names, those of the blocks'
+  classes, and those that list the board options whose values it holds.
   The board records the version of each plugin class whose plugin's state it
   holds, which a method of the generic `plugin_version()` gives, each block the
   version of its class's state, which `new_block_class()` takes as `version`,
@@ -157,13 +157,16 @@
   the generic `board_option_version()` gives, so that the client migrates
   what a JSON board holds by the versions of its shapes rather than of
   packages.
+  Beside each board option's value, it records the package that lists the
+  board option, since a board option's ID names no package, unlike the IDs of
+  block classes and plugin classes.
   It writes each value by a JSON Schema, so that no shape depends on R's JSON
   writer: core's objects by the schema of a JSON board that the build
   generates from its TypeScript types into `inst/board`, a block's state by
   the schema its class's UI ships, and a plugin's state or a board option's
   value by the schema that its package ships beside the module that it lists
   for the plugin's class or the board option, as core ships those of its board
-  options beside their modules (#560).
+  options beside their modules (#560, #665).
   Under `anyOf` or `oneOf`, R writes a named list by the branch that it fits: the one object schema whose required properties are all among the list's names, as a split or a tab group in the dock's grids (#597).
   A named list that fits no branch or several stays as it is, and so does any other value, such as a vector of length one where a string or an array of strings will do.
   Writing a board registers the block classes
@@ -514,6 +517,7 @@
   So an app script whose board gives `new_n_rows_option(0)` runs, since a board option's constructor checks nothing, but its page shows the errors in place of the board.
   The client's store also refuses an edit that leaves a block's state failing the schema of its class, as it refuses one for a plugin's state or a board option's value, so that a board saved from the app opens again.
   The client drops the value of a board option that no package of the app registers, and names the board option by its ID (#509).
+  It names the package that lists the board option as well, which a JSON board records beside the board option's value, so that the user learns what to install (#665).
 * Core's client calls a board option's `onChange` as each board opens, with the board's value, and again as a delta sets the value, whether or not anything on the page requires the board option.
   Where the board lacks that value, as a board opens or once a delta removed it, core adds the board option to the board with its default first.
   While a block's UI module, a renderer or a board option's UI is mounted, core adds each board option that it names again with its default where a delta removes the value.
@@ -952,11 +956,12 @@
   It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
   Where `read()` leaves anything out, core tells the user what through the warning `board_objects_dropped`, which it raises as a board opens as well.
   One sentence of the warning names the blocks that went, with the packages that the app lacks for them, as in `The blocks "Filter" and "Plot" were left out, since this app lacks the packages blockr.dplyr 0.1.4 and blockr.ggplot 0.2.0.`
-  One sentence each says which states of plugins and which values of board options went, and why, and a last one names the other packages that the app lacks.
+  One sentence says which states of plugins went, and why, and one or two which values of board options went: those whose package the app lacks, with that package, and those that no package of the app defines.
+  A last sentence names the other packages that the app lacks.
   Core raises the warning anew for each read.
   The warning of an opening board now takes the same form, with each sentence starting `The board opened without`.
-  Both name each block by its name, which the block's entry in `Dropped` now holds.
-  The store now names a package that R did not load only where a block or a plugin's state on the board comes from it, so that a copied board that lists other packages, as the DAG's Copy writes one, warns of nothing it does not hold.
+  Both name each block by its name, which the `about` of a block's record in `Dropped` now holds.
+  The store now names a package that R did not load only where a block, a plugin's state or a board option's value on the board comes from it, so that a copied board that lists other packages, as the DAG's Copy writes one, warns of nothing it does not hold.
   A caller that shows the warning itself passes a `notifier` in the options of `read()`, which then takes it in place of core (#878).
 * A plugin class may give `afterStep(board, before, plugin)` in its `state`.
   It returns the patches to the plugin's state that follow from a step as a whole.
