@@ -238,14 +238,17 @@ const json: Json = initial;
 
 export const viewsPlugin: PluginClass = {
   id: "blockr.views-views_plugin",
-  state: { schema: { type: "object" }, default: json },
+  state: {
+    schema: { type: "object" },
+    default: json,
+    update: (delta, board, plugin) =>
+      (delta.blocks?.rm ?? [])
+        .filter((id) => Object.hasOwn(pluginViews(board, plugin), id))
+        .map((id) => ({ op: "remove", path: "/plugins/" + plugin + "/views/" + id })),
+  },
   start: ({ signal }) => {
     signal.addEventListener("abort", () => undefined);
   },
-  update: (delta, board, plugin) =>
-    (delta.blocks?.rm ?? [])
-      .filter((id) => Object.hasOwn(pluginViews(board, plugin), id))
-      .map((id) => ({ op: "remove", path: "/plugins/" + plugin + "/views/" + id })),
 };
 `;
 

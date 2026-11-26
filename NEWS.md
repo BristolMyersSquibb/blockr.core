@@ -102,7 +102,7 @@
   R reads the output families that the available packages list as `serve()` builds the app, and two packages that list a family of one class stop the app.
   The startup modules go, with `register_startup_module()`, `register_module()` and the order of packages by their NAMESPACE (#424, #504, #560, #712).
 * A renderer, which `new_renderer()` makes, is a module that draws the
-  outputs of an output family or the value of a board option, under the ID
+  outputs of an output family, under the ID
   `{pkg}-{name}`. An output family holds the renderer that draws its outputs, as core's
   hold `blockr.core-table_output`, `blockr.core-text_output` and
   `blockr.core-plot_output`, and R sends it in each output, with where it
@@ -113,9 +113,9 @@
   A renderer names no board options of its own: the output family names those of its outputs, which every renderer of them reads.
   Another package offers a renderer through a
   function that makes it, and an app draws with it by naming it in the blockr
-  option `renderers`, for an output family or a board option, which R reads before the family's own renderer, so loading a package changes nothing and no package takes the app's choice away. Such a
+  option `renderers`, under the family's class, which R reads before the family's own renderer, so loading a package changes nothing and no package takes the app's choice away. Such a
   renderer may bring requests of its own, which `run_output_class_request()`
-  runs when given the renderer (#425, #440, #465).
+  runs when given the renderer (#425, #440, #465, #664).
 * R builds what it tells the client about the packages it has loaded, in its
   reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that
@@ -360,7 +360,7 @@
   The generics `board_front_end()` and `board_version()` go.
   The generic `plugin_version()` gives the version of a plugin class's state, which R calls on the plugin that the class's constructor makes, and sends with each of the app's plugins in its reply to `hello`, in place of `board_classes`.
   Beside the module that it lists for each of its plugin classes and board options, a package ships the schema of the class's state or of the board option's value, as `dag.schema.json` beside `dag.js`, where it shipped one schema laid out like the board before.
-  In the client, core registers each plugin class from the default export of its module, which holds the class's `ui` or `frontend` itself and the commands that change its plugins' state, and which the store reads for the schema and the default of the state, its `update` and its `migrate`.
+  In the client, core registers each plugin class from the default export of its module, which holds the class's `ui` or `frontend` itself and the commands that change its plugins' state, and whose `state` the store reads: the schema and the default of the plugin's state, its `update` and its `migrate`.
   The store keeps the state of each plugin whose class has `state` under the ID of its class in the board's `plugins`, and nothing for any other plugin, and a change inside a plugin's state is a patch under `/plugins/{id}`.
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, and calls the `update` of the class of each plugin whose state the board holds.
   The app's plugins, which R sends in its reply to `hello`, are the plugins of every board that the app opens: opening a board keeps the state that it holds for each of them, migrating it by its class's `migrate`, drops every other state and names its plugin, and gives each other plugin of the app whose class has `state` its class's default state.
@@ -679,7 +679,9 @@
   Where the store refuses a batch as a whole, once the deltas of each command have passed, as where a plugin class's `afterStep` fails, the error names no command, and its first line says that the store refused the batch as a whole (#668).
 * The store logs at error what the `update` or the `afterStep` of a plugin class throws, with its stack, whoever applies the delta: the command registry, an undo or a redo, or a plugin itself.
   The line names the class in the attribute `blockr.plugin.class_id`.
-  The failure with which the store refuses the delta or the step still holds the message alone (#668).
+  The store logs what a migration throws in the same way, as it opens, checks or reads a board.
+  That line names the plugin class, the block class or the board option of the migration, in the attribute `blockr.plugin.class_id`, `blockr.block.registry_id` or `blockr.option.id`.
+  The failure with which the store refuses the delta, the step or the board still holds the message alone (#668, #881).
 * A block class's request takes a file that the client sends only where `new_block_request()` names the argument for it, in `file`.
   That argument may have any name, and the function `run_block_request()` passes it a file through its own argument `file`.
   The block registry marks a request that takes a file with `file`, and the client sends no file with any other request.
@@ -948,7 +950,8 @@
   Unlike `check()`, it reads a text under the load lock as well, since the load lock fixes only which board the app shows.
   Through `CoreApi`, core first imports the migrations of the block classes whose older states the text holds, as it does before it opens a board.
   It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
-* A plugin class may give `afterStep(board, before, plugin)`, which returns the patches to its plugin's state that follow from a step as a whole.
+* A plugin class may give `afterStep(board, before, plugin)` in its `state`.
+  It returns the patches to the plugin's state that follow from a step as a whole.
   The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.
   It gets the board that the step leaves and the board that the step started from.
   The store applies what every class returns as one more delta of the step.
@@ -999,6 +1002,10 @@
   So `prepend_block_role` and `add_link_role` take inputs among their targets, and a board action that an app picks to play one of them names inputs in its `on` too.
   Opened on an input, the block picker and the form of Create link name the input in a line, as `The new block feeds the input "y" of "Merge".` and `A link into the input "y" of "Merge".`, in place of the field of the input.
   Where a new link goes into a variadic block, as on its next place, the block picker before the block and the form of Create link ask for the link's position among the block's links beside the name of its input, since the block takes its links by their order and by their names, as `rbind()` takes its arguments (#827).
+* A plugin class gives `update`, `afterStep` and `migrate` inside its `state`, beside the schema and the default of the plugin's state, as in `state: { schema, default, update }`.
+  The store calls them only for a plugin whose state the board holds.
+  Until now a class gave them beside `state`, so a class without state could give them too, and the store never called them.
+  The store refuses a class that gives one of them outside its `state`, and core then opens no board (#670).
 * Every block class in an app's block registry comes from a registration: its package's listing, or the block registry of the process, where `register_block()` puts it.
   As `serve()` builds the app, R registers the class of each block on the board that the registry lacks from that registration, with the name and the other metadata that it gives, where it made up a name and an empty description before.
   The app offers these classes like those of its `blocks`, so that a user can add a block of any class that the board shows.

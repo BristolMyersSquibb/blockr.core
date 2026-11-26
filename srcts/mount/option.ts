@@ -1,14 +1,11 @@
-// Mounting a board option's UI, or the renderer that the app names for the
-// board option in the blockr option `renderers`, which R sends with its reply
-// to `hello`, through an OptionHost made for the mount, as the contract has it
+// Mounting a board option's UI, the UI module of the board option's
+// definition, through an OptionHost made for the mount, as the contract has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
-// 1. Core loads the renderer's module, where the app names one, or else takes
-//    the UI module of the board option's definition.
-// 2. It adds the board option to the board, with its definition's default
+// 1. Core adds the board option to the board, with its definition's default
 //    where the board lacks it, and adds it again where a delta removes it
 //    while the UI is mounted. The UI reads its own board option's value alone,
 //    so core adds no other board option for it.
-// 3. It calls the module's render() with the element, the host and a signal,
+// 2. It calls the UI's render() with the element, the host and a signal,
 //    which it aborts once the mount ends. Where the default did not go onto
 //    the board, as where it failed, core leaves the element empty instead,
 //    and ends the UI where the default does not go onto the board again once a
@@ -21,22 +18,18 @@
 // registry refuses a submit, core tells the user why through a notification
 // of the code `board_edit_failed` about the board option, unless the submit's
 // notifier takes it, and submit() rejects with the reason.
-// Where the renderer fails in render(), the error names the renderer's module
-// and its package. Where the UI of the board option's definition fails, the
-// error names the board option, since only one package can register its id.
-// Either way, core leaves the element empty, so that the frontend alone says
-// where the failure shows, and raises a notification that concerns the board
-// option, which holds until the next board opens. Its source names the module
-// that draws: the renderer, by its id and with its package, or else the board
-// option's own module, with the board option's package.
-// What the module raises through its host's notify() names that module as
-// its source, and holds until the mount ends at the latest. Each condition of
-// R's reply to a request, ok or error, raises a notification that concerns
-// the board option, which holds until R next replies to a request of the same
+// Where the UI fails in render(), the error names the board option, since only
+// one package can register its id. Core leaves the element empty, so that the
+// frontend alone says where the failure shows, and raises a notification that
+// concerns the board option, which holds until the next board opens. Its
+// source names the board option's module, with the board option's package.
+// What the UI raises through its host's notify() names that module as its
+// source, and holds until the mount ends at the latest. Each condition of R's
+// reply to a request, ok or error, raises a notification that concerns the
+// board option, which holds until R next replies to a request of the same
 // name. Its source names that module too, which made the request.
 
 import type { Commands } from "../commands/index.ts";
-import type { Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
@@ -44,21 +37,15 @@ import type { SourceModule } from "../types/core-api.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { createLog, log } from "../log/index.ts";
-import { asError, checkRaised, coreNotification, errorMessage, givenNotifier, isObject, own, packageFromId, sourceModule } from "../util/index.ts";
+import { asError, checkRaised, coreNotification, errorMessage, givenNotifier, isObject, own, sourceModule } from "../util/index.ts";
 import type { Notify, Raise, Refused, Replied } from "../util/index.ts";
-import { ModuleError } from "./load.ts";
-import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, mountableModule, onAbort, REPLACED } from "./shared.ts";
-import type { Mountable } from "./shared.ts";
+import { announceTo, attempt, onAbort, REPLACED } from "./shared.ts";
 
 export interface OptionDeps {
   readonly store: Pick<Store, "board" | "options" | "subscribe">;
   readonly commands: Pick<Commands, "run">;
   readonly scheduler: Pick<Scheduler, "request">;
-  readonly loader: Loader;
-  // The renderers that the app names for board options, by the renderer's id.
-  readonly renderers: () => Readonly<Record<string, Renderer>>;
   // Aborts as another board opens, which ends the mount.
   readonly replaced: AbortSignal;
   // Keeps the board options on the board until stop() runs, resolves `added`
@@ -83,27 +70,16 @@ export interface OptionDeps {
   readonly optionPackage: (option: OptionId) => string | undefined;
 }
 
-interface OptionArgs {
-  el: HTMLElement;
-  host: OptionHost;
-  signal: AbortSignal;
-}
-
 // Mounts the UI of the board option in the element until the returned cleanup
 // runs. It throws where no package registers such a board option.
 export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId): () => void {
-  const { store, loader } = deps;
+  const { store } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
   const def = own(store.options.registered(), option);
   if (def === undefined) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const chosen = Object.entries(deps.renderers()).find(([, renderer]) => renderer.option === option);
-  const [id, renderer] = chosen ?? [];
-  // The module that draws: the renderer that the app names, with its package,
-  // or else the board option's own module.
-  const module =
-    id === undefined ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id), id);
+  const module = sourceModule({ option }, deps.optionPackage(option));
 
   const controller = new AbortController();
   const ended = (): boolean => controller.signal.aborted;
@@ -207,19 +183,6 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   }
 
   void (async () => {
-    let mod: Mountable<OptionArgs>;
-    try {
-      if (renderer === undefined || id === undefined) {
-        mod = def.ui;
-      } else {
-        const source = renderer.css === undefined ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule<OptionArgs>(await loader.load(source, packageFromId(id)), renderer.module, packageFromId(id));
-      }
-    } catch (error) {
-      fail(error);
-      return;
-    }
-    if (ended()) return;
     // Core has reported why the board holds no value, and raised it.
     const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
@@ -232,17 +195,12 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     }
 
     try {
-      const rendered = await mod.render({ el, host, signal: controller.signal });
+      const rendered = await def.ui.render({ el, host, signal: controller.signal });
       if (typeof rendered !== "function") return;
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const why = `failed in render(): ${errorMessage(error)}`;
-      fail(
-        renderer === undefined || id === undefined
-          ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error })
-          : new ModuleError(renderer.module, packageFromId(id), why, { cause: error }),
-      );
+      fail(new Error(`The UI of the board option "${option}" failed in render(): ${errorMessage(error)}`, { cause: error }));
     }
   })();
 

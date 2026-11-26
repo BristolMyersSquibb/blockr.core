@@ -11,10 +11,10 @@ export interface PluginClass {
     readonly state?: {
         readonly schema: JsonSchema;
         readonly default: Json;
+        update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
+        afterStep?(board: Board, before: Board, plugin: PluginClassId): readonly Patch[];
+        migrate?(state: Json, version: number): Json;
     };
-    update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
-    afterStep?(board: Board, before: Board, plugin: PluginClassId): readonly Patch[];
-    migrate?(state: Json, version: number): Json;
     readonly ui?: PluginModule;
     readonly frontend?: FrontendModule;
     readonly storage?: Storage;
@@ -77,14 +77,14 @@ export interface Options {
     registered(): Readonly<Record<OptionId, Option>>;
 }
 export type Migration = (state: Block["state"], version: number) => Block["state"];
-export interface Checked<T> {
+export interface Checked<T, V extends Validate | undefined = Validate> {
     readonly def: T;
-    readonly validate: Validate;
+    readonly validate: V;
 }
 export interface Registrations {
     readonly plugins: Plugins;
     readonly options: Options;
-    plugin(id: PluginClassId): Checked<PluginClass> | undefined;
+    plugin(id: PluginClassId): Checked<PluginClass, Validate | undefined> | undefined;
     option(id: OptionId): Checked<Option> | undefined;
     migration(registryId: RegistryId): Migration | undefined;
 }

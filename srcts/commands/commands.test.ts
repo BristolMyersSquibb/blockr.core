@@ -58,7 +58,7 @@ function renameB(
 // A plugin class that keeps a position for each block, as the DAG keeps one,
 // and the command of its package that changes one, for the plugin of the
 // class, which the id of the class names.
-const placed: PluginClass = {
+const placed = {
   id: "test.pkg-placed_plugin",
   state: {
     schema: {
@@ -72,12 +72,15 @@ const placed: PluginClass = {
     },
     default: { positions: {} },
   },
-};
+} satisfies PluginClass;
+
+// The type of the afterStep that a plugin class gives in its state.
+type AfterStep = NonNullable<NonNullable<PluginClass["state"]>["afterStep"]>;
 
 // An afterStep for the class of `placed`, which places each block that a
 // step adds one further along than the block that it reads from, by the links
 // of the board that the step leaves, as the DAG places what Append block adds.
-const placeAfterSource: NonNullable<PluginClass["afterStep"]> = (board, before, plugin) => {
+const placeAfterSource: AfterStep = (board, before, plugin) => {
   const { positions } = board.plugins[plugin] as { readonly positions: Readonly<Record<string, { readonly x: number }>> };
   return Object.keys(board.blocks)
     .filter((id) => !Object.hasOwn(before.blocks, id))
@@ -92,10 +95,10 @@ const placeAfterSource: NonNullable<PluginClass["afterStep"]> = (board, before, 
 // plugin of `placed`, which holds a position for block d, with the afterStep
 // given.
 async function setupPlacing(
-  afterStep: NonNullable<PluginClass["afterStep"]> = placeAfterSource,
+  afterStep: AfterStep = placeAfterSource,
 ): Promise<{ store: Store; commands: Commands }> {
   const store = await openedStore(
-    (store) => store.plugins.register({ ...placed, afterStep }),
+    (store) => store.plugins.register({ ...placed, state: { ...placed.state, afterStep } }),
     withPlugins({ [placed.id]: { name: "Placed", state: { positions: { d: { x: 4 } } } } }),
   );
   return { store, commands: createCommands(store) };

@@ -1,9 +1,8 @@
 // The dialog that sets the board options that the board holds.
-// Core mounts the UI of each with mountOption(), or the renderer that the app
-// names for it. The dialog groups them by the category that each definition
-// gives, and draws a line between each two categories, so that the heading of
-// a category reads as the start of its group rather than the end of the one
-// above.
+// Core mounts the UI of each with mountOption(). The dialog groups them by the
+// category that each definition gives, and draws a line between each two
+// categories, so that the heading of a category reads as the start of its
+// group rather than the end of the one above.
 // The board holds a board option once something sets one, as where core's
 // basic frontend requires it or a mounted module names it.
 

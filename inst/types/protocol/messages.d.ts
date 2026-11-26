@@ -40,7 +40,6 @@ export interface HelloReply {
     plugins: Record<PluginClassId, PluginEntry>;
     frontend: Record<string, Json>;
     options: Record<OptionId, OptionEntry>;
-    renderers: Record<string, Renderer>;
     lock: Lock;
     board: JsonBoard;
     bound?: string[];
@@ -57,11 +56,6 @@ export interface OptionEntry {
     module: string;
     css?: string;
     version: number;
-}
-export interface Renderer {
-    module: string;
-    css?: string;
-    option: OptionId;
 }
 export interface Lock {
     board: boolean;

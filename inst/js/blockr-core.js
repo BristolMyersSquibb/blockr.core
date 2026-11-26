@@ -2463,15 +2463,13 @@ function announceTo(listeners, ...args) {
 
 // srcts/mount/option.ts
 function mountOption(deps, el, option) {
-  const { store, loader } = deps;
+  const { store } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
   const def = own(store.options.registered(), option);
   if (def === void 0) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const chosen = Object.entries(deps.renderers()).find(([, renderer2]) => renderer2.option === option);
-  const [id2, renderer] = chosen ?? [];
-  const module = id2 === void 0 ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id2), id2);
+  const module = sourceModule({ option }, deps.optionPackage(option));
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
@@ -2555,19 +2553,6 @@ function mountOption(deps, el, option) {
     el.replaceChildren();
   }
   void (async () => {
-    let mod;
-    try {
-      if (renderer === void 0 || id2 === void 0) {
-        mod = def.ui;
-      } else {
-        const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule(await loader.load(source, packageFromId(id2)), renderer.module, packageFromId(id2));
-      }
-    } catch (error) {
-      fail(error);
-      return;
-    }
-    if (ended()) return;
     const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
     const failures = await kept.added;
@@ -2578,15 +2563,12 @@ function mountOption(deps, el, option) {
       return;
     }
     try {
-      const rendered = await mod.render({ el, host, signal: controller.signal });
+      const rendered = await def.ui.render({ el, host, signal: controller.signal });
       if (typeof rendered !== "function") return;
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const why = `failed in render(): ${errorMessage(error)}`;
-      fail(
-        renderer === void 0 || id2 === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageFromId(id2), why, { cause: error })
-      );
+      fail(new Error(`The UI of the board option "${option}" failed in render(): ${errorMessage(error)}`, { cause: error }));
     }
   })();
   function fail(error) {
@@ -3211,7 +3193,6 @@ function createMounts(options) {
   const shelves = createShelves();
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
-  const renderers = options.renderers ?? (() => ({}));
   const raise = options.raise ?? raiseNothing;
   const replied2 = options.replied ?? repliedNothing;
   const notify = options.notify ?? notifyNothing;
@@ -3396,7 +3377,7 @@ function createMounts(options) {
       block
     ),
     mountOption: (el, option) => mountOption(
-      { store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
+      { store, commands, scheduler, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
       el,
       option
     ),
@@ -4979,7 +4960,7 @@ function checkPlugins(board, registrations, changed, failures) {
       failures.push(`The board holds the state of a plugin of the class "${id2}", which no package registered.`);
       continue;
     }
-    if (cls.def.state === void 0) {
+    if (cls.validate === void 0) {
       failures.push(`The board holds the state of a plugin of the class "${id2}", which keeps none.`);
       continue;
     }
@@ -5459,6 +5440,11 @@ var StoreError = class extends Error {
     this.failures = failures;
   }
 };
+function thrown(of, error, attributes) {
+  const failure = `${of}: ${errorMessage(error)}`;
+  log.error(new Error(failure, { cause: error }), attributes);
+  return failure;
+}
 
 // srcts/store/expand.ts
 var ROUNDS = 10;
@@ -5472,12 +5458,14 @@ function expand(delta, board, registrations) {
     expanded = core;
     for (const id2 of Object.keys(board.plugins)) {
       const def = registrations.plugin(id2)?.def;
-      if (def?.update === void 0) continue;
+      if (def?.state?.update === void 0) continue;
       let patches2;
       try {
-        patches2 = def.update(expanded, board, id2);
+        patches2 = def.state.update(expanded, board, id2);
       } catch (error) {
-        failures.push(thrown(id2, `The plugin class "${id2}" failed to update the delta for its plugin`, error));
+        failures.push(
+          thrown(`The plugin class "${id2}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id2 })
+        );
         continue;
       }
       const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
@@ -5506,12 +5494,12 @@ function afterStep(board, before, registrations) {
   const failures = [];
   for (const id2 of Object.keys(board.plugins)) {
     const def = registrations.plugin(id2)?.def;
-    if (def?.afterStep === void 0) continue;
+    if (def?.state?.afterStep === void 0) continue;
     let returned;
     try {
-      returned = def.afterStep(board, before, id2);
+      returned = def.state.afterStep(board, before, id2);
     } catch (error) {
-      failures.push(thrown(id2, `The afterStep of the plugin class "${id2}" failed`, error));
+      failures.push(thrown(`The afterStep of the plugin class "${id2}" failed`, error, { "blockr.plugin.class_id": id2 }));
       continue;
     }
     const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
@@ -5546,11 +5534,6 @@ function expandCore(delta, board) {
     ...incident.length === 0 ? {} : { links: { ...delta.links, rm: [...linksRm, ...incident] } },
     ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
   };
-}
-function thrown(id2, of, error) {
-  const failure = `${of}: ${errorMessage(error)}`;
-  log.error(new Error(failure, { cause: error }), { "blockr.plugin.class_id": id2 });
-  return failure;
 }
 function misplaced(id2, patches2, of) {
   if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
@@ -5820,11 +5803,15 @@ function migrate(board, json, reply, registrations) {
         );
         return [cls, state2];
       }
-      if (def.migrate === void 0) return [cls, state2];
+      if (def.state?.migrate === void 0) return [cls, state2];
       changed.add("plugins");
       return [
         cls,
-        migratedValue(`The migration of the plugin class "${cls}"`, () => def.migrate?.(frozenCopy(state2), from))
+        migratedValue(
+          `The migration of the plugin class "${cls}"`,
+          { "blockr.plugin.class_id": cls },
+          () => def.state?.migrate?.(frozenCopy(state2), from)
+        )
       ];
     })
   );
@@ -5844,6 +5831,7 @@ function migrate(board, json, reply, registrations) {
       changed.add("blocks");
       const state2 = migrated(
         `The migration of the block class "${block.registry_id}"`,
+        { "blockr.block.registry_id": block.registry_id },
         () => fn(frozenCopy(block.state), from)
       );
       return [id2, { ...block, state: state2 }];
@@ -5866,7 +5854,11 @@ function migrate(board, json, reply, registrations) {
       changed.add("options");
       return [
         id2,
-        migratedValue(`The migration of the board option "${id2}"`, () => def.migrate?.(frozenCopy(value2), from))
+        migratedValue(
+          `The migration of the board option "${id2}"`,
+          { "blockr.option.id": id2 },
+          () => def.migrate?.(frozenCopy(value2), from)
+        )
       ];
     })
   );
@@ -5874,17 +5866,17 @@ function migrate(board, json, reply, registrations) {
   if (changed.size === 0) return board;
   return { ...board, plugins, blocks, options };
 }
-function migrated(what, fn) {
-  const out = migratedValue(what, fn);
+function migrated(what, attributes, fn) {
+  const out = migratedValue(what, attributes, fn);
   if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
   return out;
 }
-function migratedValue(what, fn) {
+function migratedValue(what, attributes, fn) {
   let out;
   try {
     out = fn();
   } catch (error) {
-    throw new StoreError(refused, [`${what} failed: ${errorMessage(error)}`]);
+    throw new StoreError(refused, [thrown(`${what} failed`, error, attributes)]);
   }
   if (out === void 0) throw new StoreError(refused, [`${what} returned nothing.`]);
   return frozenCopy(out);
@@ -5923,6 +5915,7 @@ function remove(board, gone, registrations) {
 
 // srcts/store/registrations.ts
 import { computed as computed2, signal as signal2 } from "./vendor-c5b8952d.js";
+var STATE_FUNCTIONS = [["update", "an"], ["afterStep", "an"], ["migrate", "a"]];
 function createRegistrations(migration = () => void 0) {
   const classes2 = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -5953,10 +5946,13 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" is registered already.`);
     }
     const given = def;
-    for (const [member, article] of [["update", "an"], ["afterStep", "an"], ["migrate", "a"], ["start", "a"]]) {
-      if (given[member] !== void 0 && typeof given[member] !== "function") {
-        throw new Error(`The plugin class "${id2}" has ${article} ${member} that is no function.`);
+    for (const [member, article] of STATE_FUNCTIONS) {
+      if (given[member] !== void 0) {
+        throw new Error(`The plugin class "${id2}" gives ${article} ${member} outside its state.`);
       }
+    }
+    if (given.start !== void 0 && typeof given.start !== "function") {
+      throw new Error(`The plugin class "${id2}" has a start that is no function.`);
     }
     for (const member of ["ui", "frontend"]) {
       const drawn2 = given[member];
@@ -5984,11 +5980,16 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
     }
     const what = `the state of the plugin class "${id2}"`;
-    let validate = () => [];
+    let validate;
     const state2 = given.state;
     if (state2 !== void 0) {
       if (!isObject(state2) || !isObject(state2.schema) || !Object.hasOwn(state2, "default")) {
         throw new Error(`The plugin class "${id2}" gives a state without a schema and a default.`);
+      }
+      for (const [member] of STATE_FUNCTIONS) {
+        if (state2[member] !== void 0 && typeof state2[member] !== "function") {
+          throw new Error(`The plugin class "${id2}" has a state whose ${member} is no function.`);
+        }
       }
       validate = compile(what, state2.schema);
       checkInitial(what, validate, state2.default, "default");
@@ -10992,7 +10993,6 @@ function createCore(parts) {
     scheduler,
     loader,
     core: () => api,
-    renderers: parts.renderers,
     raise,
     replied: notifications.replied,
     notify: notifications.notify,
@@ -12082,7 +12082,6 @@ function start(options) {
       blockrOptions,
       randId,
       lock: (first ?? reply).lock,
-      renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
       options: reply.options,
       notifications,
