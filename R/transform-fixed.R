@@ -35,6 +35,14 @@ fixed_block <- new_block_class(
 #' @param expr R code as a string
 #' @inheritParams new_head_block
 #'
+#' @block fixed block
+#' @blockDescr Apply fixed R code to the data
+#' @blockCategory transform
+#' @blockIcon code-slash
+#' @blockGuidance Set `expr` to R code as a string that refers to the data
+#'   input as `data`, such as "utils::head(data, 3)".
+#' @blockKeywords fixed, code, expression, transform
+#'
 #' @examples
 #' new_fixed_block("utils::head(data, 3)")
 #'

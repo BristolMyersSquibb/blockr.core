@@ -853,7 +853,7 @@ describe("the renderer", () => {
     const text = renderer();
     const plain: HelloReply = {
       ...bare,
-      board: { ...bare.board, board: { ...bare.board.board, options: { dark_mode: { value: "dark", version: 1 } } } },
+      board: { ...bare.board, board: { ...bare.board.board, options: { dark_mode: { value: "dark", version: 1, package: "blockr.core" } } } },
       block_registry: Object.fromEntries(
         Object.entries(bare.block_registry).map(([id, entry]) => [
           id,

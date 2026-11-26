@@ -140,11 +140,18 @@
         },
         "version": {
           "type": "number"
+        },
+        "package": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "value",
-        "version"
+        "version",
+        "package"
       ]
     },
     "JsonPlugin": {

@@ -126,17 +126,27 @@ export interface Store {
   // replaces none.
   // So the DAG pastes in an app with the load lock alone, whose board a user
   // may still edit.
-  read(text: string): Promise<{ board: Board; dropped: Dropped[] }>;
+  // Through `CoreApi`, core tells the user what the board lacks, as it does as
+  // a board opens, or hands that notification to the notifier in `opts`,
+  // before read() resolves (../core/start.ts). So no caller words a
+  // notification of its own. The store itself ignores the notifier, as it
+  // does for open().
+  read(text: string, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<{ board: Board; dropped: Dropped[] }>;
   // The board as a JSON board, as a file holds it.
   // It records the version of each package that the board's content comes
   // from, as the reply to `hello` gives it: the package of the class of each
-  // plugin whose state it holds, which the class's id names, and the package
-  // of each block's class, which its registry id names.
+  // plugin whose state it holds, which the class's id names, the package of
+  // each block's class, which its registry id names, and the package of each
+  // board option whose value it holds, which the board option's entry in the
+  // reply's `options` names.
   // It records the version of each shape beside what the board holds in that
   // shape as well: of each plugin's state, as the app's plugin of the class
   // carries it in the reply to `hello`, of each block's state, as the class's
   // entry in the block registry gives it, and of each board option's value, as
   // the reply gives it in `options`, each 1 where none is given.
+  // Beside each board option's value, it also records the package that lists
+  // the board option, as the reply names it in `options`, or null where the
+  // reply names none, since a board option's id names no package.
   jsonBoard(): JsonBoard;
   // The text of the board's file: its JSON board, written with
   // JSON.stringify(), indented by two spaces and ending in a newline, as R
@@ -638,10 +648,17 @@ export function createStore(options: StoreOptions = {}): Store {
     if (next === undefined) {
       throw new Error("The store holds no board until it opens one.");
     }
+    const options = Object.fromEntries(
+      Object.entries(next.options).map(([id, value]) => {
+        const entry = own(hello?.options ?? {}, id);
+        return [id, { value, version: entry?.version ?? 1, package: entry?.package ?? null }];
+      }),
+    );
     const classes = Object.keys(next.plugins);
     const owned = new Set([
       ...classes.flatMap((cls) => packageFromId(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
+      ...Object.values(options).flatMap((option) => option.package ?? []),
     ]);
     const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {
@@ -659,12 +676,6 @@ export function createStore(options: StoreOptions = {}): Store {
           name: block.name,
           locked: block.locked,
         },
-      ]),
-    );
-    const options = Object.fromEntries(
-      Object.entries(next.options).map(([id, value]) => [
-        id,
-        { value, version: own(hello?.options ?? {}, id)?.version ?? 1 },
       ]),
     );
     const plugins = Object.fromEntries(

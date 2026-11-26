@@ -8,9 +8,9 @@
 #' The app's server function hands what the client sends to the evaluator of
 #' the session, which evaluates the blocks.
 #'
-#' Which block classes an app offers is the app's choice, never a board's.
-#' The methods for a board and for a path take them in `blocks`, which
-#' defaults to every block class of every available package, as
+#' An app offers every block class of its block registry.
+#' The methods for a board and for a path take those of packages in `blocks`,
+#' which defaults to every block class of every available package, as
 #' [available_blocks()] gives them.
 #' A script narrows them with plain R, as
 #' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
@@ -59,16 +59,25 @@
 #' sends it to the client as each session starts.
 #' So a board that R cannot write as JSON fails as the script runs (see
 #' [blockr_ser()]).
-#' Before it writes the board, R registers the class of each block on the
-#' board that the app's block registry lacks, under the registry ID that the
-#' class gives (see [register_block()]).
-#' So every block on the served board runs, and so does a block that `serve()`
-#' serves alone.
+#' Before it writes the board, R registers each class of the board's blocks
+#' that the app's block registry lacks, from the class's registration (see
+#' [register_block()]): from the block registry of the process where that
+#' holds the class, and from the listing of the class's package otherwise.
+#' So every block on the served board runs, with the name and the other
+#' metadata that its class's registration gives, and so does a block that
+#' `serve()` serves alone.
+#' The app offers these classes too, so that a user can add a block of any
+#' class that the board shows.
+#' A board with a block of a class that nothing registers fails, naming the
+#' block and the class.
+#' So a script registers a class that it defines itself with
+#' [register_block()] before it serves a board with a block of the class.
 #' A class from a package keeps its package's ID, so that a board saved from
 #' the app opens in an app that offers the package.
 #' A class from outside a package, whose registry ID is its id alone,
-#' replaces another class that the script registered under that ID, so that a
-#' script that redefines a class after it registered it runs the new
+#' replaces another class that the script registered under that ID, and keeps
+#' the metadata that the script registered.
+#' So a script that redefines a class after it registered it runs the new
 #' definition.
 #' A board with blocks of two such classes of one id fails, since the client
 #' and the evaluator know a block's class by its registry ID alone.
@@ -84,8 +93,8 @@
 #'
 #' A single block is served alone, with fixed data and no board around it, so
 #' that its developer can try it out.
-#' Its app offers no block classes, so that its block registry holds the
-#' block's class alone, and R reads no package's listing for it.
+#' Its block registry holds the block's class alone, which R registers from
+#' the class's registration, as for a board.
 #' The page shows the block in a card of its own: its name, its UI, its output
 #' and a line of its status.
 #' R keeps the data for the process, and binds each entry to the block's input
@@ -197,7 +206,8 @@ serve.board <- function(x, ..., blocks = available_blocks(),
                         plugins = available_plugins()) {
   plugins <- app_plugins(plugins)
   check_board_plugins(x, plugins)
-  registry <- app_block_registry(blocks, x)
+  registry <- app_block_registry(blocks)
+  register_board_classes(x, registry)
   frontend <- frontend_reply(..., plugins = plugins)
   serve_app(
     encode_message(blockr_ser(x)),
@@ -311,34 +321,53 @@ frontend_reply <- function(..., plugins) {
 }
 
 # Registers the class of each block on a board that an app's block registry,
-# `registry`, lacks, under the registry id that the class gives, so that every
-# block on the served board runs. A class from a package keeps its package's
-# id. Core's static and fixed blocks get theirs this way, since core does not
-# register them as it loads.
+# `registry`, lacks, from the class's registration (see `register_class()`), so
+# that every block on the served board runs, with the metadata that the
+# registration gives. A class from a package keeps its package's id.
+# A board with a block of a class that has no registration stops the app,
+# naming each such block and its class, as for a class that the app script
+# defined and did not register.
 # A class from outside a package has no package that checks the ids of its
 # classes, so R checks it here. It replaces another class that the registry
 # holds under its id, as a class does that the script redefined after it
-# registered it, and two such classes of one id on a board fail.
+# registered it, and keeps the metadata that the script registered.
+# Two such classes of one id on a board fail.
 register_board_classes <- function(board, registry) {
 
   classes <- lapply(as.list(board_blocks(board)), block_class)
 
   check_outside_classes(classes)
 
-  for (cls in classes) {
+  unregistered <- character()
 
+  for (blk in names(classes)) {
+
+    cls <- classes[[blk]]
     id <- class_registry_id(cls)
-    old <- get0(id, envir = registry, inherits = FALSE)[["block_class"]]
 
-    if (is.null(old) || (is.null(cls[["package"]]) && !identical(old, cls))) {
-      add_block_entry(
-        registry,
-        block_constructor(cls),
-        default_block_name(cls[["class"]]),
-        "",
-        overwrite = TRUE
-      )
+    held <- exists(id, envir = registry, inherits = FALSE) ||
+      register_class(cls, registry)
+
+    if (!held) {
+      unregistered <- c(unregistered, paste0(blk, " (", id, ")"))
+      next
     }
+
+    old <- get_registry_entry(id, registry)
+
+    if (is.null(cls[["package"]]) && !identical(old[["block_class"]], cls)) {
+      assign(id, class_entry(cls, entry_metadata(old)), envir = registry)
+    }
+  }
+
+  if (length(unregistered)) {
+    blockr_abort(
+      "{qty(unregistered)}The board holds {?a block/blocks} {unregistered} ",
+      "of {?a class/classes} that nothing registers. A package lists its ",
+      "block classes, and an app script registers a class of its own with ",
+      "`register_block()` before it serves a board with a block of the class.",
+      class = "board_classes_unregistered"
+    )
   }
 
   invisible()

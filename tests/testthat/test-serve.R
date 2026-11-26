@@ -36,7 +36,12 @@ test_that("serve() serves a board, whose JSON R writes as serve() is called", {
   )
 })
 
-test_that("serve() registers the board's classes that the registry lacks", {
+test_that("serve() registers the board's classes from their registrations", {
+
+  local_declared(block_registry)
+
+  # So that core's listing gives the static block's class
+  unregister_blocks("blockr.core-static_block")
 
   cls <- test_block_class(
     "note_block",
@@ -52,21 +57,49 @@ test_that("serve() registers the board's classes that the registry lacks", {
     )
   )
 
+  # A class that the script defines stops the app until the script registers
+  # it, naming each block of such a class
+  expect_error(
+    serve(board),
+    "a (note_block)",
+    fixed = TRUE,
+    class = "board_classes_unregistered"
+  )
+
+  register_block(block_constructor(cls), "Note", "A note")
+
   ids <- c("note_block", "blockr.core-static_block")
   head <- get_registry_entry("blockr.core-head_block")
+  rows <- core_block_rows()
 
-  registry <- served_registry(serve(board))
+  app <- serve(board, blocks = rows[rows[["id"]] == "head_block", ])
+  registry <- served_registry(app)
 
   # Each under the id that its class gives, so that a class from a package
-  # keeps its package's id, in the app's block registry alone
-  expect_contains(ls(registry), ids)
-  expect_false(any(ids %in% list_blocks()))
+  # keeps its package's id, with the metadata that its registration gives,
+  # in the app's block registry alone
+  expect_setequal(ls(registry), c(ids, "blockr.core-head_block"))
+  expect_false("blockr.core-static_block" %in% list_blocks())
   expect_identical(get_registry_entry("note_block", registry)$name, "Note")
+
   static <- get_registry_entry("blockr.core-static_block", registry)
+
   expect_identical(static$block_class$package, "blockr.core")
+  expect_identical(static$name, "static block")
+  expect_identical(static$description, "Evaluate an R expression")
 
   # A class that the block registry holds keeps its entry
   expect_identical(get_registry_entry("blockr.core-head_block", registry), head)
+
+  # The reply to `hello` sends each of them, so that the client offers the
+  # static block too, by the name that its registration gives
+  reply <- served_replies(app, hello_message())[[1L]]
+
+  expect_setequal(names(reply$block_registry), ls(registry))
+  expect_identical(
+    reply$block_registry[["blockr.core-static_block"]]$name,
+    "static block"
+  )
 })
 
 test_that("serve() builds the app's block registry of the classes it offers", {
@@ -236,17 +269,29 @@ test_that("blocks and plugins read their rows alike, and plugins no file", {
 test_that("serve() registers the class of a block that it serves alone", {
 
   local_declared(block_registry)
+  unregister_blocks("blockr.core-static_block")
   register_block(new_class_head_block, "Head", "First rows")
 
-  registry <- served_registry(serve(new_static_block("datasets::BOD")))
+  app <- serve(new_static_block("datasets::BOD"))
+  registry <- served_registry(app)
 
-  # The block's class alone, whatever the script registered, and in the block
-  # registry of the process none
+  # The block's class alone, whatever the script registered, from the listing
+  # of its package, and in the block registry of the process none
   expect_identical(ls(registry), "blockr.core-static_block")
   expect_false("blockr.core-static_block" %in% list_blocks())
+  expect_identical(
+    get_registry_entry("blockr.core-static_block", registry)$name,
+    "static block"
+  )
 
-  # R reads no package's listing for it, so a listing that R cannot read stops
-  # none of these apps
+  # A class that the script defines needs its registration here too
+  expect_error(
+    serve(block_constructor(note_class())()),
+    class = "board_classes_unregistered"
+  )
+
+  # R reads no listing but that of the block's package, so a listing of
+  # another package that R cannot read stops none of these apps
   local_listing("blockr.probe", list(blocks = list("new_probe_block")))
 
   expect_error(available_blocks(), class = "package_blocks_invalid")
@@ -275,6 +320,7 @@ test_that("serve() replaces a class from outside a package that differs", {
   registry <- served_registry(serve(new_board(c(a = block_constructor(new)()))))
 
   expect_identical(get_registry_entry("note_block", registry)$block_class, new)
+  expect_identical(get_registry_entry("note_block", registry)$name, "Note")
   expect_identical(get_registry_entry("note_block")$block_class, old)
 
   # A class from a package keeps the entry under its id, which the script
@@ -925,7 +971,7 @@ test_that("the page imports the modules of plugins, options and blocks", {
 
   plugins <- app_plugins(subset(available_plugins(), package == "blockr.core"))
   board <- served_board()
-  registry <- app_block_registry(board = board)
+  registry <- app_block_registry()
 
   modules <- page_modules(encode_message(blockr_ser(board)), registry, plugins)
 
@@ -947,7 +993,7 @@ test_that("the page imports the modules of plugins, options and blocks", {
 test_that("the page imports the module that board_action_menu names", {
 
   board <- encode_message(blockr_ser(served_board()))
-  registry <- app_block_registry(board = served_board())
+  registry <- app_block_registry()
   paths <- function() chr_xtr(page_modules(board, registry), "path")
 
   # Core's own menu, unless the app names another module
@@ -992,6 +1038,8 @@ test_that("an app holds the output families that serve() read", {
     ui = js_module(file.path(dir, "any-block.js"), package = NULL),
     output = any_output
   )
+
+  local_block_class(cls)
 
   board <- new_board(c(a = block_constructor(cls)()), id = "open_board")
   app <- serve(board)
@@ -1070,15 +1118,26 @@ test_that("serve() stops on a board option that no available package lists", {
     "elsewhere, which no available package lists."
   )
 
-  expect_error(serve(board), msg, fixed = TRUE, class = "board_options_unknown")
+  # The script registers the class, which then joins every app that it
+  # serves, so it registers it only for these apps
+  local({
+    local_block_class(cls)
 
-  # So does a block that serve() serves alone
-  expect_error(
-    serve(block_constructor(cls)()),
-    msg,
-    fixed = TRUE,
-    class = "board_options_unknown"
-  )
+    expect_error(
+      serve(board),
+      msg,
+      fixed = TRUE,
+      class = "board_options_unknown"
+    )
+
+    # So does a block that serve() serves alone
+    expect_error(
+      serve(block_constructor(cls)()),
+      msg,
+      fixed = TRUE,
+      class = "board_options_unknown"
+    )
+  })
 
   # Every class whose family is open reaches the families that the packages
   # list, and the error names such a family once
@@ -1110,7 +1169,12 @@ test_that("serve() stops on a board option that no available package lists", {
     )
   )
 
-  cnd <- expect_error(serve(open), class = "board_options_unknown")
+  open_classes <- lapply(as.list(board_blocks(open)), block_class)
+
+  cnd <- local({
+    for (x in open_classes) local_block_class(x)
+    expect_error(serve(open), class = "board_options_unknown")
+  })
 
   expect_identical(
     conditionMessage(cnd),
@@ -1131,8 +1195,15 @@ test_that("serve() stops on a board option that no available package lists", {
     )
   )
 
-  expect_s3_class(serve(board), "shiny.appobj")
-  expect_s3_class(serve(open), "shiny.appobj")
+  local({
+    local_block_class(cls)
+    expect_s3_class(serve(board), "shiny.appobj")
+  })
+
+  local({
+    for (x in open_classes) local_block_class(x)
+    expect_s3_class(serve(open), "shiny.appobj")
+  })
 })
 
 test_that("a plugin's board option that no package lists stops the app", {

@@ -28,8 +28,11 @@ export interface CoreApi {
   // open() rejects with the reason. Where it refuses a delta, an undo or a
   // redo, of whatever origin, core tells the user why through a notification
   // of the code `board_edit_failed`, and the call still throws the reason.
-  // A call whose caller shows the reason itself, or hands it on, passes a
-  // notifier in its options, which takes the notification in place of core
+  // Where its read() leaves anything out of the board that it reads, core
+  // tells the user what through a notification of the code
+  // `board_objects_dropped`, as it does as a board opens.
+  // A call whose caller shows the notification itself, or hands it on, passes
+  // a notifier in its options, which takes the notification in place of core
   // (Notifier, below).
   readonly store: Store;
   // The command registry, for menus and shortcuts. Where it or the store
@@ -474,7 +477,8 @@ export type CoreCode =
   | "board_edit_failed"
   // A board action whose run throws, rejects or returns no batch.
   | "board_action_failed"
-  // What the store dropped as the board opened.
+  // What the store dropped as the board opened, or left out of a board that
+  // its read() read.
   | "board_objects_dropped"
   // A package that R runs at another version than the page loaded.
   | "page_reload_needed"
@@ -632,13 +636,14 @@ export interface RequestOpts {
 // hands it to the model, so that the user is told once
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#taking-a-calls-notifications).
 // A caller passes it in the options of a request, of an edit through the
-// store or the command registry, of the store's open(), or of a host's
-// submit(). Core then raises none of those notifications, and leaves those
-// that earlier calls raised as they are, since another caller may have made
-// those calls. Core hands it the notifications of each reply to a request, and
-// the notification of a refused edit or board before the call rejects or
-// throws, which it still does. Core logs what a notifier throws, and the call
-// ends as it would have.
+// store or the command registry, of the store's open() or read(), or of a
+// host's submit(). Core then raises none of those notifications, and leaves
+// those that earlier calls raised as they are, since another caller may have
+// made those calls. Core hands it the notifications of each reply to a
+// request, and the notification of a refused edit or board before the call
+// rejects or throws, which it still does. It hands it the notification of
+// what the store's read() left out of a board before read() resolves.
+// Core logs what a notifier throws, and the call ends as it would have.
 export type Notifier = (notifications: readonly Notification[]) => void;
 
 export interface OutputEvents {

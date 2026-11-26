@@ -16,6 +16,20 @@ new_dataset_block:
   - import
   - package
   - source
+new_static_block:
+  id: static_block
+  name: static block
+  description: Evaluate an R expression
+  category: input
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_static_block.html
+  icon: braces
+  guidance: Set `expression` to an R expression as a string, such as "datasets::iris",
+    whose value is the block's result. The expression reads no data input.
+  keywords:
+  - static
+  - expression
+  - code
+  - data
 new_filebrowser_block:
   id: filebrowser_block
   name: file browser block
@@ -97,6 +111,20 @@ new_glue_block:
   - string
   - interpolate
   - markdown
+new_fixed_block:
+  id: fixed_block
+  name: fixed block
+  description: Apply fixed R code to the data
+  category: transform
+  link: https://bristolmyerssquibb.github.io/blockr.core/reference/new_fixed_block.html
+  icon: code-slash
+  guidance: Set `expr` to R code as a string that refers to the data input as `data`,
+    such as "utils::head(data, 3)".
+  keywords:
+  - fixed
+  - code
+  - expression
+  - transform
 new_head_block:
   id: head_block
   name: head/tail block

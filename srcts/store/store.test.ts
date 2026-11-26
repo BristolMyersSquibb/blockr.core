@@ -307,8 +307,9 @@ function recordedVersions(json: JsonBoard): Readonly<Record<string, number>> {
 // its parts, its plugins among them, each by its state.
 // Each block records version 1 of its class's state unless it gives another,
 // each board option version 1 of its value unless `optionVersions` gives
-// another, and each plugin version 1 of its class's state unless
-// `pluginVersions` gives another.
+// another, with the package that lists it in the fixture hello, if any, and
+// each plugin version 1 of its class's state unless `pluginVersions` gives
+// another.
 function file(
   board: Partial<Board> & Readonly<Record<string, unknown>>,
   packages: Readonly<Record<string, string>> = { "blockr.core": "0.2.0" },
@@ -338,7 +339,7 @@ function file(
   const options = Object.fromEntries(
     Object.entries(given.options).map(([id, value]) => [
       id,
-      { value, version: optionVersions[id] ?? 1 },
+      { value, version: optionVersions[id] ?? 1, package: hello.options[id]?.package ?? null },
     ]),
   );
   const plugins = Object.fromEntries(
@@ -424,8 +425,8 @@ describe("opening a board", () => {
     expect(store.blockRegistry()).toBe(hello.block_registry);
     expect(store.packages()).toBe(hello.packages);
     expect(dropped).toEqual([
-      { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
 
     const board = store.board();
@@ -434,6 +435,15 @@ describe("opening a board", () => {
     expect(board.links).toEqual({});
     expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"], color: null } });
     expect(seen).toEqual([{ opened: board, dropped }]);
+  });
+
+  test("names no package that R did not load where nothing on the board comes from it, as a copied board can list one", async () => {
+    const store = unopened();
+
+    const dropped = await store.open(file({ blocks: { b: head() }, links: {}, stacks: {} }, { "blockr.core": "0.2.0", "blockr.dock": "0.3.0" }));
+
+    expect(dropped).toEqual([]);
+    expect(Object.keys(store.board().blocks)).toEqual(["b"]);
   });
 
   test("refuses a file above the format it knows, naming both, and a file of today's stack", async () => {
@@ -543,10 +553,10 @@ describe("opening a board", () => {
     // whose class no package registers and of those that the app does not
     // run, whose versions then refuse nothing.
     expect(dropped).toEqual([
-      { package: "blockr.md", version: "0.2.0" },
-      { plugin: "blockr.md-md_plugin", package: "blockr.md" },
-      { plugin: "blockr.dag-dag_plugin", package: "blockr.dag" },
-      { plugin: "mine_plugin", package: null },
+      { about: { package: "blockr.md", version: "0.2.0" }, package: "blockr.md" },
+      { about: { plugin: "blockr.md-md_plugin" }, package: "blockr.md" },
+      { about: { plugin: "blockr.dag-dag_plugin" }, package: "blockr.dag" },
+      { about: { plugin: "mine_plugin" }, package: null },
     ]);
     expect(Object.keys(store.board().plugins)).toEqual([dock.id]);
     expect(dockViews(store.board())).toEqual({ main: { panels: ["a"] } });
@@ -560,17 +570,20 @@ describe("opening a board", () => {
         packages: { ...docking.board.packages, "blockr.dag": "0.2.0", "blockr.dock": "0.2.1" },
         board: {
           ...docking.board.board,
-          options: { n_rows: { value: 20, version: 1 }, view_tabs: { value: true, version: 1 } },
+          options: {
+            n_rows: { value: 20, version: 1, package: "blockr.core" },
+            view_tabs: { value: true, version: 1, package: "blockr.dock" },
+          },
         },
       }),
     );
 
     expect(dropped).toEqual([
-      { package: "blockr.dag", version: "0.2.0" },
-      { package: "blockr.dock", version: "0.2.1" },
-      { plugin: "blockr.dock-dock_plugin", package: "blockr.dock" },
-      { plugin: "blockr.dag-dag_plugin", package: "blockr.dag" },
-      { option: "view_tabs" },
+      { about: { package: "blockr.dag", version: "0.2.0" }, package: "blockr.dag" },
+      { about: { package: "blockr.dock", version: "0.2.1" }, package: "blockr.dock" },
+      { about: { plugin: "blockr.dock-dock_plugin" }, package: "blockr.dock" },
+      { about: { plugin: "blockr.dag-dag_plugin" }, package: "blockr.dag" },
+      { about: { option: "view_tabs" }, package: "blockr.dock" },
     ]);
 
     const board = store.board();
@@ -649,8 +662,8 @@ describe("opening a board", () => {
 
     expect(store.board().plugins).toEqual({ [dock.id]: { views: {} } });
     expect(dropped).toEqual([
-      { plugin: grid.id, package: "blockr.grid" },
-      { plugin: drive.id, package: "blockr.drive" },
+      { about: { plugin: grid.id }, package: "blockr.grid" },
+      { about: { plugin: drive.id }, package: "blockr.drive" },
     ]);
   });
 
@@ -677,7 +690,7 @@ describe("opening a board", () => {
     const dropped = await store.open(replied);
 
     expect(Object.keys(store.board().plugins)).toEqual([dock.id]);
-    expect(dropped).toEqual([{ plugin: dag.id, package: "blockr.dag" }]);
+    expect(dropped).toEqual([{ about: { plugin: dag.id }, package: "blockr.dag" }]);
   });
 
   test("gives no board option its default, those that a plugin's class requires included", async () => {
@@ -795,7 +808,7 @@ describe("opening a board", () => {
     );
 
     expect(dropped).toEqual([
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     const board = store.board();
     expect(dockViews(board)).toEqual({ main: { panels: ["a", "b"] } });
@@ -834,7 +847,7 @@ describe("opening a board", () => {
 
   test("refuses an opening board that holds a value its schema refuses, as an app script gives one", async () => {
     const store = createStoreWithCoreOptions();
-    const options = { ...hello.board.board.options, n_rows: { value: 0, version: 1 } };
+    const options = { ...hello.board.board.options, n_rows: { value: 0, version: 1, package: "blockr.core" } };
     const given: HelloReply = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options } } };
 
     await expect(store.open(given)).rejects.toThrow(
@@ -851,7 +864,7 @@ describe("opening a board", () => {
 
     // The version that the board records of a value that the store drops
     // refuses nothing.
-    expect(dropped).toEqual([{ option: "grid_gap" }, { option: "view_tabs" }]);
+    expect(dropped).toEqual([{ about: { option: "grid_gap" }, package: null }, { about: { option: "view_tabs" }, package: null }]);
     expect(store.board().options).toEqual({ n_rows: 20 });
     expect(Object.keys(store.jsonBoard().board.options)).toEqual(["n_rows"]);
   });
@@ -877,8 +890,8 @@ describe("opening a board", () => {
     );
 
     expect(dropped).toEqual([
-      { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     expect(store.board()).toBe(board);
     expect(seen).toEqual([]);
@@ -954,8 +967,8 @@ describe("opening a board", () => {
     // The text holds no state of the DAG, so the DAG holds its class's default
     // state.
     expect(read.dropped).toEqual([
-      { package: "blockr.dplyr", version: "0.3.0" },
-      { block: "x", registry_id: "blockr.dplyr-filter_block", package: "blockr.dplyr" },
+      { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     expect(read.board.blocks).toEqual({ b: head() });
     expect(read.board.links).toEqual({});
@@ -1080,6 +1093,31 @@ describe("saving a board", () => {
     );
     expect(store2.jsonBoard().packages).toEqual({ "blockr.core": "0.2.0" });
     expect(store2.jsonBoard().board.plugins).toEqual({ "blockr.notes-notes_plugin": { state: { notes: {} }, version: 1 } });
+  });
+
+  test("records the package of each board option whose value it holds, which an app without the package then names", async () => {
+    // A core app that loaded blockr.dock, which lists the board option
+    // view_tabs, whose id names no package.
+    const tabs: Option = { id: "view_tabs", label: "Tabs", category: "Dock options", schema: { type: "boolean" }, default: false, ui: noUi };
+    const replied = withOptions(["view_tabs"], { ...hello, packages: { ...hello.packages, "blockr.dock": "0.2.1" } }, {}, "blockr.dock");
+    const store = unopened((store) => store.options.register(tabs), replied);
+    await store.open(file({ options: { n_rows: 50, view_tabs: true } }));
+
+    const text = store.save();
+    const saved = store.jsonBoard();
+    expect(saved.packages).toEqual({ "blockr.core": "0.2.0", "blockr.dock": "0.2.1" });
+    expect(saved.board.options).toEqual({
+      n_rows: { value: 50, version: 1, package: "blockr.core" },
+      view_tabs: { value: true, version: 1, package: "blockr.dock" },
+    });
+
+    // An app without blockr.dock drops the value, and names the package in a
+    // record of its own and in the board option's record.
+    const dropped = await unopened().open(text);
+    expect(dropped).toEqual([
+      { about: { package: "blockr.dock", version: "0.2.1" }, package: "blockr.dock" },
+      { about: { option: "view_tabs" }, package: "blockr.dock" },
+    ]);
   });
 });
 
@@ -1326,14 +1364,29 @@ describe("migrations", () => {
     await expect(
       opening.open(file({ blocks: { a: { ...head(), version: "1" } as unknown as Block } })),
     ).rejects.toThrow('The block "a" records no version of its class\'s state.');
+    // A board option's value is recorded with the version of its shape and the
+    // package that lists it, a string or null, but not left out.
     await expect(
       opening.open(
-        JSON.stringify({ ...json, board: { ...json.board, options: { n_rows: 50, seed: { value: 1 } } } }),
+        JSON.stringify({
+          ...json,
+          board: {
+            ...json.board,
+            options: {
+              n_rows: 50,
+              seed: { value: 1, package: null },
+              zoom: { value: 1, version: 1 },
+              tabs: { value: true, version: 1, package: 2 },
+            },
+          },
+        }),
       ),
     ).rejects.toThrow(
       [
-        'The board option "n_rows" is recorded as no value with the version of its shape.',
-        'The board option "seed" is recorded as no value with the version of its shape.',
+        'The board option "n_rows" is recorded as no value with the version of its shape and the package that lists it.',
+        'The board option "seed" is recorded as no value with the version of its shape and the package that lists it.',
+        'The board option "zoom" is recorded as no value with the version of its shape and the package that lists it.',
+        'The board option "tabs" is recorded as no value with the version of its shape and the package that lists it.',
       ].join("\n- "),
     );
     await expect(
@@ -1373,8 +1426,8 @@ describe("migrating board option values", () => {
 
     const saved = opening.jsonBoard();
     expect(saved.board.options).toEqual({
-      seed: { value: 42, version: 2 },
-      n_rows: { value: 50, version: 1 },
+      seed: { value: 42, version: 2, package: "blockr.test" },
+      n_rows: { value: 50, version: 1, package: "blockr.core" },
     });
   });
 

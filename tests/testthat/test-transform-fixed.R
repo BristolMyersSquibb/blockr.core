@@ -16,9 +16,9 @@ test_that("fixed block constructor", {
   expect_error(new_fixed_block("x <- 2L; utils::head(data, x)"),
                "not of length one")
 
-  # The class gives its registry id, though core does not register the class
-  # as it loads
-  expect_false("blockr.core-fixed_block" %in% list_blocks())
+  # Core lists the class, with the metadata that an app's block registry
+  # gives it, and the class gives its registry id
+  expect_true("fixed_block" %in% core_block_rows()[["id"]])
   expect_identical(registry_id_from_block(blk), "blockr.core-fixed_block")
 })
 

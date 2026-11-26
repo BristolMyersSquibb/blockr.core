@@ -47,9 +47,9 @@ The app's server function hands what the client sends to the evaluator of
 the session, which evaluates the blocks.
 }
 \details{
-Which block classes an app offers is the app's choice, never a board's.
-The methods for a board and for a path take them in \code{blocks}, which
-defaults to every block class of every available package, as
+An app offers every block class of its block registry.
+The methods for a board and for a path take those of packages in \code{blocks},
+which defaults to every block class of every available package, as
 \code{\link[=available_blocks]{available_blocks()}} gives them.
 A script narrows them with plain R, as
 \code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
@@ -98,16 +98,25 @@ For a board, R writes the board's JSON once, as \code{serve()} is called, and
 sends it to the client as each session starts.
 So a board that R cannot write as JSON fails as the script runs (see
 \code{\link[=blockr_ser]{blockr_ser()}}).
-Before it writes the board, R registers the class of each block on the
-board that the app's block registry lacks, under the registry ID that the
-class gives (see \code{\link[=register_block]{register_block()}}).
-So every block on the served board runs, and so does a block that \code{serve()}
-serves alone.
+Before it writes the board, R registers each class of the board's blocks
+that the app's block registry lacks, from the class's registration (see
+\code{\link[=register_block]{register_block()}}): from the block registry of the process where that
+holds the class, and from the listing of the class's package otherwise.
+So every block on the served board runs, with the name and the other
+metadata that its class's registration gives, and so does a block that
+\code{serve()} serves alone.
+The app offers these classes too, so that a user can add a block of any
+class that the board shows.
+A board with a block of a class that nothing registers fails, naming the
+block and the class.
+So a script registers a class that it defines itself with
+\code{\link[=register_block]{register_block()}} before it serves a board with a block of the class.
 A class from a package keeps its package's ID, so that a board saved from
 the app opens in an app that offers the package.
 A class from outside a package, whose registry ID is its id alone,
-replaces another class that the script registered under that ID, so that a
-script that redefines a class after it registered it runs the new
+replaces another class that the script registered under that ID, and keeps
+the metadata that the script registered.
+So a script that redefines a class after it registered it runs the new
 definition.
 A board with blocks of two such classes of one id fails, since the client
 and the evaluator know a block's class by its registry ID alone.
@@ -123,8 +132,8 @@ to them.
 
 A single block is served alone, with fixed data and no board around it, so
 that its developer can try it out.
-Its app offers no block classes, so that its block registry holds the
-block's class alone, and R reads no package's listing for it.
+Its block registry holds the block's class alone, which R registers from
+the class's registration, as for a board.
 The page shows the block in a card of its own: its name, its UI, its output
 and a line of its status.
 R keeps the data for the process, and binds each entry to the block's input
