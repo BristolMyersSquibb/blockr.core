@@ -247,9 +247,8 @@ print.reply_body <- function(x, ...) {
 #' Every renderer of the family's outputs reads their values through its host,
 #' whichever renderer a deployment draws them with.
 #' A deployment draws a family's outputs with another renderer by naming it in
-#' the blockr option `renderers` under the family's class, as
-#' `options(blockr.renderers = list(table_output = blockr.ui::table_preview()))`
-#' does (see [blockr_option()]).
+#' the blockr option `renderers` under the family's class, such as
+#' `table_output` (see [new_renderer()] and [blockr_option()]).
 #' R reads what a family holds from the family as its package defines it now:
 #' the one bound under the name of its class where its function was defined.
 #' So a block class of a package that was built against an older version of

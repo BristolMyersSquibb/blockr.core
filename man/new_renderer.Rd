@@ -48,9 +48,10 @@ any of the family's methods.
 Any package can offer another renderer, such as a richer table, through a
 function that makes it.
 A deployment draws with it by naming it in the blockr option \code{renderers},
-under the family whose outputs it is to draw, as
-\code{options(blockr.renderers = list(table_output = blockr.ui::table_preview()))}
-does (see \code{\link[=blockr_option]{blockr_option()}}).
+under the class of the family whose outputs it is to draw, such as
+\code{table_output}, as the examples do (see \code{\link[=blockr_option]{blockr_option()}}).
+No package offers a renderer for core's outputs yet, so core's own draw
+them until one does.
 R reads that choice before the family's own renderer, so loading a package
 that offers a renderer changes nothing, and no package takes the choice
 away.
@@ -69,21 +70,22 @@ So a renderer's request and a request of the output class may share a name,
 and neither hides the other.
 }
 \examples{
-# A renderer that a package such as blockr.ui offers
-table_preview <- function() {
+# A renderer that a package, here mypkg, offers, which draws a table with
+# the labels of its columns
+labelled_table <- function() {
   new_renderer(
-    "table_preview",
-    js_module("js/table-preview.js", package = "blockr.ui"),
+    "labelled_table",
+    js_module("js/labelled-table.js", package = "mypkg"),
     requests = list(
       labels = function(result) lapply(result, attr, "label", exact = TRUE)
     )
   )
 }
 
-table_preview()
+labelled_table()
 
 # In an app script, which draws every table output with it
-options(blockr.renderers = list(table_output = table_preview()))
+options(blockr.renderers = list(table_output = labelled_table()))
 
 options(blockr.renderers = NULL)
 

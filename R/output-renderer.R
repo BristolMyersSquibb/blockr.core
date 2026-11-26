@@ -28,9 +28,10 @@
 #' Any package can offer another renderer, such as a richer table, through a
 #' function that makes it.
 #' A deployment draws with it by naming it in the blockr option `renderers`,
-#' under the family whose outputs it is to draw, as
-#' `options(blockr.renderers = list(table_output = blockr.ui::table_preview()))`
-#' does (see [blockr_option()]).
+#' under the class of the family whose outputs it is to draw, such as
+#' `table_output`, as the examples do (see [blockr_option()]).
+#' No package offers a renderer for core's outputs yet, so core's own draw
+#' them until one does.
 #' R reads that choice before the family's own renderer, so loading a package
 #' that offers a renderer changes nothing, and no package takes the choice
 #' away.
@@ -54,21 +55,22 @@
 #'   function
 #'
 #' @examples
-#' # A renderer that a package such as blockr.ui offers
-#' table_preview <- function() {
+#' # A renderer that a package, here mypkg, offers, which draws a table with
+#' # the labels of its columns
+#' labelled_table <- function() {
 #'   new_renderer(
-#'     "table_preview",
-#'     js_module("js/table-preview.js", package = "blockr.ui"),
+#'     "labelled_table",
+#'     js_module("js/labelled-table.js", package = "mypkg"),
 #'     requests = list(
 #'       labels = function(result) lapply(result, attr, "label", exact = TRUE)
 #'     )
 #'   )
 #' }
 #'
-#' table_preview()
+#' labelled_table()
 #'
 #' # In an app script, which draws every table output with it
-#' options(blockr.renderers = list(table_output = table_preview()))
+#' options(blockr.renderers = list(table_output = labelled_table()))
 #'
 #' options(blockr.renderers = NULL)
 #'
@@ -149,8 +151,7 @@ chosen_renderers <- function() {
     blockr_abort(
       "The blockr option `renderers` is expected to be a list of renderers, ",
       "each made by `new_renderer()` and named by the class of the output ",
-      "family whose outputs it draws, as ",
-      "`list(table_output = blockr.ui::table_preview())` is.",
+      "family whose outputs it draws, such as `table_output`.",
       class = "renderers_blockr_option_invalid"
     )
   }

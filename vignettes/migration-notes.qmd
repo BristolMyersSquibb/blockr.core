@@ -287,7 +287,7 @@ Core no longer reads these blockr options of version 0.1, so a script drops them
 | `core_blocks` | The rows of `blocks` (above) |
 | `page_size`, `filter_rows`, `thematic` and `show_conditions` | Nothing, since their board options are gone |
 | `chat_function` | Nothing in core, since it went with the `llm_model` board option |
-| `tabular_display` | The blockr option `renderers`, as `options(blockr.renderers = list(table_output = blockr.ui::table_preview()))` draws tables with the preview of blockr.ui |
+| `tabular_display` | Nothing, since core reads no `tabular_display` and draws every table with its own table. No package offers another table yet. Once one does, an app script names it in the blockr option `renderers`, under `table_output` |
 | `background_construction_delay` | Nothing, since the browser schedules evaluation |
 | `deser_on_error` | Nothing, since a conversion turns a file of version 0.1 into a JSON board (below) |
 
