@@ -634,7 +634,7 @@
   background-color: var(--bk-color-popover);
 }
 
-.bc\:bg-primary, .bc\:bg-primary\/10 {
+.bc\:bg-primary\/10 {
   background-color: var(--bk-color-primary);
 }
 
@@ -893,10 +893,6 @@
   color: var(--bk-color-primary);
 }
 
-.bc\:text-primary-foreground {
-  color: var(--bk-color-primary-foreground);
-}
-
 .bc\:text-primary-text {
   color: var(--bk-color-primary-text);
 }
@@ -996,10 +992,6 @@
 
 .bc\:disabled\:opacity-40:disabled {
   opacity: .4;
-}
-
-.bc\:disabled\:opacity-50:disabled {
-  opacity: .5;
 }
 
 .bc\:aria-expanded\:ring-1[aria-expanded="true"] {

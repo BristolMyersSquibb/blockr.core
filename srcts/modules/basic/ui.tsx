@@ -5,7 +5,7 @@
 // (../../ui).
 
 import type { ReactElement, ReactNode } from "react";
-import { Dialog as SdkDialog, Heading, Modal } from "@blockr/ui";
+import { Button, Dialog as SdkDialog, Heading, Modal } from "@blockr/ui";
 import { classes } from "../../ui/index.ts";
 
 // A modal dialog, open while it is drawn, which closes on Escape, on its
@@ -37,9 +37,9 @@ export function Dialog({
             <Heading slot="title" className={classes.heading}>
               {title}
             </Heading>
-            <button type="button" className={classes.button} onClick={onClose}>
+            <Button variant="secondary" onPress={onClose}>
               Close
-            </button>
+            </Button>
           </div>
           {children}
         </div>

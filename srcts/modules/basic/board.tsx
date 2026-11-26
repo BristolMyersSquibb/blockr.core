@@ -14,7 +14,6 @@ import { Button, Text, Toast, ToastContent, ToastRegion } from "@blockr/ui";
 import type { QueuedToast } from "@blockr/ui";
 import { MARKS, SeverityIcon } from "../../card/index.ts";
 import { useBoard } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Notification } from "../../types/core-api.ts";
 import { classes } from "../../ui/index.ts";
@@ -64,14 +63,14 @@ function Page(): ReactElement {
       <div className="bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start">
         <Plugins />
         <div className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-4">
-          {items.length === 0 ? <p className={styles.hint}>The board holds no blocks yet.</p> : null}
+          {items.length === 0 ? <p className={classes.hint}>The board holds no blocks yet.</p> : null}
           {items.map((item) => {
             if ("block" in item) return card(item.block);
             const stack = board.stacks[item.stack];
             if (stack === undefined) return null;
             return (
               <StackGroup key={`stack-${item.stack}`} id={item.stack} stack={stack}>
-                {item.blocks.length === 0 ? <p className={styles.hint}>The stack holds no blocks.</p> : item.blocks.map(card)}
+                {item.blocks.length === 0 ? <p className={classes.hint}>The stack holds no blocks.</p> : item.blocks.map(card)}
               </StackGroup>
             );
           })}

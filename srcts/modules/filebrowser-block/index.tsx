@@ -25,7 +25,6 @@ import type { ReactElement } from "react";
 import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
 import { reactModule, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { Json } from "../../types/json.ts";
 import { isObject, jsonEqual, own } from "../../util/index.ts";
@@ -78,6 +77,12 @@ const FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border bc:bg
 const BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border bc:p-1 bc:text-sm";
 const HEAD = "bc:text-xs bc:text-muted-foreground";
 const CHOSEN = "bc:bg-primary/10 bc:font-semibold";
+// The classes of the line below the list that names the block's file, in the
+// colour of secondary text, and of the line that says why the host refused a
+// file, in the colour of an error's text, as blockr.ui draws a field's
+// description and its error.
+const HINT = "bc:m-0 bc:text-sm bc:text-muted-foreground";
+const ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
 
 function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useValue(host, "volumes").value;
@@ -226,9 +231,9 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
         </Table>
       </div>
       {/* Before a file is chosen, the block's status says what is missing. */}
-      {held !== undefined && <p className={styles.hint}>{`Chosen: ${held}`}</p>}
+      {held !== undefined && <p className={HINT}>{`Chosen: ${held}`}</p>}
       {file.error !== null && (
-        <p role="alert" className={styles.alert}>
+        <p role="alert" className={ALERT}>
           {file.error}
         </p>
       )}

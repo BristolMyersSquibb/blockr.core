@@ -36,6 +36,7 @@
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import {
+  Button,
   Checkbox,
   ColorArea,
   ColorField,
@@ -51,7 +52,6 @@ import {
 import type { Color } from "@blockr/ui";
 import { suggestedName } from "../commands/index.ts";
 import { useBoard } from "../react/index.ts";
-import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
@@ -216,7 +216,7 @@ function StackForm({
         void submit(event);
       }}
     >
-      {line === undefined ? null : <p className={styles.hint}>{line}</p>}
+      {line === undefined ? null : <p className={classes.hint}>{line}</p>}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
           label="Name"
@@ -249,9 +249,9 @@ function StackForm({
         </ComboBox>
       )}
       <div className="bc:flex bc:gap-2">
-        <button type="submit" className={classes.primary} disabled={busy}>
+        <Button type="submit" variant="primary" isDisabled={busy}>
           {editing === undefined ? "Add stack" : "Apply"}
-        </button>
+        </Button>
       </div>
       <Refusal refusal={edits.refusal} />
     </Form>
@@ -271,8 +271,8 @@ function StackColor({ color, onChange }: { color: Picked | null; onChange: (colo
   const [last, setLast] = useState<Picked>(color ?? PALETTE[0]);
   const shown = color ?? last;
   return (
-    <fieldset className={styles.fieldset}>
-      <legend className={styles.legend}>Colour</legend>
+    <fieldset className={classes.fieldset}>
+      <legend className={classes.legend}>Colour</legend>
       <div className="bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1">
         <Checkbox
           isSelected={color !== null}

@@ -23,7 +23,6 @@ import * as inputs from "@blockr/ui";
 import type { Bound } from "@blockr/ui";
 import { bind as bindValue, follow as followRequest } from "../binding/index.ts";
 import type { BindOptions, Binding, Followed, FollowOptions } from "../binding/index.ts";
-import { styles } from "../styles/index.ts";
 import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { errorMessage, own } from "../util/index.ts";
@@ -190,6 +189,11 @@ interface Entry {
   readonly draw: () => ReactElement;
 }
 
+// The class of the line below the controls that says why the host refused
+// what a control bound with bind() submitted, in the colour of an error's
+// text, as blockr.ui draws the error of its own inputs.
+const ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
+
 // The controls of a block's UI, bound to the block's state args,
 // or of a board option's UI, bound to the board option's value under its id.
 // The module puts `el` in its element and returns `cleanup` from its render().
@@ -198,7 +202,6 @@ export function controls<S extends State>(host: BlockHost<S>, signal: AbortSigna
 export function controls<V extends Json>(host: OptionHost<V>, signal: AbortSignal): Controls;
 export function controls(host: BlockHost | OptionHost, signal: AbortSignal): BlockControls {
   const el = document.createElement("div");
-  el.className = styles.stack;
   const root = createRoot(el);
 
   const entries: Entry[] = [];
@@ -213,14 +216,14 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Blo
     const drawn = entries.map((entry) => <Fragment key={entry.id}>{entry.draw()}</Fragment>);
     flushSync(() => {
       root.render(
-        <>
+        <inputs.FormLayout>
           {drawn}
           {error === null ? null : (
-            <p role="alert" className={styles.alert}>
+            <p role="alert" className={ALERT}>
               {error}
             </p>
           )}
-        </>,
+        </inputs.FormLayout>,
       );
     });
   };

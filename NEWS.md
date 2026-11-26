@@ -1018,6 +1018,7 @@
 * Core draws its UIs with the components of blockr.ui, which it imports, pinned at `BristolMyersSquibb/blockr.ui@js-state`, and drops its own copy of the kit.
   Core's React SDK, `@blockr/core/react`, holds the hooks and the helpers alone, and `useValue()` returns blockr.ui's `Bound`.
   A module imports the inputs, the overlays and the other components from `@blockr/ui`, where `Stack` is `FormLayout`.
+  The entry `@blockr/core/controls` no longer exports `styles`, the classes of core's inputs and buttons, since those are blockr.ui's now.
   Tests act on the components through the helpers of `@blockr/ui/stubs`, which `@blockr/core/stubs` loads.
   Core's build preset, `@blockr/core/build`, extends the preset of blockr.ui, so a module's imports of `@blockr/ui` and of React Aria's three packages stay imports too, while `staticImports()` and the vendor check come from `@blockr/ui/build`.
   Core's stylesheet builds with blockr.ui's preset under the prefix `bc`, so that its classes read blockr.ui's theme variables, and core's Tailwind theme goes, but for the colors of statuses and categories.

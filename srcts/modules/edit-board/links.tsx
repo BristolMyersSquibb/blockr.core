@@ -27,10 +27,9 @@
 import type { ReactElement } from "react";
 import { createGraph } from "../../graph/index.ts";
 import { useBoard } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, LinkId } from "../../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../../types/core-api.ts";
-import { blockName, isVariadicBlock, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
+import { blockName, classes, isVariadicBlock, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
 
@@ -62,7 +61,7 @@ export function LinksSection({ core, locked }: { core: CoreApi; locked: boolean 
           {adds ? (
             <Advanced core={core} role={ROLE} target={BOARD} />
           ) : (
-            <p className={styles.hint}>
+            <p className={classes.hint}>
               {two ? "No new link can join two blocks of the board." : "A link joins two blocks, so the board needs two blocks first."}
             </p>
           )}
@@ -70,12 +69,12 @@ export function LinksSection({ core, locked }: { core: CoreApi; locked: boolean 
       )}
       <Part title="Links on the board">
         {links.length === 0 ? (
-          <p className={styles.hint}>No link joins two blocks yet.</p>
+          <p className={classes.hint}>No link joins two blocks yet.</p>
         ) : (
           <>
             <TableSearch label="Search links" view={view} />
             {view.found === 0 ? (
-              <p className={styles.hint}>No link matches the search.</p>
+              <p className={classes.hint}>No link matches the search.</p>
             ) : (
               <ObjectsTable
                 core={core}

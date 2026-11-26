@@ -58,7 +58,7 @@ import {
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { classes, NameField, runCommand, useHistory } from "../../ui/index.ts";
+import { NameField, runCommand, useHistory } from "../../ui/index.ts";
 import { ariaShortcuts, asError, onMac, shortcutLabel } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
 import { drawnControls, runButton } from "./storage.ts";
@@ -102,16 +102,15 @@ export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
         <h1 className="bc:m-0 bc:font-sans bc:text-lg bc:font-semibold">{board.name}</h1>
       )}
       {locked || renaming ? null : (
-        <button
-          type="button"
-          className={classes.quiet}
+        <SdkButton
+          variant="quiet"
           aria-label="Rename board"
-          onClick={() => {
+          onPress={() => {
             setRenaming(true);
           }}
         >
           Rename
-        </button>
+        </SdkButton>
       )}
       <SdkToolbar aria-label="Board" className="bc:ml-auto">
         <SdkButton

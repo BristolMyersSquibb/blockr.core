@@ -18,7 +18,6 @@ import { Button, DropZone, FileTrigger, FormLayout, Text } from "@blockr/ui";
 import { strings } from "../../binding/index.ts";
 import { reactModule, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
 
@@ -79,10 +78,10 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
           if (item?.kind === "file") void item.getFile().then(upload);
         }}
       >
-        <Text slot="label" className={styles.label}>
+        <Text slot="label" className={LABEL}>
           Upload data
         </Text>
-        <span className={styles.hint}>Drop a file here, or</span>
+        <span className={HINT}>Drop a file here, or</span>
         {/* FileTrigger forgets the file it picked as the user presses the
             button again, so that picking the same file again uploads it
             again. */}
@@ -97,9 +96,9 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
           </Button>
         </FileTrigger>
       </DropZone>
-      {said !== null && <p className={styles.hint}>{said}</p>}
+      {said !== null && <p className={HINT}>{said}</p>}
       {path.error !== null && (
-        <p role="alert" className={styles.alert}>
+        <p role="alert" className={ALERT}>
           {path.error}
         </p>
       )}
@@ -108,6 +107,14 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
 }
 
 export default reactModule(UploadBlock);
+
+// The classes of the zone's label, of the hints beside the button and below
+// the zone, in the colour of secondary text, and of the line that says why
+// the host refused the path, in the colour of an error's text, as blockr.ui
+// draws a field's label, its description and its error.
+const LABEL = "bc:text-sm bc:font-medium";
+const HINT = "bc:m-0 bc:text-sm bc:text-muted-foreground";
+const ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
 
 function basename(path: string): string {
   return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? path;

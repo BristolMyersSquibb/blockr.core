@@ -10,8 +10,8 @@ import { useCallback } from "react";
 import type { ReactElement } from "react";
 import { Mounted } from "../../card/index.ts";
 import { useBoard } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { OptionId } from "../../types/board.ts";
+import { classes } from "../../ui/index.ts";
 import { useFrontEnd } from "./context.ts";
 import { Dialog } from "./ui.tsx";
 
@@ -30,7 +30,7 @@ export function OptionsDialog({ onClose }: { onClose: () => void }): ReactElemen
   return (
     <Dialog title="Board options" onClose={onClose}>
       {categories.size === 0 ? (
-        <p className={styles.hint}>The board holds no board options.</p>
+        <p className={classes.hint}>The board holds no board options.</p>
       ) : (
         <div className="bc:grid bc:divide-y bc:divide-border">
           {[...categories].map(([category, ids]) => (

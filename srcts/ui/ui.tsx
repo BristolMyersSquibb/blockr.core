@@ -1,6 +1,6 @@
 // The pieces that core's basic frontend, its Edit board plugin and the forms
-// of core's board actions draw with: the classes of their buttons, lists and
-// surfaces, an inline field that renames, the button that opens the menu of a
+// of core's board actions draw with: the classes of their surfaces, lists,
+// hints and alerts, an inline field that renames, the button that opens the menu of a
 // board object, what the text fields of their forms take where they hold an
 // identifier, the banner that says why an edit was refused, and what draws a
 // form in a React root of its own.
@@ -15,13 +15,9 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Button, TextField } from "@blockr/ui";
 import { MARKS, SeverityIcon } from "../card/index.ts";
-import { buttons } from "../styles/index.ts";
 import type { Refused } from "./edits.ts";
 
 export const classes = {
-  button: buttons.secondary,
-  primary: buttons.primary,
-  quiet: buttons.quiet,
   // The board's page, in the page's colour and the colour of its text,
   // `background` and `foreground`
   // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
@@ -33,6 +29,16 @@ export const classes = {
   card: "bc:bg-card bc:text-card-foreground",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0",
+  // A hint beside the fields of a form or in place of a list, in the colour
+  // of secondary text, as blockr.ui draws a field's description.
+  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
+  // A line that says why something cannot happen, in the colour of an error's
+  // text, as blockr.ui draws a field's error.
+  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap",
+  // A group of controls under a legend, which takes the look of a field's
+  // label, as blockr.ui draws it.
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
+  legend: "bc:mb-1 bc:p-0 bc:text-sm bc:font-medium",
 } as const;
 
 // A text field that edits a name in place, blockr.ui's TextField: Enter or

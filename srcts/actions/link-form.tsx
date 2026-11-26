@@ -54,12 +54,11 @@
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
-import { ComboBox, Form, Select, SelectItem, TextField } from "@blockr/ui";
+import { Button, ComboBox, Form, Select, SelectItem, TextField } from "@blockr/ui";
 import { freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../picker/index.ts";
 import { useBoard } from "../react/index.ts";
-import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
@@ -297,7 +296,7 @@ function LinkForm({
         void submit(event);
       }}
     >
-      {fixedLine === undefined ? null : <p className={styles.hint}>{fixedLine}</p>}
+      {fixedLine === undefined ? null : <p className={classes.hint}>{fixedLine}</p>}
       <div className={fixed === undefined ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid"}>
         {fixed === "from" ? null : (
           <ComboBox
@@ -384,12 +383,12 @@ function LinkForm({
         </Select>
       )}
       {editing === undefined && few ? (
-        <p className={styles.hint}>A link joins two blocks, so the board needs two blocks first.</p>
+        <p className={classes.hint}>A link joins two blocks, so the board needs two blocks first.</p>
       ) : null}
       <div className="bc:flex bc:gap-2">
-        <button type="submit" className={classes.primary} disabled={busy}>
+        <Button type="submit" variant="primary" isDisabled={busy}>
           {editing === undefined ? "Add link" : "Apply"}
-        </button>
+        </Button>
       </div>
       <Refusal refusal={edits.refusal} />
     </Form>

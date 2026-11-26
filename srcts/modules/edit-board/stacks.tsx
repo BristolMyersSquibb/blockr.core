@@ -25,10 +25,9 @@
 import type { ReactElement } from "react";
 import { ColorSwatch } from "@blockr/ui";
 import { useBoard } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { blockName, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
+import { blockName, classes, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
 
@@ -60,12 +59,12 @@ export function StacksSection({ core, locked }: { core: CoreApi; locked: boolean
       )}
       <Part title="Stacks on the board">
         {stacks.length === 0 ? (
-          <p className={styles.hint}>The board has no stacks yet.</p>
+          <p className={classes.hint}>The board has no stacks yet.</p>
         ) : (
           <>
             <TableSearch label="Search stacks" view={view} />
             {view.found === 0 ? (
-              <p className={styles.hint}>No stack matches the search.</p>
+              <p className={classes.hint}>No stack matches the search.</p>
             ) : (
               <ObjectsTable
                 core={core}

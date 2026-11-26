@@ -5,16 +5,6 @@ import { createRoot } from "react-dom/client";
 import * as inputs from "@blockr/ui";
 import { bind as bindValue, follow as followRequest } from "@blockr/core/binding";
 
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans",
-  label: "bc:text-sm bc:font-medium",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
-  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap"
-};
-
 // srcts/util/util.ts
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
@@ -24,10 +14,10 @@ function errorMessage(error) {
 }
 
 // srcts/controls/controls.tsx
-import { Fragment as Fragment2, jsx, jsxs } from "react/jsx-runtime";
+import { jsx, jsxs } from "react/jsx-runtime";
+var ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
 function controls(host, signal) {
   const el = document.createElement("div");
-  el.className = styles.stack;
   const root = createRoot(el);
   const entries = [];
   const bindings = [];
@@ -39,9 +29,9 @@ function controls(host, signal) {
     const drawn = entries.map((entry) => /* @__PURE__ */ jsx(Fragment, { children: entry.draw() }, entry.id));
     flushSync(() => {
       root.render(
-        /* @__PURE__ */ jsxs(Fragment2, { children: [
+        /* @__PURE__ */ jsxs(inputs.FormLayout, { children: [
           drawn,
-          error === null ? null : /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error })
+          error === null ? null : /* @__PURE__ */ jsx("p", { role: "alert", className: ALERT, children: error })
         ] })
       );
     });
@@ -195,6 +185,5 @@ import { PAUSE, strings } from "@blockr/core/binding";
 export {
   PAUSE,
   controls,
-  strings,
-  styles
+  strings
 };

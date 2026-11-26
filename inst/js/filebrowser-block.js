@@ -3,16 +3,6 @@ import { useState } from "react";
 import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
 import { reactModule, useRequest, useValue } from "@blockr/core/react";
 
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans",
-  label: "bc:text-sm bc:font-medium",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
-  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap"
-};
-
 // srcts/util/util.ts
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
@@ -39,6 +29,8 @@ var FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border bc:bg-p
 var BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border bc:p-1 bc:text-sm";
 var HEAD = "bc:text-xs bc:text-muted-foreground";
 var CHOSEN = "bc:bg-primary/10 bc:font-semibold";
+var HINT = "bc:m-0 bc:text-sm bc:text-muted-foreground";
+var ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
 function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
   const volumes = asVolumes(shared);
@@ -160,8 +152,8 @@ function FileBrowserBlock({ host }) {
         }
       )
     ] }),
-    held !== void 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: `Chosen: ${held}` }),
-    file.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: file.error })
+    held !== void 0 && /* @__PURE__ */ jsx("p", { className: HINT, children: `Chosen: ${held}` }),
+    file.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: ALERT, children: file.error })
   ] });
 }
 var filebrowser_block_default = reactModule(FileBrowserBlock);

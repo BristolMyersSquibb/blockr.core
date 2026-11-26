@@ -1,6 +1,6 @@
 // What core's basic frontend, its Edit board plugin and the advanced actions
 // of core's board actions, such as the block picker, draw with: the classes
-// of their buttons, lists and surfaces, what the text fields of their forms
+// of their surfaces, lists, hints and alerts, what the text fields of their forms
 // take where they hold an identifier, the search and the pages of their
 // tables, and the hook through which the frontend follows the store's undo
 // history.

@@ -4,7 +4,7 @@ import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
 import { useCallback as useCallback5, useMemo as useMemo3 } from "react";
-import { Button as Button3, Cell, Column, Disclosure, DisclosureHeader, DisclosurePanel, Row, Table, TableBody, TableHeader } from "@blockr/ui";
+import { Button as Button4, Cell, Column, Disclosure, DisclosureHeader, DisclosurePanel, Row, Table, TableBody, TableHeader } from "@blockr/ui";
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
@@ -121,81 +121,13 @@ import { useState as useState4 } from "react";
 import { useFilter } from "@blockr/ui";
 
 // srcts/ui/table.tsx
-import { useState as useState6 } from "react";
-import { SearchField } from "@blockr/ui";
-
-// srcts/ui/ui.tsx
-import { useRef as useRef2, useState as useState5 } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
-import { Button, TextField } from "@blockr/ui";
-
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans",
-  label: "bc:text-sm bc:font-medium",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
-  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap"
-};
-var buttons = {
-  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-primary bc:bg-primary bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-primary-foreground bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
-  secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-inherit bc:cursor-pointer bc:hover:bg-accent bc:hover:text-accent-foreground bc:disabled:cursor-default bc:disabled:opacity-50",
-  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-muted-foreground bc:cursor-pointer bc:hover:bg-accent bc:hover:text-accent-foreground"
-};
-
-// srcts/ui/ui.tsx
+import { useState as useState5 } from "react";
+import { Button, SearchField } from "@blockr/ui";
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
-var classes = {
-  button: buttons.secondary,
-  primary: buttons.primary,
-  quiet: buttons.quiet,
-  // The board's page, in the page's colour and the colour of its text,
-  // `background` and `foreground`
-  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
-  page: "bc:bg-background bc:text-foreground",
-  // What sits over the board, as a dialog or a menu does, in the colours of
-  // every overlay, `popover`.
-  surface: "bc:bg-popover bc:text-popover-foreground",
-  // A card on the page, in the colours of a card, `card`.
-  card: "bc:bg-card bc:text-card-foreground",
-  heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
-  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
-};
-function ActionsButton({
-  ref,
-  label,
-  onPress
-}) {
-  return /* @__PURE__ */ jsx4(Button, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx4("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
-}
-function Refusal({ refusal }) {
-  if (refusal === null) return null;
-  const mark = MARKS.error;
-  const { title, reasons } = refusal;
-  return /* @__PURE__ */ jsxs3(
-    "div",
-    {
-      role: "alert",
-      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
-      children: [
-        /* @__PURE__ */ jsx4("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx4(SeverityIcon, { severity: "error" }) }),
-        /* @__PURE__ */ jsxs3("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1 bc:text-sm bc:break-words", children: [
-          /* @__PURE__ */ jsx4("p", { className: `bc:m-0 bc:font-semibold ${mark.text}`, children: title }),
-          reasons.length === 1 ? /* @__PURE__ */ jsx4("p", { className: "bc:m-0 bc:whitespace-pre-wrap", children: reasons[0] }) : /* @__PURE__ */ jsx4("ul", { className: "bc:m-0 bc:list-disc bc:pl-5", children: reasons.map((reason, i) => /* @__PURE__ */ jsx4("li", { className: "bc:whitespace-pre-wrap", children: reason }, i)) })
-        ] })
-      ]
-    }
-  );
-}
-
-// srcts/ui/table.tsx
-import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 var PAGE_SIZE = 10;
 function useTableView(rows, text, size = PAGE_SIZE) {
-  const [query, setQueryState] = useState6("");
-  const [page, setPage] = useState6(0);
+  const [query, setQueryState] = useState5("");
+  const [page, setPage] = useState5(0);
   const needle = query.trim().toLowerCase();
   const matching = needle === "" ? rows : rows.filter((row) => text(row).toLowerCase().includes(needle));
   const pages = Math.max(1, Math.ceil(matching.length / size));
@@ -216,13 +148,13 @@ function useTableView(rows, text, size = PAGE_SIZE) {
   };
 }
 function TableSearch({ label, view }) {
-  return /* @__PURE__ */ jsx5("search", { children: /* @__PURE__ */ jsx5(SearchField, { label, spellCheck: "false", autoComplete: "off", value: view.query, onChange: view.setQuery }) });
+  return /* @__PURE__ */ jsx4("search", { children: /* @__PURE__ */ jsx4(SearchField, { label, spellCheck: "false", autoComplete: "off", value: view.query, onChange: view.setQuery }) });
 }
 function Pager({ label, view }) {
   const { page, pages, found, first, rows } = view;
   if (pages < 2) return null;
-  return /* @__PURE__ */ jsxs4("nav", { "aria-label": label, className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-muted-foreground", children: [
-    /* @__PURE__ */ jsxs4("span", { "aria-live": "polite", children: [
+  return /* @__PURE__ */ jsxs3("nav", { "aria-label": label, className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-muted-foreground", children: [
+    /* @__PURE__ */ jsxs3("span", { "aria-live": "polite", children: [
       "Rows ",
       first + 1,
       "\u2013",
@@ -230,26 +162,24 @@ function Pager({ label, view }) {
       " of ",
       found
     ] }),
-    /* @__PURE__ */ jsxs4("span", { className: "bc:flex bc:gap-1", children: [
-      /* @__PURE__ */ jsx5(
-        "button",
+    /* @__PURE__ */ jsxs3("span", { className: "bc:flex bc:gap-1", children: [
+      /* @__PURE__ */ jsx4(
+        Button,
         {
-          type: "button",
-          className: classes.button,
-          disabled: page === 0,
-          onClick: () => {
+          variant: "secondary",
+          isDisabled: page === 0,
+          onPress: () => {
             view.setPage(page - 1);
           },
           children: "Previous"
         }
       ),
-      /* @__PURE__ */ jsx5(
-        "button",
+      /* @__PURE__ */ jsx4(
+        Button,
         {
-          type: "button",
-          className: classes.button,
-          disabled: page >= pages - 1,
-          onClick: () => {
+          variant: "secondary",
+          isDisabled: page >= pages - 1,
+          onPress: () => {
             view.setPage(page + 1);
           },
           children: "Next"
@@ -259,12 +189,68 @@ function Pager({ label, view }) {
   ] });
 }
 
+// srcts/ui/ui.tsx
+import { useRef as useRef2, useState as useState6 } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { Button as Button2, TextField } from "@blockr/ui";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+var classes = {
+  // The board's page, in the page's colour and the colour of its text,
+  // `background` and `foreground`
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
+  page: "bc:bg-background bc:text-foreground",
+  // What sits over the board, as a dialog or a menu does, in the colours of
+  // every overlay, `popover`.
+  surface: "bc:bg-popover bc:text-popover-foreground",
+  // A card on the page, in the colours of a card, `card`.
+  card: "bc:bg-card bc:text-card-foreground",
+  heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
+  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0",
+  // A hint beside the fields of a form or in place of a list, in the colour
+  // of secondary text, as blockr.ui draws a field's description.
+  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
+  // A line that says why something cannot happen, in the colour of an error's
+  // text, as blockr.ui draws a field's error.
+  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap",
+  // A group of controls under a legend, which takes the look of a field's
+  // label, as blockr.ui draws it.
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
+  legend: "bc:mb-1 bc:p-0 bc:text-sm bc:font-medium"
+};
+function ActionsButton({
+  ref,
+  label,
+  onPress
+}) {
+  return /* @__PURE__ */ jsx5(Button2, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx5("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
+}
+function Refusal({ refusal }) {
+  if (refusal === null) return null;
+  const mark = MARKS.error;
+  const { title, reasons } = refusal;
+  return /* @__PURE__ */ jsxs4(
+    "div",
+    {
+      role: "alert",
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx5("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx5(SeverityIcon, { severity: "error" }) }),
+        /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1 bc:text-sm bc:break-words", children: [
+          /* @__PURE__ */ jsx5("p", { className: `bc:m-0 bc:font-semibold ${mark.text}`, children: title }),
+          reasons.length === 1 ? /* @__PURE__ */ jsx5("p", { className: "bc:m-0 bc:whitespace-pre-wrap", children: reasons[0] }) : /* @__PURE__ */ jsx5("ul", { className: "bc:m-0 bc:list-disc bc:pl-5", children: reasons.map((reason, i) => /* @__PURE__ */ jsx5("li", { className: "bc:whitespace-pre-wrap", children: reason }, i)) })
+        ] })
+      ]
+    }
+  );
+}
+
 // srcts/modules/edit-board/blocks.tsx
 import { useBoard } from "@blockr/core/react";
 
 // srcts/modules/edit-board/menus.tsx
 import { useCallback as useCallback3, useContext, useEffect, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef3, useState as useState7 } from "react";
-import { Button as Button2 } from "@blockr/ui";
+import { Button as Button3 } from "@blockr/ui";
 import { TableStateContext } from "react-aria-components";
 import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function useMenus(core) {
@@ -377,7 +363,7 @@ function PlaceForm({ args, onClose }) {
   return /* @__PURE__ */ jsxs5("div", { ref: box, role: "group", "aria-label": args.title, className: "bc:grid bc:gap-2 bc:py-1 bc:whitespace-normal", ...KEPT, children: [
     /* @__PURE__ */ jsx6(TakesKeys, {}),
     /* @__PURE__ */ jsx6(Mounted, { mount, className: "bc:min-w-0" }),
-    /* @__PURE__ */ jsx6("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx6(Button2, { variant: "secondary", onPress: onClose, children: "Close" }) })
+    /* @__PURE__ */ jsx6("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx6(Button3, { variant: "secondary", onPress: onClose, children: "Close" }) })
   ] });
 }
 var KEPT = Object.fromEntries(
@@ -457,9 +443,9 @@ function BlocksSection({ core }) {
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs6(Section, { title: "Blocks", count, children: [
     adds ? /* @__PURE__ */ jsx7(Part, { title: "Add a block", children: /* @__PURE__ */ jsx7(Advanced, { core, role: ROLE, target: BOARD }) }) : null,
-    /* @__PURE__ */ jsx7(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx7("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs6(Fragment2, { children: [
+    /* @__PURE__ */ jsx7(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx7("p", { className: classes.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs6(Fragment2, { children: [
       /* @__PURE__ */ jsx7(TableSearch, { label: "Search blocks", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx7("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx7(
+      view.found === 0 ? /* @__PURE__ */ jsx7("p", { className: classes.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx7(
         ObjectsTable,
         {
           core,
@@ -620,10 +606,10 @@ function LinksSection({ core, locked }) {
   const view = useTableView(links, (link) => [link.fromName, link.from, link.toName, link.to, link.input].join(" "));
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs7(Section, { title: "Links", count: links.length, children: [
-    locked ? null : /* @__PURE__ */ jsx8(Part, { title: "Add a link", children: adds ? /* @__PURE__ */ jsx8(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx8("p", { className: styles.hint, children: two ? "No new link can join two blocks of the board." : "A link joins two blocks, so the board needs two blocks first." }) }),
-    /* @__PURE__ */ jsx8(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs7(Fragment3, { children: [
+    locked ? null : /* @__PURE__ */ jsx8(Part, { title: "Add a link", children: adds ? /* @__PURE__ */ jsx8(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx8("p", { className: classes.hint, children: two ? "No new link can join two blocks of the board." : "A link joins two blocks, so the board needs two blocks first." }) }),
+    /* @__PURE__ */ jsx8(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx8("p", { className: classes.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs7(Fragment3, { children: [
       /* @__PURE__ */ jsx8(TableSearch, { label: "Search links", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx8(
+      view.found === 0 ? /* @__PURE__ */ jsx8("p", { className: classes.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx8(
         ObjectsTable,
         {
           core,
@@ -732,9 +718,9 @@ function StacksSection({ core, locked }) {
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs8(Section, { title: "Stacks", count: stacks.length, children: [
     locked || !adds ? null : /* @__PURE__ */ jsx9(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx9(Advanced, { core, role: ROLE3, target: BOARD }) }),
-    /* @__PURE__ */ jsx9(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx9("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs8(Fragment4, { children: [
+    /* @__PURE__ */ jsx9(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx9("p", { className: classes.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs8(Fragment4, { children: [
       /* @__PURE__ */ jsx9(TableSearch, { label: "Search stacks", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx9("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx9(
+      view.found === 0 ? /* @__PURE__ */ jsx9("p", { className: classes.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx9(
         ObjectsTable,
         {
           core,
@@ -823,7 +809,7 @@ function SelectionBar({ core }) {
       /* @__PURE__ */ jsxs9("span", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: [
         offered ? /* @__PURE__ */ jsx10(MenuButton, { menus, target, place: SELECTION, label: "Actions of the selection" }) : null,
         /* @__PURE__ */ jsx10(
-          Button3,
+          Button4,
           {
             variant: "quiet",
             onPress: () => {

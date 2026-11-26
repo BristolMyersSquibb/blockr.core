@@ -4,8 +4,7 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { SearchField } from "@blockr/ui";
-import { classes } from "./ui.tsx";
+import { Button, SearchField } from "@blockr/ui";
 
 // How many rows a table shows on a page.
 export const PAGE_SIZE = 10;
@@ -75,26 +74,24 @@ export function Pager({ label, view }: { label: string; view: TableView<unknown>
         Rows {first + 1}–{first + rows.length} of {found}
       </span>
       <span className="bc:flex bc:gap-1">
-        <button
-          type="button"
-          className={classes.button}
-          disabled={page === 0}
-          onClick={() => {
+        <Button
+          variant="secondary"
+          isDisabled={page === 0}
+          onPress={() => {
             view.setPage(page - 1);
           }}
         >
           Previous
-        </button>
-        <button
-          type="button"
-          className={classes.button}
-          disabled={page >= pages - 1}
-          onClick={() => {
+        </Button>
+        <Button
+          variant="secondary"
+          isDisabled={page >= pages - 1}
+          onPress={() => {
             view.setPage(page + 1);
           }}
         >
           Next
-        </button>
+        </Button>
       </span>
     </nav>
   );

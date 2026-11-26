@@ -60,7 +60,6 @@ import { linkFeeding } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { focusFirstInvalid, inputNameError } from "../picker/index.ts";
 import { useBoard } from "../react/index.ts";
-import { styles } from "../styles/index.ts";
 import type { BlockId, Board, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";
 import {
@@ -177,12 +176,12 @@ function InputsForm({
         void submit(event);
       }}
     >
-      <p className={styles.hint}>{variadic ? `The inputs of the block "${name}", which it takes in this order.` : `The inputs of the block "${name}".`}</p>
+      <p className={classes.hint}>{variadic ? `The inputs of the block "${name}", which it takes in this order.` : `The inputs of the block "${name}".`}</p>
       {children}
       <div className="bc:flex bc:gap-2">
-        <button type="submit" className={classes.primary} disabled={busy}>
+        <Button type="submit" variant="primary" isDisabled={busy}>
           Apply
-        </button>
+        </Button>
       </div>
       <Refusal refusal={edits.refusal} />
     </Form>
