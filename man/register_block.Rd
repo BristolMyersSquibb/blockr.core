@@ -111,7 +111,8 @@ The methods of \code{\link[=serve]{serve()}} for a board and for a path take the
 which defaults to \code{available_blocks()}: a data frame with a row for each
 block class of each available package, with the class's package in
 \code{package} and its id in \code{id}.
-A block that \code{serve()} serves alone offers none.
+The app of a block that \code{serve()} serves alone offers the block's class
+alone.
 A package is available where it exports \code{._BLOCKR_MODULES_}, installed or
 loaded by \code{pkgload::load_all()}, and lists its block classes there, as it
 reads them from its \code{inst/registry/blocks.yml}, which the

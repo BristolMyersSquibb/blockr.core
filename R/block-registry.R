@@ -26,7 +26,8 @@ block_registry <- new.env()
 #' which defaults to `available_blocks()`: a data frame with a row for each
 #' block class of each available package, with the class's package in
 #' `package` and its id in `id`.
-#' A block that `serve()` serves alone offers none.
+#' The app of a block that `serve()` serves alone offers the block's class
+#' alone.
 #' A package is available where it exports `._BLOCKR_MODULES_`, installed or
 #' loaded by `pkgload::load_all()`, and lists its block classes there, as it
 #' reads them from its `inst/registry/blocks.yml`, which the
@@ -624,7 +625,7 @@ check_listed_blocks <- function(entries, package) {
 # whose packages R loads, and the classes that the app script defined and
 # registered itself.
 # Then `serve()` adds the classes of the board's blocks that it lacks, which
-# the app does not offer (see `register_board_classes()`).
+# the app offers too (see `register_board_classes()`).
 # Building it reads the listing of each package that the app offers, as it
 # registers the package's classes.
 app_block_registry <- function(blocks = available_blocks()) {

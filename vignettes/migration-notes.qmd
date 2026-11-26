@@ -226,7 +226,7 @@ The file lists packages, and for each package the ids of the classes to offer, o
 serve(new_board(), blocks = "blocks.yml")
 ```
 
-A block on the board that the script builds runs even where the app does not offer the block's class.
+A block on the board that the script builds runs even where `blocks` leaves out the block's class, and the app then offers that class too.
 The block runs under the registry id that its class gives, so a board saved from that app opens in an app that offers the class.
 
 ## Board options
