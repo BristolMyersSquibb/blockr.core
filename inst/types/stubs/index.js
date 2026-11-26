@@ -6180,11 +6180,12 @@ function openJsonBoard(json, reply, registrations) {
     package: packageFromId(id2)
   }));
   const migrated2 = migrate({ ...read, plugins: held5 }, json.board, reply, registrations);
-  const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
-  const blocks = gone.map((id2) => {
-    const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
-    return { about: { block: id2, registry_id: registryId2 }, package: packageFromId(registryId2) };
-  });
+  const lacking2 = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0);
+  const blocks = lacking2.map(([id2, block]) => ({
+    about: { block: id2, name: block.name, registry_id: block.registry_id },
+    package: packageFromId(block.registry_id)
+  }));
+  const gone = lacking2.map(([id2]) => id2);
   const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
   const options = unclaimed.map((id2) => ({
     about: { option: id2 },
@@ -6194,7 +6195,11 @@ function openJsonBoard(json, reply, registrations) {
   const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
-  const packages = Object.entries(json.packages).filter(([pkg]) => own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
+  const used = /* @__PURE__ */ new Set([
+    ...[...Object.values(read.blocks).map((block) => block.registry_id), ...Object.keys(read.plugins)].map(packageFromId),
+    ...Object.values(json.board.options).map((option) => option.package)
+  ]);
+  const packages = Object.entries(json.packages).filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
   return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
 }
 function remove(board, gone, registrations) {
@@ -14576,7 +14581,7 @@ function start2(options) {
         ...store,
         open: (given, opts) => reopen(given, controller, opts),
         check: (text) => afterMigrations(text, store, () => store.check(text)),
-        read: (text) => afterMigrations(text, store, () => store.read(text))
+        read: (text, opts) => readBoard(text, store, notifications, opts)
       },
       commands,
       boardActions,
@@ -14638,7 +14643,7 @@ function start2(options) {
         raise(coreNotification("board_open_failed", "error", why));
       }
     }
-    if (dropped.length > 0) raise(droppedNotification(dropped));
+    if (dropped.length > 0) raise(droppedNotification(dropped, "opened"));
     if (alone) {
       try {
         options.frontEnds?.card?.(core, signal5);
@@ -14762,6 +14767,12 @@ function start2(options) {
     await migrations.prepare(text, store.blockRegistry());
     return run();
   }
+  async function readBoard(text, store, notifications, opts) {
+    const notifier = givenNotifier(opts, "read()");
+    const read = await afterMigrations(text, store, () => store.read(text));
+    if (read.dropped.length > 0) notifications.raiseAgain(droppedNotification(read.dropped, "read"), notifier);
+    return read;
+  }
   let queue = Promise.resolve();
   function reopen(given, of, opts) {
     let notifier;
@@ -14861,14 +14872,46 @@ function reloadNotification(changed) {
     `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`
   );
 }
-function droppedNotification(dropped) {
-  const lines = dropped.map(({ about, package: pkg }) => {
-    if ("package" in about) return `- package ${about.package} ${about.version}`;
-    if ("block" in about) return `- block "${about.block}" (${about.registry_id})`;
-    if ("plugin" in about) return `- plugin "${about.plugin}"`;
-    return `- board option "${about.option}"${pkg === null ? "" : ` (${pkg})`}`;
-  });
-  return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
+function droppedNotification(dropped, how) {
+  const packages = dropped.flatMap(({ about }) => "package" in about ? [about] : []);
+  const blocks = dropped.flatMap(({ about, package: pkg }) => "block" in about ? [{ ...about, package: pkg }] : []);
+  const plugins = dropped.flatMap(({ about }) => "plugin" in about ? [about.plugin] : []);
+  const options = dropped.flatMap(({ about, package: pkg }) => "option" in about ? [{ ...about, package: pkg }] : []);
+  const versions = (items) => items.map((item2) => `${item2.package} ${item2.version}`);
+  const forBlocks = packages.filter((item2) => blocks.some((block) => block.package === item2.package));
+  const forOptions = packages.filter((item2) => options.some((option) => option.package === item2.package));
+  const others = packages.filter((item2) => !forBlocks.includes(item2) && !forOptions.includes(item2));
+  const classes2 = blocks.filter((block) => !forBlocks.some((item2) => item2.package === block.package)).map((block) => block.registry_id);
+  const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes2)], "class", "classes")]);
+  const lackedOptions = options.filter((option) => forOptions.some((item2) => item2.package === option.package));
+  const otherOptions = options.filter((option) => !lackedOptions.includes(option));
+  const went = (names, one2, several, why) => {
+    if (names.length === 0) return [];
+    const many = names.length > 1;
+    const what = `${many ? several : one2} ${quoted(names)}`;
+    return [how === "opened" ? `The board opened without the ${what}, since ${why(many)}.` : `The ${what} ${many ? "were" : "was"} left out, since ${why(many)}.`];
+  };
+  const lines = [
+    ...went(blocks.map((block) => block.name), "block", "blocks", () => `this app lacks ${lacked}`),
+    ...went(plugins, "state of the plugin", "states of the plugins", (many) => `this app does not run ${many ? "them" : "it"}`),
+    ...went(
+      lackedOptions.map((option) => option.option),
+      "value of the board option",
+      "values of the board options",
+      () => `this app lacks ${listing(withNoun(versions(forOptions), "package", "packages"))}`
+    ),
+    ...went(
+      otherOptions.map((option) => option.option),
+      "value of the board option",
+      "values of the board options",
+      (many) => `no package of this app defines ${many ? "them" : "it"}`
+    ),
+    ...withNoun(versions(others), "package", "packages").map((what) => `This app lacks ${what}.`)
+  ];
+  return coreNotification("board_objects_dropped", "warning", lines.join("\n"));
+}
+function withNoun(names, one2, several) {
+  return names.length === 0 ? [] : [`the ${names.length > 1 ? several : one2} ${listing(names)}`];
 }
 function listedDefault(exports, module, pkg) {
   const def = moduleExports(exports, module, pkg).default;

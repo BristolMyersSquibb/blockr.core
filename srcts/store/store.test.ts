@@ -426,7 +426,7 @@ describe("opening a board", () => {
     expect(store.packages()).toBe(hello.packages);
     expect(dropped).toEqual([
       { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
-      { about: { block: "x", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
 
     const board = store.board();
@@ -435,6 +435,15 @@ describe("opening a board", () => {
     expect(board.links).toEqual({});
     expect(board.stacks).toEqual({ s1: { name: "Input", blocks: ["a", "b"], color: null } });
     expect(seen).toEqual([{ opened: board, dropped }]);
+  });
+
+  test("names no package that R did not load where nothing on the board comes from it, as a copied board can list one", async () => {
+    const store = unopened();
+
+    const dropped = await store.open(file({ blocks: { b: head() }, links: {}, stacks: {} }, { "blockr.core": "0.2.0", "blockr.dock": "0.3.0" }));
+
+    expect(dropped).toEqual([]);
+    expect(Object.keys(store.board().blocks)).toEqual(["b"]);
   });
 
   test("refuses a file above the format it knows, naming both, and a file of today's stack", async () => {
@@ -799,7 +808,7 @@ describe("opening a board", () => {
     );
 
     expect(dropped).toEqual([
-      { about: { block: "x", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     const board = store.board();
     expect(dockViews(board)).toEqual({ main: { panels: ["a", "b"] } });
@@ -882,7 +891,7 @@ describe("opening a board", () => {
 
     expect(dropped).toEqual([
       { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
-      { about: { block: "x", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     expect(store.board()).toBe(board);
     expect(seen).toEqual([]);
@@ -959,7 +968,7 @@ describe("opening a board", () => {
     // state.
     expect(read.dropped).toEqual([
       { about: { package: "blockr.dplyr", version: "0.3.0" }, package: "blockr.dplyr" },
-      { about: { block: "x", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
+      { about: { block: "x", name: "Filter", registry_id: "blockr.dplyr-filter_block" }, package: "blockr.dplyr" },
     ]);
     expect(read.board.blocks).toEqual({ b: head() });
     expect(read.board.links).toEqual({});

@@ -60,10 +60,13 @@ const PROPERTIES: readonly string[] = ["id", "name", ...COLLECTIONS];
 // The member `about` names what the store dropped, as a notification's `about`
 // names a board object, such as `{ block: "a" }`. It also holds what only its
 // kind of record has:
-// - A package that the JSON board lists and R could not load, as
-//   `{ package, version }`, with the version that the JSON board records.
-// - A block whose class the block registry lacks, as `{ block, registry_id }`,
-//   with the registry id of its class.
+// - A package that R could not load and that something on the board comes
+//   from, as `{ package, version }`, with the version that the JSON board
+//   records. A package that the JSON board lists for nothing on the board goes
+//   unnamed.
+// - A block whose class the block registry lacks, as
+//   `{ block, name, registry_id }`, with the block's name, by which the user
+//   knows it, and the registry id of its class.
 // - The state of a plugin, as `{ plugin }`, by the id of its class, which the
 //   store drops since the app runs no plugin of the class or no package
 //   registers the class.
@@ -79,7 +82,7 @@ const PROPERTIES: readonly string[] = ["id", "name", ...COLLECTIONS];
 export interface Dropped {
   readonly about:
     | { readonly package: string; readonly version: string }
-    | { readonly block: BlockId; readonly registry_id: RegistryId }
+    | { readonly block: BlockId; readonly name: string; readonly registry_id: RegistryId }
     | { readonly plugin: PluginClassId }
     | { readonly option: OptionId };
   readonly package: string | null;
@@ -337,13 +340,12 @@ export function openJsonBoard(
 
   const migrated = migrate({ ...read, plugins: held }, json.board, reply, registrations);
 
-  const gone = Object.entries(migrated.blocks)
-    .filter(([, block]) => own(reply.block_registry, block.registry_id) === undefined)
-    .map(([id]) => id);
-  const blocks: Dropped[] = gone.map((id) => {
-    const registryId = migrated.blocks[id]?.registry_id ?? "";
-    return { about: { block: id, registry_id: registryId }, package: packageFromId(registryId) };
-  });
+  const lacking = Object.entries(migrated.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === undefined);
+  const blocks: Dropped[] = lacking.map(([id, block]) => ({
+    about: { block: id, name: block.name, registry_id: block.registry_id },
+    package: packageFromId(block.registry_id),
+  }));
+  const gone = lacking.map(([id]) => id);
 
   const unclaimed = Object.keys(migrated.options).filter((id) => registrations.option(id) === undefined);
   const options: Dropped[] = unclaimed.map((id) => ({
@@ -357,8 +359,15 @@ export function openJsonBoard(
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
 
+  // The packages that something on the board comes from: a block's class, a
+  // plugin's class, or a board option, which the JSON board records beside the
+  // board option's value.
+  const used = new Set([
+    ...[...Object.values(read.blocks).map((block) => block.registry_id), ...Object.keys(read.plugins)].map(packageFromId),
+    ...Object.values(json.board.options).map((option) => option.package),
+  ]);
   const packages: Dropped[] = Object.entries(json.packages)
-    .filter(([pkg]) => own(reply.packages, pkg) === undefined)
+    .filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === undefined)
     .map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
 
   return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };

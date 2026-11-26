@@ -955,6 +955,15 @@
   Unlike `check()`, it reads a text under the load lock as well, since the load lock fixes only which board the app shows.
   Through `CoreApi`, core first imports the migrations of the block classes whose older states the text holds, as it does before it opens a board.
   It now does so before `check()` as well, which until now checked such a board without migrating it (#835).
+  Where `read()` leaves anything out, core tells the user what through the warning `board_objects_dropped`, which it raises as a board opens as well.
+  One sentence of the warning names the blocks that went, with the packages that the app lacks for them, as in `The blocks "Filter" and "Plot" were left out, since this app lacks the packages blockr.dplyr 0.1.4 and blockr.ggplot 0.2.0.`
+  One sentence says which states of plugins went, and why, and one or two which values of board options went: those whose package the app lacks, with that package, and those that no package of the app defines.
+  A last sentence names the other packages that the app lacks.
+  Core raises the warning anew for each read.
+  The warning of an opening board now takes the same form, with each sentence starting `The board opened without`.
+  Both name each block by its name, which the `about` of a block's record in `Dropped` now holds.
+  The store now names a package that R did not load only where a block, a plugin's state or a board option's value on the board comes from it, so that a copied board that lists other packages, as the DAG's Copy writes one, warns of nothing it does not hold.
+  A caller that shows the warning itself passes a `notifier` in the options of `read()`, which then takes it in place of core (#878).
 * A plugin class may give `afterStep(board, before, plugin)` in its `state`.
   It returns the patches to the plugin's state that follow from a step as a whole.
   The store calls it once the last delta of a step is in, after every step that changes the board, including an undo or a redo.

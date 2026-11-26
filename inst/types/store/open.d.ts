@@ -8,6 +8,7 @@ export interface Dropped {
         readonly version: string;
     } | {
         readonly block: BlockId;
+        readonly name: string;
         readonly registry_id: RegistryId;
     } | {
         readonly plugin: PluginClassId;
