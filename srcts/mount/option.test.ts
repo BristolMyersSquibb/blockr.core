@@ -1,10 +1,10 @@
-// Mounting a board option's UI, or the renderer that the app names for it, on
-// the sample board of the wire protocol's fixtures, which holds n_rows at 50,
-// with R played over the protocol's own client.
+// Mounting a board option's UI on the sample board of the wire protocol's
+// fixtures, which holds n_rows at 50, with R played over the protocol's own
+// client.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createCommands } from "../commands/index.ts";
-import type { HelloReply, Renderer } from "../protocol/index.ts";
+import type { HelloReply } from "../protocol/index.ts";
 import { createScheduler } from "../scheduler/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
@@ -17,10 +17,8 @@ import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { Replied } from "../util/index.ts";
-import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
+import { createLoader, createMounts, RequestError } from "./index.ts";
 import type { Mounts } from "./index.ts";
-
-const DARK = "blockr.test/js/dark.js?v=1";
 
 // A UI that keeps each host it is mounted with, and each value its host held
 // as it announced one.
@@ -60,7 +58,6 @@ interface Setup {
   r: PlayedR;
   store: Store;
   mounts: Mounts;
-  imported: string[];
   // What the mounts handed on of each of R's replies to a request.
   replies: Parameters<Replied>[];
   // The notifications that modules raised through their hosts, while they
@@ -74,7 +71,7 @@ interface Setup {
 
 async function setup(
   options: readonly Option[],
-  { modules = {}, renderers = {}, reply = hello }: { modules?: Readonly<Record<string, unknown>>; renderers?: Readonly<Record<string, Renderer>>; reply?: HelloReply } = {},
+  { reply = hello }: { reply?: HelloReply } = {},
 ): Promise<Setup> {
   const r = playR();
   r.connect();
@@ -86,14 +83,8 @@ async function setup(
   const commands = createCommands(store, { signal });
   const scheduler = createScheduler({ store, client: r.client, signal });
   scheduler.start();
-  const imported: string[] = [];
   const loader = createLoader({
-    importer(url) {
-      imported.push(url);
-      return Object.hasOwn(modules, url)
-        ? Promise.resolve(modules[url])
-        : Promise.reject(new TypeError(`Failed to fetch dynamically imported module: ${url}`));
-    },
+    importer: (url) => Promise.reject(new TypeError(`Failed to fetch dynamically imported module: ${url}`)),
     stylesheet: () => Promise.resolve(),
   });
   const replies: Parameters<Replied>[] = [];
@@ -105,7 +96,6 @@ async function setup(
     commands,
     scheduler,
     loader,
-    renderers: () => renderers,
     signal,
     raise: (notification) => {
       raised.push(notification);
@@ -131,7 +121,6 @@ async function setup(
     r,
     store,
     mounts,
-    imported,
     replies,
     notified,
     raised,
@@ -345,41 +334,6 @@ describe("the host", () => {
 });
 
 describe("a mount", () => {
-  test("draws the renderer that the app names for the board option in place of its UI", async () => {
-    const own = ui();
-    const dark = ui(["n_rows"]);
-    const s = await setup(options(ui().mod, { count: 0 }, own.mod), {
-      modules: { [DARK]: dark.exports },
-      renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
-    });
-    s.mounts.mountOption(document.createElement("div"), "theme");
-    await tick();
-
-    expect(s.imported).toEqual([DARK]);
-    expect(own.mounts).toHaveLength(0);
-    expect(dark.host().value()).toBe("light");
-  });
-
-  test("names the renderer that it draws in what the renderer raises and in R's replies to its requests", async () => {
-    const dark = ui(["n_rows"]);
-    const s = await setup(options(ui().mod, { count: 0 }), {
-      modules: { [DARK]: dark.exports },
-      renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
-    });
-    s.mounts.mountOption(document.createElement("div"), "theme");
-    await tick();
-    const given: Raised = { severity: "message", code: "dimmed", message: "Dimmed the page." };
-    dark.host().notify(given);
-    const listing = dark.host().request("palettes");
-    await tick();
-    s.r.reply({ id: s.r.asked("request")[0]?.id ?? "", status: "ok", value: [], conditions: [] });
-    await listing;
-
-    const module = { object: { option: "theme" }, renderer: "blockr.test-dark", package: "blockr.test" };
-    expect(s.notified).toEqual([{ module, notification: given }]);
-    expect(s.replies).toEqual([[module, { type: "option", name: "palettes" }, []]]);
-  });
-
   test("adds no other board option for its module, which reads its own value alone", async () => {
     // A module in plain JS may still name board options, which core ignores.
     const dark = ui(["n_rows"]);
@@ -422,32 +376,6 @@ describe("a mount", () => {
     ]);
     expect(shown.cleanups()).toBe(1);
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
-  });
-
-  test("leaves its element empty, and raises why, naming the renderer, where the renderer cannot be used", async () => {
-    const reported = logged();
-    const s = await setup(options(ui().mod), {
-      modules: { [DARK]: { api: 2, default: ui().mod } },
-      renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
-    });
-    const el = document.createElement("div");
-    s.mounts.mountOption(el, "theme");
-    await tick();
-    reported.restore();
-
-    expect(el.textContent).toBe("");
-    expect(s.raised.map((n) => [n.source, n.about])).toEqual([
-      [
-        {
-          kind: "core",
-          code: "module_failed",
-          module: { object: { option: "theme" }, renderer: "blockr.test-dark", package: "blockr.test" },
-        },
-        { option: "theme" },
-      ],
-    ]);
-    expect(s.raised[0]?.message).toContain("The module blockr.test/js/dark.js of blockr.test was built against major 2");
-    expect(reported.errors().filter((line) => line.error instanceof ModuleError)).toHaveLength(1);
   });
 
   test("names the board option where the UI of its definition fails in render()", async () => {

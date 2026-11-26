@@ -4,7 +4,7 @@
 \alias{new_renderer}
 \title{Renderers}
 \usage{
-new_renderer(name, module, requests = list(), option = NULL)
+new_renderer(name, module, requests = list())
 }
 \arguments{
 \item{name}{The name part of the renderer's ID}
@@ -12,10 +12,7 @@ new_renderer(name, module, requests = list(), option = NULL)
 \item{module}{The renderer's module, made by \code{\link[=js_module]{js_module()}}}
 
 \item{requests}{A named list of the renderer's own requests, each a
-function, which only a renderer of outputs has}
-
-\item{option}{The ID of the board option that the renderer draws, or \code{NULL}
-for a renderer of outputs}
+function}
 }
 \value{
 The constructor \code{new_renderer()} returns an object of class
@@ -23,7 +20,7 @@ The constructor \code{new_renderer()} returns an object of class
 }
 \description{
 A renderer is a module that draws the outputs of an output family (see
-\code{\link[=new_output_family]{new_output_family()}}) or the value of a board option.
+\code{\link[=new_output_family]{new_output_family()}}).
 A renderer object, which \code{new_renderer()} makes, holds the renderer's
 module, made by \code{\link[=js_module]{js_module()}}, its ID and the renderer's own requests.
 Its ID is \code{{pkg}-{name}}, as a registry ID is, where \code{pkg} is the package
@@ -57,11 +54,8 @@ does (see \code{\link[=blockr_option]{blockr_option()}}).
 R reads that choice before the family's own renderer, so loading a package
 that offers a renderer changes nothing, and no package takes the choice
 away.
-A renderer that draws a board option names it in \code{option} and replaces the
-board option's UI where the app names it in \code{renderers} under the board
-option's ID, and R sends every such renderer in its reply to \code{hello}.
 
-A renderer of outputs may bring requests of its own, for what the output
+A renderer may bring requests of its own, for what the output
 does not hold, such as the labels of a table's columns, which core's table
 output does not carry.
 R runs a renderer's request as it runs a request of the output class (see

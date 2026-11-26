@@ -2463,15 +2463,13 @@ function announceTo(listeners, ...args) {
 
 // srcts/mount/option.ts
 function mountOption(deps, el, option) {
-  const { store, loader } = deps;
+  const { store } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
   const def = own(store.options.registered(), option);
   if (def === void 0) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const chosen = Object.entries(deps.renderers()).find(([, renderer2]) => renderer2.option === option);
-  const [id2, renderer] = chosen ?? [];
-  const module = id2 === void 0 ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id2), id2);
+  const module = sourceModule({ option }, deps.optionPackage(option));
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
@@ -2555,19 +2553,6 @@ function mountOption(deps, el, option) {
     el.replaceChildren();
   }
   void (async () => {
-    let mod;
-    try {
-      if (renderer === void 0 || id2 === void 0) {
-        mod = def.ui;
-      } else {
-        const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule(await loader.load(source, packageFromId(id2)), renderer.module, packageFromId(id2));
-      }
-    } catch (error) {
-      fail(error);
-      return;
-    }
-    if (ended()) return;
     const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
     const failures = await kept.added;
@@ -2578,15 +2563,12 @@ function mountOption(deps, el, option) {
       return;
     }
     try {
-      const rendered = await mod.render({ el, host, signal: controller.signal });
+      const rendered = await def.ui.render({ el, host, signal: controller.signal });
       if (typeof rendered !== "function") return;
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const why = `failed in render(): ${errorMessage(error)}`;
-      fail(
-        renderer === void 0 || id2 === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageFromId(id2), why, { cause: error })
-      );
+      fail(new Error(`The UI of the board option "${option}" failed in render(): ${errorMessage(error)}`, { cause: error }));
     }
   })();
   function fail(error) {
@@ -3211,7 +3193,6 @@ function createMounts(options) {
   const shelves = createShelves();
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
-  const renderers = options.renderers ?? (() => ({}));
   const raise = options.raise ?? raiseNothing;
   const replied2 = options.replied ?? repliedNothing;
   const notify = options.notify ?? notifyNothing;
@@ -3396,7 +3377,7 @@ function createMounts(options) {
       block
     ),
     mountOption: (el, option) => mountOption(
-      { store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
+      { store, commands, scheduler, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
       el,
       option
     ),
@@ -11003,7 +10984,6 @@ function createCore(parts) {
     scheduler,
     loader,
     core: () => api,
-    renderers: parts.renderers,
     raise,
     replied: notifications.replied,
     notify: notifications.notify,
@@ -12093,7 +12073,6 @@ function start(options) {
       blockrOptions,
       randId,
       lock: (first ?? reply).lock,
-      renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
       options: reply.options,
       notifications,
