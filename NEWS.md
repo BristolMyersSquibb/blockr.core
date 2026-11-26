@@ -1016,6 +1016,8 @@
   React, React DOM and React Aria leave core's vendor file for the files of blockr.ui (#866).
 * R puts the entries of blockr.ui into the page's import map beside core's, and blockr.ui's stylesheet on every page ahead of core's.
   The board option `dark_mode` sets the attribute `data-bk-mode` on the page's root, in place of `data-bc-theme`, and the page's `color-scheme` tag takes `light dark` (#866).
+* The new generic `frontend_theme()` returns a frontend's theme, as `blockr.ui::new_blockr_theme()` makes it, with the values of the theme variables that the frontend wants its own.
+  Its method for `frontend_plugin` returns a theme with no values, so a frontend that keeps every default of blockr.ui, as core's basic frontend does, needs no method of its own (#866).
 
 # blockr.core 0.1.4
 
