@@ -1346,11 +1346,9 @@ describe("what the user learns", () => {
         "warning",
         "Board",
         [
-          "The board opened without:",
-          "- package blockr.dplyr 0.3.0",
-          '- block "x" (blockr.dplyr-filter_block)',
-          '- plugin "blockr.gone-gone_plugin"',
-          '- board option "zoom"',
+          'The board opened without the block "Filter", since this app lacks the package blockr.dplyr 0.3.0.',
+          'The board opened without the state of the plugin "blockr.gone-gone_plugin", since this app does not run it.',
+          'The board opened without the value of the board option "zoom", since no package of this app defines it.',
         ].join("\n"),
       ],
     ]);
@@ -1358,10 +1356,16 @@ describe("what the user learns", () => {
 
     // A board that opens later starts core and the frontend again, which shows
     // only the toast of what that board dropped.
-    picking(new File([savedAs(page.core, (json) => ({ ...json, packages: { ...json.packages, "blockr.io": "0.1.0" } }))], "board.json"));
+    const read = { registry_id: "blockr.io-read_block", version: 1, state: {}, name: "Read", locked: null };
+    const later = (json: JsonBoard): JsonBoard => ({
+      ...json,
+      packages: { ...json.packages, "blockr.io": "0.1.0" },
+      board: { ...json.board, blocks: { ...json.board.blocks, r: read } },
+    });
+    picking(new File([savedAs(page.core, later)], "board.json"));
     await click(button(page.el, "Open"));
     await page.settled();
-    expect(toasts(page.el)).toEqual([["warning", "Board", "The board opened without:\n- package blockr.io 0.1.0"]]);
+    expect(toasts(page.el)).toEqual([["warning", "Board", 'The board opened without the block "Read", since this app lacks the package blockr.io 0.1.0.']]);
 
     vi.restoreAllMocks();
     picking(new File([savedAs(page.core, renamed("Clean"))], "board.json"));
