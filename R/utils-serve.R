@@ -108,6 +108,16 @@
 #' registry, the class's requests and the output families that make its
 #' outputs, and each plugin that the app runs.
 #'
+#' The blockr option `renderers` names the renderers that draw the outputs of
+#' output families, each under the class of a family (see [new_renderer()]).
+#' The app's output families are those that the available packages list and
+#' those that the block classes in its block registry reach.
+#' R ignores a key of the option that names no output family of the app that
+#' gives a renderer, such as the typo `tabel_output`.
+#' As `serve()` is called, R warns of each such key, naming it.
+#' The app still serves, and draws with the renderers that it would draw with
+#' anyway.
+#'
 #' @section End-to-end tests:
 #' In Shiny's test mode, as the package shinytest2 starts an app, the app gives
 #' end-to-end tests what they check.
@@ -373,6 +383,8 @@ check_outside_classes <- function(classes) {
 # same ones in whatever process runs the app.
 # A component of the app that reads a board option that no available package
 # lists stops the app here (see `check_component_options()`).
+# R also warns here of each key of the blockr option `renderers` that it
+# ignores (see `check_chosen_renderers()`).
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -404,6 +416,7 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
   families <- app_families()
 
   check_component_options(registry, plugins, options, families)
+  check_chosen_renderers(registry, families)
 
   modules <- page_modules(board, registry, plugins, options, families, offered)
   dark_mode <- board_dark_mode(board)
@@ -504,15 +517,7 @@ component_options <- function(registry, plugins, families) {
     names(entries)
   )
 
-  reached <- unlst(
-    lapply(
-      unname(entries),
-      function(x) reached_families(x[["block_class"]][["output"]], families)
-    ),
-    use_names = TRUE
-  )
-
-  reached <- reached[!duplicated(names(reached))]
+  reached <- registry_families(registry, families)
 
   c(
     unlst(unname(classes), use_names = TRUE),
@@ -525,6 +530,53 @@ component_options <- function(registry, plugins, families) {
       sprintf("The plugin of class %s", names(plugins))
     )
   )
+}
+
+# The output families that the block classes of the app's block registry,
+# `registry`, reach, by class, each once.
+# An open family reaches the families that the available packages list,
+# `families`.
+registry_families <- function(registry, families) {
+
+  reached <- unlst(
+    lapply(
+      unname(registry_entries(registry)),
+      function(x) reached_families(x[["block_class"]][["output"]], families)
+    ),
+    use_names = TRUE
+  )
+
+  reached[!duplicated(names(reached))]
+}
+
+# Warns of each key of the blockr option `renderers` that names no output
+# family of the app that gives a renderer.
+# R ignores the renderer under such a key, as under the typo `tabel_output`.
+# The app's output families are those that the available packages list,
+# `families`, and those that the block classes of the app's block registry,
+# `registry`, reach.
+# A family that gives no renderer draws no outputs of its own, so R ignores a
+# key that names it too.
+# R warns rather than stops the app, since the app works.
+# It draws with the renderers that it would draw with anyway.
+check_chosen_renderers <- function(registry, families) {
+
+  drawing <- drawing_families(
+    c(families, registry_families(registry, families))
+  )
+
+  ignored <- setdiff(names(chosen_renderers()), names(drawing))
+
+  if (length(ignored)) {
+    blockr_warn(
+      "R ignores the key{?s} {ignored} of the blockr option `renderers`, ",
+      "since {?it names/they name} no output family of the app that gives a ",
+      "renderer.",
+      class = "renderers_blockr_option_ignored"
+    )
+  }
+
+  invisible()
 }
 
 # The modules that the page imports as it starts, for the opening board given
