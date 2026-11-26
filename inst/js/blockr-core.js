@@ -5748,13 +5748,13 @@ function checkJsonBoard(json) {
   if (lacking.length > 0) {
     throw new StoreError(refused, [`The board holds its ${listing(lacking)} in no object by id.`]);
   }
-  checkVersions(board);
+  checkRecorded(board);
   return json;
 }
 function isVersion(value2) {
   return typeof value2 === "number" && Number.isInteger(value2) && value2 >= 1;
 }
-function checkVersions(board) {
+function checkRecorded(board) {
   const failures = [];
   for (const [cls, plugin] of Object.entries(board.plugins)) {
     if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
@@ -5767,8 +5767,10 @@ function checkVersions(board) {
     }
   }
   for (const [id2, option] of Object.entries(board.options)) {
-    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version)) {
-      failures.push(`The board option "${id2}" is recorded as no value with the version of its shape.`);
+    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version) || !(option.package === null || typeof option.package === "string")) {
+      failures.push(
+        `The board option "${id2}" is recorded as no value with the version of its shape and the package that lists it.`
+      );
     }
   }
   if (failures.length > 0) throw new StoreError(refused, failures);
@@ -5886,26 +5888,30 @@ function openJsonBoard(json, reply, registrations) {
   const read = unversioned(json.board);
   const held3 = keptPlugins(read.plugins, reply.plugins, registeredClass);
   const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
-    plugin: id2,
+    about: { plugin: id2 },
     package: packageFromId(id2)
   }));
   const migrated2 = migrate({ ...read, plugins: held3 }, json.board, reply, registrations);
   const lacking = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0);
   const blocks = lacking.map(([id2, block]) => ({
-    block: id2,
-    name: block.name,
-    registry_id: block.registry_id,
+    about: { block: id2, name: block.name, registry_id: block.registry_id },
     package: packageFromId(block.registry_id)
   }));
   const gone = lacking.map(([id2]) => id2);
   const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
-  const options = unclaimed.map((id2) => ({ option: id2 }));
+  const options = unclaimed.map((id2) => ({
+    about: { option: id2 },
+    package: own(json.board.options, id2)?.package ?? null
+  }));
   const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
   const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
-  const used = new Set([...Object.values(read.blocks).map((block) => block.registry_id), ...Object.keys(read.plugins)].map(packageFromId));
-  const packages = Object.entries(json.packages).filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ package: pkg, version }));
+  const used = /* @__PURE__ */ new Set([
+    ...[...Object.values(read.blocks).map((block) => block.registry_id), ...Object.keys(read.plugins)].map(packageFromId),
+    ...Object.values(json.board.options).map((option) => option.package)
+  ]);
+  const packages = Object.entries(json.packages).filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
   return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
 }
 function remove(board, gone, registrations) {
@@ -6324,10 +6330,17 @@ function createStore(options = {}) {
     if (next === void 0) {
       throw new Error("The store holds no board until it opens one.");
     }
+    const options2 = Object.fromEntries(
+      Object.entries(next.options).map(([id3, value2]) => {
+        const entry = own(hello?.options ?? {}, id3);
+        return [id3, { value: value2, version: entry?.version ?? 1, package: entry?.package ?? null }];
+      })
+    );
     const classes2 = Object.keys(next.plugins);
     const owned = /* @__PURE__ */ new Set([
       ...classes2.flatMap((cls) => packageFromId(cls) ?? []),
-      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? [])
+      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
+      ...Object.values(options2).flatMap((option) => option.package ?? [])
     ]);
     const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {
@@ -6345,12 +6358,6 @@ function createStore(options = {}) {
           name: block.name,
           locked: block.locked
         }
-      ])
-    );
-    const options2 = Object.fromEntries(
-      Object.entries(next.options).map(([id3, value2]) => [
-        id3,
-        { value: value2, version: own(hello?.options ?? {}, id3)?.version ?? 1 }
       ])
     );
     const plugins = Object.fromEntries(
@@ -12353,15 +12360,18 @@ function reloadNotification(changed) {
   );
 }
 function droppedNotification(dropped, how) {
-  const packages = dropped.flatMap((item) => "version" in item ? [item] : []);
-  const blocks = dropped.flatMap((item) => "block" in item ? [item] : []);
-  const plugins = dropped.flatMap((item) => "plugin" in item ? [item.plugin] : []);
-  const options = dropped.flatMap((item) => "option" in item ? [item.option] : []);
+  const packages = dropped.flatMap(({ about }) => "package" in about ? [about] : []);
+  const blocks = dropped.flatMap(({ about, package: pkg }) => "block" in about ? [{ ...about, package: pkg }] : []);
+  const plugins = dropped.flatMap(({ about }) => "plugin" in about ? [about.plugin] : []);
+  const options = dropped.flatMap(({ about, package: pkg }) => "option" in about ? [{ ...about, package: pkg }] : []);
   const versions = (items) => items.map((item) => `${item.package} ${item.version}`);
   const forBlocks = packages.filter((item) => blocks.some((block) => block.package === item.package));
-  const others = packages.filter((item) => !forBlocks.includes(item));
+  const forOptions = packages.filter((item) => options.some((option) => option.package === item.package));
+  const others = packages.filter((item) => !forBlocks.includes(item) && !forOptions.includes(item));
   const classes2 = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => block.registry_id);
   const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes2)], "class", "classes")]);
+  const lackedOptions = options.filter((option) => forOptions.some((item) => item.package === option.package));
+  const otherOptions = options.filter((option) => !lackedOptions.includes(option));
   const went = (names, one2, several, why) => {
     if (names.length === 0) return [];
     const many = names.length > 1;
@@ -12371,7 +12381,18 @@ function droppedNotification(dropped, how) {
   const lines = [
     ...went(blocks.map((block) => block.name), "block", "blocks", () => `this app lacks ${lacked}`),
     ...went(plugins, "state of the plugin", "states of the plugins", (many) => `this app does not run ${many ? "them" : "it"}`),
-    ...went(options, "value of the board option", "values of the board options", (many) => `no package of this app defines ${many ? "them" : "it"}`),
+    ...went(
+      lackedOptions.map((option) => option.option),
+      "value of the board option",
+      "values of the board options",
+      () => `this app lacks ${listing(withNoun(versions(forOptions), "package", "packages"))}`
+    ),
+    ...went(
+      otherOptions.map((option) => option.option),
+      "value of the board option",
+      "values of the board options",
+      (many) => `no package of this app defines ${many ? "them" : "it"}`
+    ),
     ...withNoun(versions(others), "package", "packages").map((what) => `This app lacks ${what}.`)
   ];
   return coreNotification("board_objects_dropped", "warning", lines.join("\n"));

@@ -216,7 +216,7 @@ test_that("the shipped core registry is complete", {
 
   reg <- yaml::read_yaml(file)
 
-  expect_length(reg, 10L)
+  expect_length(reg, 12L)
 
   # Each with the id of its class, which core's classes take from their
   # constructors' names

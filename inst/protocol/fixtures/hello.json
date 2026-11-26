@@ -427,7 +427,7 @@
             },
             "stacks": { "s1": { "name": "Input", "blocks": ["a", "b"], "color": null } },
             "options": {
-              "n_rows": { "value": 50, "version": 1 }
+              "n_rows": { "value": 50, "version": 1, "package": "blockr.core" }
             },
             "plugins": {}
           }

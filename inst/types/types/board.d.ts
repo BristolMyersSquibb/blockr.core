@@ -48,6 +48,7 @@ export interface JsonBlock extends Block {
 export interface JsonOption {
     readonly value: Json;
     readonly version: number;
+    readonly package: string | null;
 }
 export interface JsonPlugin {
     readonly state: Json;

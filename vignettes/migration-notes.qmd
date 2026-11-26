@@ -226,7 +226,7 @@ The file lists packages, and for each package the ids of the classes to offer, o
 serve(new_board(), blocks = "blocks.yml")
 ```
 
-A block on the board that the script builds runs even where the app does not offer the block's class.
+A block on the board that the script builds runs even where `blocks` leaves out the block's class, and the app then offers that class too.
 The block runs under the registry id that its class gives, so a board saved from that app opens in an app that offers the class.
 
 ## Board options
@@ -386,6 +386,9 @@ register_block(
 ```{r, include = FALSE}
 unregister_blocks("identity_block")
 ```
+
+A script registers each class that it defines before it serves a board with a block of the class.
+In version 0.1, such a block ran without a registration, while `serve()` of version 0.2 stops on it, naming the block and the class.
 
 ## A board built from another board
 

@@ -43,6 +43,15 @@ static_block <- new_block_class(
 #' @param expression An R expression as a string
 #' @inheritParams new_head_block
 #'
+#' @block static block
+#' @blockDescr Evaluate an R expression
+#' @blockCategory input
+#' @blockIcon braces
+#' @blockGuidance Set `expression` to an R expression as a string, such as
+#'   "datasets::iris", whose value is the block's result. The expression reads
+#'   no data input.
+#' @blockKeywords static, expression, code, data
+#'
 #' @examples
 #' new_static_block("datasets::iris")
 #'

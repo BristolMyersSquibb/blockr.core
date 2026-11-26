@@ -444,8 +444,6 @@ test_that("R sends every condition and all output of an evaluation", {
     inputs = list()
   )
 
-  local_block_class(static_block)
-
   sinks <- sink.number()
   messages <- sink.number(type = "message")
 
@@ -472,8 +470,6 @@ test_that("R sends every condition and all output of an evaluation", {
 })
 
 test_that("R logs every condition that it sends, naming what it concerns", {
-
-  local_block_class(static_block)
 
   cls <- test_block_class(
     "list_block",
@@ -1655,8 +1651,6 @@ test_that("the page hears why R sent no reply too large for a message", {
     blockr.max_message_size = 40000
   )
   local_reset_logging()
-
-  local_block_class(static_block)
 
   ev <- new_evaluator(board = list(blocks = list()))
 

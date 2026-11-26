@@ -117,8 +117,6 @@ test_that("R's span of a message without a valid traceparent is a root span", {
 
 test_that("R marks the spans of a failed evaluation and its phase as failed", {
 
-  local_block_class(static_block)
-
   failing <- list(
     registry_id = "blockr.core-static_block",
     state = list(expression = "stop('No data.')"),
@@ -303,8 +301,6 @@ test_that("R records no span of a hello or of reading blockr options", {
 })
 
 test_that("the lines R logs as it handles a message name the session", {
-
-  local_block_class(static_block)
 
   failing <- list(
     registry_id = "blockr.core-static_block",

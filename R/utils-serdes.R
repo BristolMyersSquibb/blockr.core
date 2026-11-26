@@ -19,6 +19,8 @@
 #' Those are the packages that the IDs of the plugins' classes and of the
 #' blocks' classes name, each the part of the ID before its first `-`.
 #' The ID of a block class that an app script defines names no package.
+#' They are also the packages that list the board options that the board holds
+#' a value of, since a board option's ID names no package.
 #' The board holds its `id` and `name`, its blocks, links and stacks, each by
 #' ID, in their order, and the state of its plugins, by the IDs of their
 #' classes.
@@ -29,6 +31,9 @@
 #' It holds each board option that the script gives a value, by ID, as its
 #' `value` with the `version` of the value's shape (see
 #' [board_option_version()]), and no other.
+#' Beside the value, it holds the `package` that lists the board option, or
+#' `null` where no available package lists it, since a board option's ID names
+#' no package.
 #'
 #' A plugin is written under the ID of its class as its `state`, with the
 #' `version` of its class's state (see [new_plugin()]).
@@ -116,13 +121,19 @@ blockr_ser.board <- function(x, ...) {
     plugins = ser_collection(plugins)
   )
 
+  # R reads the board options that the available packages list once, for the
+  # packages of the board's board options and for the schemas of their values,
+  # and only for a board that holds a board option
+  options <- if (length(board[["options"]])) available_options()
+
   shape_json_board(
     list(
       format = board_json_format(),
-      packages = board_packages(board),
+      packages = board_packages(board, options),
       board = board
     ),
-    lapply(as.list(blocks), block_class)
+    lapply(as.list(blocks), block_class),
+    options
   )
 }
 
@@ -223,16 +234,28 @@ ser_collection <- function(x) {
 }
 
 # The packages that a board's content comes from, with their versions, as a
-# JSON board records them: the packages that the IDs of the classes of the
-# plugins whose state it holds and of the blocks' classes name. The ID of a
-# block class that an app script defines names none.
-board_packages <- function(board) {
+# JSON board records them:
+# - The package that the ID of each plugin's class names, for the plugins
+#   whose state the board holds.
+# - The package that the registry ID of each block's class names.
+# - The package that lists each board option whose value the board holds,
+#   among the board options in `options`, by ID, since a board option's ID
+#   names no package.
+# The ID of a block class that an app script defines names no package.
+# R reads the board options that the available packages list only for a board
+# that holds a board option.
+board_packages <- function(board, options = available_options()) {
 
-  packages <- id_package(
-    c(
-      names(board[["plugins"]]),
-      chr_xtr(board[["blocks"]], "registry_id")
-    )
+  ids <- names(board[["options"]])
+
+  packages <- c(
+    id_package(
+      c(
+        names(board[["plugins"]]),
+        chr_xtr(board[["blocks"]], "registry_id")
+      )
+    ),
+    if (length(ids)) chr_xtr(options[intersect(ids, names(options))], "package")
   )
 
   package_versions(packages[!is.na(packages)])
@@ -303,19 +326,18 @@ unplain_kind <- function(x) {
 # each plugin and the value of each board option by the schemas beside the
 # modules that packages list for the plugin's class and the board option, core's
 # objects by the schema of a JSON board, once each board option's value is
-# recorded with its version, and each block's state by the schema that its
-# class's UI ships. The block classes are given in `classes`, by block ID.
+# recorded with its version and its package, and each block's state by the
+# schema that its class's UI ships. The block classes are given in `classes`,
+# by block ID, and the board options that the available packages list in
+# `options`, by ID.
 # R reads the listings of the available packages only for a board that holds a
 # plugin or a board option.
-shape_json_board <- function(x, classes) {
+shape_json_board <- function(x, classes, options = available_options()) {
 
-  options <- x[["board"]][["options"]]
+  values <- x[["board"]][["options"]]
 
-  if (length(options)) {
-    x[["board"]][["options"]] <- shape_option_values(
-      options,
-      available_options()
-    )
+  if (length(values)) {
+    x[["board"]][["options"]] <- shape_option_values(values, options)
   }
 
   plugins <- x[["board"]][["plugins"]]
@@ -331,7 +353,7 @@ shape_json_board <- function(x, classes) {
 
   x[["board"]][["plugins"]] <- as_json_object(plugins)
 
-  x[["board"]][["options"]] <- versioned_options(x[["board"]][["options"]])
+  x[["board"]][["options"]] <- json_options(x[["board"]][["options"]], options)
 
   x <- shape_by_schema(x, json_board_schema())
 
@@ -345,11 +367,19 @@ shape_json_board <- function(x, classes) {
 }
 
 # The values of board options, by ID, as a JSON board holds them, each with
-# the version of its shape.
-versioned_options <- function(x) {
+# the version of its shape and the package that lists the board option among
+# the board options in `options`, by ID, or `NA` for one that no package lists,
+# which R writes as `null`.
+json_options <- function(x, options) {
   as_json_object(
     Map(
-      function(value, id) list(value = value, version = option_version(id)),
+      function(value, id) {
+        list(
+          value = value,
+          version = option_version(id),
+          package = coal(options[[id]][["package"]], NA_character_)
+        )
+      },
       x,
       names(x)
     )
