@@ -356,8 +356,9 @@ const config: Partial<TypeDocOptions & PluginOptions> = {
   hidePageTitle: true,
   // The title of each article is the name of its page, which pkgdown shows
   // as plain text.
+  // The index takes its title from the navbar's link to it.
   pageTitleTemplates: {
-    index: "{projectName}",
+    index: "TypeScript reference",
     module: "{rawName}",
   },
   // Each heading carries its anchor, which pandoc takes in place of the one
