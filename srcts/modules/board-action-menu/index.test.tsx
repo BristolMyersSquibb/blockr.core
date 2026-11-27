@@ -9,9 +9,11 @@
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
+import { SquareArrowUpRightExit } from "@blockr/ui/icons";
 import { find, openMenu as shownMenu, pointerPress, press, step, type } from "@blockr/ui/stubs";
 import { CORE_MENU, drawWith, openMenu } from "../../actions/index.ts";
 import type { BoardAction, CommandCall, DrivenMenu, MenuStart, QuickLevel, QuickRow } from "../../actions/index.ts";
+import { shownIcon } from "../../testing/icons.ts";
 import { logged } from "../../testing/logged.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -396,12 +398,12 @@ describe("core's menu", () => {
     const level = await drawn({ action: adds });
     const open = find(dialog(), 'button[aria-label="Show all options"]');
     expect(open.closest("div")?.querySelector("p")?.textContent).toBe("Append");
-    expect(open.querySelector("svg")).not.toBeNull();
+    expect(shownIcon(open)).toEqual(SquareArrowUpRightExit);
     expect([open.title, open.getAttribute("aria-keyshortcuts")]).toEqual([tip, keys]);
     expect(find(dialog(), "input[data-filter]").getAttribute("aria-keyshortcuts")).toBe(keys);
     const menu = shownMenu("Append");
     const head = row(menu, "Head");
-    expect(head.querySelector("[data-open-row] svg")).not.toBeNull();
+    expect(shownIcon(find(head, "[data-open-row]"))).toEqual(SquareArrowUpRightExit);
     expect(head.querySelector<HTMLElement>("[data-open-row]")?.title).toBe(tip);
     expect([head.getAttribute("aria-label"), description(head)]).toEqual(["Head", tip]);
     expect(row(menu, "Filter").querySelector("[data-open-row]")).toBeNull();

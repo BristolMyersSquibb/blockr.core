@@ -10,9 +10,11 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
+import { X } from "@blockr/ui/icons";
 import { fieldError, find, labelled, listed, picked, pressAndRelease, rows, step, texts, type } from "@blockr/ui/stubs";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
+import { shownIcon } from "../testing/icons.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
 import type { Board, LinkId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -205,7 +207,9 @@ describe("Edit inputs", () => {
 
     expect(into(s.core.store.board(), "e")).toEqual([["de", "d", "low"]]);
     expect(inputs(room)).toEqual(["Input 1, low, from Wide sepals"]);
-    s.core.store.undo();
+    await step(() => {
+      s.core.store.undo();
+    });
     expect(into(s.core.store.board(), "e")).toEqual([
       ["be", "b", ""],
       ["de", "d", ""],
@@ -221,6 +225,8 @@ describe("on a block that is not variadic", () => {
     expect([...el.querySelectorAll("label")].map((label) => label.textContent)).toEqual(["x", "y"]);
     expect([labelled(el, "x").value, labelled(el, "y").value]).toEqual(["Iris", "Head"]);
     expect(removes(el)).toEqual(["Remove the source of x", "Remove the source of y"]);
+    // Each button that removes shows Lucide's cross.
+    expect(shownIcon(button(el, "Remove the source of x"))).toEqual(X);
   });
 
   test("offers as a source each block but the block itself and those downstream of it, from which a link would close a cycle", async () => {
@@ -570,7 +576,9 @@ describe("on a variadic block", () => {
         { id: interned("blockr.core", "change_link"), args: { id: merge, before: null } },
       ],
     ]);
-    s.core.store.undo();
+    await step(() => {
+      s.core.store.undo();
+    });
     expect(into(s.core.store.board(), "e")).toEqual([
       ["be", "b", ""],
       ["de", "d", ""],

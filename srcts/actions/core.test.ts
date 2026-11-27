@@ -7,6 +7,8 @@
 // (./add.test.tsx, ./links.test.tsx, ./stacks.test.tsx, ./inputs.test.tsx).
 
 import { describe, expect, onTestFinished, test, vi } from "vitest";
+import { iconMarkup } from "@blockr/ui";
+import { Box, Layers, Link, Trash } from "@blockr/ui/icons";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -140,14 +142,21 @@ describe("core's board actions", () => {
     // Copy block ID's row shows the block's id.
     const copy = on({ block: "b" }).find((action) => is(action, COPY));
     expect(copy?.detail?.(s.core.store.board(), { block: "b" })).toBe("b");
-    // Those that add carry the plus, those that remove the bin, and the
-    // others no icon.
-    const icons = (target: Target) => on(target).map(({ icon }) => (icon === undefined ? "none" : icon.includes("M8 3v10M3 8h10") ? "plus" : "bin"));
-    expect(icons({ board: true })).toEqual(["plus", "plus", "plus"]);
-    expect(icons({ block: "e" })).toEqual(["plus", "plus", "plus", "plus", "none", "none", "none", "none", "bin"]);
-    expect(icons({ link: "ab" })).toEqual(["plus", "none", "bin"]);
+    // Those that add carry Lucide's icon of what they add: a block, a link or
+    // a stack. Add to stack carries the icon of a stack as well, those that
+    // remove the bin, and the others no icon.
+    const names = new Map([
+      [iconMarkup(Box), "block"],
+      [iconMarkup(Link), "link"],
+      [iconMarkup(Layers), "stack"],
+      [iconMarkup(Trash), "bin"],
+    ]);
+    const icons = (target: Target) => on(target).map(({ icon }) => (icon === undefined ? "none" : (names.get(icon) ?? icon)));
+    expect(icons({ board: true })).toEqual(["block", "link", "stack"]);
+    expect(icons({ block: "e" })).toEqual(["block", "block", "link", "stack", "none", "none", "stack", "none", "bin"]);
+    expect(icons({ link: "ab" })).toEqual(["block", "none", "bin"]);
     expect(icons({ stack: "s1" })).toEqual(["none", "none", "bin"]);
-    expect(icons({ selection: [{ block: "b" }] })).toEqual(["plus", "bin"]);
+    expect(icons({ selection: [{ block: "b" }, { block: "e" }] })).toEqual(["stack", "stack", "bin"]);
     s.stop();
   });
 

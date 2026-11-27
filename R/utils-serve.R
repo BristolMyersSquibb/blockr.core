@@ -55,6 +55,38 @@
 #' R sends what the method returns in its reply to `hello`, so that every
 #' board that the app opens gets the same.
 #'
+#' An app gives the page a theme of its own in `theme`, as
+#' [blockr.ui::new_blockr_theme()] makes it.
+#' A theme sets values of the theme variables, in light mode and in dark mode.
+#' Each method takes the app's theme, so that a block that `serve()` serves
+#' alone draws in it too.
+#' The argument defaults to the blockr option `theme`.
+#' Where nothing sets that option, it falls back on a theme with no values.
+#' A site-wide R profile can set the option for every app that runs on its
+#' installation of R, and an app's script overrides it.
+#' Only an R option sets it, as `options(blockr.theme = theme)` does.
+#' An environment variable gives a string, which is no theme.
+#' Each method refuses a `theme` that is not a theme, naming what it got.
+#'
+#' The frontend gives the values that it wants its own as a theme too.
+#' The methods for a board and for a path call the method of
+#' [frontend_theme()] for the class of the app's frontend as `serve()` is
+#' called, and a method that returns anything but a theme stops the app,
+#' naming the frontend.
+#' R writes the rules of the frontend's theme and then those of the app's theme
+#' into the page's head, after the stylesheet of blockr.ui.
+#' So the page draws in them from the first paint, its loading note included.
+#' A value of the app's theme wins over the frontend's, and both win over the
+#' defaults of blockr.ui.
+#' A theme with no values writes no rules.
+#' For each font of the two themes, R serves the font's file and writes the
+#' font's face with `@font-face`.
+#' R also names the file in the page's head, so that the browser fetches it as
+#' the page loads.
+#' Until the file has loaded, the text draws in the next face of the stack.
+#' A font that gives no family or no file stops the app, and so does a font
+#' whose file does not exist.
+#'
 #' For a board, R writes the board's JSON once, as `serve()` is called, and
 #' sends it to the client as each session starts.
 #' So a board that R cannot write as JSON fails as the script runs (see
@@ -171,6 +203,7 @@
 #' @param plugins The plugins that the app runs, as rows with the package of
 #'   each plugin's class in `package` and the class's id in `id`, such as those
 #'   of [available_plugins()]
+#' @param theme The app's theme, as [blockr.ui::new_blockr_theme()] makes it
 #'
 #' @examples
 #' if (interactive()) {
@@ -204,39 +237,56 @@ serve <- function(x, ...) {
 #' @rdname serve
 #' @export
 serve.board <- function(x, ..., blocks = available_blocks(),
-                        plugins = available_plugins()) {
+                        plugins = available_plugins(),
+                        theme = blockr_option(
+                          "theme", blockr.ui::new_blockr_theme()
+                        )) {
+  check_app_theme(theme)
   plugins <- app_plugins(plugins)
   check_board_plugins(x, plugins)
   registry <- app_block_registry(blocks)
   register_board_classes(x, registry)
   frontend <- frontend_reply(..., plugins = plugins)
+  themes <- list(app_frontend_theme(plugins), theme)
   serve_app(
     encode_message(blockr_ser(x)),
     registry,
     plugins = plugins,
-    frontend = frontend
+    frontend = frontend,
+    themes = themes
   )
 }
 
 #' @rdname serve
 #' @export
 serve.character <- function(x, ..., blocks = available_blocks(),
-                            plugins = available_plugins()) {
+                            plugins = available_plugins(),
+                            theme = blockr_option(
+                              "theme", blockr.ui::new_blockr_theme()
+                            )) {
+  check_app_theme(theme)
   plugins <- app_plugins(plugins)
   registry <- app_block_registry(blocks)
   frontend <- frontend_reply(..., plugins = plugins)
+  themes <- list(app_frontend_theme(plugins), theme)
   serve_app(
     read_board_json(x),
     registry,
     plugins = plugins,
-    frontend = frontend
+    frontend = frontend,
+    themes = themes
   )
 }
 
 #' @param data The block's data, a list by input
 #' @rdname serve
 #' @export
-serve.block <- function(x, ..., data = list()) {
+serve.block <- function(x, ..., data = list(),
+                        theme = blockr_option(
+                          "theme", blockr.ui::new_blockr_theme()
+                        )) {
+
+  check_app_theme(theme)
 
   dots <- coal(...names(), character(...length()), fail_all = FALSE)
 
@@ -258,8 +308,112 @@ serve.block <- function(x, ..., data = list()) {
   registry <- new_block_registry()
   register_board_classes(board, registry)
 
-  serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
+  serve_app(
+    encode_message(blockr_ser(board)),
+    registry,
+    data,
+    alone = TRUE,
+    themes = list(theme)
+  )
 }
+
+# Refuses an app's theme that is not one, as `blockr.ui::new_blockr_theme()`
+# makes it, naming what it is instead.
+# A string is what the environment variable `BLOCKR_THEME` gives the blockr
+# option `theme`, so the error says how an app sets the option.
+# R also checks the theme's fonts here (see `check_theme_fonts()`), so that
+# each method of `serve()` stops the app as it is called.
+check_app_theme <- function(theme) {
+
+  if (!blockr.ui::is_blockr_theme(theme)) {
+    blockr_abort(
+      "The app's theme is expected to be a theme, as ",
+      "`blockr.ui::new_blockr_theme()` makes it, and `serve()` got ",
+      "{value_label(theme)}. ",
+      "An app passes its theme to `serve()` in `theme`, or sets the blockr ",
+      "option `theme` with an R option, as `options(blockr.theme = theme)` ",
+      "does, since an environment variable gives a string.",
+      class = "serve_theme_invalid"
+    )
+  }
+
+  check_theme_fonts(theme, "The app's theme")
+}
+
+# What a value is, as an error names it: `NULL`, a string in quotes, or any
+# other value by its class, as "an object of class list".
+value_label <- function(x) {
+
+  if (is.null(x)) {
+    return("`NULL`")
+  }
+
+  if (is_string(x) && !is.na(x)) {
+    return(paste0("the string \"", x, "\""))
+  }
+
+  paste("an object of class", class(x)[1L])
+}
+
+# Checks the fonts of a theme, `theme`, whose file R serves and whose face R
+# writes into the page's head (see `theme_head()`).
+# The theme's constructor, `blockr.ui::new_blockr_theme()`, checks nothing of
+# its fonts, and leaves that to R, which reads them here.
+# A font gives its family and the path of its file, and the weight and the
+# style of its face, each as a string.
+# The constructor gives a font that lacks a weight or a style `"normal"`.
+# R writes the family in quotes, and the weight and the style as they are.
+# So it refuses a font whose family, weight or style holds `"`, `}` or `<`,
+# which would end the string, the rule or the element that holds it, as the
+# constructor refuses such a value of a theme variable.
+# A font whose file does not exist stops the app as well, rather than leave
+# the page to draw its text in another face.
+# The errors name the theme as `whose` gives it, as "The app's theme".
+check_theme_fonts <- function(theme, whose) {
+
+  fonts <- theme[["fonts"]]
+
+  for (i in seq_along(fonts)) {
+
+    font <- fonts[[i]]
+    text <- c("family", "weight", "style")
+
+    valid <- is.list(font) &&
+      all(lgl_ply(font[text], is_nonempty_string)) &&
+      is_string(font[["file"]]) && !is.na(font[["file"]])
+
+    if (!valid) {
+      blockr_abort(
+        "{whose} gives a font, font {i}, that lacks the family, the path of ",
+        "its file, the weight or the style of its face as a string.",
+        class = "theme_font_invalid"
+      )
+    }
+
+    family <- font[["family"]]
+    file <- font[["file"]]
+
+    if (any(grepl("[\"}<]", c(family, font[["weight"]], font[["style"]])))) {
+      blockr_abort(
+        "{whose} gives the font {family} a family, a weight or a style that ",
+        "holds `\"`, `}` or `<`, which would end the string, the rule or the ",
+        "element that holds it.",
+        class = "theme_font_invalid"
+      )
+    }
+
+    if (!utils::file_test("-f", file)) {
+      blockr_abort(
+        "{whose} gives the font {family} the file \"{file}\", which does not ",
+        "exist.",
+        class = "theme_font_invalid"
+      )
+    }
+  }
+
+  invisible()
+}
+
 
 # Refuses a board that the script builds with a plugin of a class
 # that the app does not run, since the board would open without that plugin,
@@ -286,9 +440,8 @@ check_board_plugins <- function(board, plugins) {
 
 # What the app's frontend reads of the arguments that `serve()` does not take
 # itself, as JSON, which R sends in `frontend` in its reply to `hello`.
-# The app's plugins, as `app_plugins()` gives them, hold one frontend. R finds
-# it as `app_plugins()` does, by the R class of the plugin that its class's
-# constructor makes, and calls the method of `frontend_args()` on that plugin.
+# R calls the method of `frontend_args()` on the app's frontend (see
+# `app_frontend()`).
 # R checks what the method returns and writes it as a JSON object, once, as
 # `serve()` is called. So a method that returns anything but a list by name
 # stops the app then, naming the frontend.
@@ -296,13 +449,7 @@ check_board_plugins <- function(board, plugins) {
 # `serve()` named `p` to a `plugins` before it.
 frontend_reply <- function(..., plugins) {
 
-  available <- available_plugin_classes()
-  plugins <- lapply(
-    plugins,
-    function(x) plugin_of_class(pkg_id(x[["package"]], x[["id"]]), available)
-  )
-
-  front <- plugins[lgl_ply(plugins, is_frontend_plugin)][[1L]]
+  front <- app_frontend(plugins)
   args <- frontend_args(front, ...)
 
   if (!is.list(args) || is.object(args) || !has_unique_names(args)) {
@@ -325,6 +472,52 @@ frontend_reply <- function(..., plugins) {
       )
     }
   )
+}
+
+# The app's frontend, among the app's plugins, as `app_plugins()` gives them,
+# which hold one frontend.
+# R finds it as `app_plugins()` does, by the R class of the plugin that its
+# class's constructor makes, and gives that plugin.
+app_frontend <- function(plugins) {
+
+  available <- available_plugin_classes()
+  plugins <- lapply(
+    plugins,
+    function(x) plugin_of_class(pkg_id(x[["package"]], x[["id"]]), available)
+  )
+
+  plugins[lgl_ply(plugins, is_frontend_plugin)][[1L]]
+}
+
+# The theme of the app's frontend, which R writes into the page's head before
+# the app's theme (see `theme_head()`).
+# R calls the method of `frontend_theme()` on the app's frontend (see
+# `app_frontend()`), once, as `serve()` is called, as it calls the method of
+# `frontend_args()`.
+# So a method that returns anything but a theme, as
+# `blockr.ui::new_blockr_theme()` makes it, stops the app then, naming the
+# frontend, and so does a font of the theme that R cannot serve (see
+# `check_theme_fonts()`).
+app_frontend_theme <- function(plugins) {
+
+  front <- app_frontend(plugins)
+  theme <- frontend_theme(front)
+
+  if (!blockr.ui::is_blockr_theme(theme)) {
+    blockr_abort(
+      "The method of `frontend_theme()` for the frontend ",
+      "{pkg_id_label(plugin_class_id(front))} returns {value_label(theme)}, ",
+      "where a theme is expected, as `blockr.ui::new_blockr_theme()` makes it.",
+      class = "frontend_theme_invalid"
+    )
+  }
+
+  check_theme_fonts(
+    theme,
+    paste("The theme of the frontend", pkg_id_label(plugin_class_id(front)))
+  )
+
+  theme
 }
 
 # Registers the class of each block on a board that an app's block registry,
@@ -438,8 +631,13 @@ check_outside_classes <- function(classes) {
 # `write_log()`).
 # R also works out here which modules the page imports as it starts, which the
 # page names for the browser to fetch at once (see `page_modules()`).
+# The page's head holds the `themes` given, the frontend's and then the app's,
+# or the app's alone for a block that `serve()` serves alone (see
+# `theme_head()`).
+# Neither changes while the page runs, so nothing else carries them.
 serve_app <- function(board, registry, data = list(), alone = FALSE,
-                      plugins = list(), frontend = as_json_object(list())) {
+                      plugins = list(), frontend = as_json_object(list()),
+                      themes = list()) {
 
   reset_logging()
   get_logger()
@@ -462,7 +660,7 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 
   shiny::shinyApp(
     ui = function(req) {
-      serve_page(alone, modules = modules)
+      serve_page(alone, modules = modules, themes = themes)
     },
     server = function(input, output, session) {
 
@@ -728,6 +926,11 @@ latest_results <- function(ev, alone = FALSE) {
 # Core's comes after it, so that a class of core's that core passes to one of
 # blockr.ui's components wins over the component's own class of the same
 # weight.
+# The rules of the `themes` given follow the two stylesheets, with the faces of
+# their fonts and the links that have the browser fetch the fonts' files (see
+# `theme_head()`).
+# So the page draws in the themes from the first paint, as An app's theme has
+# it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.5).
 # The element holds the loading note from the start, so that the page shows it
 # before the client's code has loaded, which the client keeps until the board
 # opens.
@@ -746,7 +949,7 @@ latest_results <- function(ev, alone = FALSE) {
 # A page outside test mode loads none of that module.
 serve_page <- function(alone = FALSE,
                        test = isTRUE(shiny::getShinyOption("testmode")),
-                       modules = list()) {
+                       modules = list(), themes = list()) {
 
   runtime <- served_module(core_runtime())
   ui_css <- served_url(ui_stylesheet())
@@ -765,10 +968,88 @@ serve_page <- function(alone = FALSE,
       shiny::tags$meta(name = "color-scheme", content = "light dark"),
       shiny::tags$link(rel = "stylesheet", href = ui_css),
       shiny::tags$link(rel = "stylesheet", href = runtime[["css"]]),
+      theme_head(themes),
       preload_links(runtime[["module"]], modules)
     ),
     shiny::tags$div(id = "blockr-page", loading_note()),
     shiny::tags$script(type = "module", shiny::HTML(script))
+  )
+}
+
+# What R writes into the page's head for the `themes` given, the frontend's and
+# then the app's, as An app's theme has it
+# (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.5).
+# A `<style>` holds, for each theme in turn, the faces of its fonts and the
+# rules that blockr.ui's method of `format()` returns for it.
+# The rules of the two themes have the same selectors, so the app's rules win
+# by coming later.
+# The app's face of a font wins in the same way over a face of the frontend's
+# with the same family, weight and style.
+# R serves the file of each font here, at the URL that the font's face names,
+# and names the file in a preload link, so that the browser fetches it as the
+# page loads (see `font_face()`).
+# A link for a font needs `crossorigin`, since the browser fetches a font in
+# that mode, and would not use a file that it fetched otherwise.
+# A theme with no values and no fonts writes nothing, so the page holds no
+# `<style>` where neither theme gives anything.
+theme_head <- function(themes) {
+
+  urls <- lapply(
+    themes,
+    function(theme) {
+      chr_ply(theme[["fonts"]], function(font) served_url(font_file(font)))
+    }
+  )
+
+  text <- unlst(
+    map(
+      function(theme, urls) {
+        c(chr_mply(font_face, theme[["fonts"]], urls), format(theme))
+      },
+      themes,
+      urls
+    )
+  )
+
+  text <- text[nzchar(text)]
+
+  shiny::tagList(
+    if (length(text)) {
+      shiny::tags$style(shiny::HTML(paste(text, collapse = "\n\n")))
+    },
+    lapply(
+      unique(unlst(urls)),
+      function(url) {
+        shiny::tags$link(
+          rel = "preload", href = paste0("./", url), as = "font",
+          crossorigin = NA
+        )
+      }
+    )
+  )
+}
+
+# The file of a font of a theme, as R serves it: from no package, at the path
+# that the font gives.
+# So R serves the file alone, in a directory named by its hash, as it serves a
+# module that a script defines (see `served_url()`).
+font_file <- function(font) {
+  list(path = font[["file"]], package = NULL)
+}
+
+# The face of a font of a theme, `font`, as R writes it with `@font-face`, at
+# the URL at which R serves the font's file, `url`.
+# The face swaps the font in once its file has loaded, so that the text draws
+# in the next face of the stack until then, rather than not at all.
+font_face <- function(font, url) {
+  paste0(
+    "@font-face {\n",
+    "  font-family: \"", font[["family"]], "\";\n",
+    "  font-style: ", font[["style"]], ";\n",
+    "  font-weight: ", font[["weight"]], ";\n",
+    "  font-display: swap;\n",
+    "  src: url(\"./", url, "\");\n",
+    "}"
   )
 }
 

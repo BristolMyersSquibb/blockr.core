@@ -28,17 +28,22 @@ const TABLE = "blockr.core/basic-table.js?v=b7e2a915";
 
 // The warnings of an update outside act() that React logged as `fn` ran, in
 // its act() environment, which blockr.ui's stubs set up for a package's tests.
+// Any other error reaches the console, where the setup of the tests fails the
+// test on it.
 async function actWarnings(fn: () => unknown): Promise<string[]> {
   const lines: string[] = [];
+  const print = console.error.bind(console);
   const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
-    lines.push(args.map(String).join(" "));
+    const line = args.map(String).join(" ");
+    if (line.includes("not wrapped in act")) lines.push(line);
+    else print(...args);
   });
   try {
     await fn();
   } finally {
     spy.mockRestore();
   }
-  return lines.filter((line) => line.includes("not wrapped in act"));
+  return lines;
 }
 
 // A renderer drawn with React through core's React SDK, as a package draws its

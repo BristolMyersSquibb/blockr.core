@@ -33,7 +33,7 @@ declare const interned: unique symbol;
 // opens, and so does a package that reads a plugin's state.
 // The brand exists only for the type checker, so that one serializes as
 // { "package": "blockr.core", "id": "head_block" }.
-// Its tag @hidden keeps it out of the JSON Schema that a build makes from a
+// Its tag `@hidden` keeps it out of the JSON Schema that a build makes from a
 // type, so that no schema asks JSON for the brand.
 export interface Id<P extends string | null = string> {
   readonly package: P;
@@ -116,14 +116,16 @@ export interface Link {
 export interface Stack {
   readonly name: string;
   readonly blocks: readonly BlockId[];
-  // The colour that frontends draw the stack in, a hex colour of six digits
-  // such as "#66c2a5", or null for none.
-  // A frontend draws a stack without a colour in a default of its own.
-  // The pattern is the store's HEX_COLOR, by which the store checks a stack,
-  // and a test holds the two to each other.
   /**
    * @pattern ^#[0-9a-fA-F]{6}$
    */
+  // The colour that frontends draw the stack in, a hex colour of six digits
+  // such as "#66c2a5", or null for none.
+  // A frontend draws a stack without a colour in a default of its own.
+  // The pattern above is the store's HEX_COLOR, by which the store checks a
+  // stack, and a test holds the two to each other.
+  // The pattern comes first, since TypeDoc, which writes this comment into the
+  // TypeScript reference, garbles lines of comment that a block follows.
   readonly color: string | null;
 }
 

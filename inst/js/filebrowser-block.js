@@ -1,6 +1,7 @@
 // srcts/modules/filebrowser-block/index.tsx
 import { useState } from "react";
-import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
+import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Icon, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
+import { ArrowUp, File, Folder } from "./vendor-64fbb1b0.js";
 import { reactModule, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/util/util.ts
@@ -105,10 +106,10 @@ function FileBrowserBlock({ host }) {
             onPress: () => {
               go({ volume, dirs: dirs.slice(0, -1) });
             },
-            children: /* @__PURE__ */ jsx(Up, {})
+            children: /* @__PURE__ */ jsx(Icon, { icon: ArrowUp })
           }
         ),
-        /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-muted-foreground" }),
+        /* @__PURE__ */ jsx(EntryIcon, { icon: Folder, className: "bc:text-muted-foreground" }),
         /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:min-w-0", children: /* @__PURE__ */ jsx(
           Breadcrumbs,
           {
@@ -140,7 +141,7 @@ function FileBrowserBlock({ host }) {
                 renderEmptyState: () => loading ? "Loading\u2026" : failed ? null : "This directory is empty.",
                 children: (entry) => /* @__PURE__ */ jsxs(Row, { id: entry.id, "data-current": entry.current || void 0, className: `bc:cursor-pointer ${entry.current ? CHOSEN : ""}`, children: [
                   /* @__PURE__ */ jsx(Cell, { textValue: entry.name, children: /* @__PURE__ */ jsxs("span", { className: "bc:flex bc:items-center bc:gap-2", children: [
-                    entry.dir ? /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-primary" }) : /* @__PURE__ */ jsx(FileIcon, { className: "bc:shrink-0 bc:text-muted-foreground" }),
+                    entry.dir ? /* @__PURE__ */ jsx(EntryIcon, { icon: Folder, className: "bc:text-primary" }) : /* @__PURE__ */ jsx(EntryIcon, { icon: File, className: "bc:text-muted-foreground" }),
                     entry.name
                   ] }) }),
                   /* @__PURE__ */ jsx(Cell, { className: "bc:text-right bc:tabular-nums", children: entry.size === null ? /* @__PURE__ */ jsx("span", { className: "bc:text-muted-foreground", children: "\u2014" }) : sizeText(entry.size) }),
@@ -157,17 +158,8 @@ function FileBrowserBlock({ host }) {
   ] });
 }
 var filebrowser_block_default = reactModule(FileBrowserBlock);
-function Up() {
-  return /* @__PURE__ */ jsx("svg", { width: "14", height: "14", viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: "M8 13V3M4 7l4-4 4 4" }) });
-}
-function FolderIcon({ className }) {
-  return /* @__PURE__ */ jsx("svg", { width: "16", height: "16", viewBox: "0 0 16 16", fill: "currentColor", "aria-hidden": "true", className, children: /* @__PURE__ */ jsx("path", { d: "M1.5 4a1 1 0 0 1 1-1h3.6l1.5 1.5h5.9a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" }) });
-}
-function FileIcon({ className }) {
-  return /* @__PURE__ */ jsxs("svg", { width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: "1.3", strokeLinejoin: "round", "aria-hidden": "true", className, children: [
-    /* @__PURE__ */ jsx("path", { d: "M4 1.75h5.25L12.5 5v9.25H4z" }),
-    /* @__PURE__ */ jsx("path", { d: "M9.25 1.75V5h3.25" })
-  ] });
+function EntryIcon({ icon, className }) {
+  return /* @__PURE__ */ jsx("span", { className: `bc:flex bc:shrink-0 ${className}`, children: /* @__PURE__ */ jsx(Icon, { icon, size: 16 }) });
 }
 function sizeText(bytes) {
   if (bytes < 1024) return `${String(bytes)} B`;

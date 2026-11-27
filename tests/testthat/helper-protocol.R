@@ -1102,6 +1102,16 @@ proto_served_file <- function() {
   )
 }
 
+# The path of a file that holds the JSON board of `proto_served_file()`, which
+# R deletes once `frame` ends.
+local_board_path <- function(frame = parent.frame()) {
+
+  path <- withr::local_tempfile(fileext = ".json", .local_envir = frame)
+  writeLines(unclass(encode_message(proto_served_file())), path)
+
+  path
+}
+
 proto_evaluated <- function(id, block, revision, status = "ok",
                             summary = NULL, reason = NULL,
                             conditions = list()) {

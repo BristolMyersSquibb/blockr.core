@@ -3,7 +3,7 @@
 // host.module(), and which the page's import map names `@blockr/core/controls`.
 
 import { expect, test } from "vitest";
-import { find, type } from "@blockr/ui/stubs";
+import { find, step, type } from "@blockr/ui/stubs";
 import { stubBlockHost } from "../stubs/index.ts";
 import { mountOnPage, unmount } from "../testing/modules.ts";
 import type { BlockModule } from "../types/hosts.ts";
@@ -28,7 +28,9 @@ test("gives the controls to a module that builds nothing, through host.module()"
   const input = find(view.el, "input", HTMLInputElement);
   expect(input.value).toBe("x");
 
-  type(input, "y");
+  await step(() => {
+    type(input, "y");
+  });
   unmount(view);
   expect(host.submitted).toEqual([{ label: "y" }]);
 });

@@ -1,6 +1,14 @@
 // Core's inputs drawn through controls(), on the stub of a block's host and of
 // a board option's host, as a package that writes its modules without React
 // uses them, with no wait for React.
+// The tests run outside React's act environment.
+// The stubs of blockr.ui turn that environment on as they load.
+// In it, React warns of each update outside act(), and the setup of the tests
+// fails a test on the warning.
+// The tests cannot wrap their steps in act() instead.
+// Inside act(), React draws what it scheduled before act() returns.
+// So a test could not tell whether a control draws before the call that makes
+// or changes it returns.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { chipLabels, labelled, listed, notAvailable, picked, press, texts, toggle, type } from "@blockr/ui/stubs";
@@ -9,6 +17,8 @@ import type { BlockFixture } from "../stubs/index.ts";
 import { holdRequests } from "../testing/requests.ts";
 import type { Json } from "../types/json.ts";
 import { controls, PAUSE, strings } from "./index.ts";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
 
 // Items of the ids given, which read as their ids.
 const ids = (values: readonly string[]) => values.map((id) => ({ id }));

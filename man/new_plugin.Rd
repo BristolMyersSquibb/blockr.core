@@ -202,6 +202,12 @@ its own, such as the color of its cards, through its class's method of
 \code{frontend_theme()}.
 The method returns the frontend's theme, as \code{\link[blockr.ui:new_blockr_theme]{blockr.ui::new_blockr_theme()}}
 makes it, with the frontend's values for light mode and for dark mode.
+As \code{\link[=serve]{serve()}} is called, R calls the method on the plugin that the
+frontend's constructor makes.
+It writes the rules of the frontend's theme into the page's head before
+those of the app's theme, so that the app's values win.
+A method that returns anything but a theme stops the app, naming the
+frontend.
 Core's method for \code{frontend_plugin} returns a theme with no values.
 So a frontend that keeps every default of blockr.ui, as core's basic
 frontend does, has no method of its own.

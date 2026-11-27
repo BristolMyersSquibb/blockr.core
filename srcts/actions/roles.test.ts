@@ -10,6 +10,7 @@
 // its stack s1, Input, holds a and b.
 
 import { describe, expect, test } from "vitest";
+import { step } from "@blockr/ui/stubs";
 import type { PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
@@ -138,9 +139,12 @@ describe("core's roles", () => {
     await opened;
 
     const room = document.createElement("div");
-    const unmount = s.core.boardActions.mountAdvanced(room, "add_block_role", { board: true });
+    let unmount = (): void => undefined;
+    await step(() => {
+      unmount = s.core.boardActions.mountAdvanced(room, "add_block_role", { board: true });
+    });
     expect(room.querySelector('form[aria-label="Add block"]')).not.toBeNull();
-    unmount();
+    await step(unmount);
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual(ON_BLOCK);
     s.stop();
   });

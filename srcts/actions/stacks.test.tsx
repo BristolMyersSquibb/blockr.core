@@ -181,11 +181,15 @@ describe("Create stack", () => {
     await menu.pick("Create stack");
     await opened(menu);
     expect(dialogForm(s, "Add stack").querySelector("p")?.textContent).toBe('A stack of the block "Merge".');
-    s.advanced()?.close();
+    await step(() => {
+      s.advanced()?.close();
+    });
 
     const room = document.createElement("div");
-    const unmount = s.core.boardActions.mountAdvanced(room, CREATE_STACK, { board: true });
-    await step(() => undefined);
+    let unmount = (): void => undefined;
+    await step(() => {
+      unmount = s.core.boardActions.mountAdvanced(room, CREATE_STACK, { board: true });
+    });
     const form = find(room, 'form[aria-label="Add stack"]', HTMLFormElement);
     expect(form.querySelector("p")).toBeNull();
     expect(chipLabels(labelled(form, "Blocks"))).toEqual([]);

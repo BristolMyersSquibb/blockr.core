@@ -7,6 +7,7 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { ChevronDown, CircleX, Ellipsis, Info, TriangleExclamationPoint, X } from "@blockr/ui/icons";
 import {
   find,
   inert,
@@ -29,6 +30,7 @@ import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubAdvanced, StubCoreOptions, StubMenu } from "../../stubs/index.ts";
 import type { HelloReply, Request } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
+import { shownIcon } from "../../testing/icons.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { logged } from "../../testing/logged.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
@@ -567,6 +569,8 @@ describe("a card", () => {
     const actions = find(card(page.el, "Head"), 'button[aria-label="Actions of Head"]');
     expect(opening).toHaveBeenCalledWith({ block: "b" }, { el: actions, anchor: actions.getBoundingClientRect() });
     expect(actions.getAttribute("aria-haspopup")).toBe("menu");
+    // The button shows Lucide's ellipsis.
+    expect(shownIcon(actions)).toEqual(Ellipsis);
     // Links feed every input of the head block, so it offers no Prepend block.
     expect(labels(head)).toEqual(["Append block", "Create link", "Create stack", "Rename", "Edit inputs", "Copy block ID", "Remove block"]);
     head.escape();
@@ -827,7 +831,7 @@ describe("the storage controls", () => {
       "|",
       "NS",
       "Save",
-      "Versions▾",
+      "Versions",
       "Saved",
       "Share",
       "Lock",
@@ -880,6 +884,8 @@ describe("the storage controls", () => {
     const { el } = await drawn(storage.options);
     const opener = find(toolbar(el), "button[aria-haspopup]");
     const list = () => document.querySelector<HTMLElement>('[role="menu"][aria-label="Versions"]');
+    // The button shows Lucide's chevron after its label.
+    expect(shownIcon(opener)).toEqual(ChevronDown);
 
     await click(opener);
     expect(opener.getAttribute("aria-expanded")).toBe("true");
@@ -930,7 +936,9 @@ describe("the storage controls", () => {
     expect(parts(page.el).slice(-2)).toEqual(["Saved", "Share"]);
 
     // The controls read the board, as a status may show the board's name.
-    storage.set(() => [{ kind: "status", id: "saved", text: `Unsaved ${page.board().name}` }]);
+    await step(() => {
+      storage.set(() => [{ kind: "status", id: "saved", text: `Unsaved ${page.board().name}` }]);
+    });
     await act(() => page.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     expect(parts(page.el).at(-1)).toBe("Unsaved Sepals");
 
@@ -1029,7 +1037,6 @@ describe("the storage controls", () => {
   });
 
   test("draw the first of the controls of one list that share an id, and a warning in their place where controls() fails, of which the page hears once", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { runs, ran } = running();
     const storage = storagePlugin(() => [
       { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: ran("save") },
@@ -1040,7 +1047,7 @@ describe("the storage controls", () => {
     let errors: readonly LogLine[];
     try {
       const page = await drawn(storage.options);
-      expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Save", "More▾"]);
+      expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Save", "More"]);
       await click(find(toolbar(page.el), "button[aria-haspopup]"));
       expect(menuItems(openMenu("More"))).toEqual(["A"]);
       await step(() => {
@@ -1414,6 +1421,14 @@ describe("what the user learns", () => {
     const head = card(el, "Head");
     expect(pills(head)).toEqual(["error", "1 warning"]);
     expect(banners(head)).toEqual([["error", "Not shared."]]);
+    // Each toast, pill and banner shows Lucide's icon of its severity, and a
+    // toast's button that closes it shows Lucide's cross.
+    expect(shownIcon(toast(el, "Saved to Connect."))).toEqual(Info);
+    expect(shownIcon(toast(el, "The token expires soon."))).toEqual(TriangleExclamationPoint);
+    expect(shownIcon(button(head, "error"))).toEqual(CircleX);
+    expect(shownIcon(button(head, "1 warning"))).toEqual(TriangleExclamationPoint);
+    expect(shownIcon(find(head, 'ul[aria-label="Conditions"] li'))).toEqual(CircleX);
+    expect(shownIcon(find(toast(el, "Saved to Connect."), 'button[aria-label="Close"]'))).toEqual(X);
 
     await click(find(toast(el, "Saved to Connect."), 'button[aria-label="Close"]'));
     expect(toasts(el).map(([, , message]) => message)).toEqual(["The token expires soon.", "Shown on the board."]);
@@ -1668,8 +1683,9 @@ describe("a locked board", () => {
     expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save"]);
     expect(sections(el).map((shown) => titled(shown).textContent)).toEqual(["Edit board", "To do"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).toBeNull();
-    // A card's menu offers only Copy block ID, which no lock fixes.
-    expect(texts(el, "article button").every((text) => text === "⋯")).toBe(true);
+    // Each card's only button opens its menu. The menu offers only Copy block
+    // ID, which no lock fixes.
+    expect([...el.querySelectorAll("article button")].every((b) => b.getAttribute("aria-label")?.startsWith("Actions of "))).toBe(true);
     expect(labels(await menu(page, "Head"))).toEqual(["Copy block ID"]);
 
     expect(card(el, "Head").textContent).toContain("UI of b");

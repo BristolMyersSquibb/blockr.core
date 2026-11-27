@@ -22,3 +22,5 @@ _\.new\.png$
 ^eslint\.config\.ts$
 ^vitest\.config\.ts$
 ^coverage$
+^vignettes/articles$
+^typedoc\.config\.ts$

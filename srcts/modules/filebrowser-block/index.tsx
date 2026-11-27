@@ -22,7 +22,9 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
+import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Icon, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
+import { ArrowUp, File, Folder } from "../../icons/index.ts";
+import type { IconNode } from "../../icons/index.ts";
 import { reactModule, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -171,9 +173,9 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
               go({ volume, dirs: dirs.slice(0, -1) });
             }}
           >
-            <Up />
+            <Icon icon={ArrowUp} />
           </Button>
-          <FolderIcon className="bc:shrink-0 bc:text-muted-foreground" />
+          <EntryIcon icon={Folder} className="bc:text-muted-foreground" />
           <nav aria-label="Directory" className="bc:min-w-0">
             <Breadcrumbs
               onAction={(key) => {
@@ -217,7 +219,7 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
               <Row id={entry.id} data-current={entry.current || undefined} className={`bc:cursor-pointer ${entry.current ? CHOSEN : ""}`}>
                 <Cell textValue={entry.name}>
                   <span className="bc:flex bc:items-center bc:gap-2">
-                    {entry.dir ? <FolderIcon className="bc:shrink-0 bc:text-primary" /> : <FileIcon className="bc:shrink-0 bc:text-muted-foreground" />}
+                    {entry.dir ? <EntryIcon icon={Folder} className="bc:text-primary" /> : <EntryIcon icon={File} className="bc:text-muted-foreground" />}
                     {entry.name}
                   </span>
                 </Cell>
@@ -243,29 +245,13 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
 
 export default reactModule(FileBrowserBlock);
 
-// The arrow of the button that goes up a directory.
-function Up(): ReactElement {
+// The icon of a directory or of a file, Lucide's folder or file, 16 pixels
+// wide and in the colour that `className` gives.
+function EntryIcon({ icon, className }: { icon: IconNode; className: string }): ReactElement {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 13V3M4 7l4-4 4 4" />
-    </svg>
-  );
-}
-
-function FolderIcon({ className }: { className: string }): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className={className}>
-      <path d="M1.5 4a1 1 0 0 1 1-1h3.6l1.5 1.5h5.9a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" />
-    </svg>
-  );
-}
-
-function FileIcon({ className }: { className: string }): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" aria-hidden="true" className={className}>
-      <path d="M4 1.75h5.25L12.5 5v9.25H4z" />
-      <path d="M9.25 1.75V5h3.25" />
-    </svg>
+    <span className={`bc:flex bc:shrink-0 ${className}`}>
+      <Icon icon={icon} size={16} />
+    </span>
   );
 }
 

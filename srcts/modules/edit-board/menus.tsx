@@ -176,9 +176,12 @@ export function MenuButton({ menus, target, place, label }: { menus: Menus; targ
 }
 
 // An advanced action that a place of the plugin shows, such as the form of
-// Edit link in its row. Core renders it in an element of its own, above a
-// Close button, which closes it, as Escape does. The form says itself why the
-// store refused what it ran.
+// Edit link in its row.
+// Core renders it in an element of its own, above a Close button, which closes
+// it, as Escape does.
+// Core renders it there once React has finished its work, since a form of
+// core's draws with flushSync() (../../card/mounted.tsx).
+// The form says itself why the store refused what it ran.
 // In a table, React Aria's Table hears what the user does in the row's cells,
 // as it hears a press of the row, which ticks the row. So a click in one of
 // the form's fields would tick the row, and so would Space or Enter in it. The
@@ -212,7 +215,7 @@ export function PlaceForm({ args, onClose }: { args: PlaceArgs; onClose: () => v
   return (
     <div ref={box} role="group" aria-label={args.title} className="bc:grid bc:gap-2 bc:py-1 bc:whitespace-normal" {...KEPT}>
       <TakesKeys />
-      <Mounted mount={mount} className="bc:min-w-0" />
+      <Mounted mount={mount} deferred className="bc:min-w-0" />
       <div className="bc:flex bc:gap-2">
         <Button variant="secondary" onPress={onClose}>
           Close

@@ -19,6 +19,7 @@
     "react-dom/client",
     "react",
     "@blockr/ui",
+    "./vendor-64fbb1b0.js",
     "react/jsx-runtime",
     "@blockr/core/react"
   ],
@@ -43,7 +44,7 @@
   ],
   "blockr-core.js": [
     "@opentelemetry/api",
-    "./vendor-c863df8c.js",
+    "./vendor-64fbb1b0.js",
     "@blockr/ui",
     "react/jsx-runtime",
     "react",
@@ -57,6 +58,7 @@
     "react-dom/client",
     "@blockr/ui",
     "react-aria-components",
+    "./vendor-64fbb1b0.js",
     "react/jsx-runtime"
   ],
   "csv-block.js": [
@@ -80,6 +82,7 @@
     "react-dom/client",
     "react",
     "@blockr/ui",
+    "./vendor-64fbb1b0.js",
     "react/jsx-runtime",
     "@blockr/core/react",
     "react-aria-components"
@@ -87,6 +90,7 @@
   "filebrowser-block.js": [
     "react",
     "@blockr/ui",
+    "./vendor-64fbb1b0.js",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],

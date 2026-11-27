@@ -44,9 +44,9 @@
 // its top right, at the end of the title's line: a button named "Show all
 // options". An item that gives `advanced` shows the icon at its end, and a
 // click on the icon opens the advanced action, where a click elsewhere on the
-// item picks it. The icon is in the shape of blockr.ui's `open`, a box with an
+// item picks it. The icon is Lucide's `SquareArrowUpRightExit`, a box with an
 // arrow out of its top right corner
-// (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/open.svg).
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-quick-action).
 // Each icon's tooltip gives its name with its key, Mod+Enter, in the notation
 // of blockr.ui's design system, as "Show all options (⌘Enter)" on a Mac, since
 // the design system names the tool by its tooltip
@@ -76,9 +76,10 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Autocomplete, Menu, MenuItem, MenuSection, Popover, Text, TextField } from "@blockr/ui";
+import { Autocomplete, Icon, Menu, MenuItem, MenuSection, Popover, Text, TextField } from "@blockr/ui";
 import { Input, Separator, TextField as AriaTextField } from "react-aria-components";
 import type { MenuModule, OpenMenu, ShownLevel, ShownRow } from "../../actions/index.ts";
+import { SquareArrowUpRightExit } from "../../icons/index.ts";
 import { ariaShortcuts, matchesShortcut, onMac, shortcutLabel } from "../../util/index.ts";
 
 export const api = 1;
@@ -304,7 +305,7 @@ function Level({
               openAdvanced();
             }}
           >
-            <OpenIcon />
+            <Icon icon={SquareArrowUpRightExit} />
           </button>
         </div>
       ) : level.title === undefined ? null : (
@@ -484,7 +485,7 @@ function Item({
                 onOpen();
               }}
             >
-              <OpenIcon />
+              <Icon icon={SquareArrowUpRightExit} />
             </span>
           ) : null}
         </span>
@@ -495,27 +496,6 @@ function Item({
         </Text>
       ) : null}
     </MenuItem>
-  );
-}
-
-// The open icon, in the shape of blockr.ui's `open`, at the stroke of the
-// menu's icons.
-function OpenIcon(): ReactElement {
-  return (
-    <svg
-      aria-hidden="true"
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.25}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" />
-      <path d="M10 2.5h3.5V6M13.5 2.5 8 8" />
-    </svg>
   );
 }
 

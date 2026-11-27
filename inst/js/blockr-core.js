@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-c863df8c.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-64fbb1b0.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -338,7 +338,7 @@ function checkRaised(notification) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-c863df8c.js";
+import { Validator } from "./vendor-64fbb1b0.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -3892,10 +3892,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-c863df8c.js";
+import { computed as computed3, signal as signal4 } from "./vendor-64fbb1b0.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-c863df8c.js";
+import { signal as signal3 } from "./vendor-64fbb1b0.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -6100,7 +6100,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-c863df8c.js";
+import { computed as computed2, signal as signal2 } from "./vendor-64fbb1b0.js";
 var STATE_FUNCTIONS = [["update", "an"], ["afterStep", "an"], ["migrate", "a"]];
 function createRegistrations(migration = () => void 0) {
   const classes2 = signal2(/* @__PURE__ */ new Map());
@@ -8266,11 +8266,13 @@ import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 import { useRef as useRef2, useState as useState6 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Button as Button2, TextField } from "@blockr/ui";
+import { Button as Button2, Icon as Icon2, TextField } from "@blockr/ui";
 
 // srcts/card/footer.tsx
 import { useCallback as useCallback2, useId, useState as useState4 } from "react";
-import { Fragment, jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
+import { Icon } from "@blockr/ui";
+import { CircleX, Info, TriangleExclamationPoint } from "./vendor-64fbb1b0.js";
+import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
 function useFooter(status, notifications) {
   const shown2 = useShown(status);
@@ -8402,27 +8404,13 @@ function Banner({ severity, message }) {
   );
 }
 function SeverityIcon({ severity }) {
-  return /* @__PURE__ */ jsx3(
-    "svg",
-    {
-      "aria-hidden": "true",
-      viewBox: "0 0 16 16",
-      className: "bc:size-3 bc:shrink-0",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.6,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs3(Fragment, { children: [
-        /* @__PURE__ */ jsx3("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
-        /* @__PURE__ */ jsx3("path", { d: "M8 6.2v3.2M8 11.6v.1" })
-      ] }) : /* @__PURE__ */ jsxs3(Fragment, { children: [
-        /* @__PURE__ */ jsx3("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx3("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
-      ] })
-    }
-  );
+  return /* @__PURE__ */ jsx3(Icon, { icon: SEVERITY_ICONS[severity], size: 12 });
 }
+var SEVERITY_ICONS = {
+  error: CircleX,
+  warning: TriangleExclamationPoint,
+  message: Info
+};
 function useShown(status) {
   const [kept, setKept] = useState4(void 0);
   const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
@@ -8438,17 +8426,27 @@ function Mounted({
   mount,
   label,
   className,
-  data
+  data,
+  deferred = false
 }) {
   const ref = useRef(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (el === null) return;
-    const cleanup = mount(el);
-    return () => {
-      queueMicrotask(cleanup);
+    let cleanup;
+    let gone = false;
+    const start2 = () => {
+      if (!gone) cleanup = mount(el);
     };
-  }, [mount]);
+    if (deferred) queueMicrotask(start2);
+    else start2();
+    return () => {
+      gone = true;
+      queueMicrotask(() => {
+        cleanup?.();
+      });
+    };
+  }, [mount, deferred]);
   return /* @__PURE__ */ jsx4("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
 }
 
@@ -8818,7 +8816,12 @@ function without3(errors, key2) {
 }
 
 // srcts/actions/icons.ts
-var PLUS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>';
+import { iconMarkup } from "@blockr/ui";
+import { Box, Layers, Link, Trash } from "./vendor-64fbb1b0.js";
+var BLOCK = iconMarkup(Box);
+var LINK = iconMarkup(Link);
+var STACK = iconMarkup(Layers);
+var TRASH = iconMarkup(Trash);
 function swatch(color2) {
   const fill = color2 === null ? 'fill="none" stroke="currentColor" stroke-width="1.25"' : `fill="${escaped(color2)}"`;
   return `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="3" ${fill}/></svg>`;
@@ -8880,7 +8883,7 @@ function addingBoardActions(registry) {
     {
       id: "add_block_action",
       label: "Add block",
-      icon: PLUS,
+      icon: BLOCK,
       on: ["board"],
       category: "add",
       offers: (_board, _target, lock) => !lock.board && adds(false),
@@ -8891,7 +8894,7 @@ function addingBoardActions(registry) {
     {
       id: "append_block_action",
       label: "Append block",
-      icon: PLUS,
+      icon: BLOCK,
       on: ["block"],
       category: "add",
       offers: (board, target2, lock) => !lock.board && heldBlock(board, target2) !== void 0 && adds(true),
@@ -8905,7 +8908,7 @@ function addingBoardActions(registry) {
     {
       id: "prepend_block_action",
       label: "Prepend block",
-      icon: PLUS,
+      icon: BLOCK,
       on: ["block", "input"],
       category: "add",
       offers: (board, target2, lock) => !lock.board && freeInputOf(board, registry(), target2) !== void 0 && adds(false),
@@ -8924,7 +8927,7 @@ function addingBoardActions(registry) {
     {
       id: "insert_block_action",
       label: "Insert block",
-      icon: PLUS,
+      icon: BLOCK,
       on: ["link"],
       category: "add",
       offers: (board, target2, lock) => !lock.board && "link" in target2 && Object.hasOwn(board.links, target2.link) && adds(true),
@@ -9042,7 +9045,8 @@ function copyCommand(doc, text) {
 // srcts/actions/inputs.tsx
 import { useState as useState8 } from "react";
 import { flushSync as flushSync3 } from "react-dom";
-import { Button as Button4, ComboBox as ComboBox2, Form as Form2, GridList, GridListItem, TextField as TextField3, useDragAndDrop } from "@blockr/ui";
+import { Button as Button4, ComboBox as ComboBox2, Form as Form2, GridList, GridListItem, Icon as Icon3, TextField as TextField3, useDragAndDrop } from "@blockr/ui";
+import { X } from "./vendor-64fbb1b0.js";
 import { useBoard as useBoard2 } from "@blockr/core/react";
 import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 var ADD_LINK = interned(CORE2, "add_link");
@@ -9419,10 +9423,7 @@ function AddInput({ sources, onAdd }) {
   );
 }
 function RemoveButton({ label, onPress }) {
-  return /* @__PURE__ */ jsx8(Button4, { variant: "quiet", "aria-label": label, onPress, className: "bc:size-7 bc:shrink-0 bc:justify-center bc:p-0", children: /* @__PURE__ */ jsx8("span", { title: label, className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx8(Cross, {}) }) });
-}
-function Cross() {
-  return /* @__PURE__ */ jsx8("svg", { width: "10", height: "10", viewBox: "0 0 10 10", fill: "none", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx8("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" }) });
+  return /* @__PURE__ */ jsx8(Button4, { variant: "quiet", "aria-label": label, onPress, className: "bc:size-7 bc:shrink-0 bc:justify-center bc:p-0", children: /* @__PURE__ */ jsx8("span", { title: label, className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx8(Icon3, { icon: X, size: 10 }) }) });
 }
 var ROW = "bc:rounded-md bc:border bc:border-border bc:bg-muted bc:py-1 bc:data-dragging:opacity-60";
 
@@ -9709,7 +9710,7 @@ function createLinkAction(parts) {
   return {
     id: CREATE_LINK,
     label: "Create link",
-    icon: PLUS,
+    icon: LINK,
     on: ["block", "input", "board"],
     category: "add",
     offers(board, target2, lock) {
@@ -10080,7 +10081,7 @@ function createStackAction() {
   return {
     id: CREATE_STACK,
     label: "Create stack",
-    icon: PLUS,
+    icon: STACK,
     on: ["block", "selection", "board"],
     category: "add",
     offers: (board, target2, lock) => !lock.board && ("board" in target2 || heldBlocks(board, target2).length > 0),
@@ -10120,6 +10121,7 @@ function addToStackAction() {
   return {
     id: ADD_TO_STACK,
     label: "Add to stack",
+    icon: STACK,
     on: ["block", "selection"],
     category: "edit",
     offers: (board, target2, lock) => !lock.board && joinable(board, heldBlocks(board, target2)).length > 0,
@@ -10321,7 +10323,6 @@ function removals(board, target2) {
   const removing2 = (kind) => held2(board, target2, kind).map((id2) => ({ id: interned(CORE2, `remove_${kind}`), args: { id: id2 } }));
   return [...removing2("link"), ...removing2("block"), ...removing2("stack")];
 }
-var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';
 
 // srcts/actions/roles.ts
 var CORE_ROLES = [
@@ -10867,7 +10868,7 @@ function CoreDialog({ args, onClose }) {
           /* @__PURE__ */ jsx11(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
           /* @__PURE__ */ jsx11(Button7, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
-        /* @__PURE__ */ jsx11(Mounted, { mount, className: "bc:min-w-0" })
+        /* @__PURE__ */ jsx11(Mounted, { mount, deferred: true, className: "bc:min-w-0" })
       ] }) })
     }
   );

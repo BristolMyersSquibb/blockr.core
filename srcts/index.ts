@@ -13,6 +13,8 @@
 // Nothing here runs: a module reaches core's
 // runtime through its host, so that one copy of it runs on the page, and the
 // stubs of the hosts, which tests run, come from `@blockr/core/stubs`.
+//
+// @packageDocumentation
 
 export type { Json, JsonSchema } from "./types/json.ts";
 export type {

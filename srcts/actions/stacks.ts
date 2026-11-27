@@ -28,6 +28,8 @@
 //   row runs change_stack of blockr.core, which puts the blocks at the end of the
 //   stack and takes them out of the stack that held them. It has no advanced
 //   action, and plays add_to_stack_role.
+// Create stack and Add to stack carry the icon of a stack, Lucide's layers
+// (./icons.ts).
 // Under the board lock, all three fail their offers(), since the store
 // refuses what they run.
 
@@ -37,7 +39,7 @@ import type { CoreApi } from "../types/core-api.ts";
 import { blockName } from "../ui/index.ts";
 import { interned, own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
-import { PLUS, swatch } from "./icons.ts";
+import { STACK, swatch } from "./icons.ts";
 import { levelItem, nameRow } from "./quick.ts";
 import type { QuickRow } from "./quick.ts";
 import { createStackForm, editStackForm, PALETTE, suggestedColor } from "./stack-form.tsx";
@@ -53,7 +55,7 @@ export function createStackAction(): Omit<BoardAction, "package"> {
   return {
     id: CREATE_STACK,
     label: "Create stack",
-    icon: PLUS,
+    icon: STACK,
     on: ["block", "selection", "board"],
     category: "add",
     offers: (board, target, lock) => !lock.board && ("board" in target || heldBlocks(board, target).length > 0),
@@ -95,6 +97,7 @@ export function addToStackAction(): Omit<BoardAction, "package"> {
   return {
     id: ADD_TO_STACK,
     label: "Add to stack",
+    icon: STACK,
     on: ["block", "selection"],
     category: "edit",
     offers: (board, target, lock) => !lock.board && joinable(board, heldBlocks(board, target)).length > 0,
