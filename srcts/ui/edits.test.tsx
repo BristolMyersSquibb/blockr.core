@@ -9,10 +9,9 @@ import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
+import { find, step } from "@blockr/ui/stubs";
 import { stubCore } from "../stubs/index.ts";
-import { find } from "../testing/inputs.ts";
 import { held } from "../testing/notifications.ts";
-import { step } from "../testing/react.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { notifiedReasons, Refusal, useEdits } from "./index.ts";
 import type { Done } from "./index.ts";
@@ -105,9 +104,9 @@ describe("an edit that the command registry or the store refuses", () => {
     // The banner marks an error as a card's banners do, and says the one
     // reason in a sentence, rather than in a list.
     const alert = find(el, '[role="alert"]');
-    expect(alert.className).toContain("bc:border-border-danger");
-    expect(alert.className).toContain("bc:bg-red-500/10");
-    expect(find(alert, "p").className).toContain("bc:text-text-danger");
+    expect(alert.className).toContain("bc:border-destructive");
+    expect(alert.className).toContain("bc:bg-destructive/10");
+    expect(find(alert, "p").className).toContain("bc:text-destructive-text");
     expect(alert.querySelector("ul")).toBeNull();
     expect(held(core)).toEqual([]);
 

@@ -1,4 +1,4 @@
-import type { Selection } from "../../aria/index.ts";
+import type { Selection } from "react-aria-components";
 import type { BoardObject, CoreApi } from "../../types/core-api.ts";
 export type Kind = "block" | "link" | "stack";
 export declare function useSelected(core: Pick<CoreApi, "selection">): readonly BoardObject[];

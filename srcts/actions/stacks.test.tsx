@@ -9,12 +9,9 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
+import { chipLabels, find, labelled, openDialog, picked, press, step, type } from "@blockr/ui/stubs";
 import { stubCore } from "../stubs/index.ts";
 import type { StubCore, StubMenu } from "../stubs/index.ts";
-import { find, press, type } from "../testing/inputs.ts";
-import { openDialog } from "../testing/overlays.ts";
-import { step } from "../testing/react.ts";
-import { chipLabels, labelled, picked } from "../testing/select.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import { swatch } from "./icons.ts";
 import type { ShownLevel } from "./quick.ts";

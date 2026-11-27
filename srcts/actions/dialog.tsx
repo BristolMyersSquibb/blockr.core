@@ -2,11 +2,12 @@
 // neither the caller of menu() or trigger() nor the frontend shows it, as
 // Board actions has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
-// It is a modal dialog of core's React SDK, React Aria's Modal and Dialog in
-// core's theme, titled with the board action's label, in which core renders
-// the advanced action through the mount() that core hands it, as a frontend's
-// place does. It is at least 420 px wide, as the dock's sidebar is by default,
-// or as wide as the window where the window is narrower.
+// It is a modal dialog of blockr.ui, React Aria's Modal and Dialog drawn with
+// blockr.ui's theme variables, titled with the board action's label, in
+// which core renders the advanced action through the mount() that core hands
+// it, as a frontend's place does. It is at least 420 px wide, as the dock's
+// sidebar is by default, or as wide as the window where the window is
+// narrower.
 // It closes in these cases:
 // - The user presses Escape or its Close button.
 // - The advanced action ends, as its done() does.
@@ -14,16 +15,15 @@
 // As it closes, it tells core through close(), and the keyboard's focus
 // returns to the element that the user triggered from. A press outside it
 // leaves it open, so that what the user filled in stays.
-// It draws on Tailwind CSS, whose theme variables a frontend sets to restyle
+// It draws from the theme variables, which a frontend's theme sets to restyle
 // it, as it restyles core's menu.
 
 import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { Button, Dialog, Heading, Modal } from "@blockr/ui";
 import { Mounted } from "../card/index.ts";
-import { Button } from "../inputs/index.ts";
 import { onAbort } from "../mount/index.ts";
-import { Dialog, Heading, Modal } from "../overlays/index.ts";
 import type { PlaceArgs, ShowDialog } from "./advanced.ts";
 
 // Shows the advanced action in core's dialog, in an element of its own at the

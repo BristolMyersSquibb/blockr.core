@@ -1,5 +1,6 @@
 import type { Plugin } from "esbuild";
 export declare const preset: {
+    plugins: Plugin[];
     bundle: true;
     format: "esm";
     platform: "browser";
@@ -8,5 +9,4 @@ export declare const preset: {
     define: {
         "process.env.NODE_ENV": string;
     };
-    plugins: Plugin[];
 };

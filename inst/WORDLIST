@@ -105,6 +105,7 @@ subclass's
 testthat
 tibble
 ui
+ui's
 uid
 unbuilt
 uncategorized

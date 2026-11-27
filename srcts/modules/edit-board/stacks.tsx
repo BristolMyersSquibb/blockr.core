@@ -11,7 +11,7 @@
 //   opens, such as the form of Edit stack, shows in the row, which turns into
 //   the form until done() ends it or the user closes it. Remove stack leaves
 //   the stack's blocks on the board.
-// The table draws a stack's colour with the swatch of core's React SDK.
+// The table draws a stack's colour with blockr.ui's swatch.
 // Where the store or the command registry refuses a board action that a row's
 // menu ran, the plugin shows why in a banner below the table, naming the
 // stack, until the user opens the menu of one of the table's rows again. The
@@ -23,11 +23,11 @@
 // state.
 
 import type { ReactElement } from "react";
-import { ColorSwatch, useBoard } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
+import { ColorSwatch } from "@blockr/ui";
+import { useBoard } from "../../react/index.ts";
 import type { BlockId, Board, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { blockName, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
+import { blockName, classes, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
 
@@ -59,12 +59,12 @@ export function StacksSection({ core, locked }: { core: CoreApi; locked: boolean
       )}
       <Part title="Stacks on the board">
         {stacks.length === 0 ? (
-          <p className={styles.hint}>The board has no stacks yet.</p>
+          <p className={classes.hint}>The board has no stacks yet.</p>
         ) : (
           <>
             <TableSearch label="Search stacks" view={view} />
             {view.found === 0 ? (
-              <p className={styles.hint}>No stack matches the search.</p>
+              <p className={classes.hint}>No stack matches the search.</p>
             ) : (
               <ObjectsTable
                 core={core}
@@ -122,28 +122,28 @@ const SHOWN_BLOCKS = 6;
 // A stack's blocks, each by its name and its id, which tells apart blocks of
 // one name, the first few of a large stack and how many more it holds.
 function StackBlocks({ blocks }: { blocks: readonly { readonly id: BlockId; readonly name: string }[] }): ReactElement {
-  if (blocks.length === 0) return <span className="bc:text-text-muted">No blocks</span>;
+  if (blocks.length === 0) return <span className="bc:text-muted-foreground">No blocks</span>;
   const rest = blocks.length - SHOWN_BLOCKS;
   return (
     <ul aria-label="Blocks" className="bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0">
       {blocks.slice(0, SHOWN_BLOCKS).map((block) => (
-        <li key={block.id} className="bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs">
-          {block.name} <span className="bc:font-mono bc:text-text-muted">{block.id}</span>
+        <li key={block.id} className="bc:rounded-sm bc:border bc:border-border bc:px-1 bc:text-xs">
+          {block.name} <span className="bc:font-mono bc:text-muted-foreground">{block.id}</span>
         </li>
       ))}
-      {rest > 0 ? <li className="bc:px-1 bc:text-xs bc:text-text-muted">and {rest} more</li> : null}
+      {rest > 0 ? <li className="bc:px-1 bc:text-xs bc:text-muted-foreground">and {rest} more</li> : null}
     </ul>
   );
 }
 
-// The colour of a stack, as the SDK's swatch, which a screen reader names by
+// The colour of a stack, as blockr.ui's swatch, which a screen reader names by
 // its colour, or a ring where it has none, which a screen reader skips.
-// Each is a dot of 0.75rem. The SDK's swatch is a rounded square of 2rem,
-// whose size and shape the dot's classes win over with Tailwind's important
-// modifier.
+// Each is a dot of 0.75rem. The swatch of blockr.ui is a rounded square of
+// 2rem, whose size and shape the dot's classes win over with Tailwind's
+// important modifier.
 function Swatch({ color }: { color: string | null }): ReactElement {
   return color === null ? <span aria-hidden="true" className={RING} /> : <ColorSwatch color={color} className={DOT} />;
 }
 
-const RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+const RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border";
 const DOT = "bc:size-3! bc:rounded-full!";

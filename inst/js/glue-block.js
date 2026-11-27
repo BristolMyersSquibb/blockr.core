@@ -1,9 +1,10 @@
 // srcts/modules/glue-block/index.tsx
-import { reactModule, Stack, TextField, useValue } from "@blockr/core/react";
+import { FormLayout, TextField } from "@blockr/ui";
+import { reactModule, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 var api = 1;
 function GlueBlock({ host }) {
-  return /* @__PURE__ */ jsx(Stack, { children: /* @__PURE__ */ jsx(TextField, { bound: useValue(host, "text"), label: "Text", placeholder: "{nrow(data)} rows", lines: 4, spellCheck: "false" }) });
+  return /* @__PURE__ */ jsx(FormLayout, { children: /* @__PURE__ */ jsx(TextField, { bound: useValue(host, "text"), label: "Text", placeholder: "{nrow(data)} rows", lines: 4, spellCheck: "false" }) });
 }
 var glue_block_default = reactModule(GlueBlock);
 export {

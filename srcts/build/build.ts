@@ -16,39 +16,41 @@
 //   one of the files above imports it, as core's runtime and that bundle of
 //   the SDK do. So the page runs one copy of the API, through which the
 //   modules of packages record spans as well.
-// - React and the packages that core's code imports beside it, the signals of
+// - The packages that core's code imports, the signals of
 //   @preact/signals-core and the JSON Schema validator of @cfworker/json-schema,
 //   are bundled, minified, into one file, vendor-<hash>.js, since the page
 //   loads all of them up front.
-//   So are the parts of React Aria that srcts/aria/index.ts names, which the
-//   inputs draw with, as the one place in core's code that imports React
-//   Aria. The file bundles those parts alone, since the whole of React Aria is
-//   several times the size of React.
-//   React's entry points, such as `react` and `react-dom/client`, are written
-//   as ES modules of their own, such as react.js and react-dom-client.js,
-//   which read React from that file.
 //   The runtime, the modules and the SDK, the binding, the controls and the
-//   OpenTelemetry module import the other packages from that file by its name,
-//   and React Aria where they import srcts/aria/index.ts.
+//   OpenTelemetry module import them from that file by its name.
 //   So blockr-core.js holds core's own code alone, and the page runs one copy
 //   of each package.
-//   The vendor check of ./vendor-check.ts, which core ships to packages beside
-//   the preset, fails the build where one of those files would bundle any
-//   other package from node_modules.
+//   The vendor check of `@blockr/ui/build` fails the build where one of those
+//   files would bundle any other package from node_modules.
+// - React, React Aria and blockr.ui's components are blockr.ui's, in files of
+//   its own, which the page's import map names beside core's files
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.4#the-bundle).
+//   So core's files hold none of them, and neither does its vendor file.
 // - The runtime, the modules and the SDK, the binding and the controls leave
-//   their imports of React, of OpenTelemetry's API and of each other imports,
-//   which the page that R serves resolves through its import map, as
-//   inst/js/import-map.json lays it out. So the page runs one copy of each,
-//   and so do a package's modules.
+//   their imports of React, of blockr.ui's components, of React Aria, of
+//   OpenTelemetry's API and of each other imports, which the page that R
+//   serves resolves through its import map, as core's inst/js/import-map.json
+//   and blockr.ui's lay it out. So the page runs one copy of each, and so do a
+//   package's modules.
 //   The runtime leaves its import of the OpenTelemetry module an import as
 //   well, so that a page loads the module only where it imports it.
-// - What each file imports up front, the static imports of ./preload.ts, goes
-//   into preload.json, React's entry points included, which import the vendor
-//   file.
+// - What each file imports up front, the static imports of `@blockr/ui/build`,
+//   goes into preload.json.
 //   R names those files in the page's head, so that the browser fetches them at
 //   once, rather than each once the file that imports it has loaded.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
-//   blockr-core.css or <name>.css.
+//   blockr-core.css or <name>.css, through the Tailwind half of blockr.ui's
+//   build preset, which the stylesheet imports as `@blockr/ui/preset.css`.
+//   The build then runs the check of that half, themeCheck() of
+//   `@blockr/ui/build`, on the stylesheets and on the files that Tailwind
+//   scanned for them.
+//   So a class that names a colour of Tailwind's palette, or a step that the
+//   theme variables lack, fails the build, as does a stylesheet that reads a
+//   variable of blockr.ui's that its list lacks.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
 //   inst/outputs, by which R writes the outputs of its class.
 // - A JSON board, JsonBoard in srcts/types/board.ts, gets its JSON Schema in
@@ -68,9 +70,13 @@
 //   export of its name, such as `@blockr/core/react`: their declarations, the
 //   SDK and the binding bundled for a package's tests, whose build leaves its
 //   imports of them to the page's import map, the preset bundled for a
-//   package's build, with React left an import, the stubs bundled for
-//   a test runner, and the package.json that names them.
-//   That package.json names React and OpenTelemetry's API as its peers.
+//   package's build, with the preset of blockr.ui left an import, the stubs
+//   bundled for a test runner, and the package.json that names them.
+//   That package.json names React, React Aria's components and
+//   OpenTelemetry's API as its peers.
+//   The bundles leave their imports of blockr.ui an import, which a package
+//   resolves to the `@blockr/ui` that blockr.core::install_js_types()
+//   installs beside `@blockr/core`.
 //   It names @preact/signals-core and @cfworker/json-schema as its
 //   dependencies, since core's code imports them beside React.
 //   The bundles leave each package that it names an import, which a
@@ -101,7 +107,6 @@
 // nothing is left of a module that is gone. In inst/outputs and inst/board, it
 // owns the schemas only, and in inst/ids the files of words and LICENSES.
 
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -112,15 +117,14 @@ import * as esbuild from "esbuild";
 import postcss from "postcss";
 import { createGenerator } from "ts-json-schema-generator";
 import ts from "typescript";
-import { IMPORTS, importFile, OTEL_API, REACT_ENTRIES } from "../import-map/index.ts";
+import { staticImports, themeCheck, vendorCheck } from "@blockr/ui/build";
+import { IMPORTS, importFile, OTEL_API } from "../import-map/index.ts";
 import type { Import } from "../import-map/index.ts";
 import { listing } from "../util/index.ts";
-import { staticImports } from "./preload.ts";
 import { preset } from "./preset.ts";
-import { vendorCheck } from "./vendor-check.ts";
 
-// Core's repo, whose node_modules holds the React that the build writes into
-// inst/js.
+// Core's repo, whose node_modules holds the packages that the build writes
+// into inst/js.
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 interface Entry {
@@ -150,7 +154,14 @@ async function entries(src: string): Promise<{ runtime: Entry; modules: Entry[] 
   };
 }
 
-export async function stylesheet(file: string): Promise<string> {
+// Builds a stylesheet with Tailwind CSS, unminified, resolving its imports,
+// such as `@blockr/ui/preset.css`, and the files that its `@source` names from
+// the stylesheet's directory.
+// It returns the stylesheet and the files that Tailwind scanned for classes, by
+// their paths.
+// Tailwind reports each of those files to PostCSS as a dependency of the
+// stylesheet, beside each stylesheet that the stylesheet imports.
+export async function stylesheet(file: string): Promise<{ css: string; scanned: string[] }> {
   const plugin = tailwindcss({
     base: dirname(file),
     optimize: { minify: false },
@@ -158,20 +169,11 @@ export async function stylesheet(file: string): Promise<string> {
   const result = await postcss([plugin]).process(await readFile(file, "utf8"), {
     from: file,
   });
-  return result.css;
-}
-
-// The names that each of React's entry points exports in production, which its
-// ES module exports as well. A child process requires them, since this process
-// may hold React's development build, which exports more.
-function reactNames(): Record<string, string[]> {
-  const script = `console.log(JSON.stringify(Object.fromEntries(${JSON.stringify(REACT_ENTRIES)}.map((name) => [name, Object.keys(require(name))]))));`;
-  const out = execFileSync(process.execPath, ["-e", script], {
-    cwd: repo,
-    env: { ...process.env, NODE_ENV: "production" },
-    encoding: "utf8",
-  });
-  return JSON.parse(out) as Record<string, string[]>;
+  const scanned = result.messages
+    .filter((message) => message.type === "dependency")
+    .map((message) => (message as { file?: unknown }).file)
+    .filter((path): path is string => typeof path === "string" && !path.endsWith(".css"));
+  return { css: result.css, scanned: [...new Set(scanned)].sort() };
 }
 
 // Bundles code that core ships from other projects, minified and with its
@@ -247,36 +249,21 @@ function licensedSources(metafile: esbuild.Metafile, dir: string): Map<string, s
   return bundled;
 }
 
-// The packages beside React that core's code imports, which the build bundles
-// with React into vendor-<hash>.js, rather than into each file that imports
-// them.
+// The packages that core's code imports, which the build bundles into
+// vendor-<hash>.js, rather than into each file that imports them.
 // A package that core's code starts to import goes here, or the vendor check
 // fails the build.
 const VENDOR_IMPORTS = ["@preact/signals-core", "@cfworker/json-schema"] as const;
 
-// The file in srcts that names the parts of React Aria that core's code draws
-// with, which the build bundles into vendor-<hash>.js by those names.
-function ariaFile(src: string): string {
-  return join(src, "aria", "index.ts");
-}
-
-// Bundles React, ReactDOM and the packages that VENDOR_IMPORTS names into one
-// minified file in `out`, as vendor-3f2a9c1d.js, with the parts of React Aria
-// that srcts/aria/index.ts names, where srcts holds it, and returns its name
-// and what it holds from other projects.
-// The file exports each of React's entry points as a namespace of its own,
-// entry0 for `react` and so on, which React's ES modules read.
-// It exports the names of the other packages as they are, which core's code
-// imports, and the names that srcts/aria/index.ts exports.
-async function vendorBundle(out: string, src: string): Promise<{ file: string; sources: string[] }> {
-  const aria = ariaFile(src);
+// Bundles the packages that VENDOR_IMPORTS names into one minified file in
+// `out`, as vendor-3f2a9c1d.js, and returns its name and what it holds from
+// other projects.
+// The file exports the names of the packages as they are, which core's code
+// imports.
+async function vendorBundle(out: string): Promise<{ file: string; sources: string[] }> {
   return vendored(out, "vendor", {
     stdin: {
-      contents: [
-        ...REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`),
-        ...VENDOR_IMPORTS.map((name) => `export * from ${JSON.stringify(name)};`),
-        ...(existsSync(aria) ? [`export * from ${JSON.stringify(aria)};`] : []),
-      ].join("\n"),
+      contents: VENDOR_IMPORTS.map((name) => `export * from ${JSON.stringify(name)};`).join("\n"),
       resolveDir: repo,
       loader: "js",
     },
@@ -285,46 +272,19 @@ async function vendorBundle(out: string, src: string): Promise<{ file: string; s
 }
 
 // Leaves each import of a package that VENDOR_IMPORTS names an import of the
-// vendor file, `file`, by its name beside the file that imports it, and so
-// each import of srcts/aria/index.ts, in `src`.
+// vendor file, `file`, by its name beside the file that imports it.
 // The packages have no side effects, as their package.json files say.
 // So a file that imports none of their names, as from code of core's that it
 // bundles, keeps no import of the vendor file.
-function vendorImports(file: string, src: string): esbuild.Plugin {
+function vendorImports(file: string): esbuild.Plugin {
   const names: readonly string[] = VENDOR_IMPORTS;
-  const aria = ariaFile(src);
   const vendor = { path: `./${file}`, external: true, sideEffects: false };
   return {
     name: "blockr.core-vendor-imports",
     setup(build) {
       build.onResolve({ filter: /^[^./]/ }, (args) => (names.includes(args.path) ? vendor : undefined));
-      build.onResolve({ filter: /^\.\.?\// }, (args) => (resolve(args.resolveDir, args.path) === aria ? vendor : undefined));
     },
   };
-}
-
-// Writes React's entry points into `out` as ES modules of their own, each
-// exporting the names that the entry point exports, from the vendor file,
-// `bundle`, so that all of them read one React.
-async function reactModules(out: string, bundle: string): Promise<string[]> {
-  const names = reactNames();
-  const written: string[] = [];
-  for (const [i, name] of REACT_ENTRIES.entries()) {
-    const exported = (names[name] ?? []).filter((key) => key !== "default" && /^[A-Za-z_$][\w$]*$/.test(key));
-    const file = importFile(name);
-    await writeFile(
-      join(out, file),
-      [
-        `// ${name}, as an ES module, from the one copy of React that blockr.core ships.`,
-        `import { entry${String(i)} as m } from "./${bundle}";`,
-        "export default m.default;",
-        `export const { ${exported.join(", ")} } = m;`,
-        "",
-      ].join("\n"),
-    );
-    written.push(file);
-  }
-  return written;
 }
 
 // Core's libraries for modules, each by its name in the import map and the
@@ -340,15 +300,9 @@ const LIBRARIES = [
 // Maps the imports in core's sources of core's React SDK, its binding and its
 // controls, from their sources in srcts, to their names in the import map,
 // which the preset leaves imports.
-// The SDK holds the inputs and the overlays, so an import of srcts/inputs or
-// srcts/overlays is one of the SDK.
 // The build of a library bundles the library's own sources, which `own` names.
 function sourceImports(src: string, own?: Import): esbuild.Plugin {
-  const libraries: readonly (readonly [Import, string])[] = [
-    ...LIBRARIES,
-    ["@blockr/core/react", "inputs"],
-    ["@blockr/core/react", "overlays"],
-  ];
+  const libraries: readonly (readonly [Import, string])[] = LIBRARIES;
   const names = new Map(
     libraries.filter(([name]) => name !== own).map(([name, dir]) => [join(src, dir, "index.ts"), name] as const),
   );
@@ -447,8 +401,8 @@ export async function build(root: string): Promise<string[]> {
     logLevel: "warning",
     metafile: true,
   } satisfies esbuild.BuildOptions;
-  const vendor = await vendorBundle(out, src);
-  const plugins = (own?: Import) => [vendorImports(vendor.file, src), sourceImports(src, own), ...preset.plugins, vendorCheck];
+  const vendor = await vendorBundle(out);
+  const plugins = (own?: Import) => [vendorImports(vendor.file), sourceImports(src, own), ...preset.plugins, vendorCheck];
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
   const otel = await otelSdk(src, out);
   const sdk = otel?.file;
@@ -487,8 +441,7 @@ export async function build(root: string): Promise<string[]> {
   const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
   // What each file holds from other projects, by the file's path.
   const bundled = new Map(results.flatMap((result) => [...licensedSources(result.metafile, root)]));
-  const react = await reactModules(out, vendor.file);
-  written.push(...[vendor.file, ...react].map((file) => relative(root, join(out, file))));
+  written.push(relative(root, join(out, vendor.file)));
   bundled.set(join(out, vendor.file), vendor.sources);
   if (otel !== undefined) {
     written.push(relative(root, join(out, otel.file)));
@@ -502,10 +455,11 @@ export async function build(root: string): Promise<string[]> {
     bundled.set(join(out, api.file), api.sources);
   }
 
-  // The import map that the page R serves holds, as R reads it: each import by
-  // the file in inst/js that it resolves to. R serves the files that core's
-  // files import by their names, the vendor file and OpenTelemetry's bundle,
-  // as files beside them.
+  // The entries of core's files in the import map that the page R serves
+  // holds, as R reads them: each import by the file in inst/js that it
+  // resolves to. R puts them into the map beside those of blockr.ui. It serves
+  // the files that core's files import by their names, the vendor file and
+  // OpenTelemetry's bundle, as files beside them.
   const imports = Object.fromEntries(
     IMPORTS.filter((name) => existsSync(join(out, importFile(name)))).map((name) => [name, importFile(name)]),
   );
@@ -513,26 +467,33 @@ export async function build(root: string): Promise<string[]> {
   await writeJson(map, { imports });
   written.push(relative(root, map));
 
-  // What each file imports up front, and React's entry points, which the build
-  // writes itself, the vendor file, as the bundle of OpenTelemetry's SDK
-  // imports its API.
+  // What each file imports up front, and what the bundle of OpenTelemetry's
+  // SDK imports, its API.
   const preload = join(out, "preload.json");
   const imported: Record<string, readonly string[]> = {
     ...staticImports(results.map((result) => result.metafile)),
-    ...Object.fromEntries(react.map((file) => [file, [`./${vendor.file}`]])),
     ...(otel === undefined || otel.imports.length === 0 ? {} : { [otel.file]: otel.imports }),
   };
   await writeJson(preload, Object.fromEntries(Object.entries(imported).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
   written.push(relative(root, preload));
 
+  // The stylesheets, and the check of the Tailwind half of blockr.ui's preset
+  // on them and on the files that Tailwind scanned for them, which names each
+  // file by its path.
+  const sheets: string[] = [];
+  const scanned = new Set<string>();
   for (const entry of [runtime, ...modules]) {
     const css = join(entry.dir, "index.css");
     if (!existsSync(css)) continue;
     const file = join(out, `${entry.name}.css`);
-    await writeFile(file, await stylesheet(css));
+    const built = await stylesheet(css);
+    await writeFile(file, built.css);
+    sheets.push(file);
+    for (const path of built.scanned) scanned.add(path);
     written.push(relative(root, file));
     bundled.set(file, [join(repo, "node_modules", "tailwindcss")]);
   }
+  await themeCheck({ stylesheets: sheets, code: [...scanned].sort() });
 
   written.push(...(await licenses(root, out, bundled)));
   return written.sort();
@@ -861,13 +822,19 @@ function packageVersion(name: string): string {
 // `@blockr/core`, the stubs of the hosts, as `@blockr/core/stubs`, and core's
 // React SDK, its binding and the build preset, as `@blockr/core/react`,
 // `@blockr/core/binding` and `@blockr/core/build`.
-// Its bundles leave React an import, so it names the React that core's
-// runtime bundles, at that version, as its peer.
+// Its bundles leave React an import, so it names the React that blockr.ui's
+// files hold, at that version, as its peer.
 // So npm installs that React with `@blockr/core` where a package has none, and
 // refuses a package that asks for another, so that a package's tests run on
 // one copy of the app's React, the stubs drawing core's UIs with it, while a
 // package's build leaves its imports of React, and of the SDK, the binding
 // and the controls, to the page's import map.
+// Core's code, which the stubs bundle, draws with parts of React Aria that no
+// component of blockr.ui gives, such as the Input of the filter of core's
+// menu of board actions, from react-aria-components.
+// The bundles leave that import an import too, so the package names
+// react-aria-components as its peer in the same way, at the version that
+// blockr.ui's files hold, which the build preset checks.
 // It names OpenTelemetry's API, which the page's import map names, as its peer
 // too, at the version that core ships, since core's declarations name the
 // API's types and its bundles leave the API an import. So a package's modules
@@ -884,14 +851,13 @@ function packageVersion(name: string): string {
 // So no signal or validator passes between the stubs and a package's code,
 // and a package may depend on other versions of the two packages.
 // Then npm puts core's versions in the node_modules of `@blockr/core`.
-// The SDK draws its inputs with React Aria, whose parts srcts/aria/index.ts
-// names, from react-aria-components, which the bundles leave an import too.
-// The package names it as its dependency, at the version that core's vendor
-// file bundles, since core's declarations name its types, while a package
-// draws with React Aria only through the components of the SDK.
-// The SDK's dates read the strings of a state with @internationalized/date,
-// which srcts/aria/index.ts names too, and which the bundles leave an import
-// as well, so the package names it as its dependency in the same way.
+// The bundles leave their imports of blockr.ui imports as well: the
+// components, which core's UIs draw with, the stubs of blockr.ui, which make
+// happy-dom do as a browser does, and its build preset, which core's extends.
+// The package names no `@blockr/ui`, which no registry holds.
+// A package that imports core gets it from the R package blockr.ui, which
+// core imports, as blockr.core::install_js_types() installs it beside
+// `@blockr/core`.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -909,12 +875,11 @@ export const TYPES_PACKAGE = {
   dependencies: {
     "@preact/signals-core": packageVersion("@preact/signals-core"),
     "@cfworker/json-schema": packageVersion("@cfworker/json-schema"),
-    "react-aria-components": packageVersion("react-aria-components"),
-    "@internationalized/date": packageVersion("@internationalized/date"),
   },
   peerDependencies: {
     react: packageVersion("react"),
     "react-dom": packageVersion("react-dom"),
+    "react-aria-components": packageVersion("react-aria-components"),
     [OTEL_API]: packageVersion(OTEL_API),
   },
 };
@@ -994,11 +959,13 @@ export async function types(root: string): Promise<string[]> {
       platform: "neutral",
       target: "es2022",
       jsx: "automatic",
-      // The peers that the package.json names, React and OpenTelemetry's API,
-      // stay imports, with their subpaths, such as react/jsx-runtime.
+      // The peers that the package.json names, React, React Aria's
+      // components and OpenTelemetry's API, stay imports, with their
+      // subpaths, such as react/jsx-runtime, and so does blockr.ui, with its
+      // entries, such as @blockr/ui/build.
       // A package's tests resolve them to those that npm installs with
-      // `@blockr/core`.
-      external: Object.keys(TYPES_PACKAGE.peerDependencies).flatMap((name) => [name, `${name}/*`]),
+      // `@blockr/core` and `@blockr/ui`.
+      external: [...Object.keys(TYPES_PACKAGE.peerDependencies), "@blockr/ui"].flatMap((name) => [name, `${name}/*`]),
       // So do the packages that the package.json names as its dependencies.
       plugins: [dependencyImports(Object.keys(TYPES_PACKAGE.dependencies))],
       logLevel: "warning",

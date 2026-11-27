@@ -459,15 +459,10 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
   check_chosen_renderers(registry, families)
 
   modules <- page_modules(board, registry, plugins, options, families, offered)
-  dark_mode <- board_dark_mode(board)
 
   shiny::shinyApp(
     ui = function(req) {
-      serve_page(
-        alone,
-        modules = modules,
-        color_scheme = page_color_scheme(dark_mode)
-      )
+      serve_page(alone, modules = modules)
     },
     server = function(input, output, session) {
 
@@ -701,53 +696,6 @@ option_pkg_id <- function(x) {
   pkg_id(x[["package"]], x[["id"]])
 }
 
-# The value of the board option `dark_mode` that the opening board given as
-# JSON holds, or `NULL` where it holds none.
-board_dark_mode <- function(board) {
-  json <- if (inherits(board, "json")) board else encode_message(board)
-  decode_message(json)[["board"]][["options"]][["dark_mode"]][["value"]]
-}
-
-# The theme that the page takes as it loads, as the content of its meta tag
-# `color-scheme`: the theme of the board option `dark_mode`, where R knows it.
-# That is the opening board's value, `value`, or else the default that the
-# blockr option `dark_mode` gives, which R reads as the client reads it.
-# TRUE or FALSE, as a logical or as text, stands for dark or light, and the
-# text "light" or "dark" for itself.
-# Where R knows neither, the page takes the theme that the user's system
-# prefers, as `dark_mode` does then, and so it does where the blockr option is
-# set twice, or to a value that the board option does not take, which the
-# client reports as it reads it.
-# A board that the storage plugin opens in place of the opening board may hold
-# another value, which R cannot know as it makes the page.
-page_color_scheme <- function(value = NULL) {
-
-  if (is.null(value)) {
-    value <- tryCatch(
-      blockr_option("dark_mode", NULL),
-      error = function(e) NULL
-    )
-  }
-
-  if (is_string(value) && !is.na(as.logical(trimws(value)))) {
-    value <- as.logical(trimws(value))
-  }
-
-  if (isTRUE(value)) {
-    return("dark")
-  }
-
-  if (isFALSE(value)) {
-    return("light")
-  }
-
-  if (is_string(value) && value %in% c("light", "dark")) {
-    return(value)
-  }
-
-  "light dark"
-}
-
 # The latest result of each block that the evaluator holds one for, by block
 # ID, as R exports them for end-to-end tests.
 # For a block that `serve()` serves alone, it is that block's result,
@@ -769,16 +717,25 @@ latest_results <- function(ev, alone = FALSE) {
 # A browser takes an import map only ahead of the page's first module script,
 # so the page names the map's dependency first, and Shiny puts it in the head
 # after its own scripts, which are no modules.
-# The page then holds core's stylesheet, the element that the client draws
-# in, and the module script that starts the client with `startPage()`.
+# The page then holds blockr.ui's stylesheet and core's, the element that the
+# client draws in, and the module script that starts the client with
+# `startPage()`.
+# The stylesheet of blockr.ui holds the theme variables with their defaults
+# and the faces of its fonts, which every UI reads, core's loading note among
+# them, so it is on the page from the start, ahead of core's, as The
+# stylesheet on the page has it
+# (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.4).
+# Core's comes after it, so that a class of core's that core passes to one of
+# blockr.ui's components wins over the component's own class of the same
+# weight.
 # The element holds the loading note from the start, so that the page shows it
 # before the client's code has loaded, which the client keeps until the board
 # opens.
-# Until then, the page takes the theme of the board option `dark_mode` where R
-# knows it, or else the theme that the user's system prefers, as `dark_mode`
-# does by default, in `color_scheme` (see `page_color_scheme()`).
-# So a dark board opens on a dark page rather than on a light page that turns
-# dark.
+# The page's `color-scheme` tag takes `light dark`, while blockr.ui's
+# stylesheet sets the browser's color-scheme under the attribute `data-bk-mode`
+# of each mode, which the board option `dark_mode` sets on the page's root,
+# as Light mode and dark mode has it
+# (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2).
 # Its head names the files that the page imports as it starts, the `modules`
 # given among them, for the browser to fetch at once (see `preload_links()`).
 # R makes the page for each request, so that its URLs name the files that R
@@ -789,9 +746,10 @@ latest_results <- function(ev, alone = FALSE) {
 # A page outside test mode loads none of that module.
 serve_page <- function(alone = FALSE,
                        test = isTRUE(shiny::getShinyOption("testmode")),
-                       modules = list(), color_scheme = "light dark") {
+                       modules = list()) {
 
   runtime <- served_module(core_runtime())
+  ui_css <- served_url(ui_stylesheet())
 
   script <- page_script(
     runtime[["module"]],
@@ -804,13 +762,20 @@ serve_page <- function(alone = FALSE,
   shiny::tagList(
     import_map_dependency(),
     shiny::tags$head(
-      shiny::tags$meta(name = "color-scheme", content = color_scheme),
+      shiny::tags$meta(name = "color-scheme", content = "light dark"),
+      shiny::tags$link(rel = "stylesheet", href = ui_css),
       shiny::tags$link(rel = "stylesheet", href = runtime[["css"]]),
       preload_links(runtime[["module"]], modules)
     ),
     shiny::tags$div(id = "blockr-page", loading_note()),
     shiny::tags$script(type = "module", shiny::HTML(script))
   )
+}
+
+# The stylesheet of blockr.ui, which its build writes beside its JS, with the
+# files of its fonts, which R serves beside it.
+ui_stylesheet <- function() {
+  js_module("js/blockr-ui.css", package = "blockr.ui")
 }
 
 # The loading note, as the client's `loadingNote()` makes it

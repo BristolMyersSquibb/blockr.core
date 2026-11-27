@@ -5,8 +5,7 @@ import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, test } from "vitest";
-import { find, texts, type } from "../testing/inputs.ts";
-import { step } from "../testing/react.ts";
+import { find, step, texts, type } from "@blockr/ui/stubs";
 import { Pager, TableSearch, useTableView } from "./index.ts";
 
 // Draws the element in an element on the page, as React does on the page.

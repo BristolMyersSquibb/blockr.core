@@ -4,8 +4,7 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { SearchField } from "../react/index.ts";
-import { classes } from "./ui.tsx";
+import { Button, SearchField } from "@blockr/ui";
 
 // How many rows a table shows on a page.
 export const PAGE_SIZE = 10;
@@ -52,7 +51,7 @@ export function useTableView<T>(rows: readonly T[], text: (row: T) => string, si
   };
 }
 
-// The search over a table's rows, the SDK's SearchField, in a search
+// The search over a table's rows, blockr.ui's SearchField, in a search
 // landmark.
 // Its button clears the search, and so does Escape, which goes on to the
 // elements around the field where the search is empty already.
@@ -70,31 +69,29 @@ export function Pager({ label, view }: { label: string; view: TableView<unknown>
   const { page, pages, found, first, rows } = view;
   if (pages < 2) return null;
   return (
-    <nav aria-label={label} className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted">
+    <nav aria-label={label} className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-muted-foreground">
       <span aria-live="polite">
         Rows {first + 1}–{first + rows.length} of {found}
       </span>
       <span className="bc:flex bc:gap-1">
-        <button
-          type="button"
-          className={classes.button}
-          disabled={page === 0}
-          onClick={() => {
+        <Button
+          variant="secondary"
+          isDisabled={page === 0}
+          onPress={() => {
             view.setPage(page - 1);
           }}
         >
           Previous
-        </button>
-        <button
-          type="button"
-          className={classes.button}
-          disabled={page >= pages - 1}
-          onClick={() => {
+        </Button>
+        <Button
+          variant="secondary"
+          isDisabled={page >= pages - 1}
+          onPress={() => {
             view.setPage(page + 1);
           }}
         >
           Next
-        </button>
+        </Button>
       </span>
     </nav>
   );

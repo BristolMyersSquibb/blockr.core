@@ -10,13 +10,10 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
+import { fieldError, find, labelled, listed, picked, pressAndRelease, rows, step, texts, type } from "@blockr/ui/stubs";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
-import { fieldError, find, pressAndRelease, texts, type } from "../testing/inputs.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
-import { step } from "../testing/react.ts";
-import { rows } from "../testing/rows.ts";
-import { labelled, listed, picked } from "../testing/select.ts";
 import type { Board, LinkId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { CommandCall } from "./actions.ts";

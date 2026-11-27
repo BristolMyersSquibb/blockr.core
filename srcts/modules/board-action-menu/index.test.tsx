@@ -9,12 +9,10 @@
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
+import { find, openMenu as shownMenu, pointerPress, press, step, type } from "@blockr/ui/stubs";
 import { CORE_MENU, drawWith, openMenu } from "../../actions/index.ts";
 import type { BoardAction, CommandCall, DrivenMenu, MenuStart, QuickLevel, QuickRow } from "../../actions/index.ts";
-import { find, press, type } from "../../testing/inputs.ts";
 import { logged } from "../../testing/logged.ts";
-import { pointerPress, openMenu as shownMenu } from "../../testing/overlays.ts";
-import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
@@ -154,16 +152,14 @@ describe("core's menu", () => {
     expect(row(menu, "Copy block ID, b").textContent).toBe("Copy block IDb");
     const remove = row(menu, "Remove block");
     expect(remove.querySelector('svg[data-icon="trash"]')?.closest("[aria-hidden=true]")).not.toBeNull();
-    expect(remove.querySelector(".bc\\:group-data-focused\\:text-text-danger")).not.toBeNull();
-    expect(remove.classList.contains("bc:data-focused:bg-bg-danger!")).toBe(true);
-    expect(remove.classList.contains("bc:data-hovered:bg-bg-danger!")).toBe(true);
-    expect(row(menu, "Rename").querySelector(".bc\\:group-data-focused\\:text-text-danger")).toBeNull();
-    expect(row(menu, "Rename").classList.contains("bc:data-focused:bg-bg-danger!")).toBe(false);
-    // The popover hangs from the box of the anchor, on the background of
-    // core's theme for what floats over the page.
+    expect(remove.querySelector(".bc\\:group-data-focused\\:text-destructive-text")).not.toBeNull();
+    expect(remove.classList.contains("bc:data-focused:bg-destructive/10!")).toBe(true);
+    expect(remove.classList.contains("bc:data-hovered:bg-destructive/10!")).toBe(true);
+    expect(row(menu, "Rename").querySelector(".bc\\:group-data-focused\\:text-destructive-text")).toBeNull();
+    expect(row(menu, "Rename").classList.contains("bc:data-focused:bg-destructive/10!")).toBe(false);
+    // The popover hangs from the box of the anchor.
     const anchor = [...document.querySelectorAll<HTMLElement>("div[aria-hidden=true]")].find((el) => el.style.position === "fixed");
     expect([anchor?.style.left, anchor?.style.top]).toEqual(["10px", "20px"]);
-    expect(menu.closest(".bc\\:bg-bg-raised")).not.toBeNull();
     // The focus moved into the menu, on its first row.
     expect(document.activeElement).toBe(row(menu, "Rename"));
     expect(trigger.isConnected).toBe(true);
@@ -335,11 +331,12 @@ describe("core's menu", () => {
       ["menuitemcheckbox", "true"],
       ["menuitem", null],
     ]);
-    // Each item that gives checked keeps a slot at its start, which holds the
-    // tick while checked is true, and the other items keep none.
+    // Each item that gives checked keeps a slot at its start, before the span
+    // of its label, which holds the tick while checked is true, and the other
+    // items keep none.
     const slots = rows.map((each) => {
       const first = each.firstElementChild;
-      if (first?.classList.contains("bc:size-3.5") !== true) return "none";
+      if (first?.textContent !== "") return "none";
       return first.querySelector("svg") === null ? "empty" : "tick";
     });
     expect(slots).toEqual(["none", "tick", "empty", "tick", "none"]);
@@ -429,7 +426,7 @@ describe("core's menu", () => {
     expect(onItem.ran).toEqual([]);
   });
 
-  test("draws the detail and the open icon of an item in one span after its label, which the SDK's item holds on the label's line", async () => {
+  test("draws the detail and the open icon of an item in one span after its label, which blockr.ui's item holds on the label's line", async () => {
     await drawn({
       action: action("Append block", {
         advanced: { render: () => undefined },
@@ -445,16 +442,16 @@ describe("core's menu", () => {
       }),
     });
 
-    // The SDK's item lays out a grid of two columns: the label's, and one at
-    // its right. A third child of the grid would go to a second line. Each
-    // child gives its text and whether it holds the open icon. The
-    // description that only assistive technology reads takes no place.
+    // The item of blockr.ui lays out a grid of two columns: the label's, and
+    // one at its right. A third child of the grid would go to a second line.
+    // The grid holds the span of the icon and the label first. Each child gives
+    // its text and whether it holds the open icon. The description that only
+    // assistive technology reads takes no place.
     const menu = shownMenu("Append");
     const cells = (name: string): [string, boolean][] =>
-      [...row(menu, name).querySelectorAll(".bc\\:grid > :not([slot=description])")].map((cell) => [
-        cell.textContent,
-        cell.querySelector("[data-open-row]") !== null,
-      ]);
+      [...(row(menu, name).querySelector(".bc\\:min-w-0.bc\\:items-center")?.parentElement?.children ?? [])]
+        .filter((cell) => cell.getAttribute("slot") !== "description")
+        .map((cell) => [cell.textContent, cell.querySelector("[data-open-row]") !== null]);
     expect(cells("Head, first rows")).toEqual([
       ["Head", false],
       ["first rows", true],

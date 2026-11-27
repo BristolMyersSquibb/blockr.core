@@ -53,8 +53,9 @@
 
 import { memo, useCallback, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { Disclosure, DisclosureHeader, DisclosurePanel } from "@blockr/ui";
 import { Banners, Footer, Mounted, Pills, useFooter, useSized } from "../../card/index.ts";
-import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "../../react/index.ts";
+import { useNotified, useStatus } from "../../react/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack, StackId } from "../../types/board.ts";
 import { ActionsButton, classes } from "../../ui/index.ts";
@@ -96,13 +97,13 @@ export const BlockCard = memo(function BlockCard({ id, block }: CardProps): Reac
     <article
       ref={ref}
       aria-label={block.name}
-      className={`${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:p-3`}
+      className={`${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border bc:p-3`}
       onPointerDown={focus}
       onFocus={focus}
     >
       <header className="bc:flex bc:flex-wrap bc:items-center bc:gap-2">
         <h3 className={classes.heading}>{block.name}</h3>
-        <span className="bc:text-xs bc:text-text-muted">{entry?.name ?? idText(block.registry_id)}</span>
+        <span className="bc:text-xs bc:text-muted-foreground">{entry?.name ?? idText(block.registry_id)}</span>
         <StatusBadge status={status} />
         {offered ? (
           <div className="bc:ml-auto bc:flex bc:items-center bc:gap-1">
@@ -140,12 +141,12 @@ export const BlockCard = memo(function BlockCard({ id, block }: CardProps): Reac
 });
 
 // A stack's group, drawn in the stack's colour, or in the colour of a border
-// where the stack has none. It is a Disclosure of the SDK, which the user
+// where the stack has none. It is a Disclosure of blockr.ui, which the user
 // collapses and expands by the stack's name, as a plugin's section, and it
 // starts open. A collapsed group hides the cards of its blocks and leaves
 // them mounted. The cards hide with the panel rather than only from sight,
-// as the panel of the SDK hides what it holds, so that the browser counts
-// them off screen.
+// as the panel of blockr.ui's Disclosure hides what it holds, so that the
+// browser counts them off screen.
 export function StackGroup({ id, stack, children }: { id: StackId; stack: Stack; children: ReactNode }): ReactElement {
   const { groups } = useFrontEnd();
   const collapsed = useSyncExternalStore(groups.subscribe, () => groups.collapsed(id));
@@ -153,7 +154,7 @@ export function StackGroup({ id, stack, children }: { id: StackId; stack: Stack;
   return (
     <section
       aria-label={stack.name}
-      className="bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3"
+      className="bc:rounded-xl bc:border-2 bc:border-border bc:p-3"
       style={color === undefined ? undefined : { borderColor: color }}
     >
       <Disclosure
@@ -173,8 +174,8 @@ export function StackGroup({ id, stack, children }: { id: StackId; stack: Stack;
   );
 }
 
-// The colour of each status, which core's theme holds, so that the badge's dot
-// draws a status in the colour that every plugin draws it in
+// The colour of each status, which core's stylesheet holds, so that the
+// badge's dot draws a status in the colour that every plugin draws it in
 // (../../runtime/index.css).
 const TONES: Readonly<Record<Status, string>> = {
   ready: "bc:bg-status-ready",
@@ -197,7 +198,7 @@ function StatusBadge({ status }: { status: BlockStatus | undefined }): ReactElem
     <span
       data-status={status.status}
       aria-busy={status.running}
-      className="bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:px-2 bc:py-0.5 bc:text-xs bc:text-text-muted"
+      className="bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border bc:px-2 bc:py-0.5 bc:text-xs bc:text-muted-foreground"
     >
       <span
         aria-hidden="true"

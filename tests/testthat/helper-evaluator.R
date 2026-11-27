@@ -444,27 +444,26 @@ local_labelled_block <- function(frame = parent.frame()) {
   local_block_class(adsl_block_class, frame)
 }
 
-# The table preview of blockr.ui,
-# a renderer of table outputs with a request of its own for the labels of a
-# table's columns, which the app names for table outputs for the duration of
-# `frame`.
+# A renderer of table outputs that a package, mypkg, offers, with a request of
+# its own for the labels of a table's columns, which the app names for table
+# outputs for the duration of `frame`.
 # R's reply to a hello names the version of each package that a renderer of a
 # block class's outputs comes from.
-# So blockr.ui is at the version 0.1.0, whatever the library holds.
+# So mypkg is at the version 0.1.0, though the library holds none.
 # Linting skips the call of local_versions(), a helper of another file, which
 # lintr does not see.
-local_table_preview <- function(frame = parent.frame()) {
+local_labelled_table <- function(frame = parent.frame()) {
 
   local_versions( # nolint: object_usage_linter.
-    blockr.ui = "0.1.0",
+    mypkg = "0.1.0",
     frame = frame
   )
 
   withr::local_options(
     blockr.renderers = list(
       table_output = new_renderer(
-        "table_preview",
-        js_module("js/table-preview.js", package = "blockr.ui"),
+        "labelled_table",
+        js_module("js/labelled-table.js", package = "mypkg"),
         requests = list(
           labels = function(result) lapply(result, attr, "label", exact = TRUE)
         )

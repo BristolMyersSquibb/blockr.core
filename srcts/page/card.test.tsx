@@ -6,11 +6,10 @@
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
+import { find, step, texts } from "@blockr/ui/stubs";
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import { READY } from "../stubs/index.ts";
-import { find, texts } from "../testing/inputs.ts";
-import { step } from "../testing/react.ts";
 import type { Block, Board } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
 import { interned } from "../util/index.ts";
@@ -246,7 +245,7 @@ describe("the card of a block that serve() serves alone", () => {
 
     const warnings = pill(el, "2 warnings");
     expect(warnings.getAttribute("aria-expanded")).toBe("false");
-    expect(warnings.className).toContain("bc:text-text-warning");
+    expect(warnings.className).toContain("bc:text-warning-text");
     await click(warnings);
     expect(warnings.getAttribute("aria-expanded")).toBe("true");
     expect(banners(el)).toEqual([
@@ -277,7 +276,7 @@ describe("the card of a block that serve() serves alone", () => {
 
     expect(pills(el)).toEqual(["error", "1 warning"]);
     const error = pill(el, "error");
-    expect(error.className).toContain("bc:text-text-danger");
+    expect(error.className).toContain("bc:text-destructive-text");
     expect(error.getAttribute("aria-expanded")).toBe("true");
     expect(banners(el)).toEqual([["error", "object 'Sepal' not found\nDid you mean 'Sepal.Width'?"]]);
     expect(output(el).dataset.current).toBe("false");
@@ -302,7 +301,7 @@ describe("the card of a block that serve() serves alone", () => {
     });
     expect(pills(el)).toEqual(["1 message"]);
     const messages = pill(el, "1 message");
-    expect(messages.className).toContain("bc:text-blue-700");
+    expect(messages.className).toContain("bc:text-primary-text");
     expect(messages.getAttribute("aria-expanded")).toBe("false");
     expect(status(el).className).not.toContain("bc:opacity-50");
     expect(banners(el)).toEqual([]);

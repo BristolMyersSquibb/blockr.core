@@ -29,10 +29,10 @@ import type { Measure, Mounts, OnScreenOf, OutputEvent } from "./index.ts";
 
 const TABLE: OutputRenderer = { package: "blockr.core", id: "table_output", module: "blockr.core/basic-table.js?v=b7e2a915" };
 const PREVIEW: OutputRenderer = {
-  package: "blockr.ui",
-  id: "table_preview",
-  module: "blockr.ui/table-preview.js?v=1",
-  css: "blockr.ui/table-preview.css?v=2",
+  package: "mypkg",
+  id: "labelled_table",
+  module: "mypkg/labelled-table.js?v=1",
+  css: "mypkg/labelled-table.css?v=2",
 };
 const TEXT: OutputRenderer = { package: "blockr.core", id: "text_output", module: "blockr.core/basic-text.js?v=3c8f61d0" };
 // The id of core's plain table renderer, as core's table holds it.

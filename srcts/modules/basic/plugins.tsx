@@ -4,15 +4,15 @@
 // mounts the module with mountPlugin(), as the frontend shows every block. The
 // frontend reads no member of a plugin class beyond `ui`, so that a plugin
 // needs only its `ui` to show under it.
-// Each section is a Disclosure of the SDK, which the user collapses and
+// Each section is a Disclosure of blockr.ui, which the user collapses and
 // expands by the button of its header, which holds the plugin's name, and
 // each section starts open. A collapsed section hides the plugin's UI and
 // leaves it mounted, so that the UI keeps what it holds outside the plugin's
 // state. Which sections are collapsed is the page's, which nothing saves or
 // undoes. The plugin is on screen while the element of its UI is in view,
 // which it is not in a collapsed section, since that element hides with the
-// panel rather than only from sight, as the panel of the SDK hides what it
-// holds.
+// panel rather than only from sight, as the panel of blockr.ui's Disclosure
+// hides what it holds.
 //
 // A section shows the notifications about its plugin, of every severity,
 // whoever raised them, as Core's basic frontend has it
@@ -32,8 +32,9 @@
 
 import { useCallback, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
+import { Disclosure, DisclosureHeader, DisclosurePanel } from "@blockr/ui";
 import { Banners, Mounted, Pills, usePills } from "../../card/index.ts";
-import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified } from "../../react/index.ts";
+import { useNotified } from "../../react/index.ts";
 import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Plugin } from "../../types/core-api.ts";
 import { classes } from "../../ui/index.ts";
@@ -121,7 +122,7 @@ function PluginSection({ id, plugin }: { id: PluginClassId; plugin: Plugin }): R
   return (
     <section
       aria-label={plugin.name}
-      className={`${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`}
+      className={`${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border bc:p-3`}
     >
       <Disclosure
         isExpanded={!collapsed}

@@ -10,18 +10,31 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import {
+  chipLabels,
+  find,
+  labelled,
+  listed,
+  listFromField,
+  openDialog,
+  optionFromLabel,
+  optionLabels,
+  picked,
+  press,
+  rowCheckbox,
+  selectButton,
+  selectShows,
+  step,
+  texts,
+  type,
+} from "@blockr/ui/stubs";
 import type { AdvancedModule, BoardAction, CommandCall, Target } from "../../actions/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass } from "../../store/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions, StubMenu } from "../../stubs/index.ts";
-import { chipLabels, labelled, listed, listFromField, optionFromLabel, optionLabels, picked, selectButton, selectShows } from "../../testing/select.ts";
-import { find, press, texts, type } from "../../testing/inputs.ts";
 import { held } from "../../testing/notifications.ts";
-import { openDialog } from "../../testing/overlays.ts";
 import { listedModules } from "../../testing/plugins.ts";
-import { step } from "../../testing/react.ts";
-import { rowCheckbox } from "../../testing/rows.ts";
 import { withPlugins } from "../../testing/store.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
@@ -1244,7 +1257,7 @@ describe("each edit", () => {
 
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
     expect(refusals(add())).toEqual([["Could not add the link.", 'Every input of the block "b" takes a link already.']]);
-    expect(find(add(), '[role="alert"]').className).toContain("bc:border-border-danger");
+    expect(find(add(), '[role="alert"]').className).toContain("bc:border-destructive");
     // It shows below the form's button.
     expect(find(add(), '[role="alert"]').previousElementSibling?.contains(button(add(), "Add link"))).toBe(true);
     expect(held(core)).toEqual([]);
@@ -1278,7 +1291,7 @@ describe("each edit", () => {
     // The table shows neither id, which the store's reason names, so the
     // sentence before it names the link.
     expect(belowTable(links)).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
-    expect(find(links, '[role="alert"]').className).toContain("bc:border-border-danger");
+    expect(find(links, '[role="alert"]').className).toContain("bc:border-destructive");
     expect(belowTable(section(el, "Blocks"))).toEqual([]);
     expect(board().links.ac).toEqual(before.links.ac);
     expect(held(core)).toEqual([]);

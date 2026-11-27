@@ -1,7 +1,7 @@
 // Core's inputs for a package that writes its modules without React,
 // such as one that builds nothing,
 // through `@blockr/core/controls` or the module controls of blockr.core.
-// They are the inputs of core's React SDK, drawn with core's copy of React,
+// They are blockr.ui's inputs, drawn with the one copy of React on the page,
 // so that each input is written once.
 // Each is bound to one value, as bind() binds it:
 // a block's state arg, a board option's value,
@@ -13,17 +13,16 @@
 // and as the host announces a change,
 // so that a module and its tests find them in `el` as they are,
 // with no wait for React.
-// A widget of a package's own, such as blockr.ui's, binds through bind().
+// A widget of a package's own binds through bind().
 
 import { Fragment, useLayoutEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import * as inputs from "@blockr/ui";
+import type { Bound } from "@blockr/ui";
 import { bind as bindValue, follow as followRequest } from "../binding/index.ts";
 import type { BindOptions, Binding, Followed, FollowOptions } from "../binding/index.ts";
-import * as inputs from "../inputs/index.ts";
-import type { Bound } from "../react/index.ts";
-import { styles } from "../styles/index.ts";
 import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { errorMessage, own } from "../util/index.ts";
@@ -55,7 +54,7 @@ export interface Item {
 }
 
 // What a text field of the controls takes besides its key, by the names of the
-// props of the SDK's TextField (../inputs/textfield.tsx).
+// props of blockr.ui's TextField.
 export interface TextFieldOptions {
   readonly label: string;
   // What the field shows while it is empty.
@@ -67,7 +66,7 @@ export interface TextFieldOptions {
 }
 
 // What a number field of the controls takes besides its key, by the names of
-// the props of the SDK's NumberField (../inputs/numberfield.tsx).
+// the props of blockr.ui's NumberField.
 export interface NumberFieldOptions {
   readonly label: string;
   // What the field says below itself about what it takes.
@@ -83,7 +82,7 @@ export interface NumberFieldOptions {
 }
 
 // What a select of the controls takes besides its key, by the names of the
-// props of the SDK's ComboBox (../inputs/combobox.tsx).
+// props of blockr.ui's ComboBox.
 export interface ComboBoxOptions {
   readonly label: string;
   // What the field shows while nothing is picked.
@@ -119,15 +118,15 @@ export interface Controls<K extends string = string> {
   // Why the host refused what it submitted shows in the line below the
   // controls.
   bind(key: K, show: (value: Json | undefined) => void): Binding;
-  // A text field for a string, the SDK's TextField, a text area where it
+  // A text field for a string, blockr.ui's TextField, a text area where it
   // spans lines, whose spelling the browser does not check, as of code.
   text(key: K, options: TextFieldOptions): void;
-  // A number field for a number, the SDK's NumberField, no smaller than
+  // A number field for a number, blockr.ui's NumberField, no smaller than
   // `minValue`, and no larger than `maxValue` or the number that
   // setMaxValue() gives, but while setOutdated() says that it may be for
   // older data.
   number(key: K, options: NumberFieldOptions): NumberField;
-  // A select, the SDK's ComboBox, of one string, or of an array of strings
+  // A select, blockr.ui's ComboBox, of one string, or of an array of strings
   // where its selectionMode is "multiple", which shows `placeholder` while
   // nothing is picked.
   // It takes no items until they are given, here or through setItems(),
@@ -190,6 +189,11 @@ interface Entry {
   readonly draw: () => ReactElement;
 }
 
+// The class of the line below the controls that says why the host refused
+// what a control bound with bind() submitted, in the colour of an error's
+// text, as blockr.ui draws the error of its own inputs.
+const ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
+
 // The controls of a block's UI, bound to the block's state args,
 // or of a board option's UI, bound to the board option's value under its id.
 // The module puts `el` in its element and returns `cleanup` from its render().
@@ -198,7 +202,6 @@ export function controls<S extends State>(host: BlockHost<S>, signal: AbortSigna
 export function controls<V extends Json>(host: OptionHost<V>, signal: AbortSignal): Controls;
 export function controls(host: BlockHost | OptionHost, signal: AbortSignal): BlockControls {
   const el = document.createElement("div");
-  el.className = styles.stack;
   const root = createRoot(el);
 
   const entries: Entry[] = [];
@@ -213,14 +216,14 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Blo
     const drawn = entries.map((entry) => <Fragment key={entry.id}>{entry.draw()}</Fragment>);
     flushSync(() => {
       root.render(
-        <>
+        <inputs.FormLayout>
           {drawn}
           {error === null ? null : (
-            <p role="alert" className={styles.alert}>
+            <p role="alert" className={ALERT}>
               {error}
             </p>
           )}
-        </>,
+        </inputs.FormLayout>,
       );
     });
   };
@@ -247,7 +250,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Blo
     return binding;
   }
 
-  // Binds an input of core's React SDK as bindTo() does,
+  // Binds an input of blockr.ui as bindTo() does,
   // which it draws with the value as the binding last showed it
   // and why the host refused what it last submitted, if it did.
   function input(target: Target, draw: (bound: Bound) => ReactElement): void {

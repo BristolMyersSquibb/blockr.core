@@ -214,9 +214,9 @@ export function createCore(parts: CoreParts): Core {
 
   // A host's submit() runs its command through the command registry itself,
   // not through CoreApi, and tells the user why the store refused it, about
-  // the host's block or board option. The inputs of core's React SDK and its
-  // controls pass a notifier, since they say below themselves why the host
-  // refused what they submitted.
+  // the host's block or board option. The inputs that useValue() of core's
+  // React SDK and core's controls bind pass a notifier, since they say below
+  // themselves why the host refused what they submitted.
   const mounts = createMounts({
     store,
     commands,

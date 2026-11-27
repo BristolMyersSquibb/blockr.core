@@ -72,7 +72,7 @@ export function showError(el: HTMLElement, message: string): void {
   const box = document.createElement("div");
   box.setAttribute("role", "alert");
   box.className =
-    "bc:rounded bc:border bc:border-border-danger bc:p-2 bc:font-sans bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap";
+    "bc:rounded-sm bc:border bc:border-destructive bc:p-2 bc:font-sans bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
   box.textContent = message;
   el.replaceChildren(box);
 }

@@ -23,28 +23,18 @@ export interface Command<A extends Json = Json, P = A> {
 export interface Commands {
     register<A extends Json, P = A>(pkg: string, command: Command<A, P>): () => void;
     registered(): ReadonlyMap<CommandId, Command<Json, unknown>>;
-    preflight(id: {
-        readonly package: string;
-        readonly id: string;
-    }, args?: Json): boolean;
-    run(id: {
-        readonly package: string;
-        readonly id: string;
-    }, args?: Json, origin?: Origin, opts?: {
+    preflight(id: CommandId, args?: Json): boolean;
+    run(id: CommandId, args?: Json, origin?: Origin, opts?: {
         notifier?(notifications: readonly Notification[]): void;
     }): Promise<boolean>;
     run(batch: readonly CommandCall[], origin?: Origin, opts?: {
         notifier?(notifications: readonly Notification[]): void;
     }): Promise<boolean>;
-    plan(id: {
-        readonly package: string;
-        readonly id: string;
-    }, args?: Json): Promise<Delta[]>;
+    plan(id: CommandId, args?: Json): Promise<Delta[]>;
     plan(batch: readonly CommandCall[]): Promise<Delta[]>;
 }
 export interface CommandCall {
-    readonly package: string;
-    readonly id: string;
+    readonly id: CommandId;
     readonly args?: Json;
 }
 export declare class CommandError extends Error {

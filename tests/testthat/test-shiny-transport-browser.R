@@ -143,7 +143,7 @@ test_that("the transport carries a body in a binary frame where it is set to", {
   expect_identical(res$notes, list(list(value = 0.5, message = "halfway")))
 })
 
-test_that("the page's import map gives core's client and its SDK one React", {
+test_that("the page's import map gives core's client and blockr.ui one React", {
 
   skip_on_cran()
   skip_if_not_installed("chromote")
@@ -160,9 +160,9 @@ test_that("the page's import map gives core's client and its SDK one React", {
   skip_if(inherits(page, "try-error"), "Chrome does not start.")
   withr::defer(page$close())
 
-  # The page has loaded core's client, which imports React and the SDK through
-  # the import map, once it defines `app`.
+  # The page has loaded core's client and blockr.ui's components, which import
+  # React through the import map, once it defines `app`.
   navigate(page, app$url)
 
-  expect_identical(page_eval(page, "app.sdkInput()"), "hello")
+  expect_identical(page_eval(page, "app.uiInput()"), "hello")
 })

@@ -1,6 +1,7 @@
 // srcts/modules/basic-table/index.tsx
 import { useEffect, useRef } from "react";
-import { Cell, Column, outputRenderer, Row, Table as SdkTable, TableBody, TableHeader } from "@blockr/core/react";
+import { Cell, Column, Row, Table as SdkTable, TableBody, TableHeader } from "@blockr/ui";
+import { outputRenderer } from "@blockr/core/react";
 
 // srcts/modules/basic-table/table.ts
 var NUMBERS = /* @__PURE__ */ new Set(["numeric", "integer"]);
@@ -93,7 +94,7 @@ function Table({ output, params, error, host }) {
       /* @__PURE__ */ jsx(TableHeader, { children: output.columns.map((column, j) => /* @__PURE__ */ jsx(Column, { id: columnId(j), textValue: column.name, align: isNumber(column) ? "end" : "start", allowsSorting: true, isRowHeader: j === 0, children: /* @__PURE__ */ jsx(Heading, { column }) }, j)) }),
       /* @__PURE__ */ jsx(TableBody, { children: output.rows.map((row, i) => /* @__PURE__ */ jsx(Row, { id: `row ${String(i)}`, children: output.columns.map((column, j) => {
         const text = cellText(row[j] ?? null);
-        return /* @__PURE__ */ jsx(Cell, { textValue: text ?? "NA", className: isNumber(column) ? "bc:text-right bc:tabular-nums" : "", children: text ?? /* @__PURE__ */ jsx("span", { className: "bc:italic bc:text-text-muted", children: "NA" }) }, j);
+        return /* @__PURE__ */ jsx(Cell, { textValue: text ?? "NA", className: isNumber(column) ? "bc:text-right bc:tabular-nums" : "", children: text ?? /* @__PURE__ */ jsx("span", { className: "bc:italic bc:text-muted-foreground", children: "NA" }) }, j);
       }) }, i)) })
     ] }),
     /* @__PURE__ */ jsx(
@@ -118,11 +119,11 @@ function descriptor(sorted, sort) {
 function Heading({ column }) {
   return /* @__PURE__ */ jsxs("span", { className: `bc:flex bc:flex-col ${isNumber(column) ? "bc:items-end" : ""}`, children: [
     /* @__PURE__ */ jsx("span", { className: "bc:max-w-full bc:truncate bc:font-medium", children: column.name }),
-    /* @__PURE__ */ jsx("span", { className: "bc:max-w-full bc:truncate bc:text-xs bc:font-normal bc:text-text-muted", children: column.class })
+    /* @__PURE__ */ jsx("span", { className: "bc:max-w-full bc:truncate bc:text-xs bc:font-normal bc:text-muted-foreground", children: column.class })
   ] });
 }
 function Pager({ table, page, onPage }) {
-  return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:pt-1 bc:text-xs bc:text-text-muted", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:pt-1 bc:text-xs bc:text-muted-foreground", children: [
     /* @__PURE__ */ jsx("span", { children: rowsText(table, page) }),
     (page.page > 1 || page.more) && /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
       /* @__PURE__ */ jsx(
@@ -154,7 +155,7 @@ function PageButton({ text, disabled, onClick }) {
     "button",
     {
       type: "button",
-      className: "bc:cursor-pointer bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-inherit bc:[font:inherit] bc:disabled:cursor-default bc:disabled:opacity-40",
+      className: "bc:cursor-pointer bc:rounded-sm bc:border bc:border-border bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-inherit bc:[font:inherit] bc:disabled:cursor-default bc:disabled:opacity-40",
       disabled,
       onClick,
       children: text

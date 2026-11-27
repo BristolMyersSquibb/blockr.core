@@ -20,7 +20,7 @@
 // object, a bar above the sections says how many it holds, with a "…" button
 // that opens the menu of the selection and a button that clears the
 // selection (./menus.tsx, ./selection.ts).
-// Each section is a Disclosure of the SDK, which starts open and collapses by
+// Each section is a Disclosure of blockr.ui, which starts open and collapses by
 // its header, which counts what the board holds.
 // It draws nothing of a block's state, which the block's UI sets, nor the
 // board's name or its board options, which the frontend draws.
@@ -47,21 +47,10 @@
 
 import { useCallback, useMemo } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { Button, Cell, Column, Disclosure, DisclosureHeader, DisclosurePanel, Row, Table, TableBody, TableHeader } from "@blockr/ui";
 import type { Target } from "../../actions/index.ts";
 import { Mounted } from "../../card/index.ts";
-import {
-  Button,
-  Cell,
-  Column,
-  Disclosure,
-  DisclosureHeader,
-  DisclosurePanel,
-  Row,
-  Table,
-  TableBody,
-  TableHeader,
-  useBoard,
-} from "../../react/index.ts";
+import { useBoard } from "../../react/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { Refusal } from "../../ui/index.ts";
 import { BlocksSection } from "./blocks.tsx";
@@ -75,7 +64,7 @@ import { StacksSection } from "./stacks.tsx";
 export function EditBoard({ core }: { core: CoreApi }): ReactElement {
   const locked = core.lock.board;
   return (
-    <div className="bc:grid bc:gap-3 bc:font-sans bc:text-text-default">
+    <div className="bc:grid bc:gap-3 bc:font-sans">
       <SelectionBar core={core} />
       {locked ? null : <BlocksSection core={core} />}
       <LinksSection core={core} locked={locked} />
@@ -107,7 +96,7 @@ function SelectionBar({ core }: { core: CoreApi }): ReactElement | null {
   return (
     <div role="region" aria-label="Selection" className="bc:grid bc:gap-2">
       {selected.length === 0 ? null : (
-        <div className="bc:flex bc:items-center bc:gap-2 bc:rounded-md bc:border bc:border-border-default bc:px-3 bc:py-1.5 bc:text-sm">
+        <div className="bc:flex bc:items-center bc:gap-2 bc:rounded-md bc:border bc:border-border bc:px-3 bc:py-1.5 bc:text-sm">
           <span aria-live="polite">{selected.length} selected</span>
           <span className="bc:ml-auto bc:flex bc:items-center bc:gap-1">
             {offered ? <MenuButton menus={menus} target={target} place={SELECTION} label="Actions of the selection" /> : null}
@@ -139,16 +128,16 @@ function SelectionBar({ core }: { core: CoreApi }): ReactElement | null {
 // collapses by its header, which counts what the board holds of it.
 export function Section({ title, count, children }: { title: string; count: number; children: ReactNode }): ReactElement {
   return (
-    <section aria-label={title} className="bc:rounded-md bc:border bc:border-border-default">
+    <section aria-label={title} className="bc:rounded-md bc:border bc:border-border">
       <Disclosure defaultExpanded>
         <DisclosureHeader className="bc:text-sm bc:font-semibold bc:[&>button]:gap-2 bc:[&>button]:px-3 bc:[&>button]:py-2">
           {title}
-          <span className="bc:rounded-full bc:border bc:border-border-default bc:px-1.5 bc:text-xs bc:font-normal bc:text-text-muted">
+          <span className="bc:rounded-full bc:border bc:border-border bc:px-1.5 bc:text-xs bc:font-normal bc:text-muted-foreground">
             {count}
           </span>
         </DisclosureHeader>
         <DisclosurePanel>
-          <div className="bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3">{children}</div>
+          <div className="bc:grid bc:gap-4 bc:border-t bc:border-border bc:p-3">{children}</div>
         </DisclosurePanel>
       </Disclosure>
     </section>
@@ -160,7 +149,7 @@ export function Section({ title, count, children }: { title: string; count: numb
 export function Part({ title, children }: { title: string; children: ReactNode }): ReactElement {
   return (
     <div role="group" aria-label={title} className="bc:grid bc:gap-2">
-      <h4 className="bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted">{title}</h4>
+      <h4 className="bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-muted-foreground">{title}</h4>
       {children}
     </div>
   );
@@ -185,15 +174,15 @@ export interface ObjectRow {
   readonly cells: readonly { readonly content: ReactNode; readonly className?: string }[];
 }
 
-// What a cell of the plugin's tables takes beside the SDK's classes: text that
-// wraps where the column is narrow, rather than a box that scrolls sideways
-// in a narrow panel.
+// What a cell of the plugin's tables takes beside the classes of blockr.ui's
+// cell: text that wraps where the column is narrow, rather than a box that
+// scrolls sideways in a narrow panel.
 export const WRAP = "bc:whitespace-normal! bc:break-words";
 
-// A table of the board's blocks, links or stacks, which the SDK's Table draws:
-// a checkbox that selects each row's object, ticked where core.selection holds
-// it, then the columns given, then a column with the "…" button of each row
-// whose object a board action applies to, where any row has one. The menus
+// A table of the board's blocks, links or stacks, which blockr.ui's Table
+// draws: a checkbox that selects each row's object, ticked where core.selection
+// holds it, then the columns given, then a column with the "…" button of each
+// row whose object a board action applies to, where any row has one. The menus
 // are those of the table's section, which shows the banner of a board action
 // that the store refused below the table.
 // A row whose menu opened an advanced action turns into the form, in a cell

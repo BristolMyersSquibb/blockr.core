@@ -1,6 +1,6 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
-import type { BlockId, OptionId, RegistryId } from "./board.ts";
+import type { BlockId, Id, ModuleId, OptionId, RegistryId } from "./board.ts";
 import type { CoreFailure, Notification, Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
@@ -38,10 +38,8 @@ export interface BlockHost<S extends State = State> {
     }): Promise<void>;
     request<T = Json>(name: string, args?: Partial<S> & Record<string, Json>, opts?: HostRequestOpts): Promise<T | Blob>;
     evaluate(params: Record<string, Json>): Promise<BlockStatus>;
-    module<T = unknown>(id: {
-        readonly package: string;
-        readonly id: string;
-    }): Promise<T>;
+    id<P extends string | null>(pkg: P, id: string): Id<P>;
+    module<T = unknown>(id: ModuleId): Promise<T>;
     notify(notification: Raised): () => void;
     readonly log: Log;
 }

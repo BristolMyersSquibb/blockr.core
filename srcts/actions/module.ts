@@ -4,7 +4,7 @@
 // a module that a package offers others, as an R option gives them, or as
 // their JSON, as an environment variable gives it.
 // Core's own menu is such a module, board_action_menu of blockr.core, which draws
-// with the components of core's React SDK, and the blockr option names it
+// with blockr.ui's components, and the blockr option names it
 // unless the app names another (../modules/board-action-menu).
 // So an app that draws with a UI kit other than blockr.ui's draws the menus of
 // board actions with that kit too.

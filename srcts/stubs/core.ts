@@ -67,6 +67,7 @@ import { stubDialogs } from "./advanced.ts";
 import type { StubAdvanced } from "./advanced.ts";
 import { stubMenus } from "./menu.ts";
 import type { StubMenu } from "./menu.ts";
+import { acting, actingNow } from "./util.ts";
 // The stubs ship the fixtures that R and both test suites read from inst/.
 // eslint-disable-next-line no-restricted-imports
 import helloFixture from "../../inst/protocol/fixtures/hello.json" with { type: "json" };
@@ -183,6 +184,9 @@ export interface StubCore {
   // Resolves once R has replied to every request that core sent, and core has
   // sent nothing more for a few turns of the event loop, as the scheduler
   // sends what it plans with a timer. It needs real timers.
+  // Where the test runs in React's act() environment, as blockr.ui's stubs set
+  // it up, each turn runs inside act(), so that React draws what R's replies
+  // change without warning of an update outside act().
   readonly settled: () => Promise<void>;
   // Each line that core and the modules on the page logged while the stub ran,
   // at every level, in the order they came. Each goes on to the logger that
@@ -278,7 +282,9 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
 
   let first: CoreApi;
   try {
-    first = await started.ready;
+    // Inside act(), as each turn of settled(), so that React draws the
+    // frontend before the test's first step.
+    first = await acting(() => started.ready);
   } catch (error) {
     restore();
     throw error;
@@ -306,13 +312,17 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     settled: async () => {
       for (let quiet = 0; quiet < 3; ) {
         const before = r.sent.length;
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await acting(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
         quiet = r.pending() === 0 && r.sent.length === before ? quiet + 1 : 0;
       }
     },
     logged,
     stop: () => {
-      started.stop();
+      // Inside act(), as the start, so that the frontend's React roots unmount
+      // without warning of an update outside act().
+      actingNow(() => {
+        started.stop();
+      });
       restore();
     },
   };

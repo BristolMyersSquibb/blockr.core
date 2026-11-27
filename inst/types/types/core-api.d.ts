@@ -3,7 +3,7 @@ import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Delta, Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, BoardActionId, Id, LinkId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
+import type { BlockId, BoardActionId, Id, LinkId, ModuleId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
@@ -20,20 +20,14 @@ export interface CoreApi {
             notifier?(notifications: readonly Notification[], action: BoardAction): void;
             advanced?: FrontendModule["advanced"];
         }): void;
-        trigger(id: {
-            readonly package: string;
-            readonly id: string;
-        } | string, target: Target, opts: {
+        trigger(id: BoardActionId | string, target: Target, opts: {
             el: HTMLElement;
             anchor?: DOMRect;
             extend?(deltas: readonly Delta[]): readonly CommandCall[];
             notifier?(notifications: readonly Notification[], action: BoardAction): void;
             advanced?: FrontendModule["advanced"];
         }): Promise<void>;
-        mountAdvanced(el: HTMLElement, id: {
-            readonly package: string;
-            readonly id: string;
-        } | string, target: Target, picked?: Json): () => void;
+        mountAdvanced(el: HTMLElement, id: BoardActionId | string, target: Target, picked?: Json): () => void;
     };
     readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
     blockRegistry(): BlockRegistry;
@@ -71,10 +65,7 @@ export interface CoreApi {
     }): Promise<void>;
     request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
     id<P extends string | null>(pkg: P, id: string): Id<P>;
-    module<T = unknown>(id: {
-        readonly package: string;
-        readonly id: string;
-    }): Promise<T>;
+    module<T = unknown>(id: ModuleId): Promise<T>;
     blockrOption(name: string): Promise<Json | undefined>;
     mintId(taken: (id: string) => boolean): string;
     mountBlock(el: HTMLElement, block: BlockId): () => void;

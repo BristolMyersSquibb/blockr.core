@@ -7,16 +7,30 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import {
+  find,
+  inert,
+  itemDescribed,
+  labelled,
+  menuItem,
+  menuItems,
+  openDialog,
+  openMenu,
+  optionFromLabel,
+  picking,
+  press,
+  step,
+  texts,
+  tipOnFocus,
+  toggleButton,
+  type,
+} from "@blockr/ui/stubs";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubAdvanced, StubCoreOptions, StubMenu } from "../../stubs/index.ts";
 import type { HelloReply, Request } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
-import { find, picking, press, texts, toggleButton, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
-import { step } from "../../testing/react.ts";
 import { logged } from "../../testing/logged.ts";
-import { inert, itemDescribed, menuItem, menuItems, openDialog, openMenu, tipOnFocus } from "../../testing/overlays.ts";
-import { labelled, optionFromLabel } from "../../testing/select.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
 import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
@@ -233,7 +247,7 @@ function toolbar(el: HTMLElement): HTMLElement {
 }
 
 // The toasts that the page of the element shows, top to bottom, in the
-// region of the SDK's toasts at the end of the page's body, which holds the
+// region of blockr.ui's toasts at the end of the page's body, which holds the
 // latest first and lays it out lowest.
 function toastsIn(el: ParentNode): HTMLElement[] {
   const doc = el instanceof Document ? el : (el.ownerDocument ?? document);
@@ -521,7 +535,7 @@ describe("a card", () => {
     expect(output("Merge").className).toContain("bc:flex-1");
   });
 
-  test("draws the dot of its block's status in the colour that core's theme holds for the status, which every plugin draws it in, and the word in the muted text colour", async () => {
+  test("draws the dot of its block's status in the colour that core's stylesheet holds for the status, which every plugin draws it in, and the word in the muted text colour", async () => {
     const { el } = await drawn({
       evaluate: (request) =>
         request.block === "b"
@@ -538,11 +552,11 @@ describe("a card", () => {
       return { dot: of(find(shown, '[aria-hidden="true"]')), word: of(shown) };
     };
     expect(badge(card(el, "Iris"))).toBe("ready");
-    expect(colours("Iris")).toEqual({ dot: ["bc:bg-status-ready"], word: ["bc:text-text-muted"] });
+    expect(colours("Iris")).toEqual({ dot: ["bc:bg-status-ready"], word: ["bc:text-muted-foreground"] });
     expect(badge(card(el, "Head"))).toBe("failed");
-    expect(colours("Head")).toEqual({ dot: ["bc:bg-status-failed"], word: ["bc:text-text-muted"] });
+    expect(colours("Head")).toEqual({ dot: ["bc:bg-status-failed"], word: ["bc:text-muted-foreground"] });
     expect(badge(card(el, "Merge"))).toBe("waiting");
-    expect(colours("Merge")).toEqual({ dot: ["bc:bg-status-waiting"], word: ["bc:text-text-muted"] });
+    expect(colours("Merge")).toEqual({ dot: ["bc:bg-status-waiting"], word: ["bc:text-muted-foreground"] });
   });
 
   test("opens its block's menu of board actions, which core draws, from its button, so that every board action on the block shows, those of packages too", async () => {
@@ -635,23 +649,6 @@ describe("a card", () => {
   });
 });
 
-describe("what floats over the board", () => {
-  // The backgrounds that an element draws in the page's theme and under the
-  // dark theme, those of its hover and of a dialog's backdrop aside.
-  const backgrounds = (el: Element | null): string[] => (el?.className ?? "").split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
-
-  test("is drawn on the background that core's theme gives it: the dialog of the board options", async () => {
-    const { el, settled } = await drawn();
-
-    // The dialog draws on the background of the SDK's modal that holds it.
-    // Core draws a card's menu and the dialog of an advanced action itself.
-    await click(button(el, "Options"));
-    await settled();
-    expect(find(dialog(), "h2").textContent).toBe("Board options");
-    expect(backgrounds(dialog().parentElement)).toEqual(["bc:bg-bg-raised"]);
-  });
-});
-
 describe("the toolbar", () => {
   test("draws no control for adding a block or for links and stacks, which the Edit board plugin edits in a section of its own", async () => {
     const { el } = await drawn();
@@ -677,7 +674,7 @@ describe("the toolbar", () => {
 
     await click(toggleButton(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode", "Dark"));
     expect(board().options.dark_mode).toBe("dark");
-    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-bk-mode")).toBe("dark");
   });
 
   test("renames the board", async () => {
@@ -1505,10 +1502,6 @@ describe("what the user learns", () => {
         core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved." });
         core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared." });
       });
-      // The message's toast fades in its last moments, and the error's does
-      // not fade.
-      expect(toastsIn(el).map((t) => t.className.includes("bc:toast-fade"))).toEqual([true, false]);
-
       // The pointer rests on the error's toast, which keeps the message's
       // toast too, as does the focus in the message's toast.
       const saved = toast(el, "Saved.");

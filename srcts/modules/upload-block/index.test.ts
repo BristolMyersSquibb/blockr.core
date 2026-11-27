@@ -4,10 +4,9 @@
 
 import { act } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { choose, drop, find, picking, step, texts } from "@blockr/ui/stubs";
 import { stubBlockHost } from "../../stubs/index.ts";
-import { choose, drop, find, picking, texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
-import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
 import * as upload from "./index.tsx";
 import type { State } from "./state.ts";

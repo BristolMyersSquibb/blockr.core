@@ -1,6 +1,7 @@
 // srcts/modules/merge-block/index.tsx
+import { ComboBox, ComboBoxItem, FormLayout, Select, SelectItem, Text } from "@blockr/ui";
 import { strings } from "@blockr/core/binding";
-import { ComboBox, ComboBoxItem, reactModule, Select, SelectItem, Stack, Text, useRequest, useValue } from "@blockr/core/react";
+import { reactModule, useRequest, useValue } from "@blockr/core/react";
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 var joins = [
@@ -17,7 +18,7 @@ function argsOf(id) {
 }
 function MergeBlock({ host }) {
   const shared = useRequest(host, "shared");
-  return /* @__PURE__ */ jsxs(Stack, { children: [
+  return /* @__PURE__ */ jsxs(FormLayout, { children: [
     /* @__PURE__ */ jsx(
       ComboBox,
       {

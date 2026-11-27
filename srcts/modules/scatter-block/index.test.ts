@@ -3,12 +3,11 @@
 // which lists every state a test submits.
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { labelled, listed, notAvailable, picked, step } from "@blockr/ui/stubs";
 import { stubBlockHost } from "../../stubs/index.ts";
 
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
-import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
-import { labelled, listed, notAvailable, picked } from "../../testing/select.ts";
 import * as scatter from "./index.tsx";
 import type { State } from "./state.ts";
 

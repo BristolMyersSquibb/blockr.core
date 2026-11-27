@@ -112,6 +112,58 @@ test_that("core's own plugins keep no state", {
   expect_identical(plugin_requests(edit), list())
 })
 
+test_that("core's basic frontend keeps every default of blockr.ui", {
+
+  theme <- frontend_theme(new_basic_frontend_plugin())
+
+  expect_true(blockr.ui::is_blockr_theme(theme))
+
+  # The look of the basic frontend is blockr.ui's, so its theme sets no theme
+  # variable, and keeps the default of each in light mode and in dark mode.
+  # A theme variable that a later blockr.ui adds fails this test, until the
+  # frontend sets it or adds it here as a default that it keeps.
+  kept <- c(
+    "--bk-color-background", "--bk-color-foreground",
+    "--bk-color-card", "--bk-color-card-foreground",
+    "--bk-color-popover", "--bk-color-popover-foreground",
+    "--bk-color-primary", "--bk-color-primary-foreground",
+    "--bk-color-primary-text",
+    "--bk-color-secondary", "--bk-color-secondary-foreground",
+    "--bk-color-muted", "--bk-color-muted-foreground",
+    "--bk-color-accent", "--bk-color-accent-foreground",
+    "--bk-color-destructive", "--bk-color-destructive-foreground",
+    "--bk-color-destructive-text",
+    "--bk-color-warning", "--bk-color-warning-foreground",
+    "--bk-color-warning-text",
+    "--bk-color-success", "--bk-color-success-foreground",
+    "--bk-color-success-text",
+    "--bk-color-border", "--bk-color-input", "--bk-color-ring",
+    "--bk-font-sans", "--bk-font-mono",
+    "--bk-text-xs", "--bk-text-sm", "--bk-text-base", "--bk-text-lg",
+    "--bk-radius",
+    "--bk-shadow-sm", "--bk-shadow-md", "--bk-shadow-lg",
+    "--bk-spacing",
+    "--bk-z-index-overlay"
+  )
+
+  expect_identical(
+    blockr.ui::unset_variables(theme),
+    list(light = kept, dark = kept)
+  )
+})
+
+test_that("a frontend that keeps every default needs no frontend_theme()", {
+
+  grid <- plugin_ctor(function() NULL, c("grid_plugin", "frontend_plugin"))
+
+  # Core's method for frontend_plugin gives a theme with no values, whose
+  # rules R writes as nothing.
+  theme <- frontend_theme(grid())
+
+  expect_identical(theme, blockr.ui::new_blockr_theme())
+  expect_identical(format(theme), "")
+})
+
 test_that("available_plugins() gives core's plugin classes by package and id", {
 
   expect_identical(

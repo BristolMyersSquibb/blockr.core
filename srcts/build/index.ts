@@ -1,7 +1,8 @@
-// The build preset that core ships to packages, as `@blockr/core/build`, the
-// vendor check beside it, and what each file of a build imports up front,
-// which R names in the head of the page that it serves.
+// The build preset that core ships to packages, as `@blockr/core/build`,
+// which extends the preset of blockr.ui with core's own entry points.
+// A package imports the vendor check and staticImports(), which lists what
+// each file of a build imports up front, from `@blockr/ui/build`, whichever
+// preset it spreads
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.4#the-build-preset).
 
 export { preset } from "./preset.ts";
-export { staticImports } from "./preload.ts";
-export { vendorCheck } from "./vendor-check.ts";

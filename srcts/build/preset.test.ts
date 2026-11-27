@@ -1,11 +1,12 @@
 // What a package's build makes of its module with the build preset that core
-// ships as `@blockr/core/build`, as it imports the React SDK that core ships as
-// `@blockr/core/react`: a module that holds none of React and none of the SDK,
-// but imports them, as the page that R serves resolves them through its import
-// map. So does a module written without React on the controls that core ships
-// as `@blockr/core/controls`.
-// Here the tests resolve those imports, to React in node_modules and to the
-// SDK's sources, as vitest.config.ts sets out.
+// ships as `@blockr/core/build`, which extends the preset of blockr.ui, as it
+// imports the React SDK that core ships as `@blockr/core/react` and the
+// components of blockr.ui: a module that holds none of React, none of the SDK
+// and none of the components, but imports them, as the page that R serves
+// resolves them through its import map. So does a module written without
+// React on the controls that core ships as `@blockr/core/controls`.
+// Here the tests resolve those imports, to React and blockr.ui's components in
+// node_modules and to the SDK's sources, as vitest.config.ts sets out.
 
 import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -14,18 +15,18 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
 import { createElement } from "react";
 import type { ReactElement } from "react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test } from "vitest";
+import { draw } from "@blockr/ui/stubs";
 import { stubBlockHost, stubOutputHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
-import { draw, mountReact } from "../testing/react.ts";
+import { mountReact } from "../testing/react.ts";
 import type { OutputFixtures, TextOutput } from "../types/outputs.ts";
-import { IMPORTS } from "../import-map/index.ts";
 import type * as Build from "./index.ts";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-// The build preset and the vendor check as core ships them.
-const { preset, vendorCheck } = (await import(pathToFileURL(join(repo, "inst/types/build/index.js")).href)) as typeof Build;
+// The build preset as core ships it.
+const { preset } = (await import(pathToFileURL(join(repo, "inst/types/build/index.js")).href)) as typeof Build;
 
 let root: string;
 
@@ -76,7 +77,6 @@ test("leaves a package's module importing React and the React SDK, which the imp
   const code = await readFile(await bundle(textRenderer), "utf8");
 
   expect(importedPackages(code)).toEqual(["@blockr/core/react", "react/jsx-runtime"]);
-  expect(importedPackages(code).every((name) => (IMPORTS as readonly string[]).includes(name))).toBe(true);
   expect(code).not.toContain("function outputRenderer(");
   // React marks each element it makes with this symbol.
   expect(code).not.toContain("react.transitional.element");
@@ -129,9 +129,9 @@ test("leaves a package's module written without React importing the controls, wi
   expect(mounted.el.querySelector("input")).toBeNull();
 });
 
-test("core's own block module, as core ships it, imports React and the SDK, and draws with them", async () => {
+test("core's own block module, as core ships it, imports React, the SDK and blockr.ui's components, and draws with them", async () => {
   const code = readFileSync(join(repo, "inst", "js", "head-block.js"), "utf8");
-  expect(importedPackages(code)).toEqual(["@blockr/core/react", "react/jsx-runtime"]);
+  expect(importedPackages(code)).toEqual(["@blockr/core/react", "@blockr/ui", "react/jsx-runtime"]);
   expect(code).not.toContain("function reactModule(");
 
   const fixture = JSON.parse(
@@ -145,25 +145,23 @@ test("core's own block module, as core ships it, imports React and the SDK, and 
   expect(mounted.el.querySelector("input")).toBeNull();
 });
 
-test("React's entry points, as core ships them, read one React", async () => {
-  const react = (await import(pathToFileURL(join(repo, "inst", "js", "react.js")).href)) as typeof import("react");
-  const client = (await import(pathToFileURL(join(repo, "inst", "js", "react-dom-client.js")).href)) as typeof import("react-dom/client");
+test("leaves a package's module importing blockr.ui's components, which the import map names, and draws with them", async () => {
+  const file = await bundle(`import { Button } from "@blockr/ui";
 
-  // A hook of react.js works in a component that react-dom-client.js draws,
-  // which it does only where both read the same React.
-  const el = document.createElement("div");
-  const Counter = () => react.createElement("span", null, String(react.useState(41)[0] + 1));
-  const view = client.createRoot(el);
-  react.startTransition(() => {
-    view.render(react.createElement(Counter));
-  });
+export const api = 1;
 
-  // React draws a transition in a later task. On a busy machine, drawing can
-  // take longer than a fixed wait. So the test retries its check for up to a
-  // second.
-  await vi.waitFor(() => {
-    expect(el.textContent).toBe("42");
-  });
+export default function Go() {
+  return <Button variant="primary">Go</Button>;
+}
+`);
+  const code = await readFile(file, "utf8");
+
+  expect(importedPackages(code)).toEqual(["@blockr/ui", "react/jsx-runtime"]);
+  expect(code).not.toContain("react.transitional.element");
+
+  const module = (await import(pathToFileURL(file).href)) as { default: () => ReactElement };
+  const view = draw(createElement(module.default));
+  expect(view.el.querySelector("button")?.textContent).toBe("Go");
   view.unmount();
 });
 
@@ -243,17 +241,26 @@ test.each(["react-compiler-runtime", "react/compiler-runtime"])(
   },
 );
 
+test.each(["react-aria-components", "react-aria", "react-stately"])(
+  "leaves a package's module importing %s, which the import map names, as blockr.ui's preset does",
+  async (name) => {
+    const code = await readFile(await bundle(`export * as aria from "${name}";\n`), "utf8");
+    expect(importedPackages(code)).toEqual([name]);
+  },
+);
+
 // The preset refuses each import before esbuild resolves it.
 // So the scoped packages fail alike, though npm does not install them with
 // this version of React Aria.
-test.each(["react-aria-components", "react-aria-components/Button", "react-aria", "react-stately", "@react-aria/button", "@react-stately/utils"])(
-  "refuses an import of React Aria, %s, naming the React SDK",
-  async (name) => {
-    await expect(bundle(`import * as aria from "${name}";\n\nexport default aria;\n`)).rejects.toThrow(
-      `A module imports ${name}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, so that the page runs one copy of React Aria.`,
-    );
-  },
-);
+test.each([
+  ["react-aria-components/Button", "react-aria-components"],
+  ["@react-aria/button", "react-aria"],
+  ["@react-stately/utils", "react-stately"],
+])("refuses an import inside React Aria, %s, naming the package to import instead", async (name, instead) => {
+  await expect(bundle(`import * as aria from "${name}";\n\nexport default aria;\n`)).rejects.toThrow(
+    `A module imports ${name}, which would bundle a second copy of React Aria. Import it from ${instead} instead, which the page's import map names.`,
+  );
+});
 
 test("leaves a package's module bundling @internationalized/date and @internationalized/number, which hold no React context, and importing React Aria's types", async () => {
   const file = await bundle(`import type { Key } from "react-aria-components";
@@ -266,47 +273,4 @@ export const keys: Key[] = [new CalendarDate(2026, 11, 19).toString(), new Numbe
   expect(importedPackages(await readFile(file, "utf8"))).toEqual([]);
   const { keys } = (await import(pathToFileURL(file).href)) as { keys: string[] };
   expect(keys).toEqual(["2026-11-19", "1,234.5"]);
-});
-
-test("the vendor check fails a package's build that puts code from node_modules into one of its own files, naming each npm package and the file", async () => {
-  const files: Record<string, string> = {
-    "node_modules/@acme/pad/package.json": '{ "name": "@acme/pad", "type": "module", "main": "index.js" }\n',
-    "node_modules/@acme/pad/index.js": "export const pad = (s, n) => String(s).padStart(n);\n",
-    "node_modules/left-pad/package.json": '{ "name": "left-pad", "main": "index.js" }\n',
-    "node_modules/left-pad/index.js": "module.exports = (s, n) => String(s).padStart(n);\n",
-    "srcts/dock.ts": 'import { pad } from "@acme/pad";\nimport leftPad from "left-pad";\nexport const padded = [pad("x", 3), leftPad("y", 3)];\n',
-    "srcts/util.ts": 'import { pad } from "@acme/pad";\nexport const padded = (s: string) => pad(s, 3);\nexport const label = "plain";\n',
-    "srcts/plain.ts": 'import { label } from "./util.ts";\nexport const ui = label;\n',
-  };
-  for (const [path, content] of Object.entries(files)) {
-    await mkdir(dirname(join(root, path)), { recursive: true });
-    await writeFile(join(root, path), content);
-  }
-  const options = (entry: string, plugins: esbuild.Plugin[]) => ({
-    ...preset,
-    plugins,
-    absWorkingDir: root,
-    entryPoints: [join(root, "srcts", entry)],
-    outdir: join(root, "inst", "js"),
-    logLevel: "silent" as const,
-  });
-
-  // Without the check, as a package builds its vendor file, the build bundles
-  // both npm packages.
-  await expect(esbuild.build(options("dock.ts", preset.plugins))).resolves.toBeDefined();
-
-  // With it, the build fails, with an error for each npm package.
-  const failure = await esbuild.build(options("dock.ts", [...preset.plugins, vendorCheck])).then(
-    () => undefined,
-    (error: unknown) => error as esbuild.BuildFailure,
-  );
-  expect(failure?.errors.map(({ text }) => text).sort()).toEqual([
-    "The build put code of @acme/pad, from node_modules, into inst/js/dock.js. Bundle @acme/pad into the package's vendor file instead, and import it from there.",
-    "The build put code of left-pad, from node_modules, into inst/js/dock.js. Bundle left-pad into the package's vendor file instead, and import it from there.",
-  ]);
-
-  // A module can bundle a file of its own that uses an npm package only in a
-  // function that the module leaves out.
-  // Its file then holds none of the npm package's code, so it passes the check.
-  await expect(esbuild.build(options("plain.ts", [...preset.plugins, vendorCheck]))).resolves.toBeDefined();
 });

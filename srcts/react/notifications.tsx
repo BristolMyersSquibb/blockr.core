@@ -7,11 +7,14 @@
 // - The list holds an item for each notification, in the order given.
 //   Each item holds the notification's severity in `data-severity`, and its
 //   message as text.
-// - An error takes the danger set of core's theme: text-danger on bg-danger,
-//   with an edge of border-danger-subtle.
-//   A warning takes the warning set in the same way.
-//   The design system gives a message no colour, so a message takes the
-//   neutral set: text-default on bg-subtle, with an edge of border-default.
+// - An error takes the colour of an error, `destructive`: its text,
+//   `destructive-text`, on a tint of the colour at 10%, with an edge of the
+//   colour at 35%.
+//   A warning takes the colour of a warning, `warning`, in the same way, with
+//   an edge at 45%.
+//   The design system gives a message no colour, so a message takes neutral
+//   colours: the text around it on the quiet fill `muted`, with an edge of
+//   `border`.
 // - Each item is 13px, with a radius of 6px.
 //   It keeps the message's line breaks, and wraps a long word, such as a path.
 // - The caller names the list, as "Errors".
@@ -47,7 +50,7 @@ const ITEM =
 
 // The colours of an item, by its severity: its edge, its fill and its text.
 const SETS: Readonly<Record<Severity, string>> = {
-  error: "bc:border-border-danger-subtle bc:bg-bg-danger bc:text-text-danger",
-  warning: "bc:border-border-warning-subtle bc:bg-bg-warning bc:text-text-warning",
-  message: "bc:border-border-default bc:bg-bg-subtle bc:text-text-default",
+  error: "bc:border-destructive/35 bc:bg-destructive/10 bc:text-destructive-text",
+  warning: "bc:border-warning/45 bc:bg-warning/10 bc:text-warning-text",
+  message: "bc:border-border bc:bg-muted",
 };

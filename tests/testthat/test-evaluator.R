@@ -1060,7 +1060,7 @@ test_that("R answers the requests of an output class and of a renderer", {
 
   local_chart_output()
   local_labelled_block()
-  local_table_preview()
+  local_labelled_table()
 
   session <- local_evaluator()
 

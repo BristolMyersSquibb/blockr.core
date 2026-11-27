@@ -7,7 +7,7 @@
 // A block sits in one stack at most. So the select lists the blocks in no
 // stack first, and apart from them those that another stack holds, naming the
 // stack, which a block that the user picks leaves.
-// It draws a stack's colour with the colours of core's React SDK: a colour
+// It draws a stack's colour with blockr.ui's colours: a colour
 // picker, beside a checkbox that gives the stack a colour. The picker's
 // popover holds the palette's colours among its swatches.
 // Each form runs nothing before the user submits it, through its Add stack
@@ -35,8 +35,8 @@
 
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
-import { CORE, suggestedName } from "../commands/index.ts";
 import {
+  Button,
   Checkbox,
   ColorArea,
   ColorField,
@@ -48,10 +48,10 @@ import {
   ComboBoxSection,
   Form,
   TextField,
-  useBoard,
-} from "../react/index.ts";
-import type { Color } from "../react/index.ts";
-import { styles } from "../styles/index.ts";
+} from "@blockr/ui";
+import type { Color } from "@blockr/ui";
+import { CORE, suggestedName } from "../commands/index.ts";
+import { useBoard } from "../react/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
@@ -216,7 +216,7 @@ function StackForm({
         void submit(event);
       }}
     >
-      {line === undefined ? null : <p className={styles.hint}>{line}</p>}
+      {line === undefined ? null : <p className={classes.hint}>{line}</p>}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
           label="Name"
@@ -249,17 +249,17 @@ function StackForm({
         </ComboBox>
       )}
       <div className="bc:flex bc:gap-2">
-        <button type="submit" className={classes.primary} disabled={busy}>
+        <Button type="submit" variant="primary" isDisabled={busy}>
           {editing === undefined ? "Add stack" : "Apply"}
-        </button>
+        </Button>
       </div>
       <Refusal refusal={edits.refusal} />
     </Form>
   );
 }
 
-// A stack's colour, or none: the SDK's checkbox, which gives the stack a
-// colour, and the SDK's colour picker, which picks it.
+// A stack's colour, or none: blockr.ui's checkbox, which gives the stack a
+// colour, and blockr.ui's colour picker, which picks it.
 // The picker's popover holds the starter kit's parts, an area of the
 // saturation and the brightness, a slider of the hue and a field of the hex,
 // and below them the palette's colours as swatches, in two rows of four,
@@ -271,8 +271,8 @@ function StackColor({ color, onChange }: { color: Picked | null; onChange: (colo
   const [last, setLast] = useState<Picked>(color ?? PALETTE[0]);
   const shown = color ?? last;
   return (
-    <fieldset className={styles.fieldset}>
-      <legend className={styles.legend}>Colour</legend>
+    <fieldset className={classes.fieldset}>
+      <legend className={classes.legend}>Colour</legend>
       <div className="bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1">
         <Checkbox
           isSelected={color !== null}

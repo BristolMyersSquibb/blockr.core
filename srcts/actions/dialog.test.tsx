@@ -10,10 +10,8 @@ import { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
+import { find, inert, openDialog, press, step } from "@blockr/ui/stubs";
 import type { Delta } from "../store/index.ts";
-import { find, press } from "../testing/inputs.ts";
-import { inert, openDialog } from "../testing/overlays.ts";
-import { step } from "../testing/react.ts";
 import type { PlaceArgs } from "./advanced.ts";
 import { showDialog } from "./dialog.tsx";
 

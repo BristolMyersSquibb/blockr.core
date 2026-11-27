@@ -6,6 +6,7 @@
   ],
   "basic-table.js": [
     "react",
+    "@blockr/ui",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
@@ -17,6 +18,7 @@
     "react-dom",
     "react-dom/client",
     "react",
+    "@blockr/ui",
     "react/jsx-runtime",
     "@blockr/core/react"
   ],
@@ -24,8 +26,8 @@
     "react",
     "react-dom",
     "react-dom/client",
+    "@blockr/ui",
     "@blockr/core/binding",
-    "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "blockr-core-otel.js": [
@@ -37,35 +39,38 @@
     "@blockr/core/binding",
     "react-dom",
     "react-dom/client",
-    "react/jsx-runtime",
-    "./vendor-c5b8952d.js"
+    "react/jsx-runtime"
   ],
   "blockr-core.js": [
     "@opentelemetry/api",
-    "./vendor-c5b8952d.js",
-    "@blockr/core/react",
+    "./vendor-c863df8c.js",
+    "@blockr/ui",
     "react/jsx-runtime",
     "react",
     "react-dom",
-    "react-dom/client"
+    "react-dom/client",
+    "@blockr/core/react"
   ],
   "board-action-menu.js": [
     "react",
     "react-dom",
     "react-dom/client",
-    "./vendor-c5b8952d.js",
-    "@blockr/core/react",
+    "@blockr/ui",
+    "react-aria-components",
     "react/jsx-runtime"
   ],
   "csv-block.js": [
+    "@blockr/ui",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "dark-mode-option.js": [
+    "@blockr/ui",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "dataset-block.js": [
+    "@blockr/ui",
     "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
@@ -74,29 +79,35 @@
     "react-dom",
     "react-dom/client",
     "react",
+    "@blockr/ui",
     "react/jsx-runtime",
     "@blockr/core/react",
-    "./vendor-c5b8952d.js"
+    "react-aria-components"
   ],
   "filebrowser-block.js": [
     "react",
+    "@blockr/ui",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "glue-block.js": [
+    "@blockr/ui",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "head-block.js": [
+    "@blockr/ui",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "merge-block.js": [
+    "@blockr/ui",
     "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "n-rows-option.js": [
+    "@blockr/ui",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
@@ -125,29 +136,20 @@
     "@opentelemetry/api",
     "@opentelemetry/api"
   ],
-  "react-dom-client.js": [
-    "./vendor-c5b8952d.js"
-  ],
-  "react-dom.js": [
-    "./vendor-c5b8952d.js"
-  ],
-  "react-jsx-runtime.js": [
-    "./vendor-c5b8952d.js"
-  ],
-  "react.js": [
-    "./vendor-c5b8952d.js"
-  ],
   "scatter-block.js": [
+    "@blockr/ui",
     "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "subset-block.js": [
+    "@blockr/ui",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "upload-block.js": [
     "react",
+    "@blockr/ui",
     "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
