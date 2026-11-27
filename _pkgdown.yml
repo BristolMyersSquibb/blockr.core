@@ -2,25 +2,59 @@ url: https://bristolmyerssquibb.github.io/blockr.core/
 template:
   bootstrap: 5
   light-switch: true
+  # The style hides the link to the source of each page of the TypeScript
+  # reference, a file that npm run docs writes and git ignores.
   includes:
     in_header: >
       <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js" integrity="sha512-3EZqKCkk3nMLmbrI7mfry81KH7dkzy/BoDfQrodwLQnS/RbsVlERdYP6J0oiJegRUxSOmx7Y35WNbVKSw7mipw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+      <style>small.dont-index:has(a[href*="/vignettes/articles/typescript/"]) { display: none; }</style>
 
+# The TypeScript reference is the pages that npm run docs writes into
+# vignettes/articles/typescript, and the client guides are the Quarto files
+# directly in vignettes/articles.
+# The menu of the client guides joins the navbar's structure with the first
+# guide.
 navbar:
- components:
-   articles:
-    text: Articles
-    menu:
-    - text: Get started
-      href: articles/get-started.html
-    - text: Create a block class
-      href: articles/create-block.html
-    - text: Block expressions
-      href: articles/block-expressions.html
-    - text: Migration notes for app scripts
-      href: articles/migration-notes.html
-    - text: Send log records and spans to an OpenTelemetry collector
-      href: articles/opentelemetry.html
+  structure:
+    left: [intro, reference, typescript, articles, news]
+  components:
+    reference:
+      text: R reference
+      href: reference/index.html
+    typescript:
+      text: TypeScript reference
+      href: articles/typescript/index.html
+    guides:
+      text: Client guides
+      menu: []
+    articles:
+      text: Articles
+      menu:
+      - text: Get started
+        href: articles/get-started.html
+      - text: Create a block class
+        href: articles/create-block.html
+      - text: Block expressions
+        href: articles/block-expressions.html
+      - text: Migration notes for app scripts
+        href: articles/migration-notes.html
+      - text: Send log records and spans to an OpenTelemetry collector
+        href: articles/opentelemetry.html
+
+# Every article needs a place in the index.
+# The pages of the TypeScript reference are left out of it, since the navbar
+# links their index, and a build without them matches nothing here.
+articles:
+- title: All vignettes
+  contents:
+  - get-started
+  - create-block
+  - block-expressions
+  - migration-notes
+  - opentelemetry
+- title: internal
+  contents:
+  - starts_with("articles/typescript/")
 
 reference:
 - title: Board objects
