@@ -157,8 +157,8 @@ served_dir <- function() {
 # The packages whose files the page's import map names, each as the
 # inst/js/import-map.json of the package lists them: blockr.ui, for React's
 # entry points, its components and React Aria's three packages, and core, for
-# its React SDK, its binding, its controls, its OpenTelemetry module and
-# OpenTelemetry's API
+# its React SDK, the components that it draws, its binding, its controls, its
+# OpenTelemetry module and OpenTelemetry's API
 # (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.4#the-bundle).
 import_map_packages <- function() {
   c("blockr.ui", "blockr.core")

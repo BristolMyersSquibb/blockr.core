@@ -598,6 +598,9 @@ The SDK holds these:
   Given a function that takes plain data from the board, such as each block's name, as in `useBoard(core, (board) => Object.values(board.blocks).map((block) => block.name))`, `useBoard()` gives that data instead.
   The component then draws again only where that data changes, and not for a change of another part of the board, such as a block's state.
 
+The SDK holds what draws nothing, so that a page whose UIs use its hooks, but draw with no component of blockr.ui, loads no React Aria.
+What core draws for a UI comes from `@blockr/core/components`, as `NotificationList`, which shows the notifications that `useNotified()` gives.
+
 The components of blockr.ui are React Aria's, after React Aria's Tailwind starter kit, and draw with blockr.ui's theme variables.
 Those that an input binds take a `bound` from `useValue()`, and keep the contract's rules through it:
 
@@ -722,7 +725,7 @@ An arg without a default is optional in the type, as the merge block's `by?: rea
 
 A package keeps such sources outside `inst/`, such as in `srcts/`, and builds them into `inst/js/`.
 It builds with esbuild and core's build preset, `@blockr/core/build`, which extends the build preset of blockr.ui, `@blockr/ui/build`, with core's own entry points.
-The preset leaves the module's imports of React, of blockr.ui's components, `@blockr/ui`, of React Aria's three packages, `react-aria-components`, `react-aria` and `react-stately`, and of core's React SDK, its binding and its controls, as imports.
+The preset leaves the module's imports of React, of blockr.ui's components, `@blockr/ui`, of React Aria's three packages, `react-aria-components`, `react-aria` and `react-stately`, and of core's React SDK, its components, its binding and its controls, as imports.
 The page that R serves resolves them through an import map, to the one copy of each that blockr.ui or blockr.core ships, so the module's bundle holds none of them.
 The module then runs the components of the blockr.ui and the SDK of the blockr.core that it runs on, and its inputs take the classes of blockr.ui's stylesheet.
 A module imports React Aria's packages only for what no component of blockr.ui does.

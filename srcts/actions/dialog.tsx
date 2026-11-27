@@ -17,46 +17,29 @@
 // leaves it open, so that what the user filled in stays.
 // It draws from the theme variables, which a frontend's theme sets to restyle
 // it, as it restyles core's menu.
+// Core's runtime loads this file as it first shows the dialog, through
+// showDialog() (./advanced.ts), which keeps the dialog's element and closes
+// it, so that the page loads blockr.ui's components only then.
 
 import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Button, Dialog, Heading, Modal } from "@blockr/ui";
 import { Mounted } from "../card/index.ts";
-import { onAbort } from "../mount/index.ts";
-import type { PlaceArgs, ShowDialog } from "./advanced.ts";
+import type { PlaceArgs } from "./advanced.ts";
 
-// Shows the advanced action in core's dialog, in an element of its own at the
-// end of the page's body, until the function that it returns runs or the
-// signal aborts.
-export const showDialog: ShowDialog = (args, at) => {
-  const doc = at.el.ownerDocument;
-  const host = doc.createElement("div");
-  doc.body.append(host);
-  const root = createRoot(host);
-  let open = true;
-  const offAbort = at.signal === undefined ? () => undefined : onAbort(at.signal, hide);
-
-  function hide(): void {
-    if (!open) return;
-    open = false;
-    offAbort();
-    root.unmount();
-    host.remove();
-    args.close();
-    // The focus goes back to the element that the user triggered from where
-    // it is nowhere, and stays where code of the page moved it.
-    const active = doc.activeElement;
-    if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
-  }
-
+// Draws core's dialog in the element, which showDialog() puts at the end of
+// the page's body, and returns what unmounts it. The dialog calls `onClose`
+// as the user closes it.
+export function drawDialog(el: HTMLElement, args: PlaceArgs, onClose: () => void): () => void {
+  const root = createRoot(el);
   flushSync(() => {
-    root.render(<CoreDialog args={args} onClose={hide} />);
+    root.render(<CoreDialog args={args} onClose={onClose} />);
   });
   return () => {
-    hide();
+    root.unmount();
   };
-};
+}
 
 // The modal dialog, with the board action's label as its title, a Close
 // button, and the element in which core renders the advanced action.

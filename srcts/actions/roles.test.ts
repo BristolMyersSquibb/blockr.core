@@ -13,6 +13,7 @@ import { describe, expect, test } from "vitest";
 import type { PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
+import { waitForLoaded } from "../testing/loading.ts";
 import { logged } from "../testing/logged.ts";
 import { listedModules, noBoard, refusedClass } from "../testing/plugins.ts";
 import { withPlugins } from "../testing/store.ts";
@@ -116,7 +117,10 @@ describe("core's roles", () => {
 
     const room = document.createElement("div");
     const unmount = s.core.boardActions.mountAdvanced(room, "add_block_role", { board: true });
-    expect(room.querySelector('form[aria-label="Add block"]')).not.toBeNull();
+    // Core draws the block picker once it has loaded it.
+    await waitForLoaded(() => {
+      expect(room.querySelector('form[aria-label="Add block"]')).not.toBeNull();
+    });
     unmount();
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual(ON_BLOCK);
     s.stop();

@@ -18,7 +18,7 @@
 // 1. The `advanced` that the caller of menu() or trigger() gives.
 // 2. The `advanced` member of the module of the frontend that draws the
 //    board.
-// 3. Core's dialog (./dialog.tsx).
+// 3. Core's dialog (showDialog(), below).
 // Core calls the place with the board action's id, its label as the title, the
 // target, a mount() and a close(). The place renders the advanced action
 // through mount(), and calls close() as the user closes the place. A place
@@ -537,6 +537,50 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
     },
   };
 }
+
+// Shows the advanced action in core's dialog, in an element of its own at the
+// end of the page's body, until the function that it returns runs or the
+// signal aborts. The dialog draws with blockr.ui's components, so core loads
+// its code as it first shows it (./dialog.tsx), and the page loads those
+// components only then. Where the code fails to load, core logs why and the
+// dialog closes at once, as it closes when the user closes it.
+// As it closes, it tells core through close(), and the keyboard's focus
+// returns to the element that the user triggered from.
+export const showDialog: ShowDialog = (args, at) => {
+  const doc = at.el.ownerDocument;
+  const host = doc.createElement("div");
+  doc.body.append(host);
+  let open = true;
+  // What unmounts the dialog, once its code has loaded and drawn it.
+  let unmount: (() => void) | undefined;
+  const offAbort = at.signal === undefined ? () => undefined : onAbort(at.signal, hide);
+
+  function hide(): void {
+    if (!open) return;
+    open = false;
+    offAbort();
+    if (unmount !== undefined) attempt(unmount);
+    host.remove();
+    args.close();
+    // The focus goes back to the element that the user triggered from where
+    // it is nowhere, and stays where code of the page moved it.
+    const active = doc.activeElement;
+    if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
+  }
+
+  import("./dialog.tsx").then(
+    ({ drawDialog }) => {
+      if (open) unmount = drawDialog(host, args, hide);
+    },
+    (error: unknown) => {
+      log.error(new Error(`Core's dialog failed to load, so it shows no advanced action of the board action "${args.id}": ${errorMessage(error)}`, { cause: error }));
+      hide();
+    },
+  );
+  return () => {
+    hide();
+  };
+};
 
 function sameTarget(a: Target, b: Target): boolean {
   return JSON.stringify(a) === JSON.stringify(b);

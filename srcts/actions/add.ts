@@ -48,6 +48,8 @@
 // board plugin does. There core renders the picker again once it has added a
 // block. Where the keyboard's focus was in the picker as the user added the
 // block, the new picker takes the focus, so that it is ready for the next one.
+// Core's runtime loads the picker as it first renders it (../picker), since
+// the picker draws with blockr.ui's components.
 //
 // Each carries a plus as its icon, in the shape of blockr.ui's `plus`
 // (./icons.ts).
@@ -64,13 +66,11 @@
 // target runs nothing.
 
 import { freeInputs } from "../commands/index.ts";
-import { blockClasses, BlockPicker } from "../picker/index.ts";
 import type { AddMode } from "../picker/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { drawForm } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { blockClasses, own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import { PLUS } from "./icons.ts";
@@ -236,32 +236,35 @@ function freeInputOf(board: Board, registry: Readonly<Record<RegistryId, Registr
 
 // The block picker as the advanced action of a board action, in the mode that
 // `mode` gives for the target. It renders nothing for a target that gives no
-// mode, which core hands it for no board action of this file.
+// mode, which core hands it for no board action of this file, and nothing
+// where core unmounts it before the picker has loaded.
 function pickerModule(mode: (target: Target) => AddMode | undefined): AdvancedModule {
   // The elements in which a picker added a block while the keyboard's focus
   // was in it, so that the picker that core renders there next takes the
   // focus.
   const focused = new WeakSet<HTMLElement>();
   return {
-    render({ el, core, target, filter, done }) {
+    async render({ el, core, target, filter, signal, done }) {
       const at = mode(target);
-      if (at === undefined) return () => undefined;
+      if (at === undefined) return undefined;
+      // Whether the picker takes the focus is read as core renders it, since
+      // the done() that added the block forgets the element once it resolves,
+      // which may be before the picker has loaded.
       const autofocus = filter !== undefined || focused.delete(el);
-      return drawForm(
-        el,
-        <BlockPicker
-          core={core}
-          mode={at}
-          {...(filter === undefined ? {} : { filter })}
-          autofocus={autofocus}
-          done={(calls, opts) => {
-            if (el.contains(el.ownerDocument.activeElement)) focused.add(el);
-            return done(calls, opts).finally(() => {
-              focused.delete(el);
-            });
-          }}
-        />,
-      );
+      const { drawPicker } = await import("../picker/index.ts");
+      if (signal.aborted) return undefined;
+      return drawPicker(el, {
+        core,
+        mode: at,
+        ...(filter === undefined ? {} : { filter }),
+        autofocus,
+        done: (calls, opts) => {
+          if (el.contains(el.ownerDocument.activeElement)) focused.add(el);
+          return done(calls, opts).finally(() => {
+            focused.delete(el);
+          });
+        },
+      });
     },
   };
 }

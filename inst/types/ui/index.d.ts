@@ -1,4 +1,4 @@
-export { blockItem, blockName, blockRow, blockTexts, classInputs, isVariadicBlock } from "./blocks.tsx";
+export { blockItem, blockRow, blockTexts } from "./blocks.tsx";
 export type { BlockItem } from "./blocks.tsx";
 export { notifiedReasons, runCommand, useEdits } from "./edits.ts";
 export type { Done, Edits, Refused } from "./edits.ts";

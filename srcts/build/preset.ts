@@ -10,9 +10,9 @@
 // `@blockr/ui/icons` that the module imports.
 // It fails a build that imports an entry point of React or a part of React
 // Aria that the page's import map does not name, or one of Lucide's packages.
-// This preset leaves the imports of core's React SDK, its binding, its
-// controls and its OpenTelemetry module, and of OpenTelemetry's API, imports
-// as well.
+// This preset leaves the imports of core's React SDK, its components, its
+// binding, its controls and its OpenTelemetry module, and of OpenTelemetry's
+// API, imports as well.
 // The page that R serves resolves all of them through its one import map.
 // So the module's bundle holds none of them.
 // A package's build adds its entry points and where they go, as in

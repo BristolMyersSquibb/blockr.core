@@ -2,7 +2,7 @@
 // transport, registers the plugin classes and board options that R's reply
 // names, core's own among them, and draws each board that opens with its
 // frontend in the page's element, as srcts/core starts it. Core draws a block that serve() serves alone in its card instead
-// (./card.tsx).
+// (./alone.ts).
 // While core starts, as the page starts and as another board opens, the
 // element shows the loading note, as today's page waits for the board that a
 // loader resolves.
@@ -22,7 +22,7 @@ import { shinyTransport } from "../transport/index.ts";
 import { log } from "../log/index.ts";
 import { loadingNote, pageFrontEnds, start } from "../core/index.ts";
 import type { Started } from "../core/index.ts";
-import { drawCard } from "./card.tsx";
+import { showCard } from "./alone.ts";
 
 export interface PageOptions {
   // The element that the frontends draw in.
@@ -49,7 +49,7 @@ export function startPage(options: PageOptions): Started {
     frontEnds: {
       ...pageFrontEnds(el),
       card(core, signal) {
-        drawCard(el, core, signal);
+        return showCard(el, core, signal);
       },
     },
     ...(options.alone === true ? { alone: true } : {}),

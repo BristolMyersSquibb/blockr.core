@@ -13,6 +13,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { fieldError, find, labelled, listed, picked, pressAndRelease, rows, step, texts, type } from "@blockr/ui/stubs";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
+import { waitForLoaded } from "../testing/loading.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
 import type { Board, LinkId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -48,6 +49,7 @@ async function opened(block: string, given?: StubCore): Promise<{ s: StubCore; c
   });
   const shown = s.advanced();
   if (shown === undefined) throw new Error("Core's dialog shows no advanced action.");
+  await waitForLoaded(() => applyButton(shown.el));
   return { s, core: s.core, el: shown.el, board: () => s.core.store.board() };
 }
 
@@ -177,6 +179,7 @@ describe("Edit inputs", () => {
     expect(menu.closed()).toBe(true);
     expect(s.advanced()).toMatchObject({ id: EDIT_INPUTS, title: "Edit inputs", target: { block: "c" } });
     const el = s.advanced()?.el ?? document;
+    await waitForLoaded(() => applyButton(el));
     expect(texts(el, "p")[0]).toBe('The inputs of the block "Merge".');
     expect(applyButton(el).type).toBe("submit");
     expect(applyButton(el).compareDocumentPosition(labelled(el, "y")) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
@@ -194,6 +197,7 @@ describe("Edit inputs", () => {
       act(unmount);
       room.remove();
     });
+    await waitForLoaded(() => applyButton(room));
 
     await acting(() => {
       button(room, "Remove input 1").click();
@@ -202,7 +206,10 @@ describe("Edit inputs", () => {
     await apply(room);
 
     expect(into(s.core.store.board(), "e")).toEqual([["de", "d", "low"]]);
-    expect(inputs(room)).toEqual(["Input 1, low, from Wide sepals"]);
+    // Core renders the advanced action afresh in the room.
+    await waitForLoaded(() => {
+      expect(inputs(room)).toEqual(["Input 1, low, from Wide sepals"]);
+    });
     s.core.store.undo();
     expect(into(s.core.store.board(), "e")).toEqual([
       ["be", "b", ""],
@@ -583,6 +590,7 @@ describe("on a variadic block", () => {
       void menu.pick("Edit inputs");
     });
     const el = s.advanced()?.el ?? document;
+    await waitForLoaded(() => applyButton(el));
     await acting(() => {
       void picked(labelled(el, "Add input"), step, "Iris");
     });

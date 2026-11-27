@@ -1,46 +1,17 @@
-// srcts/stubs/index.ts
-import "@blockr/ui/stubs";
-
-// srcts/testing/dom.ts
-if (typeof navigator !== "undefined" && navigator.userAgent.includes("HappyDOM")) {
-  globalThis.IntersectionObserver = class InView {
-    root = null;
-    rootMargin = "0px";
-    scrollMargin = "0px";
-    thresholds = [0];
-    #callback;
-    #observed = /* @__PURE__ */ new Set();
-    constructor(callback) {
-      this.#callback = callback;
-    }
-    observe(target2) {
-      this.#observed.add(target2);
-      queueMicrotask(() => {
-        if (!this.#observed.has(target2)) return;
-        const rect = target2.getBoundingClientRect();
-        const entry = {
-          target: target2,
-          isIntersecting: true,
-          intersectionRatio: 1,
-          boundingClientRect: rect,
-          intersectionRect: rect,
-          rootBounds: null,
-          time: performance.now()
-        };
-        this.#callback([entry], this);
-      });
-    }
-    unobserve(target2) {
-      this.#observed.delete(target2);
-    }
-    disconnect() {
-      this.#observed.clear();
-    }
-    takeRecords() {
-      return [];
-    }
-  };
-}
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res, err) => function __init() {
+  if (err) throw err[0];
+  try {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  } catch (e) {
+    throw err = [e], e;
+  }
+};
+var __export = (target2, all) => {
+  for (var name2 in all)
+    __defProp(target2, name2, { get: all[name2], enumerable: true });
+};
 
 // srcts/util/util.ts
 function own(record, key2) {
@@ -108,12 +79,12 @@ function asLogical(text) {
   if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;
   return void 0;
 }
+var init_util = __esm({
+  "srcts/util/util.ts"() {
+  }
+});
 
 // srcts/util/notification.ts
-var raiseNothing = () => () => void 0;
-var repliedNothing = () => void 0;
-var notifyNothing = () => () => void 0;
-var refusedNothing = () => void 0;
 function givenNotifier(opts, call2) {
   if (opts?.notifier === void 0) return void 0;
   if (typeof opts.notifier !== "function") throw new TypeError(`The \`notifier\` of ${call2} is a function.`);
@@ -136,8 +107,6 @@ function coreNotification(code, severity, message, concerns = {}) {
     ...about === void 0 ? {} : { about }
   };
 }
-var SEVERITIES = ["message", "warning", "error"];
-var KINDS = ["block", "link", "stack", "option", "plugin"];
 function isBoardObject(value2) {
   if (!isObject(value2)) return false;
   const keys = Object.keys(value2);
@@ -179,6 +148,18 @@ function checkRaised(notification) {
   }
   return notification;
 }
+var raiseNothing, repliedNothing, notifyNothing, refusedNothing, SEVERITIES, KINDS;
+var init_notification = __esm({
+  "srcts/util/notification.ts"() {
+    init_util();
+    raiseNothing = () => () => void 0;
+    repliedNothing = () => void 0;
+    notifyNothing = () => () => void 0;
+    refusedNothing = () => void 0;
+    SEVERITIES = ["message", "warning", "error"];
+    KINDS = ["block", "link", "stack", "option", "plugin"];
+  }
+});
 
 // srcts/util/shortcuts.ts
 function matchesShortcut(text, event) {
@@ -223,7 +204,6 @@ function onMac(win) {
   const nav = win.navigator;
   return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
 }
-var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
 function readShortcut(text) {
   const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
   const key2 = text.slice(at + 1);
@@ -235,6 +215,73 @@ function readShortcut(text) {
   if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
   return { key: key2, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
 }
+var MODIFIERS;
+var init_shortcuts = __esm({
+  "srcts/util/shortcuts.ts"() {
+    MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
+  }
+});
+
+// srcts/util/blocks.ts
+function blockName(board, block) {
+  return own(board.blocks, block)?.name ?? block;
+}
+function classInputs(board, registry, block) {
+  const held4 = own(board.blocks, block);
+  return (held4 === void 0 ? void 0 : own(registry, held4.registry_id)?.inputs) ?? [];
+}
+function isVariadicBlock(board, registry, block) {
+  return classInputs(board, registry, block).includes("...");
+}
+function namesInto(board, to, except) {
+  return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
+}
+function inputNameError(value2, taken) {
+  const trimmed = value2.trim();
+  if (trimmed === "") return void 0;
+  if (taken.includes(trimmed)) return `Another link gives the input the name "${trimmed}" already.`;
+  return void 0;
+}
+function blockClasses(entries2) {
+  return entries2.map(classItem).sort(byGroupAndName);
+}
+function classItem(entry) {
+  return {
+    id: entry.id,
+    name: entry.name,
+    description: entry.description,
+    icon: entry.icon,
+    pkg: packageFromId(entry.id),
+    category: entry.category === "" ? UNCATEGORIZED : entry.category,
+    keywords: entry.keywords
+  };
+}
+function byGroupAndName(a, b) {
+  const last = (item2) => item2.category.toLowerCase() === UNCATEGORIZED ? 1 : 0;
+  return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
+}
+var UNCATEGORIZED;
+var init_blocks = __esm({
+  "srcts/util/blocks.ts"() {
+    init_util();
+    UNCATEGORIZED = "uncategorized";
+  }
+});
+
+// srcts/util/modules.ts
+function loadedModule(load) {
+  return {
+    async render(args) {
+      const module = await load();
+      if (args.signal.aborted) return void 0;
+      return module.render(args);
+    }
+  };
+}
+var init_modules = __esm({
+  "srcts/util/modules.ts"() {
+  }
+});
 
 // srcts/util/validate.ts
 import { Validator } from "@cfworker/json-schema";
@@ -259,26 +306,41 @@ function schemaDraft(schema) {
   if (declared.includes("2019-09")) return "2019-09";
   return "2020-12";
 }
-var wrappers = /* @__PURE__ */ new Set([
-  "properties",
-  "items",
-  "prefixItems",
-  "additionalItems",
-  "$ref",
-  "$dynamicRef",
-  "$recursiveRef",
-  "allOf",
-  "false"
-]);
 function describe(errors, fails) {
   return errors.filter((error) => !wrappers.has(error.keyword)).map((error) => {
     const at = error.instanceLocation.replace(/^#/, "");
     return `${fails}${at === "" ? "" : ` at ${at}`}: ${error.error}`;
   });
 }
+var wrappers;
+var init_validate = __esm({
+  "srcts/util/validate.ts"() {
+    init_util();
+    wrappers = /* @__PURE__ */ new Set([
+      "properties",
+      "items",
+      "prefixItems",
+      "additionalItems",
+      "$ref",
+      "$dynamicRef",
+      "$recursiveRef",
+      "allOf",
+      "false"
+    ]);
+  }
+});
 
-// srcts/stubs/util.ts
-import { act } from "react";
+// srcts/util/index.ts
+var init_util2 = __esm({
+  "srcts/util/index.ts"() {
+    init_util();
+    init_notification();
+    init_shortcuts();
+    init_blocks();
+    init_modules();
+    init_validate();
+  }
+});
 
 // srcts/log/line.ts
 function writingLog(pkg, write2) {
@@ -311,13 +373,13 @@ function writingLog(pkg, write2) {
     }
   });
 }
+var init_line = __esm({
+  "srcts/log/line.ts"() {
+    init_util2();
+  }
+});
 
 // srcts/log/log.ts
-var THRESHOLDS = ["fatal", "error", "warn", "info", "debug", "trace"];
-var logging;
-var awaited = false;
-var held = [];
-var replaced = [];
 function reaches(level, lowest) {
   return THRESHOLDS.indexOf(level) <= THRESHOLDS.indexOf(lowest);
 }
@@ -348,18 +410,6 @@ function fallBack() {
 function createLog(pkg) {
   return writingLog(pkg, write);
 }
-var log = /* @__PURE__ */ createLog("blockr.core");
-var consoleLogger = (line) => {
-  const write2 = consoleWriter(line.level);
-  const prefix = line.package === null ? void 0 : `[${line.package}]`;
-  if (line.error === void 0) {
-    write2("%s", prefix === void 0 ? line.message : `${prefix} ${line.message}`);
-  } else if (prefix === void 0) {
-    write2(line.error);
-  } else {
-    write2("%s", prefix, line.error);
-  }
-};
 function consoleWriter(level) {
   switch (level) {
     case "error":
@@ -389,9 +439,30 @@ function replaceLogger(logger, passOn = false) {
     if (at >= 0) replaced.splice(at, 1);
   };
 }
+var THRESHOLDS, logging, awaited, held, replaced, log, consoleLogger;
+var init_log = __esm({
+  "srcts/log/log.ts"() {
+    init_line();
+    THRESHOLDS = ["fatal", "error", "warn", "info", "debug", "trace"];
+    awaited = false;
+    held = [];
+    replaced = [];
+    log = /* @__PURE__ */ createLog("blockr.core");
+    consoleLogger = (line) => {
+      const write2 = consoleWriter(line.level);
+      const prefix = line.package === null ? void 0 : `[${line.package}]`;
+      if (line.error === void 0) {
+        write2("%s", prefix === void 0 ? line.message : `${prefix} ${line.message}`);
+      } else if (prefix === void 0) {
+        write2(line.error);
+      } else {
+        write2("%s", prefix, line.error);
+      }
+    };
+  }
+});
 
 // srcts/log/settings.ts
-var LOGGERS = ["console", "otel", "condition"];
 function logSettings(values2, base) {
   const lowest = logLevel(values2.logLevel);
   const endpoint = values2.otelClientEndpoint === void 0 ? void 0 : collectorUrl(values2.otelClientEndpoint, "v1/logs", base);
@@ -463,8 +534,6089 @@ function setUpLogging(settings, serviceName2, sessionId, load) {
     setLogging(lowest, logger);
   })();
 }
+var LOGGERS;
+var init_settings = __esm({
+  "srcts/log/settings.ts"() {
+    init_util2();
+    init_log();
+    LOGGERS = ["console", "otel", "condition"];
+  }
+});
+
+// srcts/log/index.ts
+var init_log2 = __esm({
+  "srcts/log/index.ts"() {
+    init_log();
+    init_line();
+    init_settings();
+  }
+});
+
+// srcts/graph/graph.ts
+function createGraph(board) {
+  const blocks = Object.keys(board.blocks);
+  const into = /* @__PURE__ */ new Map();
+  const sources = /* @__PURE__ */ new Map();
+  const targets = /* @__PURE__ */ new Map();
+  for (const id2 of blocks) {
+    into.set(id2, []);
+    sources.set(id2, []);
+    targets.set(id2, []);
+  }
+  for (const [id2, link] of Object.entries(board.links)) {
+    const linksIn = into.get(link.to);
+    const from = sources.get(link.to);
+    const to = targets.get(link.from);
+    if (linksIn === void 0 || from === void 0 || to === void 0) continue;
+    linksIn.push(id2);
+    from.push(link.from);
+    to.push(link.to);
+  }
+  const upstream = once(sources);
+  const downstream = once(targets);
+  const order = topological(blocks, sources, targets);
+  let cycle;
+  return {
+    order,
+    linksInto: (id2) => into.get(id2) ?? [],
+    upstream: (id2) => upstream.get(id2) ?? [],
+    downstream: (id2) => downstream.get(id2) ?? [],
+    withUpstream: (ids2) => closure(ids2, upstream),
+    withDownstream: (ids2) => closure(ids2, downstream),
+    cycle() {
+      cycle ??= { found: findCycle(board, targets) };
+      return cycle.found;
+    },
+    path: (from, to) => findPath(from, to, downstream)
+  };
+}
+function once(ends2) {
+  return new Map([...ends2].map(([id2, blocks]) => [id2, [...new Set(blocks)]]));
+}
+function closure(ids2, steps2) {
+  const reached = /* @__PURE__ */ new Set();
+  const todo = [...ids2].filter((id2) => steps2.has(id2));
+  for (const id2 of todo) reached.add(id2);
+  for (const id2 of todo) {
+    for (const next of steps2.get(id2) ?? []) {
+      if (reached.has(next)) continue;
+      reached.add(next);
+      todo.push(next);
+    }
+  }
+  return reached;
+}
+function topological(blocks, sources, targets) {
+  const left2 = new Map(blocks.map((id2) => [id2, sources.get(id2)?.length ?? 0]));
+  const order = blocks.filter((id2) => left2.get(id2) === 0);
+  for (const id2 of order) {
+    for (const next of targets.get(id2) ?? []) {
+      const count2 = (left2.get(next) ?? 0) - 1;
+      left2.set(next, count2);
+      if (count2 === 0) order.push(next);
+    }
+  }
+  const placed2 = new Set(order);
+  return [...order, ...blocks.filter((id2) => !placed2.has(id2))];
+}
+function findCycle(board, targets) {
+  const done = /* @__PURE__ */ new Set();
+  const path = [];
+  const onPath = /* @__PURE__ */ new Set();
+  function visit(block) {
+    if (onPath.has(block)) return path.slice(path.indexOf(block));
+    if (done.has(block)) return void 0;
+    path.push(block);
+    onPath.add(block);
+    for (const next of targets.get(block) ?? []) {
+      const cycle = visit(next);
+      if (cycle !== void 0) return cycle;
+    }
+    path.pop();
+    onPath.delete(block);
+    done.add(block);
+    return void 0;
+  }
+  const starts = new Set(Object.values(board.links).map((link) => link.from));
+  for (const block of starts) {
+    if (!targets.has(block)) continue;
+    const cycle = visit(block);
+    if (cycle !== void 0) return cycle;
+  }
+  return void 0;
+}
+function findPath(from, to, downstream) {
+  if (!downstream.has(from)) return void 0;
+  const before = /* @__PURE__ */ new Map([[from, void 0]]);
+  const todo = [from];
+  for (const block of todo) {
+    if (block === to) {
+      const path = [block];
+      for (let at = before.get(block); at !== void 0; at = before.get(at)) path.unshift(at);
+      return path;
+    }
+    for (const next of downstream.get(block) ?? []) {
+      if (before.has(next)) continue;
+      before.set(next, block);
+      todo.push(next);
+    }
+  }
+  return void 0;
+}
+var init_graph = __esm({
+  "srcts/graph/graph.ts"() {
+  }
+});
+
+// srcts/graph/index.ts
+var init_graph2 = __esm({
+  "srcts/graph/index.ts"() {
+    init_graph();
+  }
+});
+
+// srcts/trace/trace.ts
+import { context, isSpanContextValid, SpanStatusCode, trace } from "@opentelemetry/api";
+function tracer() {
+  return trace.getTracer(SCOPE);
+}
+function traceparent(span) {
+  if (!span.isRecording()) return void 0;
+  const { traceId, spanId, traceFlags } = span.spanContext();
+  if (!isSpanContextValid({ traceId, spanId, traceFlags })) return void 0;
+  return `00-${traceId}-${spanId}-${(traceFlags & 255).toString(16).padStart(2, "0")}`;
+}
+function keepContext() {
+  const kept = context.active();
+  return (fn) => context.with(kept, fn);
+}
+function activeSpanContext() {
+  const span = trace.getActiveSpan();
+  if (span?.isRecording() !== true) return void 0;
+  const spanContext = span.spanContext();
+  return isSpanContextValid(spanContext) ? spanContext : void 0;
+}
+function failSpan(span, error) {
+  const failure = asError(error);
+  span.recordException(failure);
+  span.setStatus({ code: SpanStatusCode.ERROR, message: failure.message });
+}
+var SCOPE;
+var init_trace = __esm({
+  "srcts/trace/trace.ts"() {
+    init_util2();
+    SCOPE = "blockr.core";
+  }
+});
+
+// srcts/trace/steps.ts
+import { context as context2, trace as trace2 } from "@opentelemetry/api";
+function steps(name2, start3 = performance.now(), parent = context2.active()) {
+  const taken = [];
+  let recorded = false;
+  return {
+    async step(stepName, fn) {
+      const step2 = { name: stepName, start: performance.now() };
+      taken.push(step2);
+      try {
+        return await fn();
+      } catch (error) {
+        step2.error = error;
+        throw error;
+      } finally {
+        step2.end = performance.now();
+      }
+    },
+    noted(stepName, stepStart, end) {
+      taken.push({ name: stepName, start: stepStart, end });
+    },
+    record(ready, failure) {
+      if (recorded) return;
+      recorded = true;
+      const end = performance.now();
+      const write2 = () => {
+        const whole = tracer().startSpan(name2, { startTime: start3 }, parent);
+        const inside = trace2.setSpan(parent, whole);
+        for (const step2 of taken) {
+          const span = tracer().startSpan(step2.name, { startTime: step2.start }, inside);
+          if (step2.error !== void 0) failSpan(span, step2.error);
+          span.end(step2.end ?? end);
+        }
+        if (failure !== void 0) failSpan(whole, failure);
+        whole.end(end);
+      };
+      void ready.then(write2, write2);
+    }
+  };
+}
+var init_steps = __esm({
+  "srcts/trace/steps.ts"() {
+    init_trace();
+  }
+});
+
+// srcts/trace/settings.ts
+function tracesUrl(otelClientEndpoint, base) {
+  return otelClientEndpoint === void 0 ? void 0 : collectorUrl(otelClientEndpoint, "v1/traces", base);
+}
+async function setUpTracing(url, serviceName2, sessionId, load) {
+  if (url === void 0) return;
+  try {
+    (await load()).otelTracing({ url, serviceName: serviceName2, sessionId });
+  } catch (error) {
+    log.error(
+      new Error(`Core could not set up its OpenTelemetry tracing, so the page records no spans: ${errorMessage(error)}`, {
+        cause: error
+      })
+    );
+  }
+}
+var init_settings2 = __esm({
+  "srcts/trace/settings.ts"() {
+    init_log2();
+    init_util2();
+  }
+});
+
+// srcts/trace/index.ts
+var init_trace2 = __esm({
+  "srcts/trace/index.ts"() {
+    init_trace();
+    init_steps();
+    init_settings2();
+  }
+});
+
+// srcts/store/words.ts
+var adjectives, animals;
+var init_words = __esm({
+  "srcts/store/words.ts"() {
+    adjectives = [
+      "ablaze",
+      "able",
+      "acid",
+      "acidic",
+      "active",
+      "actual",
+      "added",
+      "adept",
+      "adored",
+      "adroit",
+      "aerial",
+      "agile",
+      "agreed",
+      "airy",
+      "alert",
+      "alive",
+      "allied",
+      "almond",
+      "amber",
+      "ample",
+      "amused",
+      "apt",
+      "arcane",
+      "arctic",
+      "ardent",
+      "arid",
+      "artful",
+      "arty",
+      "ash",
+      "astral",
+      "astute",
+      "atomic",
+      "auburn",
+      "avian",
+      "awake",
+      "aware",
+      "azure",
+      "balmy",
+      "basic",
+      "beachy",
+      "beige",
+      "benign",
+      "beryl",
+      "best",
+      "big",
+      "binary",
+      "bionic",
+      "black",
+      "blithe",
+      "blocky",
+      "blond",
+      "blowy",
+      "blue",
+      "bold",
+      "bonny",
+      "boreal",
+      "bouncy",
+      "brainy",
+      "brass",
+      "brave",
+      "breezy",
+      "brick",
+      "brief",
+      "bright",
+      "briny",
+      "brisk",
+      "broad",
+      "bronze",
+      "brown",
+      "bubbly",
+      "bumpy",
+      "bushy",
+      "busy",
+      "calm",
+      "candid",
+      "carbon",
+      "caring",
+      "catchy",
+      "cerise",
+      "chalky",
+      "chatty",
+      "cheeky",
+      "cheery",
+      "chewy",
+      "chic",
+      "chief",
+      "chilly",
+      "choral",
+      "chosen",
+      "chummy",
+      "chunky",
+      "citric",
+      "civic",
+      "civil",
+      "classy",
+      "clay",
+      "clean",
+      "clever",
+      "cloudy",
+      "cocoa",
+      "cold",
+      "comfy",
+      "comic",
+      "common",
+      "cool",
+      "copper",
+      "coral",
+      "cosmic",
+      "cotton",
+      "covert",
+      "coy",
+      "cozy",
+      "crafty",
+      "craggy",
+      "cream",
+      "creamy",
+      "crispy",
+      "cubic",
+      "cuddly",
+      "curly",
+      "curved",
+      "cushy",
+      "cute",
+      "cyan",
+      "dainty",
+      "dapper",
+      "daring",
+      "dark",
+      "dear",
+      "decent",
+      "deep",
+      "deft",
+      "demure",
+      "denim",
+      "dense",
+      "dewy",
+      "divine",
+      "diving",
+      "docile",
+      "dogged",
+      "dotted",
+      "dovish",
+      "downy",
+      "dreamy",
+      "dressy",
+      "droll",
+      "dry",
+      "dusky",
+      "dusty",
+      "eager",
+      "earthy",
+      "easy",
+      "ebony",
+      "edgy",
+      "edible",
+      "elated",
+      "elder",
+      "elfin",
+      "elite",
+      "elvish",
+      "equal",
+      "even",
+      "exact",
+      "exotic",
+      "expert",
+      "extra",
+      "fab",
+      "fabled",
+      "fair",
+      "famed",
+      "famous",
+      "fancy",
+      "far",
+      "fast",
+      "feisty",
+      "ferny",
+      "fierce",
+      "fiery",
+      "final",
+      "fine",
+      "firm",
+      "first",
+      "fit",
+      "fixed",
+      "fizzy",
+      "flashy",
+      "flat",
+      "flax",
+      "fleecy",
+      "flinty",
+      "floaty",
+      "floppy",
+      "floral",
+      "fluent",
+      "fluffy",
+      "fluid",
+      "flying",
+      "foamy",
+      "foggy",
+      "fond",
+      "forest",
+      "formal",
+      "frank",
+      "free",
+      "fresh",
+      "frilly",
+      "frisky",
+      "frizzy",
+      "frosty",
+      "frothy",
+      "frozen",
+      "frugal",
+      "fruity",
+      "full",
+      "fun",
+      "funny",
+      "furry",
+      "future",
+      "fuzzy",
+      "garnet",
+      "gauzy",
+      "gem",
+      "genial",
+      "genius",
+      "gentle",
+      "giant",
+      "giddy",
+      "gifted",
+      "giggly",
+      "glad",
+      "glass",
+      "glassy",
+      "glazed",
+      "global",
+      "glossy",
+      "gnarly",
+      "gold",
+      "golden",
+      "good",
+      "goodly",
+      "goofy",
+      "gothic",
+      "grainy",
+      "grand",
+      "grassy",
+      "great",
+      "green",
+      "grey",
+      "groovy",
+      "grown",
+      "gutsy",
+      "handy",
+      "happy",
+      "hasty",
+      "hazy",
+      "heavy",
+      "herbal",
+      "herby",
+      "heroic",
+      "hidden",
+      "high",
+      "hilly",
+      "hip",
+      "hollow",
+      "homey",
+      "honest",
+      "huge",
+      "humane",
+      "humble",
+      "humid",
+      "hungry",
+      "iced",
+      "iconic",
+      "icy",
+      "ideal",
+      "idle",
+      "immune",
+      "impish",
+      "indigo",
+      "indoor",
+      "inky",
+      "inland",
+      "inner",
+      "intact",
+      "ionic",
+      "ironic",
+      "ivory",
+      "jade",
+      "jagged",
+      "jaunty",
+      "jazzy",
+      "jet",
+      "jewel",
+      "jolly",
+      "jovial",
+      "joyful",
+      "joyous",
+      "juicy",
+      "jumpy",
+      "junior",
+      "just",
+      "keen",
+      "key",
+      "khaki",
+      "kind",
+      "kindly",
+      "kingly",
+      "knotty",
+      "known",
+      "lace",
+      "lacy",
+      "lapis",
+      "large",
+      "lavish",
+      "lawful",
+      "leafy",
+      "lean",
+      "legal",
+      "lemon",
+      "lemony",
+      "level",
+      "light",
+      "liked",
+      "lilac",
+      "lime",
+      "limpid",
+      "linear",
+      "linen",
+      "little",
+      "live",
+      "lively",
+      "living",
+      "local",
+      "long",
+      "loved",
+      "lovely",
+      "loving",
+      "low",
+      "lowkey",
+      "loyal",
+      "lucid",
+      "lucky",
+      "lunar",
+      "lupine",
+      "lush",
+      "magic",
+      "main",
+      "maize",
+      "major",
+      "marble",
+      "marine",
+      "maroon",
+      "marshy",
+      "mauve",
+      "medium",
+      "meek",
+      "mega",
+      "mellow",
+      "merry",
+      "metal",
+      "mica",
+      "mid",
+      "middle",
+      "mighty",
+      "mild",
+      "milky",
+      "mini",
+      "minor",
+      "minute",
+      "misty",
+      "mobile",
+      "modern",
+      "modest",
+      "modish",
+      "mossy",
+      "moving",
+      "mutual",
+      "myrtle",
+      "narrow",
+      "naval",
+      "navy",
+      "near",
+      "nearby",
+      "neat",
+      "neon",
+      "new",
+      "newsy",
+      "next",
+      "nice",
+      "nickel",
+      "nifty",
+      "nimble",
+      "noble",
+      "noir",
+      "normal",
+      "novel",
+      "nylon",
+      "oblong",
+      "ochre",
+      "olive",
+      "onyx",
+      "opal",
+      "open",
+      "optic",
+      "orange",
+      "ornate",
+      "outer",
+      "oval",
+      "paper",
+      "papery",
+      "peach",
+      "peachy",
+      "pearl",
+      "pearly",
+      "pebbly",
+      "peppy",
+      "perky",
+      "pine",
+      "pink",
+      "placid",
+      "plaid",
+      "plain",
+      "plucky",
+      "plush",
+      "poetic",
+      "polar",
+      "polite",
+      "postal",
+      "potent",
+      "pretty",
+      "prim",
+      "prime",
+      "proper",
+      "proud",
+      "public",
+      "pure",
+      "purple",
+      "quaint",
+      "quartz",
+      "quick",
+      "rainy",
+      "random",
+      "rapid",
+      "rapt",
+      "rare",
+      "ready",
+      "real",
+      "recent",
+      "red",
+      "reedy",
+      "regal",
+      "rich",
+      "right",
+      "ripe",
+      "ritzy",
+      "robust",
+      "rocky",
+      "roomy",
+      "rosy",
+      "round",
+      "royal",
+      "rubber",
+      "ruby",
+      "runic",
+      "rural",
+      "russet",
+      "rust",
+      "rustic",
+      "safe",
+      "saline",
+      "salmon",
+      "salted",
+      "salty",
+      "sand",
+      "sandy",
+      "sane",
+      "sassy",
+      "satin",
+      "satiny",
+      "savvy",
+      "secret",
+      "secure",
+      "sedate",
+      "select",
+      "sepia",
+      "serene",
+      "shaded",
+      "shaggy",
+      "shared",
+      "sharp",
+      "sheer",
+      "shiny",
+      "short",
+      "shrewd",
+      "shy",
+      "sienna",
+      "silk",
+      "silken",
+      "silky",
+      "silly",
+      "silver",
+      "simple",
+      "single",
+      "slate",
+      "sleepy",
+      "slick",
+      "slight",
+      "slow",
+      "sly",
+      "small",
+      "smart",
+      "smoky",
+      "smooth",
+      "snappy",
+      "snazzy",
+      "snowy",
+      "snug",
+      "soapy",
+      "social",
+      "soft",
+      "solar",
+      "sole",
+      "solemn",
+      "solid",
+      "sonic",
+      "sound",
+      "spare",
+      "sparse",
+      "speedy",
+      "spicy",
+      "spiky",
+      "spiny",
+      "sporty",
+      "square",
+      "stable",
+      "starry",
+      "static",
+      "steamy",
+      "steel",
+      "steep",
+      "still",
+      "stoic",
+      "stone",
+      "stony",
+      "stormy",
+      "stout",
+      "strict",
+      "stripy",
+      "strong",
+      "suave",
+      "subtle",
+      "sudden",
+      "sudsy",
+      "suede",
+      "sugar",
+      "sugary",
+      "sunlit",
+      "sunny",
+      "super",
+      "superb",
+      "sure",
+      "sweet",
+      "swift",
+      "swirly",
+      "tall",
+      "tame",
+      "tamed",
+      "tan",
+      "tangy",
+      "tasty",
+      "taupe",
+      "taut",
+      "teal",
+      "techy",
+      "tender",
+      "thick",
+      "thin",
+      "thorny",
+      "tidal",
+      "tidy",
+      "timely",
+      "timid",
+      "tin",
+      "tinted",
+      "tiny",
+      "topaz",
+      "tough",
+      "toy",
+      "trendy",
+      "tricky",
+      "tweed",
+      "tweedy",
+      "twill",
+      "undyed",
+      "unique",
+      "united",
+      "unlit",
+      "upbeat",
+      "upper",
+      "urban",
+      "urbane",
+      "usable",
+      "useful",
+      "usual",
+      "valid",
+      "valued",
+      "varied",
+      "vast",
+      "vellum",
+      "velour",
+      "velvet",
+      "vernal",
+      "vinyl",
+      "violet",
+      "vital",
+      "vivid",
+      "wacky",
+      "warm",
+      "wavy",
+      "wax",
+      "waxy",
+      "wee",
+      "well",
+      "wheat",
+      "white",
+      "wide",
+      "wild",
+      "windy",
+      "winged",
+      "wintry",
+      "wise",
+      "wispy",
+      "witty",
+      "wood",
+      "wooded",
+      "wooden",
+      "woodsy",
+      "woody",
+      "wool",
+      "woolly",
+      "worthy",
+      "yellow",
+      "young",
+      "yummy",
+      "zany",
+      "zippy",
+      "zircon"
+    ];
+    animals = [
+      "addax",
+      "adder",
+      "agouti",
+      "alpaca",
+      "anole",
+      "ant",
+      "ape",
+      "auk",
+      "avocet",
+      "baboon",
+      "badger",
+      "bass",
+      "bat",
+      "beagle",
+      "bear",
+      "beaver",
+      "bee",
+      "beetle",
+      "bilby",
+      "bird",
+      "bison",
+      "boa",
+      "boar",
+      "bobcat",
+      "bongo",
+      "bonobo",
+      "borzoi",
+      "bream",
+      "bronco",
+      "buck",
+      "budgie",
+      "bug",
+      "bull",
+      "bunny",
+      "burro",
+      "caiman",
+      "calf",
+      "camel",
+      "canary",
+      "carp",
+      "cat",
+      "cicada",
+      "civet",
+      "clam",
+      "coati",
+      "cobra",
+      "cod",
+      "collie",
+      "colt",
+      "conch",
+      "condor",
+      "coot",
+      "cow",
+      "coyote",
+      "coypu",
+      "crab",
+      "crane",
+      "crow",
+      "cub",
+      "cuckoo",
+      "curlew",
+      "cygnet",
+      "deer",
+      "degu",
+      "dikdik",
+      "dingo",
+      "dipper",
+      "dodo",
+      "doe",
+      "dog",
+      "donkey",
+      "dove",
+      "drake",
+      "drongo",
+      "duck",
+      "dugong",
+      "dunlin",
+      "eagle",
+      "eel",
+      "egret",
+      "eider",
+      "eland",
+      "elk",
+      "emu",
+      "ermine",
+      "ewe",
+      "falcon",
+      "fawn",
+      "ferret",
+      "finch",
+      "fish",
+      "fly",
+      "foal",
+      "fossa",
+      "fowl",
+      "fox",
+      "frog",
+      "fulmar",
+      "galago",
+      "galah",
+      "gander",
+      "gannet",
+      "gaur",
+      "gecko",
+      "gelada",
+      "genet",
+      "gerbil",
+      "gibbon",
+      "gnu",
+      "goat",
+      "godwit",
+      "goose",
+      "gopher",
+      "grebe",
+      "grouse",
+      "gull",
+      "guppy",
+      "hake",
+      "hare",
+      "hawk",
+      "hen",
+      "heron",
+      "hog",
+      "hoopoe",
+      "hornet",
+      "horse",
+      "hound",
+      "husky",
+      "hyena",
+      "ibex",
+      "ibis",
+      "iguana",
+      "impala",
+      "jackal",
+      "jaguar",
+      "jay",
+      "jerboa",
+      "joey",
+      "junco",
+      "kakapo",
+      "kite",
+      "kitten",
+      "kiwi",
+      "koala",
+      "koi",
+      "krill",
+      "kudu",
+      "lamb",
+      "langur",
+      "lark",
+      "lemur",
+      "liger",
+      "limpet",
+      "lion",
+      "lizard",
+      "llama",
+      "loon",
+      "loris",
+      "lynx",
+      "macaw",
+      "magpie",
+      "mamba",
+      "manta",
+      "mantis",
+      "mare",
+      "marlin",
+      "marmot",
+      "marten",
+      "martin",
+      "mayfly",
+      "merlin",
+      "mink",
+      "minnow",
+      "mole",
+      "monkey",
+      "moose",
+      "moray",
+      "morpho",
+      "moth",
+      "mouse",
+      "mule",
+      "mullet",
+      "muskox",
+      "mussel",
+      "myna",
+      "nene",
+      "newt",
+      "numbat",
+      "nutria",
+      "nyala",
+      "ocelot",
+      "okapi",
+      "orca",
+      "oriole",
+      "oryx",
+      "osprey",
+      "otter",
+      "owl",
+      "ox",
+      "oyster",
+      "paca",
+      "panda",
+      "parrot",
+      "perch",
+      "phoebe",
+      "pig",
+      "pigeon",
+      "piglet",
+      "pika",
+      "pike",
+      "pipit",
+      "plover",
+      "pony",
+      "poodle",
+      "possum",
+      "prawn",
+      "puffer",
+      "puffin",
+      "pug",
+      "puma",
+      "puppy",
+      "python",
+      "quagga",
+      "quail",
+      "quokka",
+      "quoll",
+      "rabbit",
+      "ram",
+      "raven",
+      "ray",
+      "rhea",
+      "rhino",
+      "robin",
+      "rook",
+      "sable",
+      "saiga",
+      "salmon",
+      "scarab",
+      "seal",
+      "serval",
+      "shark",
+      "sheep",
+      "shrew",
+      "shrike",
+      "shrimp",
+      "siskin",
+      "skink",
+      "skua",
+      "skunk",
+      "sloth",
+      "snail",
+      "snake",
+      "snipe",
+      "spider",
+      "squid",
+      "stag",
+      "steed",
+      "steer",
+      "stilt",
+      "stoat",
+      "stork",
+      "swan",
+      "swift",
+      "takin",
+      "tapir",
+      "teal",
+      "tenrec",
+      "tern",
+      "thrush",
+      "tiger",
+      "toad",
+      "topi",
+      "toucan",
+      "towhee",
+      "trout",
+      "tuna",
+      "turaco",
+      "turkey",
+      "turtle",
+      "urchin",
+      "vervet",
+      "vicuna",
+      "viper",
+      "vole",
+      "walrus",
+      "wasp",
+      "weasel",
+      "whale",
+      "wisent",
+      "wolf",
+      "wombat",
+      "wrasse",
+      "wren",
+      "yak",
+      "zebra",
+      "zebu"
+    ];
+  }
+});
+
+// srcts/store/ids.ts
+function isRandId(value2) {
+  return typeof value2 === "string" && RAND_IDS.includes(value2);
+}
+function asRandId(randId) {
+  if (randId === void 0) return "adjective_animal";
+  if (isRandId(randId)) return randId;
+  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
+}
+function isId(id2) {
+  return typeof id2 === "string" && id2 !== "" && !/^\d+$/.test(id2);
+}
+function mintId(taken, randId = "adjective_animal") {
+  const draw = draws[randId];
+  for (let i = 0; i < 100; i++) {
+    const id3 = draw();
+    if (isId(id3) && !taken(id3)) return id3;
+  }
+  const id2 = draw();
+  let n = 2;
+  while (taken(`${id2}_${String(n)}`)) n++;
+  return `${id2}_${String(n)}`;
+}
+function randomInt(n) {
+  return Math.floor(Math.random() * n);
+}
+function pick(words) {
+  return words[randomInt(words.length)] ?? "";
+}
+function pickTwo(words) {
+  const i = randomInt(words.length);
+  let j = randomInt(words.length - 1);
+  if (j >= i) j++;
+  return [words[i] ?? "", words[j] ?? ""];
+}
+function randomLetters(n) {
+  return Array.from({ length: n }, () => String.fromCharCode(97 + randomInt(26))).join("");
+}
+function randomBytes(n) {
+  return Array.from({ length: n }, () => randomInt(256));
+}
+function hex2(bytes) {
+  return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+function randomUuid() {
+  const bytes = randomBytes(16);
+  bytes[6] = (bytes[6] ?? 0) & 15 | 64;
+  bytes[8] = (bytes[8] ?? 0) & 63 | 128;
+  const text = hex2(bytes);
+  return [text.slice(0, 8), text.slice(8, 12), text.slice(12, 16), text.slice(16, 20), text.slice(20)].join("-");
+}
+var RAND_IDS, draws;
+var init_ids = __esm({
+  "srcts/store/ids.ts"() {
+    init_util2();
+    init_words();
+    RAND_IDS = [
+      "adjective_animal",
+      "adjective_adjective_animal",
+      "letters_6",
+      "letters_8",
+      "letters_12",
+      "bytes_4",
+      "bytes_8",
+      "uuid"
+    ];
+    draws = {
+      adjective_animal: () => `${pick(adjectives)}_${pick(animals)}`,
+      adjective_adjective_animal: () => {
+        const [first, second] = pickTwo(adjectives);
+        return `${first}_${second}_${pick(animals)}`;
+      },
+      letters_6: () => randomLetters(6),
+      letters_8: () => randomLetters(8),
+      letters_12: () => randomLetters(12),
+      bytes_4: () => hex2(randomBytes(4)),
+      bytes_8: () => hex2(randomBytes(8)),
+      uuid: randomUuid
+    };
+  }
+});
+
+// srcts/store/check.ts
+function stateFailures(entry, state2) {
+  let validate = validators.get(entry);
+  if (validate === void 0) {
+    validate = compile(`the state of the block class "${entry.id}"`, entry.schema);
+    validators.set(entry, validate);
+  }
+  return validate(state2);
+}
+function check(board, registry, registrations, changed) {
+  const failures = [];
+  if (!isId(board.id)) {
+    failures.push(`The board's id "${board.id}" is empty or made of digits alone.`);
+  }
+  if (typeof board.name !== "string") {
+    failures.push("The board's name is no string.");
+  }
+  checkBlocks(board, registry, registrations, changed, failures);
+  checkLinks(board, registry, changed, failures);
+  checkStacks(board, changed, failures);
+  checkValues(board, registrations, changed, failures);
+  checkPlugins(board, registrations, changed, failures);
+  return failures;
+}
+function ids(what, record, failures) {
+  for (const id2 of Object.keys(record)) {
+    if (!isId(id2)) failures.push(`The ${what} id "${id2}" is empty or made of digits alone.`);
+  }
+}
+function checkBlocks(board, registry, registrations, changed, failures) {
+  ids("block", board.blocks, failures);
+  for (const [id2, block] of Object.entries(board.blocks)) {
+    if (changed !== void 0 && !changed.blocks.has(id2)) continue;
+    const fields = shape(block, {
+      registry_id: "string",
+      state: "object",
+      name: "string",
+      locked: "boolean or null"
+    });
+    if (fields.length > 0) {
+      failures.push(`The block "${id2}" ${fields.join(", ")}.`);
+      continue;
+    }
+    const entry = own(registry, block.registry_id);
+    if (entry === void 0) {
+      failures.push(
+        `The block "${id2}" is of the class "${block.registry_id}", which the block registry lacks.`
+      );
+      continue;
+    }
+    for (const failure of stateFailures(entry, block.state)) {
+      failures.push(`The state of the block "${id2}" ${failure}`);
+    }
+  }
+}
+function checkLinks(board, registry, changed, failures) {
+  ids("link", board.links, failures);
+  const fed = /* @__PURE__ */ new Map();
+  for (const [id2, link] of Object.entries(board.links)) {
+    if (changed === void 0 || changed.links.has(id2)) {
+      const fields = shape(link, { from: "string", to: "string", input: "string" });
+      if (fields.length > 0) {
+        failures.push(`The link "${id2}" ${fields.join(", ")}.`);
+        continue;
+      }
+    }
+    const from = own(board.blocks, link.from);
+    const to = own(board.blocks, link.to);
+    if (from === void 0) {
+      failures.push(`The link "${id2}" comes from block "${link.from}", which the board lacks.`);
+    }
+    if (to === void 0) {
+      failures.push(`The link "${id2}" goes to block "${link.to}", which the board lacks.`);
+      continue;
+    }
+    const inputs = own(registry, to.registry_id)?.inputs;
+    if (inputs === void 0 || inputs.includes("...")) continue;
+    if (!inputs.includes(link.input)) {
+      failures.push(
+        `The link "${id2}" feeds the input "${link.input}" of block "${link.to}", whose class has no such input.`
+      );
+      continue;
+    }
+    const at = JSON.stringify([link.to, link.input]);
+    fed.set(at, [...fed.get(at) ?? [], id2]);
+  }
+  for (const [at, links] of fed) {
+    if (links.length < 2) continue;
+    const [to, input2] = JSON.parse(at);
+    failures.push(
+      `The input "${input2}" of block "${to}" takes the links ${quoted(links)}, where it takes one.`
+    );
+  }
+  const cycle = createGraph(board).cycle();
+  if (cycle !== void 0) {
+    failures.push(`The links form a cycle through the blocks ${quoted(cycle)}.`);
+  }
+}
+function checkStacks(board, changed, failures) {
+  ids("stack", board.stacks, failures);
+  const holder = /* @__PURE__ */ new Map();
+  for (const [id2, stack] of Object.entries(board.stacks)) {
+    if (changed === void 0 || changed.stacks.has(id2)) {
+      const fields = shape(stack, { name: "string", blocks: "array", color: "string or null" });
+      if (fields.length > 0) {
+        failures.push(`The stack "${id2}" ${fields.join(", ")}.`);
+        continue;
+      }
+      if (stack.color !== null && !hexColor.test(stack.color)) {
+        failures.push(
+          `The stack "${id2}" has the colour "${stack.color}", which is no hex colour of six digits, such as "#66c2a5".`
+        );
+      }
+    }
+    for (const block of stack.blocks) {
+      if (own(board.blocks, block) === void 0) {
+        failures.push(`The stack "${id2}" holds block "${block}", which the board lacks.`);
+        continue;
+      }
+      const other = holder.get(block);
+      if (other === id2) {
+        failures.push(`The stack "${id2}" holds block "${block}" twice.`);
+      } else if (other !== void 0) {
+        failures.push(`The block "${block}" sits in the stacks "${other}" and "${id2}", where it sits in one.`);
+      }
+      holder.set(block, id2);
+    }
+  }
+}
+function checkValues(board, registrations, changed, failures) {
+  for (const [id2, value2] of Object.entries(board.options)) {
+    if (changed !== void 0 && !changed.options.has(id2)) continue;
+    const option = registrations.option(id2);
+    if (option === void 0) {
+      failures.push(`The board holds a value of the board option "${id2}", which no package registered.`);
+      continue;
+    }
+    for (const failure of option.validate(value2)) {
+      failures.push(`The value of the board option "${id2}" ${failure}`);
+    }
+  }
+}
+function checkPlugins(board, registrations, changed, failures) {
+  for (const [id2, state2] of Object.entries(board.plugins)) {
+    if (changed !== void 0 && !changed.plugins.has(id2)) continue;
+    const cls = registrations.plugin(id2);
+    if (cls === void 0) {
+      failures.push(`The board holds the state of a plugin of the class "${id2}", which no package registered.`);
+      continue;
+    }
+    if (cls.validate === void 0) {
+      failures.push(`The board holds the state of a plugin of the class "${id2}", which keeps none.`);
+      continue;
+    }
+    for (const failure of cls.validate(state2)) {
+      failures.push(`The state of the plugin "${id2}" ${failure}`);
+    }
+  }
+}
+function shape(value2, fields) {
+  if (!isObject(value2)) return ["is no object"];
+  const problems = [];
+  for (const [field, kind] of Object.entries(fields)) {
+    if (!fits(value2[field], kind)) problems.push(`has no ${kind} as its ${field}`);
+  }
+  for (const field of Object.keys(value2)) {
+    if (!Object.hasOwn(fields, field)) problems.push(`holds "${field}", which core does not keep`);
+  }
+  return problems;
+}
+function fits(x, kind) {
+  switch (kind) {
+    case "array":
+      return Array.isArray(x);
+    case "object":
+      return isObject(x);
+    case "string or null":
+      return x === null || typeof x === "string";
+    case "boolean or null":
+      return x === null || typeof x === "boolean";
+    case "string":
+      return typeof x === "string";
+  }
+}
+var HEX_COLOR, hexColor, validators;
+var init_check = __esm({
+  "srcts/store/check.ts"() {
+    init_graph2();
+    init_util2();
+    init_ids();
+    HEX_COLOR = "^#[0-9a-fA-F]{6}$";
+    hexColor = new RegExp(HEX_COLOR);
+    validators = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// srcts/store/patch.ts
+function segmentsFromPath(path) {
+  if (!path.startsWith("/")) return void 0;
+  const segments = path.slice(1).split("/");
+  if (segments.some((segment) => /~(?![01])/.test(segment))) return void 0;
+  return segments.map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
+}
+function pluginClassFromPath(path) {
+  const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
+  return boardProperty === "plugins" ? plugin : void 0;
+}
+function pathFromSegments(segments) {
+  return segments.map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
+}
+function overlap(a, b, board) {
+  let at = board;
+  for (const [i, segment] of a.slice(0, b.length).entries()) {
+    if (Array.isArray(at) || segment !== b[i]) return false;
+    at = isObject(at) ? own(at, segment) : void 0;
+  }
+  return true;
+}
+function malformed(patch2) {
+  if (!isObject(patch2)) return ["is no object"];
+  const problems = [];
+  const { op, path, edit } = patch2;
+  if (op !== "add" && op !== "remove" && op !== "replace") {
+    problems.push(`has the op ${JSON.stringify(op)}, where it takes "add", "remove" or "replace"`);
+  }
+  if (typeof path !== "string" || segmentsFromPath(path) === void 0) {
+    problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's root`);
+  }
+  if ((op === "add" || op === "replace") && patch2.value === void 0) {
+    problems.push("has no value");
+  }
+  if (edit !== void 0 && (typeof edit !== "number" || !Number.isInteger(edit))) {
+    problems.push(`has the edit id ${JSON.stringify(edit)}, which is no whole number`);
+  }
+  for (const field of Object.keys(patch2)) {
+    if (!["op", "path", "value", "edit"].includes(field)) {
+      problems.push(`holds "${field}", which a patch does not keep`);
+    }
+  }
+  return problems;
+}
+function applyPatch(board, patch2, segments, place) {
+  const result = step(board, segments, patch2, [], place);
+  if (typeof result === "string") return { failure: result };
+  return { ...result, next: result.next };
+}
+function step(at, segments, patch2, done, place) {
+  const [segment = "", ...rest] = segments;
+  if (Array.isArray(at)) {
+    const items = at;
+    const last = rest.length === 0;
+    const index = last && segment === "-" && patch2.op === "add" ? items.length : arrayIndex(segment);
+    const bound = last && patch2.op === "add" ? items.length : items.length - 1;
+    if (index === void 0 || index > bound) {
+      return `finds no element "${segment}" in the array at "${pathFromSegments(done)}"`;
+    }
+    const here2 = pathFromSegments([...done, String(index)]);
+    if (!last) {
+      const inner = step(items[index], rest, patch2, [...done, String(index)], place);
+      if (typeof inner === "string") return inner;
+      if (inner.next === items[index]) return { ...inner, next: at };
+      return { ...inner, next: spliced(items, index, 1, inner.next) };
+    }
+    const old2 = items[index];
+    switch (patch2.op) {
+      case "add":
+        return {
+          next: spliced(items, index, 0, patch2.value),
+          inverse: { op: "remove", path: here2 }
+        };
+      case "remove":
+        return {
+          next: spliced(items, index, 1),
+          inverse: { op: "add", path: here2, value: old2 }
+        };
+      case "replace":
+        if (jsonEqual(old2, patch2.value)) return { next: at, inverse: void 0 };
+        return {
+          next: spliced(items, index, 1, patch2.value),
+          inverse: { op: "replace", path: here2, value: old2 }
+        };
+    }
+  }
+  if (!isObject(at)) {
+    return `finds neither an object nor an array at "${pathFromSegments(done)}"`;
+  }
+  const has = Object.hasOwn(at, segment);
+  const old = has ? at[segment] : void 0;
+  const here = pathFromSegments([...done, segment]);
+  if (rest.length > 0) {
+    if (!has) return `finds no "${segment}" in "${pathFromSegments(done)}"`;
+    const inner = step(old, rest, patch2, [...done, segment], place);
+    if (typeof inner === "string") return inner;
+    if (inner.next === old) return { ...inner, next: at };
+    return { ...inner, next: { ...at, [segment]: inner.next } };
+  }
+  switch (patch2.op) {
+    case "add":
+    case "replace":
+      if (!has && patch2.op === "replace") return `finds no "${segment}" in "${pathFromSegments(done)}" to replace`;
+      if (!has) {
+        return { next: inserted(at, segment, patch2.value, place), inverse: { op: "remove", path: here } };
+      }
+      if (jsonEqual(old, patch2.value)) return { next: at, inverse: void 0 };
+      return {
+        next: { ...at, [segment]: patch2.value },
+        inverse: { op: "replace", path: here, value: old }
+      };
+    case "remove": {
+      if (!has) return `finds no "${segment}" in "${pathFromSegments(done)}" to remove`;
+      const members = Object.keys(at);
+      return {
+        next: without(at, [segment]),
+        inverse: { op: "add", path: here, value: old },
+        place: members[members.indexOf(segment) + 1] ?? null
+      };
+    }
+  }
+}
+function inserted(record, key2, value2, before) {
+  if (typeof before !== "string" || !Object.hasOwn(record, before)) {
+    return { ...record, [key2]: value2 };
+  }
+  const members = Object.entries(record);
+  members.splice(members.findIndex(([name2]) => name2 === before), 0, [key2, value2]);
+  return Object.fromEntries(members);
+}
+function spliced(items, index, count2, ...added) {
+  const copy = [...items];
+  copy.splice(index, count2, ...added);
+  return copy;
+}
+function arrayIndex(segment) {
+  return /^(0|[1-9]\d*)$/.test(segment) ? Number(segment) : void 0;
+}
+var init_patch = __esm({
+  "srcts/store/patch.ts"() {
+    init_util2();
+  }
+});
+
+// srcts/store/commit.ts
+function target(of) {
+  return "block" in of ? JSON.stringify(["block", of.block]) : JSON.stringify(["plugin", of.plugin]);
+}
+function commit(board, delta, places = {}) {
+  const failures = [];
+  const targets = /* @__PURE__ */ new Set();
+  const blocks = collection(
+    (id2) => `block "${id2}"`,
+    board.blocks,
+    delta.blocks,
+    (old, mod, id2) => modifyBlock(old, mod, id2, failures),
+    places.blocks,
+    void 0,
+    failures
+  );
+  for (const id2 of blocks.touched) targets.add(target({ block: id2 }));
+  const links = collection(
+    (id2) => `link "${id2}"`,
+    board.links,
+    delta.links,
+    modifyFields,
+    places.links,
+    delta.links?.before,
+    failures
+  );
+  const stacks = collection(
+    (id2) => `stack "${id2}"`,
+    board.stacks,
+    delta.stacks,
+    modifyFields,
+    places.stacks,
+    void 0,
+    failures
+  );
+  const options = values(
+    board.options,
+    delta.options,
+    (id2) => `the board option "${id2}"`,
+    failures
+  );
+  let next = {
+    ...board,
+    name: delta.name ?? board.name,
+    blocks: blocks.next,
+    links: links.next,
+    stacks: stacks.next,
+    options: options.next
+  };
+  const patched = patch(next, delta.patches ?? [], places.patches ?? {}, failures);
+  for (const plugin of patched.plugins) targets.add(target({ plugin }));
+  next = patched.board;
+  if (failures.length > 0) return { failures };
+  const inverse = {
+    ...empty(blocks.inverse) ? {} : { blocks: blocks.inverse },
+    ...empty(links.inverse) ? {} : { links: links.inverse },
+    ...empty(stacks.inverse) ? {} : { stacks: stacks.inverse },
+    ...delta.name === void 0 || delta.name === board.name ? {} : { name: board.name },
+    ...patched.inverse.length === 0 ? {} : { patches: patched.inverse }
+  };
+  return {
+    board: next,
+    inverse: {
+      delta: inverse,
+      places: {
+        blocks: blocks.places,
+        links: links.places,
+        stacks: stacks.places,
+        patches: patched.places
+      }
+    },
+    changed: {
+      blocks: new Set(blocks.changed),
+      links: new Set(links.changed),
+      stacks: new Set(stacks.changed),
+      options: options.changed,
+      plugins: patched.plugins,
+      targets
+    }
+  };
+}
+function patch(board, patches2, placed2, failures) {
+  let next = board;
+  const inverse = [];
+  const places = {};
+  const plugins = /* @__PURE__ */ new Set();
+  for (const [i, given] of patches2.entries()) {
+    const name2 = `The patch ${String(i + 1)}`;
+    const problems = malformed(given);
+    if (problems.length > 0) {
+      failures.push(`${name2} ${problems.join(", ")}.`);
+      continue;
+    }
+    const segments = segmentsFromPath(given.path) ?? [];
+    const misplaced2 = outside(segments, given.op);
+    if (misplaced2 !== void 0) {
+      failures.push(`${name2}, ${given.op} at "${given.path}", ${misplaced2}.`);
+      continue;
+    }
+    const place = given.op === "add" ? own(placed2, given.path) : void 0;
+    const applied = applyPatch(next, given, segments, place);
+    if ("failure" in applied) {
+      failures.push(`${name2}, ${given.op} at "${given.path}", ${applied.failure}.`);
+      continue;
+    }
+    next = applied.next;
+    if (applied.inverse === void 0) continue;
+    inverse.unshift(applied.inverse);
+    if (applied.place !== void 0) places[applied.inverse.path] = applied.place;
+    plugins.add(segments[1] ?? "");
+  }
+  return { board: next, inverse, places, plugins };
+}
+function outside(segments, op) {
+  const [boardProperty, plugin] = segments;
+  if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the state of the board's plugins alone`;
+  if (plugin === void 0) return "changes the board's plugins as a whole, where a patch changes the state of one plugin";
+  if (segments.length === 2 && op !== "replace") {
+    return `${op === "add" ? "adds" : "removes"} what the board holds for the plugin "${plugin}", where a patch changes a plugin's state alone, since the app sets the plugins that run`;
+  }
+  return void 0;
+}
+function collection(name2, current2, part, modify, places, before, failures) {
+  if (part === void 0) {
+    return { next: current2, inverse: {}, places: {}, changed: [], touched: [] };
+  }
+  const order = Object.keys(current2);
+  const removed = /* @__PURE__ */ new Set();
+  for (const id2 of part.rm ?? []) {
+    if (Object.hasOwn(current2, id2)) removed.add(id2);
+    else failures.push(`The board holds no ${name2(id2)} to remove.`);
+  }
+  const readd = {};
+  const readdPlaces = {};
+  for (const id2 of removed) {
+    readd[id2] = current2[id2];
+    const after = order.slice(order.indexOf(id2) + 1);
+    readdPlaces[id2] = after.find((other) => !removed.has(other)) ?? null;
+  }
+  const kept = order.filter((id2) => !removed.has(id2)).map((id2) => [id2, current2[id2]]);
+  const keptSuccessor = (named5) => named5 === null ? null : removed.has(named5) ? own(readdPlaces, named5) ?? null : named5;
+  const moves2 = [];
+  for (const [id2, named5] of Object.entries(before ?? {})) {
+    if (Object.hasOwn(part.add ?? {}, id2)) continue;
+    const at = kept.findIndex(([other]) => other === id2);
+    const entry = kept[at];
+    if (entry === void 0) {
+      failures.push(`The board holds no ${name2(id2)} to move.`);
+      continue;
+    }
+    const to = keptSuccessor(named5);
+    const was = kept[at + 1]?.[0] ?? null;
+    if (to === was || to === id2) continue;
+    if (to !== null && !kept.some(([other]) => other === to)) {
+      failures.push(`The board holds no ${name2(to)} for ${name2(id2)} to go before.`);
+      continue;
+    }
+    kept.splice(at, 1);
+    if (to === null) kept.push(entry);
+    else kept.splice(kept.findIndex(([other]) => other === to), 0, entry);
+    moves2.unshift([id2, was]);
+  }
+  const added = [];
+  for (const [id2, value2] of Object.entries(part.add ?? {})) {
+    if (kept.some(([other]) => other === id2)) {
+      failures.push(`The board holds ${name2(id2)} already.`);
+      continue;
+    }
+    const named5 = own(before ?? {}, id2);
+    const successor = named5 === void 0 ? own(places ?? {}, id2) ?? null : keptSuccessor(named5);
+    const at = successor === null ? -1 : kept.findIndex(([other]) => other === successor);
+    if (at < 0 && successor !== null && named5 !== void 0) {
+      failures.push(
+        `The board holds no ${name2(successor)} for ${name2(id2)} to go before.`
+      );
+      continue;
+    }
+    if (at < 0) kept.push([id2, value2]);
+    else kept.splice(at, 0, [id2, value2]);
+    added.push(id2);
+  }
+  const remod = {};
+  const modded = [];
+  for (const [id2, mod] of Object.entries(part.mod ?? {})) {
+    const at = kept.findIndex(([other]) => other === id2);
+    const entry = kept[at];
+    if (entry === void 0) {
+      failures.push(`The board holds no ${name2(id2)} to change.`);
+      continue;
+    }
+    const { value: value2, inverse } = modify(entry[1], mod, id2);
+    if (Object.keys(inverse).length === 0) continue;
+    kept[at] = [id2, value2];
+    if (!added.includes(id2)) remod[id2] = inverse;
+    modded.push(id2);
+  }
+  return {
+    next: Object.fromEntries(kept),
+    inverse: {
+      ...added.length === 0 ? {} : { rm: added },
+      ...removed.size === 0 ? {} : { add: readd },
+      ...Object.keys(remod).length === 0 ? {} : { mod: remod },
+      ...moves2.length === 0 ? {} : { before: Object.fromEntries(moves2) }
+    },
+    places: readdPlaces,
+    changed: [.../* @__PURE__ */ new Set([...added, ...modded])],
+    touched: [.../* @__PURE__ */ new Set([...removed, ...added, ...modded])]
+  };
+}
+function empty(part) {
+  return Object.keys(part).length === 0;
+}
+function changes(current2, set, unset, both, failures) {
+  const setting2 = Object.entries(set).filter(
+    ([name2, value2]) => !jsonEqual(own(current2, name2), value2)
+  );
+  const restore = {};
+  const remove2 = [];
+  const removing2 = [];
+  for (const name2 of unset) {
+    if (Object.hasOwn(set, name2)) failures.push(both(name2));
+    const was = own(current2, name2);
+    if (was === void 0) continue;
+    removing2.push(name2);
+    restore[name2] = was;
+  }
+  for (const [name2] of setting2) {
+    const was = own(current2, name2);
+    if (was === void 0) remove2.push(name2);
+    else restore[name2] = was;
+  }
+  return {
+    next: setting2.length === 0 && removing2.length === 0 ? current2 : { ...without(current2, removing2), ...Object.fromEntries(setting2) },
+    set: setting2.map(([name2]) => name2),
+    unset: removing2,
+    restore,
+    remove: remove2
+  };
+}
+function values(current2, change, what, failures) {
+  if (change === void 0) {
+    return { next: current2, changed: /* @__PURE__ */ new Set() };
+  }
+  const result = changes(
+    current2,
+    change.set ?? {},
+    change.unset ?? [],
+    (name2) => `The change both sets and unsets ${what(name2)}.`,
+    failures
+  );
+  return {
+    next: result.next,
+    changed: /* @__PURE__ */ new Set([...result.set, ...result.unset])
+  };
+}
+function modifyBlock(old, mod, id2, failures) {
+  const state2 = changes(
+    old.state,
+    mod.state ?? {},
+    mod.unset ?? [],
+    (arg) => `The change to block "${id2}" both sets and unsets "${arg}".`,
+    failures
+  );
+  const name2 = mod.name === old.name ? void 0 : mod.name;
+  const locked2 = mod.locked === void 0 || mod.locked === old.locked ? void 0 : mod.locked;
+  return {
+    value: {
+      ...old,
+      state: state2.next,
+      name: name2 ?? old.name,
+      locked: locked2 === void 0 ? old.locked : locked2
+    },
+    inverse: {
+      ...Object.keys(state2.restore).length === 0 ? {} : { state: state2.restore },
+      ...state2.remove.length === 0 ? {} : { unset: state2.remove },
+      ...name2 === void 0 ? {} : { name: old.name },
+      ...locked2 === void 0 ? {} : { locked: old.locked }
+    }
+  };
+}
+function modifyFields(old, mod) {
+  const inverse = {};
+  const changed = {};
+  for (const field of Object.keys(mod)) {
+    if (jsonEqual(old[field], mod[field])) continue;
+    inverse[field] = old[field];
+    changed[field] = mod[field];
+  }
+  return { value: { ...old, ...changed }, inverse };
+}
+var init_commit = __esm({
+  "srcts/store/commit.ts"() {
+    init_util2();
+    init_patch();
+  }
+});
+
+// srcts/store/delta.ts
+function isDeltas(delta) {
+  return Array.isArray(delta);
+}
+var init_delta = __esm({
+  "srcts/store/delta.ts"() {
+  }
+});
+
+// srcts/store/error.ts
+function thrown(of, error, attributes) {
+  const failure = `${of}: ${errorMessage(error)}`;
+  log.error(new Error(failure, { cause: error }), attributes);
+  return failure;
+}
+var StoreError;
+var init_error = __esm({
+  "srcts/store/error.ts"() {
+    init_log2();
+    init_util2();
+    StoreError = class extends Error {
+      failures;
+      constructor(message, failures) {
+        super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"));
+        this.name = "StoreError";
+        this.failures = failures;
+      }
+    };
+  }
+});
+
+// srcts/store/expand.ts
+function expand(delta, board, registrations) {
+  let expanded = delta;
+  for (let round = 0; round < ROUNDS; round++) {
+    const adding = [];
+    const failures = [];
+    const core = expandCore(expanded, board);
+    const grew = core !== expanded;
+    expanded = core;
+    for (const id2 of Object.keys(board.plugins)) {
+      const def = registrations.plugin(id2)?.def;
+      if (def?.state?.update === void 0) continue;
+      let patches2;
+      try {
+        patches2 = def.state.update(expanded, board, id2);
+      } catch (error) {
+        failures.push(
+          thrown(`The plugin class "${id2}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id2 })
+        );
+        continue;
+      }
+      const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
+      if (wrong.length > 0) {
+        failures.push(...wrong);
+        continue;
+      }
+      const merged = merge(expanded, delta, patches2, board);
+      if (merged !== expanded) adding.push(id2);
+      expanded = merged;
+    }
+    if (failures.length > 0) return { failures };
+    if (!grew && adding.length === 0) return expanded;
+    if (round === ROUNDS - 1) {
+      return {
+        failures: [
+          `The delta kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin${adding.length > 1 ? "s" : ""} ${quoted(adding)}.`
+        ]
+      };
+    }
+  }
+  return expanded;
+}
+function afterStep(board, before, registrations) {
+  const patches2 = [];
+  const failures = [];
+  for (const id2 of Object.keys(board.plugins)) {
+    const def = registrations.plugin(id2)?.def;
+    if (def?.state?.afterStep === void 0) continue;
+    let returned;
+    try {
+      returned = def.state.afterStep(board, before, id2);
+    } catch (error) {
+      failures.push(thrown(`The afterStep of the plugin class "${id2}" failed`, error, { "blockr.plugin.class_id": id2 }));
+      continue;
+    }
+    const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
+    if (wrong.length > 0) {
+      failures.push(...wrong);
+      continue;
+    }
+    patches2.push(...returned);
+  }
+  if (failures.length > 0) return { failures };
+  return patches2.length === 0 ? void 0 : { patches: patches2 };
+}
+function expandCore(delta, board) {
+  const gone = new Set(delta.blocks?.rm ?? []);
+  if (gone.size === 0) return delta;
+  const linksRm = delta.links?.rm ?? [];
+  const incident = Object.entries(board.links).filter(([id2, link]) => (gone.has(link.from) || gone.has(link.to)) && !linksRm.includes(id2)).map(([id2]) => id2);
+  const stacksRm = delta.stacks?.rm ?? [];
+  const stacksMod = delta.stacks?.mod ?? {};
+  const placed2 = {};
+  for (const [id2, stack] of Object.entries(board.stacks)) {
+    if (stacksRm.includes(id2)) continue;
+    const mod = own(stacksMod, id2);
+    const blocks = mod?.blocks ?? stack.blocks;
+    if (blocks.some((block) => gone.has(block))) {
+      placed2[id2] = { ...mod, blocks: blocks.filter((block) => !gone.has(block)) };
+    }
+  }
+  if (incident.length === 0 && Object.keys(placed2).length === 0) return delta;
+  return {
+    ...delta,
+    ...incident.length === 0 ? {} : { links: { ...delta.links, rm: [...linksRm, ...incident] } },
+    ...Object.keys(placed2).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed2 } } }
+  };
+}
+function misplaced(id2, patches2, of) {
+  if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
+  const failures = [];
+  for (const patch2 of patches2) {
+    const problems = malformed(patch2);
+    if (problems.length > 0) {
+      failures.push(`${of} a patch that ${problems.join(", ")}.`);
+      continue;
+    }
+    const { path } = patch2;
+    const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
+    if (boardProperty !== "plugins" || plugin !== id2) {
+      failures.push(`${of} a patch at "${path}", outside that plugin's state.`);
+    }
+  }
+  return failures;
+}
+function merge(delta, given, patches2, board) {
+  const held4 = delta.patches ?? [];
+  const fixed2 = (given.patches ?? []).map(({ path }) => segmentsFromPath(path) ?? []);
+  const added = [];
+  for (const patch2 of patches2) {
+    const segments = segmentsFromPath(patch2.path) ?? [];
+    if ([...held4, ...added].some((other) => same(other, patch2))) continue;
+    if (fixed2.some((other) => overlap(other, segments, board))) continue;
+    added.push(patch2);
+  }
+  if (added.length === 0) return delta;
+  return { ...delta, patches: [...held4, ...added] };
+}
+function same(a, b) {
+  return a.op === b.op && a.path === b.path && jsonEqual(a.value, b.value);
+}
+var ROUNDS;
+var init_expand = __esm({
+  "srcts/store/expand.ts"() {
+    init_util2();
+    init_error();
+    init_patch();
+    ROUNDS = 10;
+  }
+});
+
+// srcts/store/lock.ts
+function fixes(board, block, boardLock) {
+  if (!boardLock) return false;
+  const held4 = board === void 0 ? void 0 : own(board.blocks, block);
+  return held4?.locked !== false;
+}
+function lockFailures(before, inverse) {
+  const failures = [];
+  const refuse = (verb, one2, several, ids2) => {
+    if (ids2.length === 0) return;
+    failures.push(`The board lock refuses to ${verb} ${ids2.length === 1 ? one2 : several} ${quoted(ids2)}.`);
+  };
+  const blocks = inverse.blocks;
+  const mods = Object.entries(blocks?.mod ?? {});
+  refuse("add", "block", "blocks", blocks?.rm ?? []);
+  refuse("remove", "block", "blocks", Object.keys(blocks?.add ?? {}));
+  refuse("rename", "block", "blocks", mods.filter(([, mod]) => mod.name !== void 0).map(([id2]) => id2));
+  refuse(
+    "change",
+    "the lock of block",
+    "the locks of the blocks",
+    mods.filter(([, mod]) => mod.locked !== void 0).map(([id2]) => id2)
+  );
+  for (const [id2, mod] of mods) {
+    if (mod.state === void 0 && mod.unset === void 0) continue;
+    const locked2 = own(before.blocks, id2)?.locked;
+    if (locked2 === true) {
+      failures.push(`The lock of block "${id2}" fixes its state under the board lock.`);
+    } else if (locked2 === null) {
+      failures.push(`The board lock fixes the state of block "${id2}", whose lock follows the board lock.`);
+    }
+  }
+  for (const [part, one2, several] of [
+    [inverse.links, "link", "links"],
+    [inverse.stacks, "stack", "stacks"]
+  ]) {
+    refuse("add", one2, several, part?.rm ?? []);
+    refuse("change", one2, several, Object.keys(part?.mod ?? {}));
+    refuse("remove", one2, several, Object.keys(part?.add ?? {}));
+  }
+  refuse("move", "link", "links", Object.keys(inverse.links?.before ?? {}));
+  if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
+  return failures;
+}
+var init_lock = __esm({
+  "srcts/store/lock.ts"() {
+    init_util2();
+  }
+});
+
+// srcts/store/undo.ts
+function fit(delta, board) {
+  const blocks = collection2(board.blocks, delta.blocks);
+  const kept = /* @__PURE__ */ new Set([
+    ...Object.keys(board.blocks).filter((id2) => !(blocks.rm ?? []).includes(id2)),
+    ...Object.keys(blocks.add ?? {})
+  ]);
+  const holds2 = (id2) => kept.has(id2);
+  const links = collection2(
+    board.links,
+    delta.links,
+    (link) => (link.from === void 0 || holds2(link.from)) && (link.to === void 0 || holds2(link.to))
+  );
+  const held4 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
+  const before = Object.fromEntries(
+    Object.entries(delta.links?.before ?? {}).flatMap(([id2, named5]) => {
+      if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named5]];
+      if (!held4(id2)) return [];
+      return [[id2, named5 !== null && Object.hasOwn(board.links, named5) ? named5 : null]];
+    })
+  );
+  const stacks = collection2(board.stacks, delta.stacks);
+  const placed2 = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds2) };
+  return prune({
+    blocks,
+    links: { ...links, ...Object.keys(before).length === 0 ? {} : { before } },
+    stacks: {
+      ...stacks.rm === void 0 ? {} : { rm: stacks.rm },
+      ...stacks.add === void 0 ? {} : { add: Object.fromEntries(Object.entries(stacks.add).map(([id2, s]) => [id2, placed2(s)])) },
+      ...stacks.mod === void 0 ? {} : { mod: Object.fromEntries(Object.entries(stacks.mod).map(([id2, s]) => [id2, placed2(s)])) }
+    },
+    ...delta.options === void 0 ? {} : { options: delta.options },
+    ...delta.name === void 0 ? {} : { name: delta.name },
+    patches: patches(delta.patches ?? [], board)
+  });
+}
+function patches(given, board) {
+  let at = board;
+  const fitted = [];
+  for (const patch2 of given) {
+    const segments = segmentsFromPath(patch2.path) ?? [];
+    if (segments[0] !== "plugins") continue;
+    const applied = applyPatch(at, patch2, segments);
+    if ("failure" in applied) continue;
+    at = applied.next;
+    fitted.push(patch2);
+  }
+  return fitted;
+}
+function collection2(current2, part, keep = () => true) {
+  if (part === void 0) return {};
+  const rm = (part.rm ?? []).filter((id2) => Object.hasOwn(current2, id2));
+  const there = (id2) => Object.hasOwn(current2, id2) && !rm.includes(id2);
+  const add = Object.entries(part.add ?? {}).filter(([id2, entry]) => !there(id2) && keep(entry));
+  const mod = Object.entries(part.mod ?? {}).filter(([id2, change]) => there(id2) && keep(change));
+  return {
+    ...rm.length === 0 ? {} : { rm },
+    ...add.length === 0 ? {} : { add: Object.fromEntries(add) },
+    ...mod.length === 0 ? {} : { mod: Object.fromEntries(mod) }
+  };
+}
+function prune(delta) {
+  const parts = Object.entries(delta);
+  return Object.fromEntries(
+    parts.filter(
+      ([, part]) => Array.isArray(part) ? part.length > 0 : !isObject(part) || Object.keys(part).length > 0
+    )
+  );
+}
+function isEmpty(delta) {
+  return Object.keys(prune(delta)).length === 0;
+}
+var init_undo = __esm({
+  "srcts/store/undo.ts"() {
+    init_util2();
+    init_patch();
+  }
+});
+
+// srcts/store/plugins.ts
+function inRole(plugins, registeredClass, role) {
+  return Object.keys(plugins).filter((id2) => registeredClass(id2)?.[role] !== void 0);
+}
+function keptPlugins(board, app, registeredClass) {
+  return Object.fromEntries(
+    Object.entries(board).filter(
+      (entry) => Object.hasOwn(app, entry[0]) && registeredClass(entry[0])?.state !== void 0
+    )
+  );
+}
+function droppedPlugins(board, app, registeredClass) {
+  return Object.keys(board).filter((id2) => !Object.hasOwn(app, id2) || registeredClass(id2) === void 0);
+}
+function pluginsWithDefaults(kept, app, registeredClass) {
+  const plugins = {};
+  for (const id2 of Object.keys(app)) {
+    const state2 = registeredClass(id2)?.state;
+    if (state2 === void 0) continue;
+    const held4 = own(kept, id2);
+    plugins[id2] = held4 === void 0 ? frozenCopy(state2.default) : held4;
+  }
+  return plugins;
+}
+var init_plugins = __esm({
+  "srcts/store/plugins.ts"() {
+    init_util2();
+  }
+});
+
+// srcts/store/open.ts
+function parse(text) {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new StoreError(refused, [`The text holds no JSON: ${errorMessage(error)}`]);
+  }
+}
+function checkJsonBoard(json) {
+  if (!isObject(json)) throw new StoreError(refused, ["The JSON is no JSON board."]);
+  if (!Object.hasOwn(json, "format")) {
+    throw new StoreError(refused, [
+      "The JSON board has no format, as a file of today's stack has none, which a conversion outside core turns into a JSON board first."
+    ]);
+  }
+  if (typeof json.format !== "number" || !Number.isInteger(json.format)) {
+    throw new StoreError(refused, [`The JSON board's format ${JSON.stringify(json.format)} is no whole number.`]);
+  }
+  if (json.format > FORMAT) {
+    throw new StoreError(refused, [
+      `The JSON board's format is ${String(json.format)}, while this client reads format ${String(FORMAT)} at most.`
+    ]);
+  }
+  if (!isObject(json.packages) || !Object.values(json.packages).every((v) => typeof v === "string")) {
+    throw new StoreError(refused, ["The JSON board names no packages with their versions."]);
+  }
+  if (!isObject(json.board)) throw new StoreError(refused, ["The JSON board holds no board."]);
+  const board = json.board;
+  const lacking = COLLECTIONS.filter((name2) => !isObject(board[name2]));
+  if (lacking.length > 0) {
+    throw new StoreError(refused, [`The board holds its ${listing(lacking)} in no object by id.`]);
+  }
+  checkRecorded(board);
+  return json;
+}
+function isVersion(value2) {
+  return typeof value2 === "number" && Number.isInteger(value2) && value2 >= 1;
+}
+function checkRecorded(board) {
+  const failures = [];
+  for (const [cls, plugin] of Object.entries(board.plugins)) {
+    if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
+      failures.push(`The plugin "${cls}" is recorded as no state with the version of its class's state.`);
+    }
+  }
+  for (const [id2, block] of Object.entries(board.blocks)) {
+    if (isObject(block) && !isVersion(block.version)) {
+      failures.push(`The block "${id2}" records no version of its class's state.`);
+    }
+  }
+  for (const [id2, option] of Object.entries(board.options)) {
+    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version) || !(option.package === null || typeof option.package === "string")) {
+      failures.push(
+        `The board option "${id2}" is recorded as no value with the version of its shape and the package that lists it.`
+      );
+    }
+  }
+  if (failures.length > 0) throw new StoreError(refused, failures);
+}
+function unversioned(board) {
+  const record = board;
+  return {
+    ...Object.fromEntries(Object.entries(record).filter(([name2]) => PROPERTIES.includes(name2))),
+    blocks: Object.fromEntries(
+      Object.entries(board.blocks).map(([id2, block]) => [
+        id2,
+        without(block, ["version"])
+      ])
+    ),
+    options: Object.fromEntries(Object.entries(board.options).map(([id2, option]) => [id2, option.value])),
+    plugins: Object.fromEntries(Object.entries(board.plugins).map(([cls, plugin]) => [cls, plugin.state]))
+  };
+}
+function migrate(board, json, reply, registrations) {
+  const failures = /* @__PURE__ */ new Set();
+  const changed = /* @__PURE__ */ new Set();
+  const plugins = Object.fromEntries(
+    Object.entries(board.plugins).map(([cls, state2]) => {
+      const def = registrations.plugin(cls)?.def;
+      if (def === void 0) return [cls, state2];
+      const from = own(json.plugins, cls)?.version;
+      const to = own(reply.plugins, cls)?.version ?? 1;
+      if (from === void 0 || from === to) return [cls, state2];
+      if (from > to) {
+        failures.add(
+          `The board records version ${String(from)} of the plugin class "${cls}", while R gives version ${String(to)}.`
+        );
+        return [cls, state2];
+      }
+      if (def.state?.migrate === void 0) return [cls, state2];
+      changed.add("plugins");
+      return [
+        cls,
+        migratedValue(
+          `The migration of the plugin class "${cls}"`,
+          { "blockr.plugin.class_id": cls },
+          () => def.state?.migrate?.(frozenCopy(state2), from)
+        )
+      ];
+    })
+  );
+  const blocks = Object.fromEntries(
+    Object.entries(board.blocks).map(([id2, block]) => {
+      const from = own(json.blocks, id2)?.version;
+      const to = own(reply.block_registry, block.registry_id)?.version;
+      if (from === void 0 || to === void 0 || from === to) return [id2, block];
+      if (from > to) {
+        failures.add(
+          `The block "${id2}" records version ${String(from)} of the state of "${block.registry_id}", while its class is at version ${String(to)}.`
+        );
+        return [id2, block];
+      }
+      const fn = registrations.migration(block.registry_id);
+      if (fn === void 0) return [id2, block];
+      changed.add("blocks");
+      const state2 = migrated(
+        `The migration of the block class "${block.registry_id}"`,
+        { "blockr.block.registry_id": block.registry_id },
+        () => fn(frozenCopy(block.state), from)
+      );
+      return [id2, { ...block, state: state2 }];
+    })
+  );
+  const options = Object.fromEntries(
+    Object.entries(board.options).map(([id2, value2]) => {
+      const def = registrations.option(id2)?.def;
+      if (def === void 0) return [id2, value2];
+      const from = own(json.options, id2)?.version;
+      const to = own(reply.options, id2)?.version ?? 1;
+      if (from === void 0 || from === to) return [id2, value2];
+      if (from > to) {
+        failures.add(
+          `The board records version ${String(from)} of the value of the board option "${id2}", while R gives version ${String(to)}.`
+        );
+        return [id2, value2];
+      }
+      if (def.migrate === void 0) return [id2, value2];
+      changed.add("options");
+      return [
+        id2,
+        migratedValue(
+          `The migration of the board option "${id2}"`,
+          { "blockr.option.id": id2 },
+          () => def.migrate?.(frozenCopy(value2), from)
+        )
+      ];
+    })
+  );
+  if (failures.size > 0) throw new StoreError(refused, [...failures]);
+  if (changed.size === 0) return board;
+  return { ...board, plugins, blocks, options };
+}
+function migrated(what, attributes, fn) {
+  const out = migratedValue(what, attributes, fn);
+  if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
+  return out;
+}
+function migratedValue(what, attributes, fn) {
+  let out;
+  try {
+    out = fn();
+  } catch (error) {
+    throw new StoreError(refused, [thrown(`${what} failed`, error, attributes)]);
+  }
+  if (out === void 0) throw new StoreError(refused, [`${what} returned nothing.`]);
+  return frozenCopy(out);
+}
+function openJsonBoard(json, reply, registrations) {
+  const registeredClass = (id2) => registrations.plugin(id2)?.def;
+  const read = unversioned(json.board);
+  const held4 = keptPlugins(read.plugins, reply.plugins, registeredClass);
+  const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
+    about: { plugin: id2 },
+    package: packageFromId(id2)
+  }));
+  const migrated2 = migrate({ ...read, plugins: held4 }, json.board, reply, registrations);
+  const lacking = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0);
+  const blocks = lacking.map(([id2, block]) => ({
+    about: { block: id2, name: block.name, registry_id: block.registry_id },
+    package: packageFromId(block.registry_id)
+  }));
+  const gone = lacking.map(([id2]) => id2);
+  const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
+  const options = unclaimed.map((id2) => ({
+    about: { option: id2 },
+    package: own(json.board.options, id2)?.package ?? null
+  }));
+  const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
+  const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
+  const failures = check(board, reply.block_registry, registrations);
+  if (failures.length > 0) throw new StoreError(refused, failures);
+  const used = /* @__PURE__ */ new Set([
+    ...[...Object.values(read.blocks).map((block) => block.registry_id), ...Object.keys(read.plugins)].map(packageFromId),
+    ...Object.values(json.board.options).map((option) => option.package)
+  ]);
+  const packages = Object.entries(json.packages).filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
+  return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
+}
+function remove(board, gone, registrations) {
+  if (gone.length === 0) return board;
+  const delta = expand({ blocks: { rm: gone } }, board, registrations);
+  if ("failures" in delta) throw new StoreError(refused, delta.failures);
+  const committed = commit(board, delta);
+  if ("failures" in committed) throw new StoreError(refused, committed.failures);
+  return committed.board;
+}
+var FORMAT, COLLECTIONS, PROPERTIES, refused;
+var init_open = __esm({
+  "srcts/store/open.ts"() {
+    init_util2();
+    init_check();
+    init_commit();
+    init_error();
+    init_expand();
+    init_plugins();
+    FORMAT = 1;
+    COLLECTIONS = ["blocks", "links", "stacks", "options", "plugins"];
+    PROPERTIES = ["id", "name", ...COLLECTIONS];
+    refused = "The store refused to open the board";
+  }
+});
+
+// srcts/store/registrations.ts
+import { computed as computed2, signal as signal2 } from "@preact/signals-core";
+function createRegistrations(migration = () => void 0) {
+  const classes2 = signal2(/* @__PURE__ */ new Map());
+  const options = signal2([]);
+  const optionIndex = computed2(
+    () => new Map(options.value.map((option) => [option.def.id, option]))
+  );
+  const classDefs = computed2(
+    () => Object.fromEntries([...classes2.value].map(([id2, cls]) => [id2, cls.def]))
+  );
+  const optionDefs = computed2(
+    () => Object.fromEntries(options.value.map((option) => [option.def.id, option.def]))
+  );
+  function checkInitial(what, validate, initial, field) {
+    if (initial === void 0) return;
+    const failures = validate(initial);
+    if (failures.length > 0) {
+      throw new Error(`The ${field} of ${what} ${failures.join(" ")}`);
+    }
+  }
+  function registerPlugin(def) {
+    const { id: id2 } = def;
+    if (typeof id2 !== "string" || !isPluginClassId(id2)) {
+      throw new Error(
+        `The plugin class id ${JSON.stringify(id2)} is not named as R names a plugin class, "{pkg}-{name}_plugin".`
+      );
+    }
+    if (classes2.value.has(id2)) {
+      throw new Error(`The plugin class "${id2}" is registered already.`);
+    }
+    const given = def;
+    for (const [member, article] of STATE_FUNCTIONS) {
+      if (given[member] !== void 0) {
+        throw new Error(`The plugin class "${id2}" gives ${article} ${member} outside its state.`);
+      }
+    }
+    if (given.start !== void 0 && typeof given.start !== "function") {
+      throw new Error(`The plugin class "${id2}" has a start that is no function.`);
+    }
+    for (const member of ["ui", "frontend"]) {
+      const drawn3 = given[member];
+      if (drawn3 !== void 0 && (!isObject(drawn3) || typeof drawn3.render !== "function")) {
+        throw new Error(`The plugin class "${id2}" has a ${member} without a render() function.`);
+      }
+    }
+    const frontend = given.frontend;
+    if (isObject(frontend) && frontend.advanced !== void 0 && typeof frontend.advanced !== "function") {
+      throw new Error(`The plugin class "${id2}" has a frontend whose advanced is no function.`);
+    }
+    const storage = given.storage;
+    if (storage !== void 0) {
+      if (!isObject(storage) || typeof storage.controls !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage without a controls() function.`);
+      }
+      if (storage.subscribe !== void 0 && typeof storage.subscribe !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage whose subscribe is no function.`);
+      }
+      if (storage.load !== void 0 && typeof storage.load !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage whose load is no function.`);
+      }
+    }
+    if (given.commands !== void 0 && !Array.isArray(given.commands)) {
+      throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
+    }
+    const what = `the state of the plugin class "${id2}"`;
+    let validate;
+    const state2 = given.state;
+    if (state2 !== void 0) {
+      if (!isObject(state2) || !isObject(state2.schema) || !Object.hasOwn(state2, "default")) {
+        throw new Error(`The plugin class "${id2}" gives a state without a schema and a default.`);
+      }
+      for (const [member] of STATE_FUNCTIONS) {
+        if (state2[member] !== void 0 && typeof state2[member] !== "function") {
+          throw new Error(`The plugin class "${id2}" has a state whose ${member} is no function.`);
+        }
+      }
+      validate = compile(what, state2.schema);
+      checkInitial(what, validate, state2.default, "default");
+    }
+    const item2 = { def, validate };
+    classes2.value = new Map([...classes2.value, [id2, item2]]);
+    return () => {
+      if (classes2.value.get(id2) !== item2) return;
+      const rest = new Map(classes2.value);
+      rest.delete(id2);
+      classes2.value = rest;
+    };
+  }
+  return {
+    plugins: {
+      register: registerPlugin,
+      registered: () => classDefs.value
+    },
+    options: {
+      register(def) {
+        const what = `the board option "${def.id}"`;
+        if (optionIndex.value.has(def.id)) {
+          throw new Error(`The board option "${def.id}" is registered already.`);
+        }
+        const ui = def.ui;
+        if (!isObject(ui) || typeof ui.render !== "function") {
+          throw new Error(`The board option "${def.id}" has no UI module with a render() function.`);
+        }
+        const { onChange } = def;
+        if (onChange !== void 0 && typeof onChange !== "function") {
+          throw new Error(`The onChange of the board option "${def.id}" is no function.`);
+        }
+        if (def.migrate !== void 0 && typeof def.migrate !== "function") {
+          throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
+        }
+        const validate = compile(what, def.schema);
+        if (typeof def.default !== "function") {
+          checkInitial(what, validate, def.default, "default");
+        }
+        const item2 = { def, validate };
+        options.value = [...options.value, item2];
+        return () => {
+          options.value = options.value.filter((x) => x !== item2);
+        };
+      },
+      registered: () => optionDefs.value
+    },
+    plugin: (id2) => classes2.value.get(id2),
+    option: (id2) => optionIndex.value.get(id2),
+    migration
+  };
+}
+function isPluginClassId(id2) {
+  const pkg = packageFromId(id2);
+  return pkg !== null && /^.+_plugin$/.test(id2.slice(pkg.length + 1));
+}
+var STATE_FUNCTIONS;
+var init_registrations = __esm({
+  "srcts/store/registrations.ts"() {
+    init_util2();
+    STATE_FUNCTIONS = [["update", "an"], ["afterStep", "an"], ["migrate", "a"]];
+  }
+});
+
+// srcts/store/store.ts
+import { signal as signal3 } from "@preact/signals-core";
+function createStore(options = {}) {
+  const registrations = createRegistrations(options.migration);
+  const board = signal3(void 0);
+  let hello = options.hello;
+  const registry = signal3(options.hello?.block_registry ?? {});
+  const packages = signal3(options.hello?.packages ?? {});
+  const history = signal3({ undo: [], redo: [] });
+  const subscribers = /* @__PURE__ */ new Set();
+  let opening2 = false;
+  const ended = () => options.signal?.aborted === true;
+  options.signal?.addEventListener(
+    "abort",
+    () => {
+      subscribers.clear();
+    },
+    { once: true }
+  );
+  const edits = /* @__PURE__ */ new Map();
+  let lastStep = 0;
+  let busy = false;
+  function guard2() {
+    if (busy) {
+      throw new Error(
+        "The store is applying or announcing a change, which a subscriber, a plugin class's update or a migration may not change, since what follows from a delta is a plugin class's update."
+      );
+    }
+  }
+  function current2(refused2) {
+    if (ended()) throw new StoreError(refused2, [ENDED]);
+    if (board.value !== void 0) return board.value;
+    throw new StoreError(refused2, ["The store holds no board until it opens one."]);
+  }
+  function announce2(change, next) {
+    for (const fn of [...subscribers]) {
+      try {
+        fn(change, next);
+      } catch (error) {
+        log.error(asError(error));
+      }
+    }
+  }
+  function run(start3, deltas, how, refused2) {
+    const applied = [];
+    const inverses = [];
+    let current3 = start3;
+    function applyOne(given, delta, places, prefix) {
+      const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
+      const expanded = expand(delta, current3, registrations);
+      if ("failures" in expanded) throw fail(expanded.failures);
+      const committed = commit(current3, expanded, places);
+      if ("failures" in committed) throw fail(committed.failures);
+      if (hello?.lock.board === true) {
+        const locked2 = lockFailures(current3, committed.inverse.delta);
+        if (locked2.length > 0) throw fail(locked2);
+      }
+      const inverse = isEmpty(committed.inverse.delta) ? void 0 : committed.inverse;
+      if (inverse === void 0 && committed.changed.options.size === 0) return;
+      const failures = check(
+        committed.board,
+        registry.value,
+        registrations,
+        committed.changed
+      );
+      if (failures.length > 0) throw fail(failures);
+      applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
+      if (inverse !== void 0 && given.undo !== false) inverses.unshift(inverse);
+      current3 = committed.board;
+    }
+    for (const [i, given] of deltas.entries()) {
+      const delta = how.fit === true ? fit(given, current3) : given;
+      if (how.fit === true && isEmpty(delta)) continue;
+      applyOne(given, delta, how.places?.[i], deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "");
+    }
+    if (how.afterStep === true && applied.length > 0) {
+      const after = afterStep(current3, start3, registrations);
+      if (after !== void 0 && "failures" in after) throw new StoreError(refused2, after.failures);
+      if (after !== void 0) {
+        const delta = inverses.length > 0 ? after : { ...after, undo: false };
+        applyOne(delta, delta, void 0, "What afterStep returned: ");
+      }
+    }
+    return { applied, inverses };
+  }
+  function exists(next, key2) {
+    const [kind, id2] = JSON.parse(key2);
+    return Object.hasOwn(kind === "block" ? next.blocks : next.plugins, id2);
+  }
+  function describe2(key2) {
+    const [kind, id2] = JSON.parse(key2);
+    return kind === "block" ? `block "${id2}"` : `the plugin "${id2}"`;
+  }
+  function named5(deltas) {
+    const failures = [];
+    const compare = (key2, edit) => {
+      if (edit === void 0) return;
+      const id2 = edits.get(key2);
+      if (id2 !== edit) {
+        failures.push(
+          id2 === void 0 ? `The delta was built on edit ${String(edit)} of ${describe2(key2)}, which the board lacks.` : `The delta was built on edit ${String(edit)} of ${describe2(key2)}, which another edit has replaced with edit ${String(id2)}.`
+        );
+      }
+    };
+    for (const delta of deltas) {
+      for (const [id2, mod] of Object.entries(delta.blocks?.mod ?? {})) {
+        compare(target({ block: id2 }), mod.edit);
+      }
+      for (const patch2 of delta.patches ?? []) {
+        const plugin = pluginClassFromPath(patch2.path);
+        if (plugin !== void 0) compare(target({ plugin }), patch2.edit);
+      }
+    }
+    return [...new Set(failures)];
+  }
+  function number(applied, last) {
+    const step2 = ++lastStep;
+    for (const key2 of new Set(applied.flatMap(({ changed }) => [...changed.targets]))) {
+      if (exists(last, key2)) edits.set(key2, step2);
+      else edits.delete(key2);
+    }
+  }
+  function runOnBoard(deltas, how) {
+    const refused2 = "The store rejected the delta";
+    const start3 = current2(refused2);
+    const failures = named5(deltas);
+    if (failures.length > 0) throw new StoreError(refused2, failures);
+    return { start: start3, ...run(start3, deltas, how, refused2) };
+  }
+  function apply(delta, origin = "user", opts = {}) {
+    guard2();
+    const given = isDeltas(delta) ? delta : [delta];
+    if (given.length === 0) return false;
+    const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
+    busy = true;
+    try {
+      const { start: start3, applied, inverses } = runOnBoard(deltas, { afterStep: true });
+      if (applied.length === 0) return false;
+      number(applied, applied.at(-1)?.board ?? start3);
+      const undoStep = inverses.length > 0;
+      if (undoStep) {
+        history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
+      }
+      for (const { delta: delta2, board: next } of applied) {
+        board.value = next;
+        announce2({ delta: delta2, origin }, next);
+      }
+      return undoStep;
+    } finally {
+      busy = false;
+    }
+  }
+  function dryRun(delta) {
+    const deltas = isDeltas(delta) ? delta : [delta];
+    const was = busy;
+    busy = true;
+    try {
+      const { start: start3, applied } = runOnBoard(deltas, { afterStep: false });
+      return applied.at(-1)?.board ?? start3;
+    } finally {
+      busy = was;
+    }
+  }
+  function revert(back, origin) {
+    guard2();
+    const { undo, redo } = history.value;
+    const at = back ? lastStepIndex(undo, origin) : redo.length - 1;
+    const step2 = (back ? undo : redo)[at];
+    if (step2 === void 0) return;
+    busy = true;
+    try {
+      const refused2 = back ? "The store refused to undo the step" : "The store refused to redo the step";
+      const start3 = current2(refused2);
+      const { applied, inverses } = run(
+        start3,
+        step2.inverses.map(({ delta }) => delta),
+        { fit: true, places: step2.inverses.map(({ places }) => places), afterStep: true },
+        refused2
+      );
+      number(applied, applied.at(-1)?.board ?? start3);
+      const kept = { origin: step2.origin, inverses };
+      history.value = back ? { undo: [...undo.slice(0, at), ...undo.slice(at + 1)], redo: [...redo, kept] } : { undo: [...undo, kept], redo: redo.slice(0, -1) };
+      const asking = origin ?? "user";
+      for (const { delta, board: next } of applied) {
+        board.value = next;
+        announce2({ delta, origin: asking }, next);
+      }
+    } finally {
+      busy = false;
+    }
+  }
+  const refusedOpen = "The store refused to open the board";
+  function prepareOpen(given) {
+    if (typeof given !== "string") {
+      hello = given;
+      registry.value = given.block_registry;
+      packages.value = given.packages;
+      return { json: checkJsonBoard(given.board), reply: given };
+    }
+    const reply = lastHello();
+    if (reply.lock.load) {
+      throw new StoreError(refusedOpen, [
+        "The load lock fixes the app to its opening board, so the store opens no other board."
+      ]);
+    }
+    return { json: checkJsonBoard(parse(given)), reply };
+  }
+  function lastHello() {
+    if (hello === void 0) {
+      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
+    }
+    return hello;
+  }
+  function build(json, reply) {
+    guard2();
+    busy = true;
+    try {
+      return openJsonBoard(json, reply, registrations);
+    } finally {
+      busy = false;
+    }
+  }
+  function stillOpen() {
+    if (ended()) throw new StoreError(refusedOpen, [ENDED]);
+  }
+  function open(given) {
+    return settled(() => {
+      stillOpen();
+      if (opening2) {
+        throw new StoreError(refusedOpen, [
+          "The store holds a board or opens one already: a store opens one board, and core opens the next in a new store as it starts again."
+        ]);
+      }
+      opening2 = true;
+      try {
+        const { json, reply } = prepareOpen(given);
+        const opened = build(json, reply);
+        guard2();
+        busy = true;
+        try {
+          board.value = opened.board;
+          const step2 = ++lastStep;
+          for (const key2 of everyTarget(opened.board)) edits.set(key2, step2);
+          announce2({ opened: opened.board, dropped: opened.dropped }, opened.board);
+          return opened.dropped;
+        } finally {
+          busy = false;
+        }
+      } catch (error) {
+        opening2 = board.value !== void 0;
+        throw error;
+      }
+    });
+  }
+  function checkText(text) {
+    return settled(() => {
+      stillOpen();
+      const { json, reply } = prepareOpen(text);
+      return build(json, reply).dropped;
+    });
+  }
+  function readText(text) {
+    return settled(() => {
+      stillOpen();
+      const reply = lastHello();
+      return build(checkJsonBoard(parse(text)), reply);
+    });
+  }
+  function jsonBoard() {
+    const next = board.value;
+    if (next === void 0) {
+      throw new Error("The store holds no board until it opens one.");
+    }
+    const options2 = Object.fromEntries(
+      Object.entries(next.options).map(([id3, value2]) => {
+        const entry = own(hello?.options ?? {}, id3);
+        return [id3, { value: value2, version: entry?.version ?? 1, package: entry?.package ?? null }];
+      })
+    );
+    const classes2 = Object.keys(next.plugins);
+    const owned = /* @__PURE__ */ new Set([
+      ...classes2.flatMap((cls) => packageFromId(cls) ?? []),
+      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
+      ...Object.values(options2).flatMap((option) => option.package ?? [])
+    ]);
+    const recorded = Object.fromEntries(
+      [...owned].sort().flatMap((pkg) => {
+        const version = own(packages.value, pkg);
+        return version === void 0 ? [] : [[pkg, version]];
+      })
+    );
+    const blocks = Object.fromEntries(
+      Object.entries(next.blocks).map(([id3, block]) => [
+        id3,
+        {
+          registry_id: block.registry_id,
+          version: own(registry.value, block.registry_id)?.version ?? 1,
+          state: block.state,
+          name: block.name,
+          locked: block.locked
+        }
+      ])
+    );
+    const plugins = Object.fromEntries(
+      Object.entries(next.plugins).map(([cls, state2]) => [
+        cls,
+        { state: state2, version: own(hello?.plugins ?? {}, cls)?.version ?? 1 }
+      ])
+    );
+    const { id: id2, name: name2, links, stacks } = next;
+    return {
+      format: FORMAT,
+      packages: recorded,
+      board: { id: id2, name: name2, blocks, links, stacks, options: options2, plugins }
+    };
+  }
+  function save() {
+    return `${JSON.stringify(jsonBoard(), null, 2)}
+`;
+  }
+  function everyTarget(next) {
+    const targets = [
+      ...Object.keys(next.blocks).map((id2) => ({ block: id2 })),
+      ...Object.keys(next.plugins).map((id2) => ({ plugin: id2 }))
+    ];
+    return targets.map(target);
+  }
+  return {
+    board() {
+      if (board.value === void 0) {
+        throw new Error("The store holds no board until it opens one.");
+      }
+      return board.value;
+    },
+    hasBoard: () => board.value !== void 0,
+    locked: (block) => fixes(board.value, block, hello?.lock.board === true),
+    subscribe(fn) {
+      if (ended()) return () => void 0;
+      const wrapped = (change, next) => {
+        fn(change, next);
+      };
+      subscribers.add(wrapped);
+      return () => {
+        subscribers.delete(wrapped);
+      };
+    },
+    apply,
+    dryRun,
+    open,
+    check: checkText,
+    read: readText,
+    undo: (origin) => {
+      revert(true, origin);
+    },
+    redo: () => {
+      revert(false);
+    },
+    canUndo: (origin) => lastStepIndex(history.value.undo, origin) >= 0,
+    canRedo: () => history.value.redo.length > 0,
+    plugins: registrations.plugins,
+    options: registrations.options,
+    jsonBoard,
+    save,
+    blockRegistry: () => registry.value,
+    packages: () => packages.value,
+    editId: (of) => edits.get(target(of))
+  };
+}
+function lastStepIndex(steps2, origin) {
+  return origin === void 0 ? steps2.length - 1 : steps2.map((step2) => step2.origin).lastIndexOf(origin);
+}
+function settled(fn) {
+  try {
+    return Promise.resolve(fn());
+  } catch (error) {
+    return Promise.reject(asError(error));
+  }
+}
+var ENDED;
+var init_store = __esm({
+  "srcts/store/store.ts"() {
+    init_log2();
+    init_util2();
+    init_check();
+    init_commit();
+    init_delta();
+    init_error();
+    init_expand();
+    init_lock();
+    init_patch();
+    init_undo();
+    init_open();
+    init_registrations();
+    ENDED = "Another board opened in a new store, so this store changes its board no more.";
+  }
+});
+
+// srcts/store/index.ts
+var init_store2 = __esm({
+  "srcts/store/index.ts"() {
+    init_store();
+    init_delta();
+    init_patch();
+    init_plugins();
+    init_check();
+    init_open();
+    init_ids();
+    init_error();
+  }
+});
+
+// srcts/commands/schemas.ts
+var id, blockId, linkId, stackId, registryId, name, input, state, stateArgs, blockIds, locked, color, optionId, value, pluginClassId, statePatches;
+var init_schemas = __esm({
+  "srcts/commands/schemas.ts"() {
+    init_store2();
+    id = { type: "string", pattern: "\\D" };
+    blockId = {
+      ...id,
+      description: "The id of a block, unique among the board's blocks."
+    };
+    linkId = {
+      ...id,
+      description: "The id of a link, unique among the board's links."
+    };
+    stackId = {
+      ...id,
+      description: "The id of a stack, unique among the board's stacks."
+    };
+    registryId = {
+      type: "string",
+      minLength: 1,
+      description: `A block class's id in the block registry, such as "blockr.core-head_block".`
+    };
+    name = {
+      type: "string",
+      description: "A name that the user sees and may change, which nothing refers to."
+    };
+    input = {
+      type: "string",
+      description: 'An input of the block a link goes to, such as "data", or empty for a variadic block, which takes such links in their order.'
+    };
+    state = {
+      type: "object",
+      description: "Values of a block's state args, which the schema of its class types."
+    };
+    stateArgs = {
+      type: "array",
+      items: { type: "string" },
+      uniqueItems: true,
+      description: "Names of a block's state args."
+    };
+    blockIds = {
+      type: "array",
+      items: blockId,
+      uniqueItems: true,
+      description: "Ids of blocks, in order."
+    };
+    locked = {
+      type: ["boolean", "null"],
+      description: "A block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open, and null follows the board lock."
+    };
+    color = {
+      type: ["string", "null"],
+      pattern: HEX_COLOR,
+      description: 'A hex colour, such as "#66c2a5", which frontends draw a stack in, or null for none. A frontend draws a stack without a colour in a default of its own.'
+    };
+    optionId = {
+      type: "string",
+      minLength: 1,
+      description: 'The id of a board option, such as "n_rows".'
+    };
+    value = {
+      description: "A JSON value, which the schema of what it is set on types."
+    };
+    pluginClassId = {
+      type: "string",
+      minLength: 1,
+      description: `The id of a plugin's class, such as "blockr.dag-dag_plugin", which identifies the plugin, since an app runs at most one plugin of each class.`
+    };
+    statePatches = {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          op: { enum: ["add", "remove", "replace"] },
+          path: {
+            type: "string",
+            pattern: "^(/.*)?$",
+            description: `A JSON Pointer within the plugin's state, such as "/positions/a", or "" for the whole state.`
+          },
+          value: { description: "What an add or a replace puts at the path." }
+        },
+        required: ["op", "path"],
+        additionalProperties: false
+      },
+      description: "Changes of a plugin's state, as JSON Patch operations, which apply in their order and which the schema of the plugin's class types."
+    };
+  }
+});
+
+// srcts/commands/core.ts
+function coreCommands(store) {
+  function registryEntry(command2, registryId2) {
+    const entry = own(store.blockRegistry(), registryId2);
+    if (entry === void 0) {
+      throw refusal(command2, [`The block registry has no block class "${registryId2}".`]);
+    }
+    return entry;
+  }
+  function added(command2, board2, args, mintId2) {
+    const entry = registryEntry(command2, args.registry_id);
+    const state2 = { ...entry.state, ...args.state };
+    const failures = stateFailures(entry, state2);
+    if (failures.length > 0) {
+      throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
+    }
+    const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
+    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? entry.block_name, locked: null }];
+  }
+  function inputFailures(board2, to, given) {
+    const registry = store.blockRegistry();
+    if (!named(given)) {
+      const free = freeInputs(board2, registry, to) ?? [];
+      return free.length > 0 ? [] : [noFreeInput(board2, to)];
+    }
+    const other = linkFeeding(board2, registry, to, given);
+    return other === void 0 ? [] : [`The link "${other}" feeds the input "${given}" of block "${to}" already.`];
+  }
+  function noFreeInput(board2, to) {
+    const block = own(board2.blocks, to);
+    if (block === void 0) return `The board holds no block "${to}".`;
+    const entry = own(store.blockRegistry(), block.registry_id);
+    if (entry === void 0) return `The block registry has no block class "${block.registry_id}".`;
+    if (entry.inputs.length === 0) {
+      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+    }
+    return `Every input of the block "${to}" takes a link already.`;
+  }
+  function linkInput(command2, board2, to, given, except) {
+    if (named(given)) return given;
+    const free = freeInputs(board2, store.blockRegistry(), to, except) ?? [];
+    return one(
+      command2,
+      free,
+      noFreeInput(board2, to),
+      `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`
+    );
+  }
+  const blocks = [
+    command({
+      id: "blockr.core-add_block",
+      label: "Add block",
+      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
+      args: object(newBlock, ["registry_id"]),
+      run(board2, args, { mintId: mintId2 }) {
+        const [id2, block] = added(this.id, board2, args, mintId2);
+        return { blocks: { add: { [id2]: block } } };
+      }
+    }),
+    command({
+      id: "blockr.core-remove_block",
+      label: "Remove block",
+      description: "Removes a block, with its links and its place in its stack.",
+      args: object({ id: blockId }, ["id"]),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      run: (_board, { id: id2 }) => ({ blocks: { rm: [id2] } })
+    }),
+    command({
+      id: "blockr.core-change_block",
+      label: "Change block",
+      description: "Changes a block's name, its lock or its state. It sets the state args given, which the schema of the block's class types, and unsets those named, as a block's UI submits an edit. The block keeps what the args leave out.",
+      args: object(
+        {
+          id: blockId,
+          name: { ...name, description: "The block's name, which it keeps where this is left out." },
+          locked: {
+            ...locked,
+            description: "The block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock. The block keeps its lock where this is left out."
+          },
+          state: { ...state, description: "Values of the block's state args to set." },
+          unset: { ...stateArgs, description: "Names of the block's state args to unset." }
+        },
+        ["id"]
+      ),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      // The args but the id are the block's change, as the schema admits no
+      // other args.
+      run(board2, { id: id2, ...change }) {
+        const block = own(board2.blocks, id2);
+        if (block === void 0) return [];
+        const { state: state2, unset } = change;
+        if (state2 !== void 0 || unset !== void 0) {
+          const entry = registryEntry(this.id, block.registry_id);
+          const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
+          if (failures.length > 0) {
+            throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
+          }
+        }
+        return { blocks: { mod: { [id2]: change } } };
+      }
+    })
+  ];
+  const links = [
+    command({
+      id: "blockr.core-add_link",
+      label: "Add link",
+      description: "Adds a link, through which a block takes the result of another as one of its inputs.",
+      args: object(
+        {
+          from: { ...blockId, description: "The block whose result the link carries." },
+          to: { ...blockId, description: "The block that takes the result." },
+          input: {
+            ...input,
+            description: "The input of the block that takes the result, which may be left out where only one of its inputs is free or it is variadic."
+          },
+          id: {
+            ...linkId,
+            description: "The new link's id, which is minted where it is left out."
+          }
+        },
+        ["from", "to"]
+      ),
+      preflight: (board2, { from, to, input: input2 }, { refusal: refusal2 }) => Object.hasOwn(board2.blocks, from) && Object.hasOwn(board2.blocks, to) && passes([...cycleFailures(board2, from, to), ...inputFailures(board2, to, input2)], refusal2),
+      run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
+        const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
+        const resolved = linkInput(this.id, board2, to, input2);
+        return { links: { add: { [link]: { from, to, input: resolved } } } };
+      }
+    }),
+    command({
+      id: "blockr.core-change_link",
+      label: "Change link",
+      description: "Changes the block a link comes from, the block it goes to, the input it feeds or its place among the links into its block, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from.",
+      args: object(
+        {
+          id: linkId,
+          from: { ...blockId, description: "The block whose result the link carries." },
+          to: { ...blockId, description: "The block that takes the result." },
+          input: {
+            ...input,
+            description: "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic. Where the link keeps its block, an input that another link feeds swaps the inputs of the two links."
+          },
+          before: {
+            ...linkId,
+            type: ["string", "null"],
+            description: "The link that the link goes before, among the links into the block that it goes to, or null to put it last among them. The link keeps its place where this is left out. A block that is not variadic takes each input by its name, so the command refuses this for a link into one."
+          }
+        },
+        ["id"]
+      ),
+      preflight(board2, args, { refusal: refusal2 }) {
+        const link = own(board2.links, args.id);
+        if (link === void 0) return false;
+        const from = args.from ?? link.from;
+        const to = args.to ?? link.to;
+        if (!Object.hasOwn(board2.blocks, from) || !Object.hasOwn(board2.blocks, to)) return false;
+        const inputs = to === link.to ? [] : inputFailures(board2, to, args.input);
+        return passes([...cycleFailures(board2, from, to, args.id), ...inputs], refusal2);
+      },
+      run(board2, args) {
+        const link = own(board2.links, args.id);
+        if (link === void 0) return [];
+        const to = args.to ?? link.to;
+        const input2 = args.input === void 0 && to === link.to ? link.input : linkInput(this.id, board2, to, args.input, args.id);
+        const changed = { [args.id]: { from: args.from ?? link.from, to, input: input2 } };
+        const other = to === link.to ? linkFeeding(board2, store.blockRegistry(), to, input2, args.id) : void 0;
+        const mod = other === void 0 ? changed : { ...changed, [other]: { input: link.input } };
+        const { before } = args;
+        if (before === void 0) return { links: { mod } };
+        const block = own(board2.blocks, to);
+        if (block !== void 0 && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
+          throw refusal(this.id, [
+            `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`
+          ]);
+        }
+        if (before !== null) {
+          if (before === args.id) {
+            throw refusal(this.id, [`The link "${args.id}" cannot go before itself.`]);
+          }
+          const next = own(board2.links, before);
+          if (next !== void 0 && next.to !== to) {
+            throw refusal(this.id, [
+              `The link "${args.id}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`
+            ]);
+          }
+        }
+        const place = before ?? lastPlace(board2, to, args.id);
+        return { links: { mod, ...place === void 0 ? {} : { before: { [args.id]: place } } } };
+      }
+    }),
+    command({
+      id: "blockr.core-remove_link",
+      label: "Remove link",
+      description: "Removes a link.",
+      args: object({ id: linkId }, ["id"]),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      run: (_board, { id: id2 }) => ({ links: { rm: [id2] } })
+    })
+  ];
+  const stacks = [
+    command({
+      id: "blockr.core-add_stack",
+      label: "Add stack",
+      description: "Adds a stack of blocks, taking each out of the stack it is in, since a block sits in one stack at most.",
+      args: object({
+        id: {
+          ...stackId,
+          description: "The new stack's id, which is minted where it is left out."
+        },
+        name: {
+          ...name,
+          description: `The new stack's name, the first free "Stack n" where it is left out.`
+        },
+        blocks: { ...blockIds, description: "The blocks of the new stack, in order." },
+        color: {
+          ...color,
+          description: "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own."
+        }
+      }),
+      run(board2, { id: id2, name: name2, blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
+        const stack = id2 ?? mintId2((id3) => Object.hasOwn(board2.stacks, id3));
+        const left2 = leave(board2, stack, blocks2);
+        return {
+          stacks: {
+            add: {
+              [stack]: { name: name2 ?? suggestedName(Object.values(board2.stacks)), blocks: blocks2, color: color2 }
+            },
+            ...Object.keys(left2).length === 0 ? {} : { mod: left2 }
+          }
+        };
+      }
+    }),
+    command({
+      id: "blockr.core-change_stack",
+      label: "Change stack",
+      description: "Changes the name of a stack, its blocks or its colour, taking each block out of the stack it is in, since a block sits in one stack at most.",
+      args: object(
+        {
+          id: stackId,
+          name: { ...name, description: "The stack's name, which it keeps where this is left out." },
+          blocks: {
+            ...blockIds,
+            description: "The blocks of the stack, in order, which it keeps where they are left out."
+          },
+          color: {
+            ...color,
+            description: "The stack's colour, which frontends draw it in, or null to clear it. A frontend draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out."
+          }
+        },
+        ["id"]
+      ),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
+      // The args but the id are the stack's change, as for change_block.
+      run: (board2, { id: id2, ...change }) => ({
+        stacks: { mod: { ...change.blocks === void 0 ? {} : leave(board2, id2, change.blocks), [id2]: change } }
+      })
+    }),
+    command({
+      id: "blockr.core-remove_stack",
+      label: "Remove stack",
+      description: "Removes a stack, leaving its blocks on the board.",
+      args: object({ id: stackId }, ["id"]),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
+      run: (_board, { id: id2 }) => ({ stacks: { rm: [id2] } })
+    })
+  ];
+  const board = [
+    command({
+      id: "blockr.core-change_board",
+      label: "Change board",
+      description: "Changes the board's name. The board keeps what the args leave out.",
+      args: object({ name: { ...name, description: "The board's name, which it keeps where this is left out." } }),
+      run: (_board, change) => change
+    }),
+    command({
+      id: "blockr.core-set_option",
+      label: "Set board option",
+      description: "Sets the value of a board option, which the board option's schema types.",
+      args: object({ id: optionId, value }, ["id", "value"]),
+      preflight: (_board, { id: id2 }) => own(store.options.registered(), id2) !== void 0,
+      run: (_board, { id: id2, value: value2 }) => ({ options: { set: { [id2]: value2 } } })
+    })
+  ];
+  const plugins = [
+    command({
+      id: "blockr.core-set_plugin_state",
+      label: "Set plugin state",
+      description: "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It fails its preflight on a locked board, where only the commands of a plugin's class know what the plugin locks.",
+      args: object(
+        {
+          plugin: {
+            ...pluginClassId,
+            description: "The id of the class of the plugin whose state the patches change."
+          },
+          patches: statePatches
+        },
+        ["plugin", "patches"]
+      ),
+      preflight: (board2, { plugin }, { lock }) => !lock.board && Object.hasOwn(board2.plugins, plugin),
+      run: (_board, { plugin, patches: patches2 }) => ({
+        patches: patches2.map((patch2) => ({ ...patch2, path: `${pathFromSegments(["plugins", plugin])}${patch2.path}` }))
+      })
+    })
+  ];
+  return [...blocks, ...links, ...stacks, ...board, ...plugins];
+}
+function freeInputs(board, registry, to, except) {
+  const block = own(board.blocks, to);
+  if (block === void 0) return void 0;
+  const inputs = own(registry, block.registry_id)?.inputs;
+  if (inputs === void 0) return void 0;
+  if (inputs.includes("...")) return [""];
+  const fed = new Set(
+    Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
+  );
+  return inputs.filter((input2) => !fed.has(input2));
+}
+function takesLink(board, registry, to) {
+  return (freeInputs(board, registry, to)?.length ?? 0) > 0;
+}
+function linkFeeding(board, registry, to, input2, except) {
+  const block = own(board.blocks, to);
+  const inputs = block === void 0 ? void 0 : own(registry, block.registry_id)?.inputs;
+  if (inputs === void 0 || inputs.includes("...")) return void 0;
+  return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
+}
+function suggestedName(stacks) {
+  const names = new Set(stacks.map((stack) => stack.name));
+  let n = 1;
+  while (names.has(`Stack ${String(n)}`)) n++;
+  return `Stack ${String(n)}`;
+}
+function cycleFailures(board, from, to, except) {
+  if (from === to) return [`The link would join block "${to}" to itself.`];
+  const links = except === void 0 ? board.links : without(board.links, [except]);
+  const cycle = createGraph({ blocks: board.blocks, links }).path(to, from);
+  return cycle === void 0 ? [] : [`The link would close a cycle through the blocks ${quoted(cycle)}.`];
+}
+function passes(failures, refusal2) {
+  if (failures.length > 0) throw refusal2(failures);
+  return true;
+}
+function lastPlace(board, to, id2) {
+  const others = Object.keys(board.links).filter((other) => other !== id2);
+  const last = others.filter((other) => own(board.links, other)?.to === to).at(-1);
+  if (last === void 0) return void 0;
+  return others[others.indexOf(last) + 1] ?? null;
+}
+function leave(board, id2, blocks) {
+  const moving = new Set(blocks);
+  return Object.fromEntries(
+    Object.entries(board.stacks).filter(([other, stack]) => other !== id2 && stack.blocks.some((block) => moving.has(block))).map(([other, stack]) => [
+      other,
+      { blocks: stack.blocks.filter((block) => !moving.has(block)) }
+    ])
+  );
+}
+function object(properties, required = []) {
+  return { type: "object", properties, required, additionalProperties: false };
+}
+function named(input2) {
+  return input2 !== void 0 && input2 !== "";
+}
+function one(command2, inputs, none, several) {
+  const [input2, ...rest] = inputs;
+  if (input2 === void 0) throw refusal(command2, [none]);
+  if (rest.length > 0) throw refusal(command2, [several]);
+  return input2;
+}
+function command(def) {
+  return {
+    ...def,
+    run: def.run.bind(def),
+    ...def.preflight === void 0 ? {} : { preflight: def.preflight.bind(def) }
+  };
+}
+var newBlock;
+var init_core = __esm({
+  "srcts/commands/core.ts"() {
+    init_graph2();
+    init_store2();
+    init_util2();
+    init_commands();
+    init_schemas();
+    newBlock = {
+      registry_id: { ...registryId, description: "The class of the new block." },
+      id: {
+        ...blockId,
+        description: "The new block's id, which is minted where it is left out."
+      },
+      name: {
+        ...name,
+        description: "The new block's name, which its class gives where it is left out."
+      },
+      state: {
+        ...state,
+        description: "Values of the new block's state args, which the schema of its class types, in place of those its class starts a block with."
+      }
+    };
+  }
+});
+
+// srcts/commands/commands.ts
+import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
+import { computed as computed3, signal as signal4 } from "@preact/signals-core";
+function firstLine({ command: command2, by, index }) {
+  if (command2 === void 0) return "The store refused the batch as a whole, after the deltas of each command had passed";
+  if (index !== void 0) return `The batch was refused at command ${String(index + 1)}, "${command2}"`;
+  if (by === "code") return `The command "${command2}" failed`;
+  if (by === "store") return `The store refused the deltas of the command "${command2}"`;
+  return `The command "${command2}" refused to run`;
+}
+function refusal(id2, failures, by = "command") {
+  return new CommandError({ command: id2, by, failures });
+}
+function createCommands(store, options = {}) {
+  const commands = signal4(/* @__PURE__ */ new Map());
+  const registered = computed3(
+    () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
+  );
+  const ended = () => options.signal?.aborted === true;
+  const randId = asRandId(options.randId);
+  const shared = {
+    lock: options.lock ?? { board: false, load: false },
+    mintId: (taken) => mintId(taken, randId),
+    blockrOption: options.blockrOption ?? (() => Promise.resolve(void 0))
+  };
+  function register(command2) {
+    const { id: id2 } = command2;
+    if (typeof id2 !== "string" || !isCommandId(id2)) {
+      throw new Error(
+        `The command id ${JSON.stringify(id2)} is not named as a registry id is, "{pkg}-{name}".`
+      );
+    }
+    if (typeof command2.label !== "string" || command2.label === "") {
+      throw new Error(`The command "${id2}" has no label.`);
+    }
+    if (typeof command2.run !== "function") {
+      throw new Error(`The command "${id2}" has no run().`);
+    }
+    if (commands.value.has(id2)) {
+      throw new Error(`The command "${id2}" is registered already.`);
+    }
+    const validate = command2.args === void 0 ? void 0 : compile(`the args of the command "${id2}"`, command2.args, "fail their schema");
+    const item2 = {
+      command: command2,
+      validate,
+      context: { ...shared, refusal: (failures) => refusal(id2, failures) }
+    };
+    commands.value = new Map([...commands.value, [id2, item2]]);
+    return () => {
+      if (commands.value.get(id2) !== item2) return;
+      const rest = new Map(commands.value);
+      rest.delete(id2);
+      commands.value = rest;
+    };
+  }
+  function lookup(id2, given) {
+    const item2 = commands.value.get(id2);
+    if (item2 === void 0) {
+      throw refusal(id2, [`No command "${id2}" is registered.`], "registry");
+    }
+    const args = given ?? {};
+    const failures = item2.validate?.(args) ?? [];
+    if (failures.length > 0) {
+      throw refusal(id2, failures.map((failure) => `The args ${failure}`), "registry");
+    }
+    return { item: item2, args };
+  }
+  function current2(id2) {
+    if (ended()) {
+      throw refusal(id2, ["Another board opened in a new store, so this command registry runs no command."], "registry");
+    }
+    if (!store.hasBoard()) {
+      throw refusal(id2, ["The store holds no board until it opens one."], "registry");
+    }
+    return store.board();
+  }
+  function allow({ command: command2, context: context4 }, board, args) {
+    const passes2 = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
+    if (!passes2) {
+      throw refusal(
+        command2.id,
+        [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
+        "preflight"
+      );
+    }
+  }
+  function build({ command: command2, context: context4 }, board, args) {
+    const returned = attempt2(command2, () => command2.run(board, args, context4));
+    const deltas2 = isDeltas(returned) ? returned : [returned];
+    return deltas2.map((delta) => withEdits(command2.undo === false ? { ...delta, undo: false } : delta));
+  }
+  function deltas(item2, args) {
+    const board = current2(item2.command.id);
+    allow(item2, board, args);
+    if (item2.command.prepare === void 0) return build(item2, board, args);
+    return prepared(item2, board, args);
+  }
+  async function prepared(item2, board, args) {
+    const { command: command2 } = item2;
+    const input2 = await prepare(item2, board, args);
+    if (ended()) throw refusal(command2.id, [DROPPED], "registry");
+    const now = current2(command2.id);
+    allow(item2, now, args);
+    return build(item2, now, input2);
+  }
+  async function prepare({ command: command2, context: context4 }, board, args) {
+    try {
+      return await command2.prepare?.(board, args, context4);
+    } catch (error) {
+      throw failed(command2, error);
+    }
+  }
+  async function planned(batch2, then) {
+    const within = keepContext();
+    const checked4 = batch2.map(({ id: id2, args }, index) => {
+      try {
+        return lookup(id2, args);
+      } catch (error) {
+        throw inBatch(index, id2, error);
+      }
+    });
+    const [first] = checked4;
+    if (first === void 0) return then([]);
+    const inputs = /* @__PURE__ */ new Map();
+    let built = [];
+    let again = true;
+    while (again) {
+      again = false;
+      built = [];
+      let start3;
+      try {
+        start3 = current2(first.item.command.id);
+      } catch (error) {
+        throw inBatch(0, first.item.command.id, error);
+      }
+      let board = start3;
+      for (const [index, { item: item2, args }] of checked4.entries()) {
+        const { command: command2 } = item2;
+        try {
+          allow(item2, board, args);
+          if (command2.prepare !== void 0 && !inputs.has(index)) {
+            inputs.set(index, await within(() => prepare(item2, board, args)));
+            if (ended()) throw refusal(command2.id, [DROPPED], "registry");
+            if (store.board() !== start3) {
+              again = true;
+              break;
+            }
+          }
+          built.push(...build(item2, board, inputs.has(index) ? inputs.get(index) : args));
+          board = byStore(command2.id, () => store.dryRun(built));
+        } catch (error) {
+          throw inBatch(index, command2.id, error);
+        }
+      }
+    }
+    return within(() => then(built));
+  }
+  function runBatch(batch2, origin) {
+    const ids2 = batch2.map(({ id: id2 }) => id2);
+    return traced(
+      "command batch",
+      { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
+      () => planned(batch2, (built) => byStore(void 0, () => store.apply(built, origin)))
+    );
+  }
+  async function traced(name2, attributes, run) {
+    const span = tracer().startSpan(name2, { attributes });
+    try {
+      return await otelContext.with(trace3.setSpan(otelContext.active(), span), run);
+    } catch (error) {
+      failSpan(span, error);
+      throw error;
+    } finally {
+      span.end();
+    }
+  }
+  function withEdits(delta) {
+    const blocks = delta.blocks?.mod;
+    const patches2 = delta.patches;
+    if (blocks === void 0 && patches2 === void 0) return delta;
+    const edit = (change, id2) => change.edit !== void 0 || id2 === void 0 ? change : { ...change, edit: id2 };
+    return {
+      ...delta,
+      ...blocks === void 0 ? {} : {
+        blocks: {
+          ...delta.blocks,
+          mod: Object.fromEntries(
+            Object.entries(blocks).map(([id2, mod]) => [
+              id2,
+              edit(mod, store.editId({ block: id2 }))
+            ])
+          )
+        }
+      },
+      ...patches2 === void 0 ? {} : {
+        patches: patches2.map((patch2) => {
+          const plugin = pluginClassFromPath(patch2.path);
+          return plugin === void 0 ? patch2 : edit(patch2, store.editId({ plugin }));
+        })
+      }
+    };
+  }
+  const registry = {
+    register,
+    registered: () => registered.value,
+    preflight(id2, given) {
+      try {
+        const { item: item2, args } = lookup(id2, given);
+        allow(item2, current2(id2), args);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    // A batch comes with its origin second, in place of the args, and its
+    // options third, in place of the origin. The command registry ignores the
+    // notifier in the options, which CoreApi acts on (../core/core.ts).
+    async run(target2, given, third) {
+      if (typeof target2 !== "string") return runBatch(target2, typeof given === "string" ? given : "user");
+      const origin = typeof third === "string" ? third : "user";
+      return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
+        const within = keepContext();
+        const { item: item2, args } = lookup(target2, given);
+        const step2 = deltas(item2, args);
+        const ready = Array.isArray(step2) ? step2 : await step2;
+        return within(() => byStore(target2, () => store.apply(ready, origin)));
+      });
+    },
+    async plan(target2, given) {
+      if (typeof target2 !== "string") return planned(target2, (built) => built);
+      const { item: item2, args } = lookup(target2, given);
+      return deltas(item2, args);
+    }
+  };
+  for (const command2 of coreCommands(store)) {
+    registry.register(command2);
+  }
+  return registry;
+}
+function isCommandId(id2) {
+  const pkg = packageFromId(id2);
+  return pkg !== null && id2.length > pkg.length + 1;
+}
+function isLogged(error) {
+  return error instanceof CommandError && error.by === "code";
+}
+function inBatch(index, id2, error) {
+  if (!(error instanceof CommandError)) return error;
+  return new CommandError({ command: id2, by: error.by, failures: error.failures, index, cause: error.cause });
+}
+function byStore(id2, fn) {
+  try {
+    return fn();
+  } catch (error) {
+    if (!(error instanceof StoreError)) throw error;
+    throw new CommandError({ command: id2, by: "store", failures: error.failures, cause: error });
+  }
+}
+function failed(command2, error) {
+  if (error instanceof CommandError) return error;
+  const failure = new CommandError({ command: command2.id, by: "code", failures: [errorMessage(error)], cause: error });
+  log.error(failure);
+  return failure;
+}
+function attempt2(command2, fn) {
+  try {
+    return fn();
+  } catch (error) {
+    throw failed(command2, error);
+  }
+}
+var CommandError, DROPPED;
+var init_commands = __esm({
+  "srcts/commands/commands.ts"() {
+    init_log2();
+    init_store2();
+    init_trace2();
+    init_util2();
+    init_core();
+    CommandError = class extends Error {
+      // The id of the command that was stopped, such as
+      // "blockr.core-remove_block". It is left out only where the store refused a
+      // batch as a whole, after the dry run of each command's deltas had passed,
+      // which the first line says. There, a plugin class's afterStep failed, or
+      // returned what the store refuses, and the failures name the class.
+      command;
+      // What stopped the command:
+      // - "registry": the command registry refused to run it, as where no command
+      //   has its id, its args fail their schema or the store holds no board.
+      // - "preflight": its preflight() answered false. The assistant's edit tool
+      //   reads this to tell the model what to check.
+      // - "command": the command refused, throwing the refusal() of its context.
+      // - "code": the command's own preflight(), prepare() or run() threw
+      //   anything else. That is the cause, and the command registry has logged
+      //   it at error.
+      // - "store": the store refused its deltas. The StoreError is the cause.
+      by;
+      failures;
+      // The command's place in the batch that run() or plan() was given, counted
+      // from 0, where it was stopped as one of a batch.
+      index;
+      constructor(fields) {
+        super(
+          [firstLine(fields), ...fields.failures.map((failure) => `- ${failure}`)].join("\n"),
+          fields.cause === void 0 ? void 0 : { cause: fields.cause }
+        );
+        this.name = "CommandError";
+        this.by = fields.by;
+        this.failures = fields.failures;
+        if (fields.command !== void 0) this.command = fields.command;
+        if (fields.index !== void 0) this.index = fields.index;
+      }
+    };
+    DROPPED = "A board opened while it prepared, which drops it.";
+  }
+});
+
+// srcts/commands/index.ts
+var init_commands2 = __esm({
+  "srcts/commands/index.ts"() {
+    init_commands();
+    init_core();
+    init_schemas();
+  }
+});
+
+// srcts/card/footer.tsx
+import { useCallback, useId, useState } from "react";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+function useFooter(status, notifications) {
+  const shown2 = useShown(status);
+  const opened = useOpened(OPEN_AT_START);
+  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
+}
+function usePills(notifications) {
+  const opened = useOpened(NONE_OPEN);
+  return { status: void 0, shown: void 0, settled: true, notifications, ...opened };
+}
+function useOpened(atStart) {
+  const [open, setOpen] = useState(atStart);
+  const panel = useId();
+  const toggle = useCallback((severity) => {
+    setOpen((was) => {
+      const next = new Set(was);
+      if (!next.delete(severity)) next.add(severity);
+      return next;
+    });
+  }, []);
+  return { open, toggle, panel };
+}
+function Footer({ status, shown: shown2, settled: settled2 }) {
+  return /* @__PURE__ */ jsx(
+    "footer",
+    {
+      "aria-busy": status?.running === true,
+      "data-status": shown2?.status,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-muted-foreground bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+      children: shown2?.status === "ready" ? shown2.summary : null
+    }
+  );
+}
+function Pills({
+  status,
+  shown: shown2,
+  settled: settled2,
+  notifications,
+  open,
+  toggle,
+  panel,
+  className = "bc:justify-center bc:px-5"
+}) {
+  const pills = SEVERITIES2.flatMap((severity) => {
+    const n = counted(shown2, notifications, severity);
+    return n === 0 ? [] : [{ severity, n }];
+  });
+  if (pills.length === 0) return null;
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      role: "group",
+      "aria-label": "Status",
+      "aria-busy": status?.running === true,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
+      children: pills.map(({ severity, n }) => {
+        const mark = MARKS[severity];
+        return /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            "aria-expanded": open.has(severity),
+            "aria-controls": panel,
+            onClick: () => {
+              toggle(severity);
+            },
+            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+            children: [
+              /* @__PURE__ */ jsx(SeverityIcon, { severity }),
+              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
+            ]
+          },
+          severity
+        );
+      })
+    }
+  );
+}
+function Banners({ shown: shown2, notifications, open, panel }) {
+  const listed = notifications.filter(
+    (notification) => open.has(notification.severity)
+  );
+  const reason = shown2?.reason ?? null;
+  if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
+  if (listed.length === 0) return null;
+  return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx(Banner, { severity, message }, i)) });
+}
+function isSettled(status, shown2) {
+  return status !== void 0 && status === shown2 && !status.running;
+}
+function counted(status, notifications, severity) {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
+  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
+}
+function Banner({ severity, message }) {
+  const mark = MARKS[severity];
+  return /* @__PURE__ */ jsxs(
+    "li",
+    {
+      "data-severity": severity,
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx(SeverityIcon, { severity }) }),
+        /* @__PURE__ */ jsxs("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
+          /* @__PURE__ */ jsx("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
+          /* @__PURE__ */ jsx("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
+        ] })
+      ]
+    }
+  );
+}
+function SeverityIcon({ severity }) {
+  return /* @__PURE__ */ jsx(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      className: "bc:size-3 bc:shrink-0",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.6,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+      ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+      ] })
+    }
+  );
+}
+function useShown(status) {
+  const [kept, setKept] = useState(void 0);
+  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
+  if (now !== void 0 && now !== kept) setKept(now);
+  return now ?? kept;
+}
+var SEVERITIES2, MARKS, OPEN_AT_START, NONE_OPEN;
+var init_footer = __esm({
+  "srcts/card/footer.tsx"() {
+    SEVERITIES2 = ["error", "warning", "message"];
+    MARKS = {
+      error: {
+        label: "Error",
+        noun: "error",
+        text: "bc:text-destructive-text",
+        tint: "bc:bg-destructive/10",
+        border: "bc:border-destructive"
+      },
+      warning: {
+        label: "Warning",
+        noun: "warning",
+        text: "bc:text-warning-text",
+        tint: "bc:bg-warning/10",
+        border: "bc:border-warning"
+      },
+      message: {
+        label: "Message",
+        noun: "message",
+        text: "bc:text-primary-text",
+        tint: "bc:bg-primary/10",
+        border: "bc:border-primary"
+      }
+    };
+    OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+    NONE_OPEN = /* @__PURE__ */ new Set();
+  }
+});
+
+// srcts/card/mounted.tsx
+import { useLayoutEffect, useRef } from "react";
+import { jsx as jsx2 } from "react/jsx-runtime";
+function Mounted({
+  mount: mount2,
+  label,
+  className,
+  data,
+  deferred = false
+}) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    let cleanup;
+    let gone = false;
+    const start3 = () => {
+      if (!gone) cleanup = mount2(el);
+    };
+    if (deferred) queueMicrotask(start3);
+    else start3();
+    return () => {
+      gone = true;
+      queueMicrotask(() => {
+        cleanup?.();
+      });
+    };
+  }, [mount2, deferred]);
+  return /* @__PURE__ */ jsx2("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
+}
+var init_mounted = __esm({
+  "srcts/card/mounted.tsx"() {
+  }
+});
+
+// srcts/card/status.ts
+import { useState as useState2 } from "react";
+function useSized(status) {
+  const ready = status?.status === "ready";
+  const [sized, setSized] = useState2(ready);
+  if (ready && !sized) setSized(true);
+  return sized || ready;
+}
+var init_status = __esm({
+  "srcts/card/status.ts"() {
+  }
+});
+
+// srcts/card/index.ts
+var init_card = __esm({
+  "srcts/card/index.ts"() {
+    init_footer();
+    init_mounted();
+    init_status();
+  }
+});
+
+// srcts/actions/dialog.tsx
+var dialog_exports = {};
+__export(dialog_exports, {
+  drawDialog: () => drawDialog
+});
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { Button, Dialog, Heading, Modal } from "@blockr/ui";
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+function drawDialog(el, args, onClose) {
+  const root = createRoot(el);
+  flushSync(() => {
+    root.render(/* @__PURE__ */ jsx3(CoreDialog, { args, onClose }));
+  });
+  return () => {
+    root.unmount();
+  };
+}
+function CoreDialog({ args, onClose }) {
+  const { mount: mount2 } = args;
+  return /* @__PURE__ */ jsx3(
+    Modal,
+    {
+      isOpen: true,
+      onOpenChange: (isOpen) => {
+        if (!isOpen) onClose();
+      },
+      className: WIDTH,
+      children: /* @__PURE__ */ jsx3(Dialog, { children: /* @__PURE__ */ jsxs2("div", { className: "bc:grid bc:gap-3", children: [
+        /* @__PURE__ */ jsxs2("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
+          /* @__PURE__ */ jsx3(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
+          /* @__PURE__ */ jsx3(Button, { variant: "secondary", onPress: onClose, children: "Close" })
+        ] }),
+        /* @__PURE__ */ jsx3(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" })
+      ] }) })
+    }
+  );
+}
+var WIDTH;
+var init_dialog = __esm({
+  "srcts/actions/dialog.tsx"() {
+    init_card();
+    WIDTH = "bc:min-w-[min(420px,100%)]";
+  }
+});
+
+// srcts/actions/targets.ts
+function kindsFailure(on, empty2) {
+  if (!Array.isArray(on)) return "is no array of the kinds of target that it applies to";
+  if (on.length === 0) return empty2;
+  const other = on.find((kind) => typeof kind !== "string" || !Object.hasOwn(KINDS2, kind));
+  return other === void 0 ? void 0 : `names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}`;
+}
+function idOf(target2, kind) {
+  if (kind === "block") return "block" in target2 ? target2.block : void 0;
+  if (kind === "link") return "link" in target2 ? target2.link : void 0;
+  return "stack" in target2 ? target2.stack : void 0;
+}
+function blockOf(target2) {
+  return idOf(target2, "block");
+}
+function inputOf(target2) {
+  return "input" in target2 ? target2.input : void 0;
+}
+function heldBlock(board, target2) {
+  const block = blockOf(target2);
+  return block !== void 0 && Object.hasOwn(board.blocks, block) ? block : void 0;
+}
+function held2(board, target2, kind) {
+  const objects = "selection" in target2 ? target2.selection : [target2];
+  const kept = { block: board.blocks, link: board.links, stack: board.stacks }[kind];
+  const ids2 = objects.flatMap((object2) => {
+    const id2 = idOf(object2, kind);
+    return id2 !== void 0 && Object.hasOwn(kept, id2) ? [id2] : [];
+  });
+  return [...new Set(ids2)];
+}
+function heldBlocks(board, target2) {
+  return held2(board, target2, "block");
+}
+var KINDS2;
+var init_targets = __esm({
+  "srcts/actions/targets.ts"() {
+    init_util2();
+    KINDS2 = {
+      board: true,
+      block: true,
+      input: true,
+      link: true,
+      stack: true,
+      option: true,
+      plugin: true,
+      selection: true
+    };
+  }
+});
+
+// srcts/binding/binding.ts
+function bind(host, key2, next, last, given) {
+  const [change, show2, options] = typeof key2 === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
+  const source = createSource(host);
+  const held4 = source.value(key2, change);
+  const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
+  let shown2;
+  let typed;
+  let timer;
+  let released = false;
+  const display = (again = false) => {
+    if (released || timer !== void 0) return;
+    const value2 = held4.get();
+    if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
+    shown2 = { value: value2 };
+    show2(value2);
+  };
+  let unbuilt;
+  const unbuild = (error) => {
+    host.log.error(asError(error));
+    unbuilt?.();
+    unbuilt = options.notifier === void 0 ? host.notify({
+      severity: "error",
+      code: "change_failed",
+      message: `The control failed to build the change it submits: ${errorMessage(error)}`
+    }) : void 0;
+  };
+  const submit = async (value2) => {
+    let submitted;
+    try {
+      submitted = held4.submit(value2, submitting);
+    } catch (error) {
+      unbuild(error);
+      options.settled?.(error);
+      return false;
+    }
+    unbuilt?.();
+    unbuilt = void 0;
+    try {
+      if (submitted !== null) await submitted;
+    } catch (error) {
+      options.settled?.(error);
+      return false;
+    }
+    options.settled?.(null);
+    return true;
+  };
+  const send = () => {
+    const value2 = typed;
+    typed = void 0;
+    if (value2 !== void 0) void submit(value2);
+  };
+  const flush = () => {
+    if (timer === void 0) return;
+    clearTimeout(timer);
+    timer = void 0;
+    send();
+  };
+  const off = source.onValues(() => {
+    display();
+  });
+  display(true);
+  return {
+    get: () => held4.get(),
+    async commit(value2) {
+      const took = await submit(value2);
+      if (!took) display(true);
+      return took;
+    },
+    async unset() {
+      const took = await submit(void 0);
+      if (!took) display(true);
+      return took;
+    },
+    type(value2) {
+      if (released) return;
+      typed = value2;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = void 0;
+        send();
+      }, PAUSE);
+    },
+    flush,
+    release() {
+      if (released) return;
+      released = true;
+      off();
+      flush();
+    }
+  };
+}
+function createSource(host) {
+  if ("option" in host) {
+    return {
+      value(key2) {
+        if (typeof key2 === "function") {
+          throw new TypeError(`The value of the board option "${host.option}" is bound by its id, not through functions.`);
+        }
+        if (key2 !== host.option) {
+          throw new Error(`The host of the board option "${host.option}" holds no value "${key2}".`);
+        }
+        return {
+          get: () => host.value(),
+          submit(value2, opts) {
+            if (jsonEqual(host.value(), value2)) return null;
+            if (value2 === void 0) {
+              return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+            }
+            return host.submit(value2, opts);
+          }
+        };
+      },
+      onValues: (fn) => host.on("value", fn),
+      onContext: () => () => void 0,
+      inputs: () => null,
+      request: (name2, args, opts) => host.request(name2, args, opts)
+    };
+  }
+  return {
+    value(key2, change) {
+      const read = typeof key2 === "function" ? key2 : (state2) => own(state2, key2);
+      const build = typeof key2 === "function" ? change : (value2) => ({ [key2]: value2 });
+      if (typeof build !== "function") {
+        throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
+      }
+      return {
+        get: () => read(host.state()),
+        submit(value2, opts) {
+          const state2 = host.state();
+          const next = build(value2, state2);
+          return holds(state2, next) ? null : host.submit(next, opts);
+        }
+      };
+    },
+    onValues: (fn) => host.on("state", fn),
+    onContext: (fn) => host.on("context", fn),
+    inputs: () => host.context().inputs.map((input2) => ({ input: input2.input, revision: input2.revision })),
+    request: (name2, args, opts) => host.request(name2, args, opts)
+  };
+}
+function holds(state2, change) {
+  return Object.entries(change).every(([arg, value2]) => jsonEqual(own(state2, arg), value2));
+}
+var PAUSE;
+var init_binding = __esm({
+  "srcts/binding/binding.ts"() {
+    init_util2();
+    PAUSE = 500;
+  }
+});
+
+// srcts/binding/index.ts
+var init_binding2 = __esm({
+  "srcts/binding/index.ts"() {
+    init_binding();
+  }
+});
+
+// srcts/react/hooks.ts
+import { useCallback as useCallback2, useLayoutEffect as useLayoutEffect2, useMemo, useRef as useRef2, useState as useState3, useSyncExternalStore } from "react";
+function useValue(host, key2, change) {
+  const read = typeof key2 === "function" ? key2 : null;
+  const name2 = typeof key2 === "function" ? null : key2 ?? ("option" in host ? host.option : "");
+  const given = read === null || change === void 0 ? null : { read, change };
+  const [value2, setValue] = useState3(() => held3(host, name2, { current: given }));
+  const [error, setError] = useState3(null);
+  const binding = useRef2(null);
+  const functions = useRef2(given);
+  useLayoutEffect2(() => {
+    binding.current = start(host, name2, functions, setValue, setError);
+    return () => {
+      const bound = binding.current;
+      binding.current = null;
+      bound?.release();
+    };
+  }, [host, name2]);
+  useLayoutEffect2(() => {
+    if (read === null || change === void 0) return;
+    const last = functions.current;
+    if (last !== null && last.read === read && last.change === change) return;
+    const moved = last === null || !readAlike(last.read, read, host.state());
+    if (moved) binding.current?.release();
+    functions.current = { read, change };
+    if (moved) binding.current = start(host, name2, functions, setValue, setError);
+  }, [read, change, host, name2]);
+  return useMemo(
+    () => ({
+      value: value2,
+      error,
+      get: () => binding.current?.get() ?? held3(host, name2, functions),
+      commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
+      unset: () => binding.current?.unset() ?? Promise.resolve(false),
+      type: (next) => {
+        binding.current?.type(next);
+      },
+      flush: () => {
+        binding.current?.flush();
+      }
+    }),
+    [value2, error, host, name2]
+  );
+}
+function start(host, name2, functions, show2, refused2) {
+  const options = {
+    settled: (error) => {
+      refused2(error === null ? null : errorMessage(error));
+    },
+    notifier: () => void 0
+  };
+  if (name2 !== null) return bind(host, name2, show2, options);
+  return bind(
+    host,
+    (state2) => functions.current?.read(state2),
+    (value2, state2) => functions.current?.change(value2, state2) ?? {},
+    show2,
+    options
+  );
+}
+function held3(host, name2, functions) {
+  if ("option" in host) return host.value();
+  return name2 === null ? functions.current?.read(host.state()) : own(host.state(), name2);
+}
+function readAlike(a, b, state2) {
+  try {
+    return jsonEqual(a(state2), b(state2));
+  } catch {
+    return false;
+  }
+}
+function useBoard(core, select) {
+  const subscribe = useCallback2(
+    (notify) => core.store.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  const read = useMemo(() => {
+    if (select === void 0) return () => core.store.board();
+    let last;
+    return () => {
+      const board = core.store.board();
+      if (last?.board !== board) {
+        const value2 = select(board);
+        last = { board, value: last !== void 0 && jsonEqual(last.value, value2) ? last.value : value2 };
+      }
+      return last.value;
+    };
+  }, [core, select]);
+  return useSyncExternalStore(subscribe, read);
+}
+function useStatus(core, block) {
+  const subscribe = useCallback2(
+    (notify) => core.scheduler.subscribe((changed) => {
+      if (changed.includes(block)) notify();
+    }),
+    [core, block]
+  );
+  return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
+}
+function useNotified(core, about) {
+  const subscribe = useCallback2(
+    (notify) => core.notifications.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  const all = useSyncExternalStore(subscribe, () => core.notifications.get());
+  const [kind, id2] = about === null ? [] : Object.entries(about)[0] ?? [];
+  return useMemo(
+    () => kind === void 0 ? all : all.filter((notification) => notification.about !== void 0 && own(notification.about, kind) === id2),
+    [all, kind, id2]
+  );
+}
+var init_hooks = __esm({
+  "srcts/react/hooks.ts"() {
+    init_binding2();
+    init_util2();
+  }
+});
+
+// srcts/react/module.tsx
+import { Component } from "react";
+import { flushSync as flushSync2 } from "react-dom";
+import { createRoot as createRoot2 } from "react-dom/client";
+import { jsx as jsx4 } from "react/jsx-runtime";
+function reactModule(Draw) {
+  return {
+    render({ el, host, signal: signal5 }) {
+      const root = createRoot2(el);
+      flushSync2(() => {
+        root.render(/* @__PURE__ */ jsx4(Draw, { host, signal: signal5 }));
+      });
+      return () => {
+        root.unmount();
+      };
+    }
+  };
+}
+var init_module = __esm({
+  "srcts/react/module.tsx"() {
+    init_util2();
+    init_hooks();
+  }
+});
+
+// srcts/react/index.ts
+var init_react = __esm({
+  "srcts/react/index.ts"() {
+    init_hooks();
+    init_module();
+  }
+});
+
+// srcts/ui/blocks.tsx
+import { ComboBoxItem, Text } from "@blockr/ui";
+import { jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
+function blockItem(board, registry, id2) {
+  const block = own(board.blocks, id2);
+  const cls = block === void 0 ? void 0 : own(registry, block.registry_id)?.name ?? block.registry_id;
+  return { id: id2, name: block?.name ?? id2, detail: cls === void 0 ? id2 : `${id2} \xB7 ${cls}` };
+}
+function blockTexts(item2) {
+  return [item2.name, item2.detail, item2.id];
+}
+function blockRow(item2) {
+  return /* @__PURE__ */ jsxs3(ComboBoxItem, { id: item2.id, textValue: item2.name, children: [
+    /* @__PURE__ */ jsx5(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item2.name }),
+    /* @__PURE__ */ jsx5(Text, { slot: "description", children: item2.detail })
+  ] });
+}
+var init_blocks2 = __esm({
+  "srcts/ui/blocks.tsx"() {
+    init_util2();
+  }
+});
+
+// srcts/ui/edits.ts
+import { useMemo as useMemo2, useState as useState4 } from "react";
+function runCommand(core, target2, args) {
+  const running3 = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
+  return running3.then(
+    () => true,
+    () => false
+  );
+}
+function useEdits(core) {
+  const [refusal2, setRefusal] = useState4(null);
+  return useMemo2(() => {
+    const opts = { notifier: () => void 0 };
+    function run(title, target2, given) {
+      setRefusal(null);
+      const running3 = typeof target2 === "string" ? core.commands.run(target2, given, "user", opts) : typeof given === "function" ? given(target2, opts) : core.commands.run(target2, "user", opts);
+      return running3.then(
+        () => true,
+        (error) => {
+          setRefusal({ title, reasons: reasons(error) });
+          return false;
+        }
+      );
+    }
+    return {
+      refusal: refusal2,
+      run,
+      clear: () => {
+        setRefusal(null);
+      }
+    };
+  }, [core, refusal2]);
+}
+function reasons(error) {
+  const failures = error instanceof Error && "failures" in error ? error.failures : void 0;
+  return isSentences(failures) ? failures : [errorMessage(error)];
+}
+function notifiedReasons(notifications) {
+  return notifications.flatMap(({ message }) => {
+    const [, ...lines] = message.split("\n");
+    const failures = lines.filter((line) => line.startsWith("- "));
+    return failures.length > 0 && failures.length === lines.length ? failures.map((line) => line.slice(2)) : [message];
+  });
+}
+function isSentences(x) {
+  return Array.isArray(x) && x.length > 0 && x.every((item2) => typeof item2 === "string");
+}
+var init_edits = __esm({
+  "srcts/ui/edits.ts"() {
+    init_util2();
+  }
+});
+
+// srcts/ui/hooks.ts
+import { useCallback as useCallback3, useSyncExternalStore as useSyncExternalStore2 } from "react";
+function useHistory(core) {
+  const subscribe = useCallback3(
+    (notify) => core.store.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  const canUndo = useSyncExternalStore2(subscribe, () => core.store.canUndo());
+  const canRedo = useSyncExternalStore2(subscribe, () => core.store.canRedo());
+  return { canUndo, canRedo };
+}
+var init_hooks2 = __esm({
+  "srcts/ui/hooks.ts"() {
+  }
+});
+
+// srcts/ui/search.ts
+import { useState as useState5 } from "react";
+import { useFilter } from "@blockr/ui";
+function useSearch(all, texts, none = "No options", start3 = "") {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [query, setQuery] = useState5(start3);
+  const [started, setStarted] = useState5(start3 !== "");
+  return {
+    items: query === "" ? all : all.filter((item2) => texts(item2).some((text) => contains(text, query))),
+    onInputChange: (text) => {
+      setStarted(false);
+      setQuery(text);
+    },
+    onOpenChange: (isOpen, trigger) => {
+      if (isOpen && trigger === "manual" && !started) setQuery("");
+    },
+    renderEmptyState: () => all.length === 0 ? none : "No matches"
+  };
+}
+var init_search = __esm({
+  "srcts/ui/search.ts"() {
+  }
+});
+
+// srcts/ui/table.tsx
+import { useState as useState6 } from "react";
+import { Button as Button2, SearchField } from "@blockr/ui";
+import { jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
+function useTableView(rows, text, size = PAGE_SIZE) {
+  const [query, setQueryState] = useState6("");
+  const [page, setPage] = useState6(0);
+  const needle = query.trim().toLowerCase();
+  const matching = needle === "" ? rows : rows.filter((row) => text(row).toLowerCase().includes(needle));
+  const pages = Math.max(1, Math.ceil(matching.length / size));
+  const shown2 = Math.min(page, pages - 1);
+  const first = shown2 * size;
+  return {
+    rows: matching.slice(first, first + size),
+    query,
+    setQuery: (next) => {
+      setQueryState(next);
+      setPage(0);
+    },
+    page: shown2,
+    pages,
+    setPage,
+    found: matching.length,
+    first
+  };
+}
+function TableSearch({ label, view }) {
+  return /* @__PURE__ */ jsx6("search", { children: /* @__PURE__ */ jsx6(SearchField, { label, spellCheck: "false", autoComplete: "off", value: view.query, onChange: view.setQuery }) });
+}
+function Pager({ label, view }) {
+  const { page, pages, found, first, rows } = view;
+  if (pages < 2) return null;
+  return /* @__PURE__ */ jsxs4("nav", { "aria-label": label, className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-muted-foreground", children: [
+    /* @__PURE__ */ jsxs4("span", { "aria-live": "polite", children: [
+      "Rows ",
+      first + 1,
+      "\u2013",
+      first + rows.length,
+      " of ",
+      found
+    ] }),
+    /* @__PURE__ */ jsxs4("span", { className: "bc:flex bc:gap-1", children: [
+      /* @__PURE__ */ jsx6(
+        Button2,
+        {
+          variant: "secondary",
+          isDisabled: page === 0,
+          onPress: () => {
+            view.setPage(page - 1);
+          },
+          children: "Previous"
+        }
+      ),
+      /* @__PURE__ */ jsx6(
+        Button2,
+        {
+          variant: "secondary",
+          isDisabled: page >= pages - 1,
+          onPress: () => {
+            view.setPage(page + 1);
+          },
+          children: "Next"
+        }
+      )
+    ] })
+  ] });
+}
+var PAGE_SIZE;
+var init_table = __esm({
+  "srcts/ui/table.tsx"() {
+    PAGE_SIZE = 10;
+  }
+});
+
+// srcts/ui/ui.tsx
+import { useRef as useRef3, useState as useState7 } from "react";
+import { flushSync as flushSync3 } from "react-dom";
+import { createRoot as createRoot3 } from "react-dom/client";
+import { Button as Button3, TextField } from "@blockr/ui";
+import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
+function NameField({
+  label,
+  name: name2,
+  onSubmit,
+  onDone
+}) {
+  const [text, setText] = useState7(name2);
+  const done = useRef3(false);
+  function finish(submit) {
+    if (done.current) return;
+    done.current = true;
+    const trimmed = text.trim();
+    if (submit && trimmed !== "" && trimmed !== name2) onSubmit(trimmed);
+    onDone();
+  }
+  return /* @__PURE__ */ jsx7(
+    TextField,
+    {
+      "aria-label": label,
+      value: text,
+      autoFocus: true,
+      spellCheck: "false",
+      className: "bc:min-w-40",
+      onChange: setText,
+      onFocus: (event) => {
+        event.target.select();
+      },
+      onKeyDown: (event) => {
+        if (event.key === "Enter" && !event.nativeEvent.isComposing) finish(true);
+        else if (event.key === "Escape") finish(false);
+        else event.continuePropagation();
+      },
+      onBlur: () => {
+        finish(true);
+      }
+    }
+  );
+}
+function ActionsButton({
+  ref,
+  label,
+  onPress
+}) {
+  return /* @__PURE__ */ jsx7(Button3, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx7("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
+}
+function drawForm(el, form) {
+  const root = createRoot3(el);
+  flushSync3(() => {
+    root.render(form);
+  });
+  return () => {
+    root.unmount();
+  };
+}
+function Refusal({ refusal: refusal2 }) {
+  if (refusal2 === null) return null;
+  const mark = MARKS.error;
+  const { title, reasons: reasons2 } = refusal2;
+  return /* @__PURE__ */ jsxs5(
+    "div",
+    {
+      role: "alert",
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx7("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx7(SeverityIcon, { severity: "error" }) }),
+        /* @__PURE__ */ jsxs5("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1 bc:text-sm bc:break-words", children: [
+          /* @__PURE__ */ jsx7("p", { className: `bc:m-0 bc:font-semibold ${mark.text}`, children: title }),
+          reasons2.length === 1 ? /* @__PURE__ */ jsx7("p", { className: "bc:m-0 bc:whitespace-pre-wrap", children: reasons2[0] }) : /* @__PURE__ */ jsx7("ul", { className: "bc:m-0 bc:list-disc bc:pl-5", children: reasons2.map((reason, i) => /* @__PURE__ */ jsx7("li", { className: "bc:whitespace-pre-wrap", children: reason }, i)) })
+        ] })
+      ]
+    }
+  );
+}
+var classes, identifier;
+var init_ui = __esm({
+  "srcts/ui/ui.tsx"() {
+    init_card();
+    classes = {
+      // The board's page, in the page's colour and the colour of its text,
+      // `background` and `foreground`
+      // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
+      page: "bc:bg-background bc:text-foreground",
+      // What sits over the board, as a dialog or a menu does, in the colours of
+      // every overlay, `popover`.
+      surface: "bc:bg-popover bc:text-popover-foreground",
+      // A card on the page, in the colours of a card, `card`.
+      card: "bc:bg-card bc:text-card-foreground",
+      heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
+      list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0",
+      // A hint beside the fields of a form or in place of a list, in the colour
+      // of secondary text, as blockr.ui draws a field's description.
+      hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
+      // A line that says why something cannot happen, in the colour of an error's
+      // text, as blockr.ui draws a field's error.
+      alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap",
+      // A group of controls under a legend, which takes the look of a field's
+      // label, as blockr.ui draws it.
+      fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
+      legend: "bc:mb-1 bc:p-0 bc:text-sm bc:font-medium"
+    };
+    identifier = { spellCheck: "false", autoCapitalize: "none", autoCorrect: "off" };
+  }
+});
+
+// srcts/ui/index.ts
+var init_ui2 = __esm({
+  "srcts/ui/index.ts"() {
+    init_blocks2();
+    init_edits();
+    init_hooks2();
+    init_search();
+    init_table();
+    init_ui();
+  }
+});
+
+// srcts/picker/picker.tsx
+import { useMemo as useMemo3, useState as useState8 } from "react";
+import { flushSync as flushSync4 } from "react-dom";
+import { Button as Button4, ComboBox, ComboBoxItem as ComboBoxItem2, ComboBoxSection, Form, Select, SelectItem, Text as Text2, TextField as TextField2 } from "@blockr/ui";
+import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
+function drawPicker(el, props) {
+  return drawForm(el, /* @__PURE__ */ jsx8(BlockPicker, { ...props }));
+}
+function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
+  const registry = core.blockRegistry();
+  const edits = useEdits(core);
+  const [picked, setPicked] = useState8(void 0);
+  const [input2, setInput] = useState8(void 0);
+  const [inputName, setInputName] = useState8("");
+  const [place, setPlace] = useState8(void 0);
+  const [id2, setId] = useState8("");
+  const [name2, setName] = useState8("");
+  const [errors, setErrors] = useState8({});
+  const [busy, setBusy] = useState8(false);
+  const takes = mode.kind === "after" || mode.kind === "on";
+  const options = useMemo3(() => blockClasses(Object.values(registry).filter((entry2) => !takes || entry2.inputs.length > 0)), [registry, takes]);
+  const search = useSearch(
+    options,
+    (item2) => [item2.name, item2.description, item2.id, item2.category, item2.pkg ?? "", ...item2.keywords],
+    "No block class to pick.",
+    filter
+  );
+  const entry = picked === void 0 ? void 0 : own(registry, picked);
+  const link = useBoard(core, (board) => linkChoice(mode, board, core.blockRegistry(), entry));
+  const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
+  const places = link.kind === "name" ? link.places : void 0;
+  const position = places === void 0 ? void 0 : place !== void 0 && place <= places.length ? place : places.length + 1;
+  const on = useBoard(core, (board) => mode.kind === "on" ? own(board.links, mode.link) : void 0);
+  if (mode.kind === "on" && on === void 0) return null;
+  function check2() {
+    return {
+      ...entry === void 0 ? { registry: "Pick the class of the new block." } : {},
+      ...optional2("id", blockIdError(id2, core.store.board())),
+      ...link.kind === "name" ? optional2("input", inputNameError(inputName, link.taken)) : {}
+    };
+  }
+  async function submit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const found = check2();
+    flushSync4(() => {
+      setErrors(found);
+      edits.clear();
+    });
+    if (Object.keys(found).length > 0 || entry === void 0 || busy) {
+      focusFirstInvalid(form);
+      return;
+    }
+    const args = {
+      registry_id: entry.id,
+      ...filled("id", id2),
+      ...filled("name", name2)
+    };
+    const into = {
+      ...chosen === void 0 ? {} : { input: chosen },
+      ...link.kind === "name" ? filled("input", inputName) : {},
+      ...link.kind === "fixed" ? { input: link.input } : {}
+    };
+    const before = places === void 0 || position === void 0 ? void 0 : places[position - 1];
+    setBusy(true);
+    await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into, before), done);
+    setBusy(false);
+  }
+  return /* @__PURE__ */ jsxs6(
+    Form,
+    {
+      "aria-label": "Add block",
+      validationBehavior: "aria",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      children: [
+        /* @__PURE__ */ jsx8(
+          ComboBox,
+          {
+            label: "Block class",
+            autoFocus: autofocus,
+            defaultInputValue: filter,
+            ...search,
+            items: byCategory(search.items),
+            value: picked ?? null,
+            placeholder: options.length === 0 ? "No block class to pick" : "Search by name, description or keyword",
+            isInvalid: errors.registry !== void 0,
+            errorMessage: errors.registry,
+            description: entry?.description === "" ? void 0 : entry?.description,
+            onChange: (key2) => {
+              setPicked(key2 === null ? void 0 : String(key2));
+              if (takes) setInput(void 0);
+              setErrors((now) => without3(now, "registry"));
+            },
+            children: (category) => /* @__PURE__ */ jsx8(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item2) => /* @__PURE__ */ jsxs6(ComboBoxItem2, { id: item2.id, textValue: item2.name, children: [
+              /* @__PURE__ */ jsx8(Text2, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item2.name }),
+              item2.description === "" ? null : /* @__PURE__ */ jsx8(Text2, { slot: "description", children: item2.description }),
+              item2.pkg === null ? null : /* @__PURE__ */ jsx8("span", { className: BADGE, children: item2.pkg })
+            ] }) })
+          }
+        ),
+        link.kind === "pick" ? /* @__PURE__ */ jsx8(
+          Select,
+          {
+            label: link.label,
+            isRequired: true,
+            items: link.inputs.map((input3) => ({ id: input3 })),
+            value: chosen ?? null,
+            onChange: (key2) => {
+              if (key2 !== null) setInput(String(key2));
+            },
+            children: (item2) => /* @__PURE__ */ jsx8(SelectItem, { id: item2.id, children: item2.id })
+          }
+        ) : null,
+        link.kind === "name" ? /* @__PURE__ */ jsxs6("div", { className: places === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx8(
+            TextField2,
+            {
+              label: link.label,
+              value: inputName,
+              description: "Optional. Leave it empty for an input without a name, which the block takes in the order of its links.",
+              errorMessage: errors.input,
+              isInvalid: errors.input !== void 0,
+              autoComplete: "off",
+              onChange: (value2) => {
+                setInputName(value2);
+                setErrors((now) => without3(now, "input"));
+              },
+              onBlur: () => {
+                setErrors((now) => ({ ...now, ...optional2("input", inputNameError(inputName, link.taken)) }));
+              }
+            }
+          ),
+          places === void 0 ? null : /* @__PURE__ */ jsx8(
+            Select,
+            {
+              label: "Position",
+              isRequired: true,
+              items: Array.from({ length: places.length + 1 }, (_, i) => ({ id: String(i + 1) })),
+              value: position === void 0 ? null : String(position),
+              isDisabled: places.length === 0,
+              onChange: (key2) => {
+                if (key2 !== null) setPlace(Number(key2));
+              },
+              children: (item2) => /* @__PURE__ */ jsx8(SelectItem, { id: item2.id, children: item2.id })
+            }
+          )
+        ] }) : null,
+        link.kind === "fixed" ? /* @__PURE__ */ jsx8("p", { className: classes.hint, children: link.line }) : null,
+        link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx8("p", { className: classes.alert, children: link.why }) : null,
+        /* @__PURE__ */ jsxs6("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx8(
+            TextField2,
+            {
+              label: "ID",
+              value: id2,
+              description: "Optional. Made up where left empty.",
+              errorMessage: errors.id,
+              isInvalid: errors.id !== void 0,
+              autoComplete: "off",
+              ...identifier,
+              onChange: (value2) => {
+                setId(value2);
+                setErrors((now) => without3(now, "id"));
+              },
+              onBlur: () => {
+                setErrors((now) => ({ ...now, ...optional2("id", blockIdError(id2, core.store.board())) }));
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx8(
+            TextField2,
+            {
+              label: "Name",
+              value: name2,
+              placeholder: entry?.block_name,
+              description: "Optional. The class's name where left empty.",
+              autoComplete: "off",
+              onChange: setName
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsx8("div", { children: /* @__PURE__ */ jsx8(Button4, { type: "submit", variant: "primary", isDisabled: busy || link.kind === "no_free_inputs", children: "Add block" }) }),
+        /* @__PURE__ */ jsx8(Refusal, { refusal: edits.refusal })
+      ]
+    }
+  );
+}
+function linkChoice(mode, board, registry, entry) {
+  if (mode.kind === "before") {
+    const target2 = own(board.blocks, mode.to);
+    const free = freeInputs(board, registry, mode.to) ?? [];
+    const name2 = target2?.name ?? mode.to;
+    const of = `of "${name2}"`;
+    if (mode.input !== void 0 && mode.input !== "") return fixedInput(free, mode.input, name2);
+    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to), places: linksInto(board, mode.to) };
+    if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
+    return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
+  }
+  if ((mode.kind === "after" || mode.kind === "on") && entry !== void 0) {
+    if (entry.inputs.includes("...")) return { kind: "name", label: `Input name of the new ${entry.name}`, taken: [] };
+    if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
+  }
+  return { kind: "none" };
+}
+function fixedInput(free, input2, name2) {
+  const named5 = `the input "${input2}" of "${name2}"`;
+  if (free.includes(input2)) return { kind: "fixed", input: input2, line: `The new block feeds ${named5}.` };
+  return { kind: "no_free_inputs", why: `A link feeds ${named5} already.` };
+}
+function pickedBatch(core, mode, on, args, into, before) {
+  const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
+  const add = { id: "blockr.core-add_block", args: { ...args, id: block } };
+  const linked = (from, to, id2) => ({
+    id: "blockr.core-add_link",
+    args: { ...id2 === void 0 ? {} : { id: id2 }, from, to, ...into }
+  });
+  switch (mode.kind) {
+    case "add":
+      return [add];
+    case "after":
+      return [add, linked(mode.from, block)];
+    case "before": {
+      if (before === void 0) return [add, linked(block, mode.to)];
+      const link = core.mintId((id2) => Object.hasOwn(core.store.board().links, id2));
+      return [add, linked(block, mode.to, link), { id: "blockr.core-change_link", args: { id: link, before } }];
+    }
+    case "on":
+      return on === void 0 ? [] : [add, linked(on.from, block), { id: "blockr.core-change_link", args: { id: mode.link, from: block } }];
+  }
+}
+function linksInto(board, to) {
+  return Object.keys(board.links).filter((id2) => own(board.links, id2)?.to === to);
+}
+function isVariadic(free) {
+  return free.length === 1 && free[0] === "";
+}
+function byCategory(items) {
+  const categories = /* @__PURE__ */ new Map();
+  for (const item2 of items) {
+    const members = categories.get(item2.category) ?? [];
+    members.push(item2);
+    categories.set(item2.category, members);
+  }
+  return [...categories].map(([name2, members]) => ({ id: `category:${name2}`, name: name2, items: members }));
+}
+function filled(arg, value2) {
+  const trimmed = value2.trim();
+  return trimmed === "" ? {} : { [arg]: trimmed };
+}
+function optional2(key2, error) {
+  return error === void 0 ? {} : { [key2]: error };
+}
+function focusFirstInvalid(form) {
+  form.querySelector('[aria-invalid="true"]')?.focus();
+}
+function blockIdError(value2, board) {
+  return idError(value2, "block", (id2) => own(board.blocks, id2) !== void 0);
+}
+function idError(value2, what, taken) {
+  const id2 = value2.trim();
+  if (id2 === "") return void 0;
+  if (/^\d+$/.test(id2)) return `An ID needs a character other than a digit, such as "${what}_${id2}".`;
+  if (taken(id2)) return `The board holds a ${what} "${id2}" already.`;
+  return void 0;
+}
+function without3(errors, key2) {
+  return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key2));
+}
+var BADGE;
+var init_picker = __esm({
+  "srcts/picker/picker.tsx"() {
+    init_commands2();
+    init_react();
+    init_ui2();
+    init_util2();
+    BADGE = "bc:ml-auto bc:shrink-0 bc:rounded-sm bc:border bc:border-border bc:px-1 bc:text-xs bc:text-muted-foreground";
+  }
+});
+
+// srcts/picker/index.ts
+var picker_exports = {};
+__export(picker_exports, {
+  BlockPicker: () => BlockPicker,
+  blockIdError: () => blockIdError,
+  drawPicker: () => drawPicker,
+  focusFirstInvalid: () => focusFirstInvalid,
+  isVariadic: () => isVariadic,
+  without: () => without3
+});
+var init_picker2 = __esm({
+  "srcts/picker/index.ts"() {
+    init_picker();
+  }
+});
+
+// srcts/actions/link-form.tsx
+var link_form_exports = {};
+__export(link_form_exports, {
+  createLinkForm: () => createLinkForm,
+  editLinkForm: () => editLinkForm
+});
+import { useState as useState9 } from "react";
+import { flushSync as flushSync5 } from "react-dom";
+import { Button as Button5, ComboBox as ComboBox2, Form as Form2, Select as Select2, SelectItem as SelectItem2, TextField as TextField3 } from "@blockr/ui";
+import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
+function startOf(picked) {
+  if (!isObject(picked)) return {};
+  const { from, to, input: input2 } = picked;
+  return {
+    ...typeof from === "string" ? { from } : {},
+    ...typeof to === "string" ? { to } : {},
+    ...typeof input2 === "string" ? { input: input2 } : {}
+  };
+}
+function fixedEnd(board, end, block, input2) {
+  const name2 = block === void 0 ? "" : blockName(board, block);
+  if (end === "from") return `A link from "${name2}".`;
+  return input2 === void 0 ? `A link into "${name2}".` : `A link into the input "${input2}" of "${name2}".`;
+}
+function EditLink({ core, id: id2, done }) {
+  const link = useBoard(core, (board) => own(board.links, id2));
+  return link === void 0 ? null : /* @__PURE__ */ jsx9(LinkForm, { core, editing: { id: id2, link }, done });
+}
+function LinkForm({
+  core,
+  start: start3 = {},
+  fixed: fixed2,
+  fixedInput: fixedInput2,
+  editing,
+  done
+}) {
+  const except = editing?.id;
+  const [from, setFrom] = useState9(editing?.link.from ?? start3.from);
+  const [to, setTo] = useState9(editing?.link.to ?? start3.to);
+  const [input2, setInput] = useState9(editing?.link.input ?? start3.input);
+  const [name2, setName] = useState9(
+    () => editing !== void 0 && isVariadicBlock(core.store.board(), core.blockRegistry(), editing.link.to) ? editing.link.input : ""
+  );
+  const [place, setPlace] = useState9(void 0);
+  const [errors, setErrors] = useState9({});
+  const [busy, setBusy] = useState9(false);
+  const edits = useEdits(core);
+  const { source, target: target2, fromOptions, toOptions, variadic: variadic2, offered, chosen, hint, taken, among, fixedLine, targetName, few } = useBoard(
+    core,
+    (board) => {
+      const registry = core.blockRegistry();
+      const others = withoutLink(board, except);
+      const held4 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
+      const source2 = held4(from) ? from : void 0;
+      const target3 = held4(to) ? to : void 0;
+      const free = target3 === void 0 ? [] : freeInputs(others, registry, target3) ?? [];
+      const variadic3 = isVariadic(free);
+      const offered2 = !variadic3 && editing !== void 0 && target3 === editing.link.to ? classInputs(board, registry, target3) : free;
+      const chosen2 = variadic3 ? void 0 : input2 !== void 0 && offered2.includes(input2) ? input2 : free[0];
+      return {
+        source: source2,
+        target: target3,
+        ...ends(others, registry, source2, target3),
+        variadic: variadic3,
+        offered: offered2,
+        chosen: chosen2,
+        // What the form says below the input where another link feeds the one
+        // picked, so that applying the form swaps the inputs of the two links.
+        hint: editing !== void 0 && target3 === editing.link.to && chosen2 !== void 0 ? swapHint(board, registry, editing, chosen2) : void 0,
+        taken: target3 === void 0 ? [] : namesInto(board, target3, except),
+        // Where the link goes into a variadic block, the block's other links
+        // and the place that the link falls in where nothing moves it, which
+        // the form offers until the user picks another.
+        among: target3 === void 0 || !variadic3 ? void 0 : placeAmong(board, target3, except),
+        fixedLine: fixed2 === void 0 ? void 0 : fixedEnd(board, fixed2, fixed2 === "from" ? from : to, fixedInput2),
+        targetName: target3 === void 0 ? "" : blockName(board, target3),
+        // Whether the board holds fewer blocks than a link joins.
+        few: Object.keys(board.blocks).length < 2
+      };
+    }
+  );
+  const fromSearch = useSearch(fromOptions, blockTexts);
+  const toSearch = useSearch(toOptions, blockTexts);
+  const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
+  function check2() {
+    return {
+      ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
+      ...target2 === void 0 ? { to: "Pick the block that the link goes to." } : {},
+      ...variadic2 ? optional3("input", inputNameError(name2, taken)) : {}
+    };
+  }
+  function batch2(source2, target3) {
+    const linkInput = fixedInput2 ?? (variadic2 ? name2.trim() : chosen);
+    const link = { from: source2, to: target3, ...linkInput === void 0 ? {} : { input: linkInput } };
+    const moved = among !== void 0 && position !== void 0 && position !== among.place;
+    const before = moved ? among.others[position - 1] ?? null : void 0;
+    if (editing === void 0) {
+      const id2 = core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
+      const added = { id: ADD_LINK, args: { id: id2, ...link } };
+      return before === void 0 ? [added] : [added, { id: CHANGE_LINK, args: { id: id2, before } }];
+    }
+    return [{ id: CHANGE_LINK, args: { id: editing.id, ...link, ...before === void 0 ? {} : { before } } }];
+  }
+  async function submit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const found = check2();
+    flushSync5(() => {
+      setErrors(found);
+      edits.clear();
+    });
+    if (Object.keys(found).length > 0 || source === void 0 || target2 === void 0 || busy) {
+      focusFirstInvalid(form);
+      return;
+    }
+    const board = core.store.board();
+    const title = editing === void 0 ? "Could not add the link." : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
+    const calls = batch2(source, target2);
+    setBusy(true);
+    await edits.run(title, calls, done);
+    setBusy(false);
+  }
+  return /* @__PURE__ */ jsxs7(
+    Form2,
+    {
+      "aria-label": editing === void 0 ? "Add link" : "Change link",
+      validationBehavior: "aria",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      children: [
+        fixedLine === void 0 ? null : /* @__PURE__ */ jsx9("p", { className: classes.hint, children: fixedLine }),
+        /* @__PURE__ */ jsxs7("div", { className: fixed2 === void 0 ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid", children: [
+          fixed2 === "from" ? null : /* @__PURE__ */ jsx9(
+            ComboBox2,
+            {
+              label: "From",
+              ...fromSearch,
+              value: source ?? null,
+              placeholder: "Search blocks",
+              isInvalid: errors.from !== void 0,
+              errorMessage: errors.from,
+              onChange: (key2) => {
+                setFrom(key2 === null ? void 0 : String(key2));
+                setErrors((now) => without3(now, "from"));
+              },
+              children: blockRow
+            }
+          ),
+          fixed2 === "to" ? null : /* @__PURE__ */ jsx9(
+            ComboBox2,
+            {
+              label: "To",
+              ...toSearch,
+              value: target2 ?? null,
+              placeholder: "Search blocks",
+              isInvalid: errors.to !== void 0,
+              errorMessage: errors.to,
+              description: toOptions.length === 0 ? "No block takes a link from this block." : void 0,
+              onChange: (key2) => {
+                setTo(key2 === null ? void 0 : String(key2));
+                setInput(void 0);
+                setPlace(void 0);
+                setErrors((now) => without3(without3(now, "to"), "input"));
+              },
+              children: blockRow
+            }
+          )
+        ] }),
+        target2 === void 0 || fixedInput2 !== void 0 ? null : variadic2 ? /* @__PURE__ */ jsxs7("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx9(
+            TextField3,
+            {
+              label: "Input name",
+              value: name2,
+              description: `Optional. The block "${targetName}" takes any number of links, each by its name or, where it has none, by its position.`,
+              errorMessage: errors.input,
+              isInvalid: errors.input !== void 0,
+              autoComplete: "off",
+              ...identifier,
+              onChange: (value2) => {
+                setName(value2);
+                setErrors((now) => without3(now, "input"));
+              },
+              onBlur: () => {
+                setErrors((now) => ({ ...now, ...optional3("input", inputNameError(name2, taken)) }));
+              }
+            }
+          ),
+          among === void 0 ? null : /* @__PURE__ */ jsx9(
+            Select2,
+            {
+              label: "Position",
+              isRequired: true,
+              items: Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) })),
+              value: position === void 0 ? null : String(position),
+              isDisabled: among.others.length === 0,
+              onChange: (key2) => {
+                if (key2 !== null) setPlace(Number(key2));
+              },
+              children: (item2) => /* @__PURE__ */ jsx9(SelectItem2, { id: item2.id, children: item2.id })
+            }
+          )
+        ] }) : /* @__PURE__ */ jsx9(
+          Select2,
+          {
+            label: "Input",
+            isRequired: true,
+            items: offered.map((id2) => ({ id: id2 })),
+            value: chosen ?? null,
+            isDisabled: offered.length < 2,
+            description: hint,
+            onChange: (key2) => {
+              if (key2 !== null) setInput(String(key2));
+            },
+            children: (item2) => /* @__PURE__ */ jsx9(SelectItem2, { id: item2.id, children: item2.id })
+          }
+        ),
+        editing === void 0 && few ? /* @__PURE__ */ jsx9("p", { className: classes.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
+        /* @__PURE__ */ jsx9("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx9(Button5, { type: "submit", variant: "primary", isDisabled: busy, children: editing === void 0 ? "Add link" : "Apply" }) }),
+        /* @__PURE__ */ jsx9(Refusal, { refusal: edits.refusal })
+      ]
+    }
+  );
+}
+function ends(board, registry, source, target2) {
+  const graph = createGraph(board);
+  const upstream = source === void 0 ? /* @__PURE__ */ new Set() : graph.withUpstream([source]);
+  const downstream = target2 === void 0 ? /* @__PURE__ */ new Set() : graph.withDownstream([target2]);
+  const ids2 = Object.keys(board.blocks);
+  return {
+    fromOptions: ids2.filter((id2) => !downstream.has(id2)).map((id2) => blockItem(board, registry, id2)),
+    toOptions: ids2.filter((id2) => !upstream.has(id2) && takesLink(board, registry, id2)).map((id2) => blockItem(board, registry, id2))
+  };
+}
+function swapHint(board, registry, editing, input2) {
+  const other = linkFeeding(board, registry, editing.link.to, input2, editing.id);
+  const from = other === void 0 ? void 0 : own(board.links, other)?.from;
+  if (from === void 0) return void 0;
+  return `The link from "${blockName(board, from)}" feeds "${input2}". Applying gives that link "${editing.link.input}", so the two links swap their inputs.`;
+}
+function placeAmong(board, to, id2) {
+  const ids2 = Object.keys(board.links).filter((other) => other === id2 || own(board.links, other)?.to === to);
+  const others = ids2.filter((other) => other !== id2);
+  return { others, place: id2 === void 0 ? others.length + 1 : ids2.indexOf(id2) + 1 };
+}
+function withoutLink(board, id2) {
+  if (id2 === void 0 || !Object.hasOwn(board.links, id2)) return board;
+  const links = Object.fromEntries(Object.entries(board.links).filter(([other]) => other !== id2));
+  return { ...board, links };
+}
+function optional3(key2, error) {
+  return error === void 0 ? {} : { [key2]: error };
+}
+var ADD_LINK, CHANGE_LINK, createLinkForm, editLinkForm;
+var init_link_form = __esm({
+  "srcts/actions/link-form.tsx"() {
+    init_commands2();
+    init_graph2();
+    init_picker2();
+    init_react();
+    init_ui2();
+    init_util2();
+    ADD_LINK = "blockr.core-add_link";
+    CHANGE_LINK = "blockr.core-change_link";
+    createLinkForm = {
+      render({ el, core, target: target2, picked, done }) {
+        const given = picked === void 0 ? {} : startOf(picked);
+        if ("input" in target2) {
+          const input2 = target2.input === "" ? {} : { input: target2.input };
+          const fixedInput2 = target2.input === "" ? {} : { fixedInput: target2.input };
+          return drawForm(el, /* @__PURE__ */ jsx9(LinkForm, { core, start: { ...given, to: target2.block, ...input2 }, fixed: "to", ...fixedInput2, done }));
+        }
+        if (!("block" in target2)) return drawForm(el, /* @__PURE__ */ jsx9(LinkForm, { core, start: given, done }));
+        const { block } = target2;
+        const fixed2 = given.to === block ? "to" : "from";
+        const start3 = fixed2 === "to" ? { ...given, to: block } : { ...given, from: block };
+        return drawForm(el, /* @__PURE__ */ jsx9(LinkForm, { core, start: start3, fixed: fixed2, done }));
+      }
+    };
+    editLinkForm = {
+      render({ el, core, target: target2, done }) {
+        if (!("link" in target2)) return void 0;
+        return drawForm(el, /* @__PURE__ */ jsx9(EditLink, { core, id: target2.link, done }));
+      }
+    };
+  }
+});
+
+// srcts/actions/palette.ts
+function suggestedColor(stacks) {
+  const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
+  return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
+}
+var PALETTE;
+var init_palette = __esm({
+  "srcts/actions/palette.ts"() {
+    PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
+  }
+});
+
+// srcts/actions/stack-form.tsx
+var stack_form_exports = {};
+__export(stack_form_exports, {
+  createStackForm: () => createStackForm,
+  editStackForm: () => editStackForm
+});
+import { useState as useState10 } from "react";
+import {
+  Button as Button6,
+  Checkbox,
+  ColorArea,
+  ColorField,
+  ColorPicker,
+  ColorSlider,
+  ColorSwatchPicker,
+  ColorSwatchPickerItem,
+  ComboBox as ComboBox3,
+  ComboBoxSection as ComboBoxSection2,
+  Form as Form3,
+  TextField as TextField4
+} from "@blockr/ui";
+import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
+function EditStack({ core, id: id2, done }) {
+  const stack = useBoard(core, (board) => own(board.stacks, id2));
+  return stack === void 0 ? null : /* @__PURE__ */ jsx10(StackForm, { core, editing: { id: id2, stack }, done });
+}
+function stackColor(color2) {
+  return typeof color2 === "string" ? color2 : color2.toString("hex");
+}
+function sameColor(a, b) {
+  return a === null || b === null ? a === b : a.toLowerCase() === b.toLowerCase();
+}
+function StackForm({
+  core,
+  given = [],
+  editing,
+  done
+}) {
+  const [name2, setName] = useState10(editing?.stack.name ?? "");
+  const [color2, setColor] = useState10(
+    () => editing === void 0 ? suggestedColor(Object.values(core.store.board().stacks)) : editing.stack.color
+  );
+  const [blocks, setBlocks] = useState10(editing?.stack.blocks ?? given);
+  const fixed2 = editing === void 0 && given.length > 0;
+  const [busy, setBusy] = useState10(false);
+  const edits = useEdits(core);
+  const { options, kept, fallbackName, line } = useBoard(core, (board) => {
+    const registry = core.blockRegistry();
+    const holder = /* @__PURE__ */ new Map();
+    for (const [id2, stack] of Object.entries(board.stacks)) {
+      if (id2 === editing?.id) continue;
+      for (const block of stack.blocks) holder.set(block, stack.name);
+    }
+    const kept2 = blocks.filter((block) => Object.hasOwn(board.blocks, block));
+    return {
+      // The blocks, those in no stack first, and those in another stack, which
+      // say that they leave it.
+      options: Object.keys(board.blocks).map((id2) => {
+        const item2 = blockItem(board, registry, id2);
+        const other = holder.get(id2);
+        return other === void 0 ? { ...item2, free: true } : { ...item2, free: false, detail: `${item2.detail} \xB7 leaves the stack ${other}` };
+      }),
+      kept: kept2,
+      fallbackName: editing === void 0 ? suggestedName(Object.values(board.stacks)) : editing.stack.name,
+      // The line that names the new stack's blocks, where the target fixes
+      // them.
+      line: fixed2 ? stackOf(board, kept2) : void 0
+    };
+  });
+  const search = useSearch(options, blockTexts, "The board holds no block.");
+  const sections = [
+    { id: "free", title: "In no stack", items: search.items.filter((item2) => item2.free) },
+    { id: "held", title: "In another stack", items: search.items.filter((item2) => !item2.free) }
+  ].filter((section) => section.items.length > 0);
+  function batch2() {
+    const trimmed = name2.trim();
+    const hex3 = color2 === null ? null : stackColor(color2);
+    if (editing === void 0) {
+      const id3 = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
+      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, ...trimmed === "" ? {} : { name: trimmed } } }];
+    }
+    const { id: id2, stack } = editing;
+    const changed = {
+      ...trimmed === "" || trimmed === stack.name ? {} : { name: trimmed },
+      ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
+      ...sameColor(hex3, stack.color) ? {} : { color: hex3 }
+    };
+    return Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id: id2, ...changed } }];
+  }
+  async function submit(event) {
+    event.preventDefault();
+    if (busy) return;
+    const title = editing === void 0 ? "Could not add the stack." : `Could not change the stack "${editing.stack.name}".`;
+    const calls = batch2();
+    setBusy(true);
+    await edits.run(title, calls, done);
+    setBusy(false);
+  }
+  return /* @__PURE__ */ jsxs8(
+    Form3,
+    {
+      "aria-label": editing === void 0 ? "Add stack" : "Change stack",
+      validationBehavior: "aria",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      children: [
+        line === void 0 ? null : /* @__PURE__ */ jsx10("p", { className: classes.hint, children: line }),
+        /* @__PURE__ */ jsxs8("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx10(
+            TextField4,
+            {
+              label: "Name",
+              value: name2,
+              placeholder: fallbackName,
+              description: editing === void 0 ? `Optional. "${fallbackName}" where left empty.` : void 0,
+              autoComplete: "off",
+              onChange: setName
+            }
+          ),
+          /* @__PURE__ */ jsx10(StackColor, { color: color2, onChange: setColor })
+        ] }),
+        fixed2 ? null : /* @__PURE__ */ jsx10(
+          ComboBox3,
+          {
+            selectionMode: "multiple",
+            label: "Blocks",
+            ...search,
+            items: sections,
+            value: kept,
+            placeholder: "No blocks",
+            description: "A block sits in one stack at most.",
+            onChange: (keys) => {
+              setBlocks(keys.map(String));
+            },
+            children: (section) => /* @__PURE__ */ jsx10(ComboBoxSection2, { id: section.id, title: section.title, items: section.items, children: blockRow })
+          }
+        ),
+        /* @__PURE__ */ jsx10("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx10(Button6, { type: "submit", variant: "primary", isDisabled: busy, children: editing === void 0 ? "Add stack" : "Apply" }) }),
+        /* @__PURE__ */ jsx10(Refusal, { refusal: edits.refusal })
+      ]
+    }
+  );
+}
+function StackColor({ color: color2, onChange }) {
+  const [last, setLast] = useState10(color2 ?? PALETTE[0]);
+  const shown2 = color2 ?? last;
+  return /* @__PURE__ */ jsxs8("fieldset", { className: classes.fieldset, children: [
+    /* @__PURE__ */ jsx10("legend", { className: classes.legend, children: "Colour" }),
+    /* @__PURE__ */ jsxs8("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1", children: [
+      /* @__PURE__ */ jsx10(
+        Checkbox,
+        {
+          isSelected: color2 !== null,
+          onChange: (selected) => {
+            onChange(selected ? last : null);
+          },
+          children: "A colour of its own"
+        }
+      ),
+      /* @__PURE__ */ jsxs8(
+        ColorPicker,
+        {
+          label: stackColor(shown2).toUpperCase(),
+          value: shown2,
+          isDisabled: color2 === null,
+          onChange: (picked) => {
+            setLast(picked);
+            onChange(picked);
+          },
+          children: [
+            /* @__PURE__ */ jsx10(ColorArea, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
+            /* @__PURE__ */ jsx10(ColorSlider, { colorSpace: "hsb", channel: "hue" }),
+            /* @__PURE__ */ jsx10(ColorField, { label: "Hex" }),
+            /* @__PURE__ */ jsx10(ColorSwatchPicker, { "aria-label": "Palette", className: "bc:max-w-36", children: PALETTE.map((hex3) => /* @__PURE__ */ jsx10(ColorSwatchPickerItem, { color: hex3 }, hex3)) })
+          ]
+        }
+      )
+    ] })
+  ] });
+}
+function stackOf(board, blocks) {
+  const names = quoted(blocks.map((block) => blockName(board, block)));
+  return blocks.length === 1 ? `A stack of the block ${names}.` : `A stack of the blocks ${names}.`;
+}
+function sameBlocks(a, b) {
+  return a.length === b.length && a.every((block, i) => block === b[i]);
+}
+var ADD_STACK, CHANGE_STACK, createStackForm, editStackForm;
+var init_stack_form = __esm({
+  "srcts/actions/stack-form.tsx"() {
+    init_commands2();
+    init_react();
+    init_ui2();
+    init_util2();
+    init_palette();
+    init_targets();
+    ADD_STACK = "blockr.core-add_stack";
+    CHANGE_STACK = "blockr.core-change_stack";
+    createStackForm = {
+      render({ el, core, target: target2, done }) {
+        return drawForm(el, /* @__PURE__ */ jsx10(StackForm, { core, given: heldBlocks(core.store.board(), target2), done }));
+      }
+    };
+    editStackForm = {
+      render({ el, core, target: target2, done }) {
+        if (!("stack" in target2)) return void 0;
+        return drawForm(el, /* @__PURE__ */ jsx10(EditStack, { core, id: target2.stack, done }));
+      }
+    };
+  }
+});
+
+// srcts/actions/inputs.tsx
+var inputs_exports = {};
+__export(inputs_exports, {
+  editInputs: () => editInputs
+});
+import { useState as useState11 } from "react";
+import { flushSync as flushSync6 } from "react-dom";
+import { Button as Button7, ComboBox as ComboBox4, Form as Form4, GridList, GridListItem, TextField as TextField5, useDragAndDrop } from "@blockr/ui";
+import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
+function EditInputs({ core, block, done }) {
+  const board = useBoard(core);
+  if (own(board.blocks, block) === void 0) return null;
+  const registry = core.blockRegistry();
+  const parts = { core, done, board, registry, block, sources: sourcesOf(board, registry, block) };
+  return isVariadicBlock(board, registry, block) ? /* @__PURE__ */ jsx11(VariadicInputs, { ...parts }) : /* @__PURE__ */ jsx11(FixedInputs, { ...parts });
+}
+function sourcesOf(board, registry, block) {
+  const downstream = createGraph(board).withDownstream([block]);
+  return Object.keys(board.blocks).filter((id2) => !downstream.has(id2)).map((id2) => blockItem(board, registry, id2));
+}
+function InputsForm({
+  core,
+  done,
+  board,
+  block,
+  variadic: variadic2,
+  prepare,
+  children
+}) {
+  const edits = useEdits(core);
+  const [busy, setBusy] = useState11(false);
+  const name2 = blockName(board, block);
+  async function submit(event) {
+    event.preventDefault();
+    if (busy) return;
+    const form = event.currentTarget;
+    const calls = prepare();
+    if (calls === void 0) {
+      edits.clear();
+      focusFirstInvalid(form);
+      return;
+    }
+    setBusy(true);
+    await edits.run(`Could not change the inputs of the block "${name2}".`, calls, done);
+    setBusy(false);
+  }
+  return /* @__PURE__ */ jsxs9(
+    Form4,
+    {
+      "aria-label": "Change inputs",
+      validationBehavior: "aria",
+      className: "bc:font-sans bc:text-sm",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      children: [
+        /* @__PURE__ */ jsx11("p", { className: classes.hint, children: variadic2 ? `The inputs of the block "${name2}", which it takes in this order.` : `The inputs of the block "${name2}".` }),
+        children,
+        /* @__PURE__ */ jsx11("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx11(Button7, { type: "submit", variant: "primary", isDisabled: busy, children: "Apply" }) }),
+        /* @__PURE__ */ jsx11(Refusal, { refusal: edits.refusal })
+      ]
+    }
+  );
+}
+function FixedInputs(parts) {
+  const { core, board, registry, block, sources } = parts;
+  const [given, setGiven] = useState11({});
+  const inputs = classInputs(board, registry, block);
+  return /* @__PURE__ */ jsx11(InputsForm, { ...parts, variadic: false, prepare: () => fixedBatch(core, board, registry, block, given), children: /* @__PURE__ */ jsx11("div", { className: "bc:grid bc:gap-2", children: inputs.map((input2) => /* @__PURE__ */ jsx11(
+    FixedInput,
+    {
+      sources,
+      input: input2,
+      source: shownSource(board, registry, block, input2, given),
+      onChange: (source) => {
+        setGiven((now) => ({ ...now, [input2]: source }));
+      }
+    },
+    input2
+  )) }) });
+}
+function shownSource(board, registry, block, input2, given) {
+  const source = own(given, input2);
+  if (source === null || source !== void 0 && Object.hasOwn(board.blocks, source)) return source;
+  const id2 = linkFeeding(board, registry, block, input2);
+  return (id2 === void 0 ? void 0 : own(board.links, id2)?.from) ?? null;
+}
+function fixedBatch(core, board, registry, block, given) {
+  const removes = [];
+  const changes2 = [];
+  const adds = [];
+  const minted = /* @__PURE__ */ new Set();
+  for (const input2 of classInputs(board, registry, block)) {
+    const source = shownSource(board, registry, block, input2, given);
+    const id2 = linkFeeding(board, registry, block, input2);
+    const from = id2 === void 0 ? void 0 : own(board.links, id2)?.from;
+    if (id2 === void 0) {
+      if (source !== null) adds.push({ id: ADD_LINK3, args: { id: mint(core, minted), from: source, to: block, input: input2 } });
+    } else if (source === null) {
+      removes.push({ id: REMOVE_LINK, args: { id: id2 } });
+    } else if (source !== from) {
+      changes2.push({ id: CHANGE_LINK3, args: { id: id2, from: source } });
+    }
+  }
+  return [...removes, ...changes2, ...adds];
+}
+function mint(core, minted) {
+  const id2 = core.mintId((taken) => minted.has(taken) || Object.hasOwn(core.store.board().links, taken));
+  minted.add(id2);
+  return id2;
+}
+function FixedInput({
+  sources,
+  input: input2,
+  source,
+  onChange
+}) {
+  const search = useSearch(sources, blockTexts, "No block can feed the input.");
+  return /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:items-end bc:gap-2", children: [
+    /* @__PURE__ */ jsx11(
+      ComboBox4,
+      {
+        label: input2,
+        ...search,
+        value: source,
+        placeholder: "Search blocks",
+        isRequired: source !== null,
+        className: "bc:min-w-0 bc:flex-1",
+        onChange: (key2) => {
+          if (key2 !== null) onChange(String(key2));
+        },
+        children: blockRow
+      }
+    ),
+    /* @__PURE__ */ jsx11("div", { className: "bc:flex bc:w-7 bc:shrink-0 bc:justify-center bc:pb-1", children: source === null ? null : /* @__PURE__ */ jsx11(
+      RemoveButton,
+      {
+        label: `Remove the source of ${input2}`,
+        onPress: () => {
+          onChange(null);
+        }
+      }
+    ) })
+  ] });
+}
+function VariadicInputs(parts) {
+  const { core, board, block, sources } = parts;
+  const [changes2, setChanges] = useState11(UNCHANGED);
+  const [checked4, setChecked] = useState11(/* @__PURE__ */ new Set());
+  const shown2 = shownInputs(board, block, changes2);
+  const { dragAndDropHooks } = useDragAndDrop({
+    getItems: (keys) => [...keys].map((key2) => ({ "text/plain": String(key2) })),
+    onReorder(event) {
+      const [moved] = [...event.keys];
+      if (moved === void 0) return;
+      const keys = shown2.map(({ key: key2 }) => key2);
+      const order = reordered(keys, String(moved), String(event.target.key), event.target.dropPosition);
+      if (order !== null) {
+        setChanges((now) => ({ ...now, order }));
+      }
+    }
+  });
+  const rows = shown2.map((input2, i) => ({
+    id: input2.key,
+    input: input2,
+    place: i + 1,
+    error: checked4.has(input2.key) ? nameError(board, shown2, input2.key) : void 0
+  }));
+  function prepare() {
+    flushSync6(() => {
+      setChecked(new Set(shown2.map(({ key: key2 }) => key2)));
+    });
+    return shown2.some(({ key: key2 }) => nameError(board, shown2, key2) !== void 0) ? void 0 : variadicBatch(core, board, block, shown2);
+  }
+  return /* @__PURE__ */ jsxs9(InputsForm, { ...parts, variadic: true, prepare, children: [
+    /* @__PURE__ */ jsx11(
+      GridList,
+      {
+        "aria-label": `Inputs of ${blockName(board, block)}`,
+        items: rows,
+        dragAndDropHooks,
+        keyboardNavigationBehavior: "tab",
+        renderEmptyState: () => "No link feeds the block yet.",
+        className: "bc:gap-1.5",
+        children: (row) => /* @__PURE__ */ jsx11(GridListItem, { id: row.id, textValue: inputText(board, row.input, row.place), className: ROW, children: /* @__PURE__ */ jsx11(
+          VariadicInput,
+          {
+            sources,
+            input: row.input,
+            place: row.place,
+            error: row.error,
+            onChange: (change) => {
+              setChanges((now) => withChange(now, row.id, change));
+            },
+            onCheck: () => {
+              setChecked((now) => /* @__PURE__ */ new Set([...now, row.id]));
+            },
+            onRemove: () => {
+              setChanges((now) => withRemoved(now, row.id));
+            }
+          }
+        ) })
+      }
+    ),
+    /* @__PURE__ */ jsx11(
+      AddInput,
+      {
+        sources,
+        onAdd: (from) => {
+          setChanges((now) => ({ ...now, added: [...now.added, { key: String(now.next), from, input: "" }], next: now.next + 1 }));
+        }
+      }
+    )
+  ] });
+}
+function shownInputs(board, block, changes2) {
+  const removed = new Set(changes2.removed);
+  const held4 = (from) => from !== void 0 && Object.hasOwn(board.blocks, from);
+  const links = createGraph(board).linksInto(block).flatMap((id2) => {
+    const link = own(board.links, id2);
+    if (link === void 0 || removed.has(id2)) return [];
+    const change = own(changes2.links, id2);
+    const from = change?.from;
+    return [{ key: id2, from: held4(from) ? from : link.from, input: change?.input ?? link.input }];
+  });
+  const inputs = [...links, ...changes2.added.filter(({ from }) => held4(from))];
+  const { order } = changes2;
+  if (order === void 0) return inputs;
+  const place = ({ key: key2 }) => {
+    const at = order.indexOf(key2);
+    return at === -1 ? order.length : at;
+  };
+  return inputs.sort((a, b) => place(a) - place(b));
+}
+function withChange(changes2, key2, change) {
+  if (changes2.added.some((input2) => input2.key === key2)) {
+    return { ...changes2, added: changes2.added.map((input2) => input2.key === key2 ? { ...input2, ...change } : input2) };
+  }
+  return { ...changes2, links: { ...changes2.links, [key2]: { ...own(changes2.links, key2), ...change } } };
+}
+function withRemoved(changes2, key2) {
+  if (changes2.added.some((input2) => input2.key === key2)) {
+    return { ...changes2, added: changes2.added.filter((input2) => input2.key !== key2) };
+  }
+  return { ...changes2, removed: [...changes2.removed, key2] };
+}
+function reordered(keys, moved, target2, position) {
+  const others = keys.filter((key2) => key2 !== moved);
+  const at = others.indexOf(target2);
+  if (moved === target2 || position === "on" || at === -1) return null;
+  const index = position === "before" ? at : at + 1;
+  const next = [...others.slice(0, index), moved, ...others.slice(index)];
+  return next.every((key2, i) => key2 === keys[i]) ? null : next;
+}
+function nameError(board, shown2, key2) {
+  const input2 = shown2.find((other) => other.key === key2);
+  if (input2 === void 0 || input2.input.trim() === own(board.links, key2)?.input) return void 0;
+  const taken = shown2.flatMap((other) => other.key === key2 ? [] : [other.input.trim()]);
+  return inputNameError(input2.input, taken);
+}
+function variadicBatch(core, board, block, shown2) {
+  const into = createGraph(board).linksInto(block);
+  const minted = /* @__PURE__ */ new Set();
+  const order = [];
+  const changes2 = [];
+  const adds = [];
+  for (const { key: key2, from, input: input2 } of shown2) {
+    const name2 = input2.trim();
+    const link = own(board.links, key2);
+    if (link === void 0) {
+      const id2 = mint(core, minted);
+      order.push(id2);
+      adds.push({ id: ADD_LINK3, args: { id: id2, from, to: block, ...name2 === "" ? {} : { input: name2 } } });
+      continue;
+    }
+    order.push(key2);
+    const args = { ...from === link.from ? {} : { from }, ...name2 === link.input ? {} : { input: name2 } };
+    if (Object.keys(args).length > 0) changes2.push({ id: CHANGE_LINK3, args: { id: key2, ...args } });
+  }
+  const kept = into.filter((id2) => order.includes(id2));
+  return [
+    ...into.filter((id2) => !order.includes(id2)).map((id2) => ({ id: REMOVE_LINK, args: { id: id2 } })),
+    ...changes2,
+    ...adds,
+    ...moves([...kept, ...minted], order)
+  ];
+}
+function moves(from, to) {
+  if (from.length === to.length && from.every((id2, i) => id2 === to[i])) return [];
+  return to.map((id2) => ({ id: CHANGE_LINK3, args: { id: id2, before: null } }));
+}
+function inputText(board, { from, input: input2 }, place) {
+  const source = blockName(board, from);
+  const name2 = input2.trim();
+  return name2 === "" ? `Input ${String(place)}, from ${source}` : `Input ${String(place)}, ${name2}, from ${source}`;
+}
+function VariadicInput({
+  sources,
+  input: input2,
+  place,
+  error,
+  onChange,
+  onCheck,
+  onRemove
+}) {
+  const search = useSearch(sources, blockTexts, "No block can feed the block.");
+  const what = `input ${String(place)}`;
+  return /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2", onPointerDownCapture: holdStill, children: [
+    /* @__PURE__ */ jsx11(
+      ComboBox4,
+      {
+        "aria-label": `Source of ${what}`,
+        ...search,
+        value: input2.from,
+        placeholder: "Search blocks",
+        isRequired: true,
+        className: "bc:min-w-0 bc:flex-1",
+        onChange: (key2) => {
+          if (key2 !== null && String(key2) !== input2.from) onChange({ from: String(key2) });
+        },
+        children: blockRow
+      }
+    ),
+    /* @__PURE__ */ jsx11(
+      TextField5,
+      {
+        "aria-label": `Name of ${what}`,
+        value: input2.input,
+        placeholder: "No name",
+        isInvalid: error !== void 0,
+        errorMessage: error,
+        autoComplete: "off",
+        ...identifier,
+        className: "bc:w-1/3 bc:shrink-0",
+        onChange: (value2) => {
+          onChange({ input: value2 });
+        },
+        onBlur: onCheck
+      }
+    ),
+    /* @__PURE__ */ jsx11(RemoveButton, { label: `Remove ${what}`, onPress: onRemove })
+  ] });
+}
+function holdStill(event) {
+  const item2 = event.currentTarget.closest('[role="row"][draggable="true"]');
+  if (item2 === null) return;
+  item2.setAttribute("draggable", "false");
+  const doc = item2.ownerDocument;
+  const release = () => {
+    item2.setAttribute("draggable", "true");
+    doc.removeEventListener("pointerup", release, true);
+    doc.removeEventListener("pointercancel", release, true);
+  };
+  doc.addEventListener("pointerup", release, true);
+  doc.addEventListener("pointercancel", release, true);
+}
+function AddInput({ sources, onAdd }) {
+  const search = useSearch(sources, blockTexts, "No block can feed the block.");
+  return /* @__PURE__ */ jsx11(
+    ComboBox4,
+    {
+      label: "Add input",
+      ...search,
+      value: null,
+      placeholder: "Search blocks",
+      onChange: (key2) => {
+        if (key2 !== null) onAdd(String(key2));
+      },
+      children: blockRow
+    }
+  );
+}
+function RemoveButton({ label, onPress }) {
+  return /* @__PURE__ */ jsx11(Button7, { variant: "quiet", "aria-label": label, onPress, className: "bc:size-7 bc:shrink-0 bc:justify-center bc:p-0", children: /* @__PURE__ */ jsx11("span", { title: label, className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx11(Cross, {}) }) });
+}
+function Cross() {
+  return /* @__PURE__ */ jsx11("svg", { width: "10", height: "10", viewBox: "0 0 10 10", fill: "none", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx11("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" }) });
+}
+var ADD_LINK3, CHANGE_LINK3, REMOVE_LINK, editInputs, UNCHANGED, ROW;
+var init_inputs = __esm({
+  "srcts/actions/inputs.tsx"() {
+    init_commands2();
+    init_graph2();
+    init_picker2();
+    init_react();
+    init_ui2();
+    init_util2();
+    ADD_LINK3 = "blockr.core-add_link";
+    CHANGE_LINK3 = "blockr.core-change_link";
+    REMOVE_LINK = "blockr.core-remove_link";
+    editInputs = {
+      render({ el, core, target: target2, done }) {
+        if (!("block" in target2)) return void 0;
+        return drawForm(el, /* @__PURE__ */ jsx11(EditInputs, { core, block: target2.block, done }));
+      }
+    };
+    UNCHANGED = { links: {}, removed: [], added: [], next: 1 };
+    ROW = "bc:rounded-md bc:border bc:border-border bc:bg-muted bc:py-1 bc:data-dragging:opacity-60";
+  }
+});
+
+// srcts/options/ui.tsx
+var ui_exports = {};
+__export(ui_exports, {
+  numberUi: () => numberUi,
+  toggleButtonGroupUi: () => toggleButtonGroupUi
+});
+import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/ui";
+import { jsx as jsx25 } from "react/jsx-runtime";
+function numberUi(label, min) {
+  function NumberUi({ host }) {
+    return /* @__PURE__ */ jsx25(NumberField, { bound: useValue(host), label, minValue: min, step: 1 });
+  }
+  return reactModule(NumberUi);
+}
+function toggleButtonGroupUi(label, items) {
+  function ToggleButtonGroupUi({ host }) {
+    return /* @__PURE__ */ jsx25(ToggleButtonGroup, { bound: useValue(host), label, disallowEmptySelection: true, children: items.map((item2) => /* @__PURE__ */ jsx25(ToggleButton, { id: item2.id, children: item2.name }, item2.id)) });
+  }
+  return reactModule(ToggleButtonGroupUi);
+}
+var init_ui3 = __esm({
+  "srcts/options/ui.tsx"() {
+    init_react();
+  }
+});
+
+// srcts/stubs/index.ts
+import "@blockr/ui/stubs";
+
+// srcts/testing/dom.ts
+if (typeof navigator !== "undefined" && navigator.userAgent.includes("HappyDOM")) {
+  globalThis.IntersectionObserver = class InView {
+    root = null;
+    rootMargin = "0px";
+    scrollMargin = "0px";
+    thresholds = [0];
+    #callback;
+    #observed = /* @__PURE__ */ new Set();
+    constructor(callback) {
+      this.#callback = callback;
+    }
+    observe(target2) {
+      this.#observed.add(target2);
+      queueMicrotask(() => {
+        if (!this.#observed.has(target2)) return;
+        const rect = target2.getBoundingClientRect();
+        const entry = {
+          target: target2,
+          isIntersecting: true,
+          intersectionRatio: 1,
+          boundingClientRect: rect,
+          intersectionRect: rect,
+          rootBounds: null,
+          time: performance.now()
+        };
+        this.#callback([entry], this);
+      });
+    }
+    unobserve(target2) {
+      this.#observed.delete(target2);
+    }
+    disconnect() {
+      this.#observed.clear();
+    }
+    takeRecords() {
+      return [];
+    }
+  };
+}
+
+// srcts/stubs/block.ts
+init_util2();
 
 // srcts/stubs/util.ts
+init_log2();
+init_util2();
+import { act } from "react";
 var READY = Object.freeze({
   status: "ready",
   revision: 1,
@@ -643,6 +6795,7 @@ function defined(x) {
 }
 
 // srcts/stubs/option.ts
+init_util2();
 function stubOptionHost(options) {
   let value2 = options.value;
   const submitted = [];
@@ -686,6 +6839,7 @@ function answer(answers, name2, args, of) {
 }
 
 // srcts/stubs/output.ts
+init_util2();
 function stubOutputHost(options = {}) {
   const first = options.fixtures?.outputs[0];
   let output = options.output ?? first?.output ?? null;
@@ -764,211 +6918,15 @@ function stubOutputHost(options = {}) {
 }
 
 // srcts/scheduler/scheduler.ts
+init_graph2();
 import { ROOT_CONTEXT } from "@opentelemetry/api";
 import { action, batch, computed, effect, signal, untracked } from "@preact/signals-core";
 
-// srcts/graph/graph.ts
-function createGraph(board) {
-  const blocks = Object.keys(board.blocks);
-  const into = /* @__PURE__ */ new Map();
-  const sources = /* @__PURE__ */ new Map();
-  const targets = /* @__PURE__ */ new Map();
-  for (const id2 of blocks) {
-    into.set(id2, []);
-    sources.set(id2, []);
-    targets.set(id2, []);
-  }
-  for (const [id2, link] of Object.entries(board.links)) {
-    const linksIn = into.get(link.to);
-    const from = sources.get(link.to);
-    const to = targets.get(link.from);
-    if (linksIn === void 0 || from === void 0 || to === void 0) continue;
-    linksIn.push(id2);
-    from.push(link.from);
-    to.push(link.to);
-  }
-  const upstream = once(sources);
-  const downstream = once(targets);
-  const order = topological(blocks, sources, targets);
-  let cycle;
-  return {
-    order,
-    linksInto: (id2) => into.get(id2) ?? [],
-    upstream: (id2) => upstream.get(id2) ?? [],
-    downstream: (id2) => downstream.get(id2) ?? [],
-    withUpstream: (ids2) => closure(ids2, upstream),
-    withDownstream: (ids2) => closure(ids2, downstream),
-    cycle() {
-      cycle ??= { found: findCycle(board, targets) };
-      return cycle.found;
-    },
-    path: (from, to) => findPath(from, to, downstream)
-  };
-}
-function once(ends2) {
-  return new Map([...ends2].map(([id2, blocks]) => [id2, [...new Set(blocks)]]));
-}
-function closure(ids2, steps2) {
-  const reached = /* @__PURE__ */ new Set();
-  const todo = [...ids2].filter((id2) => steps2.has(id2));
-  for (const id2 of todo) reached.add(id2);
-  for (const id2 of todo) {
-    for (const next of steps2.get(id2) ?? []) {
-      if (reached.has(next)) continue;
-      reached.add(next);
-      todo.push(next);
-    }
-  }
-  return reached;
-}
-function topological(blocks, sources, targets) {
-  const left2 = new Map(blocks.map((id2) => [id2, sources.get(id2)?.length ?? 0]));
-  const order = blocks.filter((id2) => left2.get(id2) === 0);
-  for (const id2 of order) {
-    for (const next of targets.get(id2) ?? []) {
-      const count2 = (left2.get(next) ?? 0) - 1;
-      left2.set(next, count2);
-      if (count2 === 0) order.push(next);
-    }
-  }
-  const placed2 = new Set(order);
-  return [...order, ...blocks.filter((id2) => !placed2.has(id2))];
-}
-function findCycle(board, targets) {
-  const done = /* @__PURE__ */ new Set();
-  const path = [];
-  const onPath = /* @__PURE__ */ new Set();
-  function visit(block) {
-    if (onPath.has(block)) return path.slice(path.indexOf(block));
-    if (done.has(block)) return void 0;
-    path.push(block);
-    onPath.add(block);
-    for (const next of targets.get(block) ?? []) {
-      const cycle = visit(next);
-      if (cycle !== void 0) return cycle;
-    }
-    path.pop();
-    onPath.delete(block);
-    done.add(block);
-    return void 0;
-  }
-  const starts = new Set(Object.values(board.links).map((link) => link.from));
-  for (const block of starts) {
-    if (!targets.has(block)) continue;
-    const cycle = visit(block);
-    if (cycle !== void 0) return cycle;
-  }
-  return void 0;
-}
-function findPath(from, to, downstream) {
-  if (!downstream.has(from)) return void 0;
-  const before = /* @__PURE__ */ new Map([[from, void 0]]);
-  const todo = [from];
-  for (const block of todo) {
-    if (block === to) {
-      const path = [block];
-      for (let at = before.get(block); at !== void 0; at = before.get(at)) path.unshift(at);
-      return path;
-    }
-    for (const next of downstream.get(block) ?? []) {
-      if (before.has(next)) continue;
-      before.set(next, block);
-      todo.push(next);
-    }
-  }
-  return void 0;
-}
-
 // srcts/protocol/client.ts
+init_log2();
+init_trace2();
+init_util2();
 import { context as context3, SpanKind, SpanStatusCode as SpanStatusCode2 } from "@opentelemetry/api";
-
-// srcts/trace/trace.ts
-import { context, isSpanContextValid, SpanStatusCode, trace } from "@opentelemetry/api";
-var SCOPE = "blockr.core";
-function tracer() {
-  return trace.getTracer(SCOPE);
-}
-function traceparent(span) {
-  if (!span.isRecording()) return void 0;
-  const { traceId, spanId, traceFlags } = span.spanContext();
-  if (!isSpanContextValid({ traceId, spanId, traceFlags })) return void 0;
-  return `00-${traceId}-${spanId}-${(traceFlags & 255).toString(16).padStart(2, "0")}`;
-}
-function keepContext() {
-  const kept = context.active();
-  return (fn) => context.with(kept, fn);
-}
-function activeSpanContext() {
-  const span = trace.getActiveSpan();
-  if (span?.isRecording() !== true) return void 0;
-  const spanContext = span.spanContext();
-  return isSpanContextValid(spanContext) ? spanContext : void 0;
-}
-function failSpan(span, error) {
-  const failure = asError(error);
-  span.recordException(failure);
-  span.setStatus({ code: SpanStatusCode.ERROR, message: failure.message });
-}
-
-// srcts/trace/steps.ts
-import { context as context2, trace as trace2 } from "@opentelemetry/api";
-function steps(name2, start3 = performance.now(), parent = context2.active()) {
-  const taken = [];
-  let recorded = false;
-  return {
-    async step(stepName, fn) {
-      const step2 = { name: stepName, start: performance.now() };
-      taken.push(step2);
-      try {
-        return await fn();
-      } catch (error) {
-        step2.error = error;
-        throw error;
-      } finally {
-        step2.end = performance.now();
-      }
-    },
-    noted(stepName, stepStart, end) {
-      taken.push({ name: stepName, start: stepStart, end });
-    },
-    record(ready, failure) {
-      if (recorded) return;
-      recorded = true;
-      const end = performance.now();
-      const write2 = () => {
-        const whole = tracer().startSpan(name2, { startTime: start3 }, parent);
-        const inside = trace2.setSpan(parent, whole);
-        for (const step2 of taken) {
-          const span = tracer().startSpan(step2.name, { startTime: step2.start }, inside);
-          if (step2.error !== void 0) failSpan(span, step2.error);
-          span.end(step2.end ?? end);
-        }
-        if (failure !== void 0) failSpan(whole, failure);
-        whole.end(end);
-      };
-      void ready.then(write2, write2);
-    }
-  };
-}
-
-// srcts/trace/settings.ts
-function tracesUrl(otelClientEndpoint, base) {
-  return otelClientEndpoint === void 0 ? void 0 : collectorUrl(otelClientEndpoint, "v1/traces", base);
-}
-async function setUpTracing(url, serviceName2, sessionId, load) {
-  if (url === void 0) return;
-  try {
-    (await load()).otelTracing({ url, serviceName: serviceName2, sessionId });
-  } catch (error) {
-    log.error(
-      new Error(`Core could not set up its OpenTelemetry tracing, so the page records no spans: ${errorMessage(error)}`, {
-        cause: error
-      })
-    );
-  }
-}
-
-// srcts/protocol/client.ts
 var SessionEndedError = class extends Error {
   constructor(id2) {
     super(`The session ended before R replied to request ${id2}.`);
@@ -1305,7 +7263,16 @@ function quietly(sent2) {
 // srcts/protocol/messages.ts
 var PROTOCOL_VERSION = "1.0";
 
+// srcts/scheduler/scheduler.ts
+init_log2();
+init_trace2();
+init_util2();
+
+// srcts/scheduler/evaluations.ts
+init_util2();
+
 // srcts/scheduler/status.ts
+init_util2();
 var NO_CONDITIONS = Object.freeze([]);
 function replyOutcome(reply, revision) {
   if (reply.status === "cancelled" || reply.status === "missing") return void 0;
@@ -1738,6 +7705,7 @@ function evaluationPlan(input2) {
 }
 
 // srcts/scheduler/recipes.ts
+init_util2();
 function inputsByBlock(board, graph, registry, bound) {
   const inputs = /* @__PURE__ */ new Map();
   for (const [id2, block] of Object.entries(board.blocks)) {
@@ -1778,6 +7746,7 @@ function sameInputs(a, b) {
 }
 
 // srcts/scheduler/revisions.ts
+init_util2();
 function counter(last = 0) {
   return () => {
     if (last >= Number.MAX_SAFE_INTEGER) {
@@ -2330,7 +8299,13 @@ function priorityError(priority) {
   return typeof priority !== "number" || Number.isNaN(priority) ? new TypeError(`An evaluation priority is a number, not ${String(priority)}.`) : void 0;
 }
 
+// srcts/mount/block.ts
+init_log2();
+init_util2();
+
 // srcts/mount/answers.ts
+init_log2();
+init_util2();
 function createAnswers(scheduler, signal5) {
   const kept = /* @__PURE__ */ new Map();
   const flights = /* @__PURE__ */ new Map();
@@ -2472,6 +8447,8 @@ function sorted(x) {
 }
 
 // srcts/mount/load.ts
+init_log2();
+init_util2();
 var API = 1;
 var ModuleError = class extends Error {
   module;
@@ -2682,7 +8659,13 @@ function drawn(colour) {
   }
 }
 
+// srcts/mount/option.ts
+init_log2();
+init_util2();
+
 // srcts/mount/requests.ts
+init_trace2();
+init_util2();
 var ATTEMPTS = 3;
 var RequestError = class extends Error {
   status;
@@ -2813,6 +8796,8 @@ async function evaluateReads(deps, block, entry, name2, names, signal5) {
 }
 
 // srcts/mount/shared.ts
+init_log2();
+init_util2();
 function moduleExports(exports, module, pkg) {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
@@ -3016,6 +9001,9 @@ async function optionRequest(deps, module, option, name2, args, opts) {
 }
 
 // srcts/mount/output.ts
+init_util2();
+init_log2();
+init_trace2();
 var SETTLE_MS = 150;
 var ATTEMPTS2 = 3;
 var EMPTY = Object.freeze({});
@@ -3964,6 +9952,7 @@ function sameContext(a, b) {
 }
 
 // srcts/stubs/mount.ts
+init_util2();
 async function mount(exports, host, el = document.createElement("div")) {
   const mod = renderable(exports);
   const render2 = mod.render;
@@ -3993,6 +9982,7 @@ function renderable(exports) {
 }
 
 // srcts/core/blockr-options.ts
+init_util2();
 function createBlockrOptions(client) {
   const found = /* @__PURE__ */ new Map();
   let batch2;
@@ -4057,3448 +10047,17 @@ async function requestBlockrOptions(client, names) {
   }
 }
 
-// srcts/commands/commands.ts
-import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "@preact/signals-core";
+// srcts/actions/actions.ts
+init_commands2();
+init_log2();
+init_util2();
 
-// srcts/store/store.ts
-import { signal as signal3 } from "@preact/signals-core";
-
-// srcts/store/words.ts
-var adjectives = [
-  "ablaze",
-  "able",
-  "acid",
-  "acidic",
-  "active",
-  "actual",
-  "added",
-  "adept",
-  "adored",
-  "adroit",
-  "aerial",
-  "agile",
-  "agreed",
-  "airy",
-  "alert",
-  "alive",
-  "allied",
-  "almond",
-  "amber",
-  "ample",
-  "amused",
-  "apt",
-  "arcane",
-  "arctic",
-  "ardent",
-  "arid",
-  "artful",
-  "arty",
-  "ash",
-  "astral",
-  "astute",
-  "atomic",
-  "auburn",
-  "avian",
-  "awake",
-  "aware",
-  "azure",
-  "balmy",
-  "basic",
-  "beachy",
-  "beige",
-  "benign",
-  "beryl",
-  "best",
-  "big",
-  "binary",
-  "bionic",
-  "black",
-  "blithe",
-  "blocky",
-  "blond",
-  "blowy",
-  "blue",
-  "bold",
-  "bonny",
-  "boreal",
-  "bouncy",
-  "brainy",
-  "brass",
-  "brave",
-  "breezy",
-  "brick",
-  "brief",
-  "bright",
-  "briny",
-  "brisk",
-  "broad",
-  "bronze",
-  "brown",
-  "bubbly",
-  "bumpy",
-  "bushy",
-  "busy",
-  "calm",
-  "candid",
-  "carbon",
-  "caring",
-  "catchy",
-  "cerise",
-  "chalky",
-  "chatty",
-  "cheeky",
-  "cheery",
-  "chewy",
-  "chic",
-  "chief",
-  "chilly",
-  "choral",
-  "chosen",
-  "chummy",
-  "chunky",
-  "citric",
-  "civic",
-  "civil",
-  "classy",
-  "clay",
-  "clean",
-  "clever",
-  "cloudy",
-  "cocoa",
-  "cold",
-  "comfy",
-  "comic",
-  "common",
-  "cool",
-  "copper",
-  "coral",
-  "cosmic",
-  "cotton",
-  "covert",
-  "coy",
-  "cozy",
-  "crafty",
-  "craggy",
-  "cream",
-  "creamy",
-  "crispy",
-  "cubic",
-  "cuddly",
-  "curly",
-  "curved",
-  "cushy",
-  "cute",
-  "cyan",
-  "dainty",
-  "dapper",
-  "daring",
-  "dark",
-  "dear",
-  "decent",
-  "deep",
-  "deft",
-  "demure",
-  "denim",
-  "dense",
-  "dewy",
-  "divine",
-  "diving",
-  "docile",
-  "dogged",
-  "dotted",
-  "dovish",
-  "downy",
-  "dreamy",
-  "dressy",
-  "droll",
-  "dry",
-  "dusky",
-  "dusty",
-  "eager",
-  "earthy",
-  "easy",
-  "ebony",
-  "edgy",
-  "edible",
-  "elated",
-  "elder",
-  "elfin",
-  "elite",
-  "elvish",
-  "equal",
-  "even",
-  "exact",
-  "exotic",
-  "expert",
-  "extra",
-  "fab",
-  "fabled",
-  "fair",
-  "famed",
-  "famous",
-  "fancy",
-  "far",
-  "fast",
-  "feisty",
-  "ferny",
-  "fierce",
-  "fiery",
-  "final",
-  "fine",
-  "firm",
-  "first",
-  "fit",
-  "fixed",
-  "fizzy",
-  "flashy",
-  "flat",
-  "flax",
-  "fleecy",
-  "flinty",
-  "floaty",
-  "floppy",
-  "floral",
-  "fluent",
-  "fluffy",
-  "fluid",
-  "flying",
-  "foamy",
-  "foggy",
-  "fond",
-  "forest",
-  "formal",
-  "frank",
-  "free",
-  "fresh",
-  "frilly",
-  "frisky",
-  "frizzy",
-  "frosty",
-  "frothy",
-  "frozen",
-  "frugal",
-  "fruity",
-  "full",
-  "fun",
-  "funny",
-  "furry",
-  "future",
-  "fuzzy",
-  "garnet",
-  "gauzy",
-  "gem",
-  "genial",
-  "genius",
-  "gentle",
-  "giant",
-  "giddy",
-  "gifted",
-  "giggly",
-  "glad",
-  "glass",
-  "glassy",
-  "glazed",
-  "global",
-  "glossy",
-  "gnarly",
-  "gold",
-  "golden",
-  "good",
-  "goodly",
-  "goofy",
-  "gothic",
-  "grainy",
-  "grand",
-  "grassy",
-  "great",
-  "green",
-  "grey",
-  "groovy",
-  "grown",
-  "gutsy",
-  "handy",
-  "happy",
-  "hasty",
-  "hazy",
-  "heavy",
-  "herbal",
-  "herby",
-  "heroic",
-  "hidden",
-  "high",
-  "hilly",
-  "hip",
-  "hollow",
-  "homey",
-  "honest",
-  "huge",
-  "humane",
-  "humble",
-  "humid",
-  "hungry",
-  "iced",
-  "iconic",
-  "icy",
-  "ideal",
-  "idle",
-  "immune",
-  "impish",
-  "indigo",
-  "indoor",
-  "inky",
-  "inland",
-  "inner",
-  "intact",
-  "ionic",
-  "ironic",
-  "ivory",
-  "jade",
-  "jagged",
-  "jaunty",
-  "jazzy",
-  "jet",
-  "jewel",
-  "jolly",
-  "jovial",
-  "joyful",
-  "joyous",
-  "juicy",
-  "jumpy",
-  "junior",
-  "just",
-  "keen",
-  "key",
-  "khaki",
-  "kind",
-  "kindly",
-  "kingly",
-  "knotty",
-  "known",
-  "lace",
-  "lacy",
-  "lapis",
-  "large",
-  "lavish",
-  "lawful",
-  "leafy",
-  "lean",
-  "legal",
-  "lemon",
-  "lemony",
-  "level",
-  "light",
-  "liked",
-  "lilac",
-  "lime",
-  "limpid",
-  "linear",
-  "linen",
-  "little",
-  "live",
-  "lively",
-  "living",
-  "local",
-  "long",
-  "loved",
-  "lovely",
-  "loving",
-  "low",
-  "lowkey",
-  "loyal",
-  "lucid",
-  "lucky",
-  "lunar",
-  "lupine",
-  "lush",
-  "magic",
-  "main",
-  "maize",
-  "major",
-  "marble",
-  "marine",
-  "maroon",
-  "marshy",
-  "mauve",
-  "medium",
-  "meek",
-  "mega",
-  "mellow",
-  "merry",
-  "metal",
-  "mica",
-  "mid",
-  "middle",
-  "mighty",
-  "mild",
-  "milky",
-  "mini",
-  "minor",
-  "minute",
-  "misty",
-  "mobile",
-  "modern",
-  "modest",
-  "modish",
-  "mossy",
-  "moving",
-  "mutual",
-  "myrtle",
-  "narrow",
-  "naval",
-  "navy",
-  "near",
-  "nearby",
-  "neat",
-  "neon",
-  "new",
-  "newsy",
-  "next",
-  "nice",
-  "nickel",
-  "nifty",
-  "nimble",
-  "noble",
-  "noir",
-  "normal",
-  "novel",
-  "nylon",
-  "oblong",
-  "ochre",
-  "olive",
-  "onyx",
-  "opal",
-  "open",
-  "optic",
-  "orange",
-  "ornate",
-  "outer",
-  "oval",
-  "paper",
-  "papery",
-  "peach",
-  "peachy",
-  "pearl",
-  "pearly",
-  "pebbly",
-  "peppy",
-  "perky",
-  "pine",
-  "pink",
-  "placid",
-  "plaid",
-  "plain",
-  "plucky",
-  "plush",
-  "poetic",
-  "polar",
-  "polite",
-  "postal",
-  "potent",
-  "pretty",
-  "prim",
-  "prime",
-  "proper",
-  "proud",
-  "public",
-  "pure",
-  "purple",
-  "quaint",
-  "quartz",
-  "quick",
-  "rainy",
-  "random",
-  "rapid",
-  "rapt",
-  "rare",
-  "ready",
-  "real",
-  "recent",
-  "red",
-  "reedy",
-  "regal",
-  "rich",
-  "right",
-  "ripe",
-  "ritzy",
-  "robust",
-  "rocky",
-  "roomy",
-  "rosy",
-  "round",
-  "royal",
-  "rubber",
-  "ruby",
-  "runic",
-  "rural",
-  "russet",
-  "rust",
-  "rustic",
-  "safe",
-  "saline",
-  "salmon",
-  "salted",
-  "salty",
-  "sand",
-  "sandy",
-  "sane",
-  "sassy",
-  "satin",
-  "satiny",
-  "savvy",
-  "secret",
-  "secure",
-  "sedate",
-  "select",
-  "sepia",
-  "serene",
-  "shaded",
-  "shaggy",
-  "shared",
-  "sharp",
-  "sheer",
-  "shiny",
-  "short",
-  "shrewd",
-  "shy",
-  "sienna",
-  "silk",
-  "silken",
-  "silky",
-  "silly",
-  "silver",
-  "simple",
-  "single",
-  "slate",
-  "sleepy",
-  "slick",
-  "slight",
-  "slow",
-  "sly",
-  "small",
-  "smart",
-  "smoky",
-  "smooth",
-  "snappy",
-  "snazzy",
-  "snowy",
-  "snug",
-  "soapy",
-  "social",
-  "soft",
-  "solar",
-  "sole",
-  "solemn",
-  "solid",
-  "sonic",
-  "sound",
-  "spare",
-  "sparse",
-  "speedy",
-  "spicy",
-  "spiky",
-  "spiny",
-  "sporty",
-  "square",
-  "stable",
-  "starry",
-  "static",
-  "steamy",
-  "steel",
-  "steep",
-  "still",
-  "stoic",
-  "stone",
-  "stony",
-  "stormy",
-  "stout",
-  "strict",
-  "stripy",
-  "strong",
-  "suave",
-  "subtle",
-  "sudden",
-  "sudsy",
-  "suede",
-  "sugar",
-  "sugary",
-  "sunlit",
-  "sunny",
-  "super",
-  "superb",
-  "sure",
-  "sweet",
-  "swift",
-  "swirly",
-  "tall",
-  "tame",
-  "tamed",
-  "tan",
-  "tangy",
-  "tasty",
-  "taupe",
-  "taut",
-  "teal",
-  "techy",
-  "tender",
-  "thick",
-  "thin",
-  "thorny",
-  "tidal",
-  "tidy",
-  "timely",
-  "timid",
-  "tin",
-  "tinted",
-  "tiny",
-  "topaz",
-  "tough",
-  "toy",
-  "trendy",
-  "tricky",
-  "tweed",
-  "tweedy",
-  "twill",
-  "undyed",
-  "unique",
-  "united",
-  "unlit",
-  "upbeat",
-  "upper",
-  "urban",
-  "urbane",
-  "usable",
-  "useful",
-  "usual",
-  "valid",
-  "valued",
-  "varied",
-  "vast",
-  "vellum",
-  "velour",
-  "velvet",
-  "vernal",
-  "vinyl",
-  "violet",
-  "vital",
-  "vivid",
-  "wacky",
-  "warm",
-  "wavy",
-  "wax",
-  "waxy",
-  "wee",
-  "well",
-  "wheat",
-  "white",
-  "wide",
-  "wild",
-  "windy",
-  "winged",
-  "wintry",
-  "wise",
-  "wispy",
-  "witty",
-  "wood",
-  "wooded",
-  "wooden",
-  "woodsy",
-  "woody",
-  "wool",
-  "woolly",
-  "worthy",
-  "yellow",
-  "young",
-  "yummy",
-  "zany",
-  "zippy",
-  "zircon"
-];
-var animals = [
-  "addax",
-  "adder",
-  "agouti",
-  "alpaca",
-  "anole",
-  "ant",
-  "ape",
-  "auk",
-  "avocet",
-  "baboon",
-  "badger",
-  "bass",
-  "bat",
-  "beagle",
-  "bear",
-  "beaver",
-  "bee",
-  "beetle",
-  "bilby",
-  "bird",
-  "bison",
-  "boa",
-  "boar",
-  "bobcat",
-  "bongo",
-  "bonobo",
-  "borzoi",
-  "bream",
-  "bronco",
-  "buck",
-  "budgie",
-  "bug",
-  "bull",
-  "bunny",
-  "burro",
-  "caiman",
-  "calf",
-  "camel",
-  "canary",
-  "carp",
-  "cat",
-  "cicada",
-  "civet",
-  "clam",
-  "coati",
-  "cobra",
-  "cod",
-  "collie",
-  "colt",
-  "conch",
-  "condor",
-  "coot",
-  "cow",
-  "coyote",
-  "coypu",
-  "crab",
-  "crane",
-  "crow",
-  "cub",
-  "cuckoo",
-  "curlew",
-  "cygnet",
-  "deer",
-  "degu",
-  "dikdik",
-  "dingo",
-  "dipper",
-  "dodo",
-  "doe",
-  "dog",
-  "donkey",
-  "dove",
-  "drake",
-  "drongo",
-  "duck",
-  "dugong",
-  "dunlin",
-  "eagle",
-  "eel",
-  "egret",
-  "eider",
-  "eland",
-  "elk",
-  "emu",
-  "ermine",
-  "ewe",
-  "falcon",
-  "fawn",
-  "ferret",
-  "finch",
-  "fish",
-  "fly",
-  "foal",
-  "fossa",
-  "fowl",
-  "fox",
-  "frog",
-  "fulmar",
-  "galago",
-  "galah",
-  "gander",
-  "gannet",
-  "gaur",
-  "gecko",
-  "gelada",
-  "genet",
-  "gerbil",
-  "gibbon",
-  "gnu",
-  "goat",
-  "godwit",
-  "goose",
-  "gopher",
-  "grebe",
-  "grouse",
-  "gull",
-  "guppy",
-  "hake",
-  "hare",
-  "hawk",
-  "hen",
-  "heron",
-  "hog",
-  "hoopoe",
-  "hornet",
-  "horse",
-  "hound",
-  "husky",
-  "hyena",
-  "ibex",
-  "ibis",
-  "iguana",
-  "impala",
-  "jackal",
-  "jaguar",
-  "jay",
-  "jerboa",
-  "joey",
-  "junco",
-  "kakapo",
-  "kite",
-  "kitten",
-  "kiwi",
-  "koala",
-  "koi",
-  "krill",
-  "kudu",
-  "lamb",
-  "langur",
-  "lark",
-  "lemur",
-  "liger",
-  "limpet",
-  "lion",
-  "lizard",
-  "llama",
-  "loon",
-  "loris",
-  "lynx",
-  "macaw",
-  "magpie",
-  "mamba",
-  "manta",
-  "mantis",
-  "mare",
-  "marlin",
-  "marmot",
-  "marten",
-  "martin",
-  "mayfly",
-  "merlin",
-  "mink",
-  "minnow",
-  "mole",
-  "monkey",
-  "moose",
-  "moray",
-  "morpho",
-  "moth",
-  "mouse",
-  "mule",
-  "mullet",
-  "muskox",
-  "mussel",
-  "myna",
-  "nene",
-  "newt",
-  "numbat",
-  "nutria",
-  "nyala",
-  "ocelot",
-  "okapi",
-  "orca",
-  "oriole",
-  "oryx",
-  "osprey",
-  "otter",
-  "owl",
-  "ox",
-  "oyster",
-  "paca",
-  "panda",
-  "parrot",
-  "perch",
-  "phoebe",
-  "pig",
-  "pigeon",
-  "piglet",
-  "pika",
-  "pike",
-  "pipit",
-  "plover",
-  "pony",
-  "poodle",
-  "possum",
-  "prawn",
-  "puffer",
-  "puffin",
-  "pug",
-  "puma",
-  "puppy",
-  "python",
-  "quagga",
-  "quail",
-  "quokka",
-  "quoll",
-  "rabbit",
-  "ram",
-  "raven",
-  "ray",
-  "rhea",
-  "rhino",
-  "robin",
-  "rook",
-  "sable",
-  "saiga",
-  "salmon",
-  "scarab",
-  "seal",
-  "serval",
-  "shark",
-  "sheep",
-  "shrew",
-  "shrike",
-  "shrimp",
-  "siskin",
-  "skink",
-  "skua",
-  "skunk",
-  "sloth",
-  "snail",
-  "snake",
-  "snipe",
-  "spider",
-  "squid",
-  "stag",
-  "steed",
-  "steer",
-  "stilt",
-  "stoat",
-  "stork",
-  "swan",
-  "swift",
-  "takin",
-  "tapir",
-  "teal",
-  "tenrec",
-  "tern",
-  "thrush",
-  "tiger",
-  "toad",
-  "topi",
-  "toucan",
-  "towhee",
-  "trout",
-  "tuna",
-  "turaco",
-  "turkey",
-  "turtle",
-  "urchin",
-  "vervet",
-  "vicuna",
-  "viper",
-  "vole",
-  "walrus",
-  "wasp",
-  "weasel",
-  "whale",
-  "wisent",
-  "wolf",
-  "wombat",
-  "wrasse",
-  "wren",
-  "yak",
-  "zebra",
-  "zebu"
-];
-
-// srcts/store/ids.ts
-var RAND_IDS = [
-  "adjective_animal",
-  "adjective_adjective_animal",
-  "letters_6",
-  "letters_8",
-  "letters_12",
-  "bytes_4",
-  "bytes_8",
-  "uuid"
-];
-function isRandId(value2) {
-  return typeof value2 === "string" && RAND_IDS.includes(value2);
-}
-function asRandId(randId) {
-  if (randId === void 0) return "adjective_animal";
-  if (isRandId(randId)) return randId;
-  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
-}
-function isId(id2) {
-  return typeof id2 === "string" && id2 !== "" && !/^\d+$/.test(id2);
-}
-function mintId(taken, randId = "adjective_animal") {
-  const draw = draws[randId];
-  for (let i = 0; i < 100; i++) {
-    const id3 = draw();
-    if (isId(id3) && !taken(id3)) return id3;
-  }
-  const id2 = draw();
-  let n = 2;
-  while (taken(`${id2}_${String(n)}`)) n++;
-  return `${id2}_${String(n)}`;
-}
-var draws = {
-  adjective_animal: () => `${pick(adjectives)}_${pick(animals)}`,
-  adjective_adjective_animal: () => {
-    const [first, second] = pickTwo(adjectives);
-    return `${first}_${second}_${pick(animals)}`;
-  },
-  letters_6: () => randomLetters(6),
-  letters_8: () => randomLetters(8),
-  letters_12: () => randomLetters(12),
-  bytes_4: () => hex2(randomBytes(4)),
-  bytes_8: () => hex2(randomBytes(8)),
-  uuid: randomUuid
-};
-function randomInt(n) {
-  return Math.floor(Math.random() * n);
-}
-function pick(words) {
-  return words[randomInt(words.length)] ?? "";
-}
-function pickTwo(words) {
-  const i = randomInt(words.length);
-  let j = randomInt(words.length - 1);
-  if (j >= i) j++;
-  return [words[i] ?? "", words[j] ?? ""];
-}
-function randomLetters(n) {
-  return Array.from({ length: n }, () => String.fromCharCode(97 + randomInt(26))).join("");
-}
-function randomBytes(n) {
-  return Array.from({ length: n }, () => randomInt(256));
-}
-function hex2(bytes) {
-  return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-function randomUuid() {
-  const bytes = randomBytes(16);
-  bytes[6] = (bytes[6] ?? 0) & 15 | 64;
-  bytes[8] = (bytes[8] ?? 0) & 63 | 128;
-  const text = hex2(bytes);
-  return [text.slice(0, 8), text.slice(8, 12), text.slice(12, 16), text.slice(16, 20), text.slice(20)].join("-");
-}
-
-// srcts/store/check.ts
-var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
-var hexColor = new RegExp(HEX_COLOR);
-var validators = /* @__PURE__ */ new WeakMap();
-function stateFailures(entry, state2) {
-  let validate = validators.get(entry);
-  if (validate === void 0) {
-    validate = compile(`the state of the block class "${entry.id}"`, entry.schema);
-    validators.set(entry, validate);
-  }
-  return validate(state2);
-}
-function check(board, registry, registrations, changed) {
-  const failures = [];
-  if (!isId(board.id)) {
-    failures.push(`The board's id "${board.id}" is empty or made of digits alone.`);
-  }
-  if (typeof board.name !== "string") {
-    failures.push("The board's name is no string.");
-  }
-  checkBlocks(board, registry, registrations, changed, failures);
-  checkLinks(board, registry, changed, failures);
-  checkStacks(board, changed, failures);
-  checkValues(board, registrations, changed, failures);
-  checkPlugins(board, registrations, changed, failures);
-  return failures;
-}
-function ids(what, record, failures) {
-  for (const id2 of Object.keys(record)) {
-    if (!isId(id2)) failures.push(`The ${what} id "${id2}" is empty or made of digits alone.`);
-  }
-}
-function checkBlocks(board, registry, registrations, changed, failures) {
-  ids("block", board.blocks, failures);
-  for (const [id2, block] of Object.entries(board.blocks)) {
-    if (changed !== void 0 && !changed.blocks.has(id2)) continue;
-    const fields = shape(block, {
-      registry_id: "string",
-      state: "object",
-      name: "string",
-      locked: "boolean or null"
-    });
-    if (fields.length > 0) {
-      failures.push(`The block "${id2}" ${fields.join(", ")}.`);
-      continue;
-    }
-    const entry = own(registry, block.registry_id);
-    if (entry === void 0) {
-      failures.push(
-        `The block "${id2}" is of the class "${block.registry_id}", which the block registry lacks.`
-      );
-      continue;
-    }
-    for (const failure of stateFailures(entry, block.state)) {
-      failures.push(`The state of the block "${id2}" ${failure}`);
-    }
-  }
-}
-function checkLinks(board, registry, changed, failures) {
-  ids("link", board.links, failures);
-  const fed = /* @__PURE__ */ new Map();
-  for (const [id2, link] of Object.entries(board.links)) {
-    if (changed === void 0 || changed.links.has(id2)) {
-      const fields = shape(link, { from: "string", to: "string", input: "string" });
-      if (fields.length > 0) {
-        failures.push(`The link "${id2}" ${fields.join(", ")}.`);
-        continue;
-      }
-    }
-    const from = own(board.blocks, link.from);
-    const to = own(board.blocks, link.to);
-    if (from === void 0) {
-      failures.push(`The link "${id2}" comes from block "${link.from}", which the board lacks.`);
-    }
-    if (to === void 0) {
-      failures.push(`The link "${id2}" goes to block "${link.to}", which the board lacks.`);
-      continue;
-    }
-    const inputs = own(registry, to.registry_id)?.inputs;
-    if (inputs === void 0 || inputs.includes("...")) continue;
-    if (!inputs.includes(link.input)) {
-      failures.push(
-        `The link "${id2}" feeds the input "${link.input}" of block "${link.to}", whose class has no such input.`
-      );
-      continue;
-    }
-    const at = JSON.stringify([link.to, link.input]);
-    fed.set(at, [...fed.get(at) ?? [], id2]);
-  }
-  for (const [at, links] of fed) {
-    if (links.length < 2) continue;
-    const [to, input2] = JSON.parse(at);
-    failures.push(
-      `The input "${input2}" of block "${to}" takes the links ${quoted(links)}, where it takes one.`
-    );
-  }
-  const cycle = createGraph(board).cycle();
-  if (cycle !== void 0) {
-    failures.push(`The links form a cycle through the blocks ${quoted(cycle)}.`);
-  }
-}
-function checkStacks(board, changed, failures) {
-  ids("stack", board.stacks, failures);
-  const holder = /* @__PURE__ */ new Map();
-  for (const [id2, stack] of Object.entries(board.stacks)) {
-    if (changed === void 0 || changed.stacks.has(id2)) {
-      const fields = shape(stack, { name: "string", blocks: "array", color: "string or null" });
-      if (fields.length > 0) {
-        failures.push(`The stack "${id2}" ${fields.join(", ")}.`);
-        continue;
-      }
-      if (stack.color !== null && !hexColor.test(stack.color)) {
-        failures.push(
-          `The stack "${id2}" has the colour "${stack.color}", which is no hex colour of six digits, such as "#66c2a5".`
-        );
-      }
-    }
-    for (const block of stack.blocks) {
-      if (own(board.blocks, block) === void 0) {
-        failures.push(`The stack "${id2}" holds block "${block}", which the board lacks.`);
-        continue;
-      }
-      const other = holder.get(block);
-      if (other === id2) {
-        failures.push(`The stack "${id2}" holds block "${block}" twice.`);
-      } else if (other !== void 0) {
-        failures.push(`The block "${block}" sits in the stacks "${other}" and "${id2}", where it sits in one.`);
-      }
-      holder.set(block, id2);
-    }
-  }
-}
-function checkValues(board, registrations, changed, failures) {
-  for (const [id2, value2] of Object.entries(board.options)) {
-    if (changed !== void 0 && !changed.options.has(id2)) continue;
-    const option = registrations.option(id2);
-    if (option === void 0) {
-      failures.push(`The board holds a value of the board option "${id2}", which no package registered.`);
-      continue;
-    }
-    for (const failure of option.validate(value2)) {
-      failures.push(`The value of the board option "${id2}" ${failure}`);
-    }
-  }
-}
-function checkPlugins(board, registrations, changed, failures) {
-  for (const [id2, state2] of Object.entries(board.plugins)) {
-    if (changed !== void 0 && !changed.plugins.has(id2)) continue;
-    const cls = registrations.plugin(id2);
-    if (cls === void 0) {
-      failures.push(`The board holds the state of a plugin of the class "${id2}", which no package registered.`);
-      continue;
-    }
-    if (cls.validate === void 0) {
-      failures.push(`The board holds the state of a plugin of the class "${id2}", which keeps none.`);
-      continue;
-    }
-    for (const failure of cls.validate(state2)) {
-      failures.push(`The state of the plugin "${id2}" ${failure}`);
-    }
-  }
-}
-function shape(value2, fields) {
-  if (!isObject(value2)) return ["is no object"];
-  const problems = [];
-  for (const [field, kind] of Object.entries(fields)) {
-    if (!fits(value2[field], kind)) problems.push(`has no ${kind} as its ${field}`);
-  }
-  for (const field of Object.keys(value2)) {
-    if (!Object.hasOwn(fields, field)) problems.push(`holds "${field}", which core does not keep`);
-  }
-  return problems;
-}
-function fits(x, kind) {
-  switch (kind) {
-    case "array":
-      return Array.isArray(x);
-    case "object":
-      return isObject(x);
-    case "string or null":
-      return x === null || typeof x === "string";
-    case "boolean or null":
-      return x === null || typeof x === "boolean";
-    case "string":
-      return typeof x === "string";
-  }
-}
-
-// srcts/store/patch.ts
-function segmentsFromPath(path) {
-  if (!path.startsWith("/")) return void 0;
-  const segments = path.slice(1).split("/");
-  if (segments.some((segment) => /~(?![01])/.test(segment))) return void 0;
-  return segments.map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
-}
-function pluginClassFromPath(path) {
-  const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
-  return boardProperty === "plugins" ? plugin : void 0;
-}
-function pathFromSegments(segments) {
-  return segments.map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
-}
-function overlap(a, b, board) {
-  let at = board;
-  for (const [i, segment] of a.slice(0, b.length).entries()) {
-    if (Array.isArray(at) || segment !== b[i]) return false;
-    at = isObject(at) ? own(at, segment) : void 0;
-  }
-  return true;
-}
-function malformed(patch2) {
-  if (!isObject(patch2)) return ["is no object"];
-  const problems = [];
-  const { op, path, edit } = patch2;
-  if (op !== "add" && op !== "remove" && op !== "replace") {
-    problems.push(`has the op ${JSON.stringify(op)}, where it takes "add", "remove" or "replace"`);
-  }
-  if (typeof path !== "string" || segmentsFromPath(path) === void 0) {
-    problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's root`);
-  }
-  if ((op === "add" || op === "replace") && patch2.value === void 0) {
-    problems.push("has no value");
-  }
-  if (edit !== void 0 && (typeof edit !== "number" || !Number.isInteger(edit))) {
-    problems.push(`has the edit id ${JSON.stringify(edit)}, which is no whole number`);
-  }
-  for (const field of Object.keys(patch2)) {
-    if (!["op", "path", "value", "edit"].includes(field)) {
-      problems.push(`holds "${field}", which a patch does not keep`);
-    }
-  }
-  return problems;
-}
-function applyPatch(board, patch2, segments, place) {
-  const result = step(board, segments, patch2, [], place);
-  if (typeof result === "string") return { failure: result };
-  return { ...result, next: result.next };
-}
-function step(at, segments, patch2, done, place) {
-  const [segment = "", ...rest] = segments;
-  if (Array.isArray(at)) {
-    const items = at;
-    const last = rest.length === 0;
-    const index = last && segment === "-" && patch2.op === "add" ? items.length : arrayIndex(segment);
-    const bound = last && patch2.op === "add" ? items.length : items.length - 1;
-    if (index === void 0 || index > bound) {
-      return `finds no element "${segment}" in the array at "${pathFromSegments(done)}"`;
-    }
-    const here2 = pathFromSegments([...done, String(index)]);
-    if (!last) {
-      const inner = step(items[index], rest, patch2, [...done, String(index)], place);
-      if (typeof inner === "string") return inner;
-      if (inner.next === items[index]) return { ...inner, next: at };
-      return { ...inner, next: spliced(items, index, 1, inner.next) };
-    }
-    const old2 = items[index];
-    switch (patch2.op) {
-      case "add":
-        return {
-          next: spliced(items, index, 0, patch2.value),
-          inverse: { op: "remove", path: here2 }
-        };
-      case "remove":
-        return {
-          next: spliced(items, index, 1),
-          inverse: { op: "add", path: here2, value: old2 }
-        };
-      case "replace":
-        if (jsonEqual(old2, patch2.value)) return { next: at, inverse: void 0 };
-        return {
-          next: spliced(items, index, 1, patch2.value),
-          inverse: { op: "replace", path: here2, value: old2 }
-        };
-    }
-  }
-  if (!isObject(at)) {
-    return `finds neither an object nor an array at "${pathFromSegments(done)}"`;
-  }
-  const has = Object.hasOwn(at, segment);
-  const old = has ? at[segment] : void 0;
-  const here = pathFromSegments([...done, segment]);
-  if (rest.length > 0) {
-    if (!has) return `finds no "${segment}" in "${pathFromSegments(done)}"`;
-    const inner = step(old, rest, patch2, [...done, segment], place);
-    if (typeof inner === "string") return inner;
-    if (inner.next === old) return { ...inner, next: at };
-    return { ...inner, next: { ...at, [segment]: inner.next } };
-  }
-  switch (patch2.op) {
-    case "add":
-    case "replace":
-      if (!has && patch2.op === "replace") return `finds no "${segment}" in "${pathFromSegments(done)}" to replace`;
-      if (!has) {
-        return { next: inserted(at, segment, patch2.value, place), inverse: { op: "remove", path: here } };
-      }
-      if (jsonEqual(old, patch2.value)) return { next: at, inverse: void 0 };
-      return {
-        next: { ...at, [segment]: patch2.value },
-        inverse: { op: "replace", path: here, value: old }
-      };
-    case "remove": {
-      if (!has) return `finds no "${segment}" in "${pathFromSegments(done)}" to remove`;
-      const members = Object.keys(at);
-      return {
-        next: without(at, [segment]),
-        inverse: { op: "add", path: here, value: old },
-        place: members[members.indexOf(segment) + 1] ?? null
-      };
-    }
-  }
-}
-function inserted(record, key2, value2, before) {
-  if (typeof before !== "string" || !Object.hasOwn(record, before)) {
-    return { ...record, [key2]: value2 };
-  }
-  const members = Object.entries(record);
-  members.splice(members.findIndex(([name2]) => name2 === before), 0, [key2, value2]);
-  return Object.fromEntries(members);
-}
-function spliced(items, index, count2, ...added) {
-  const copy = [...items];
-  copy.splice(index, count2, ...added);
-  return copy;
-}
-function arrayIndex(segment) {
-  return /^(0|[1-9]\d*)$/.test(segment) ? Number(segment) : void 0;
-}
-
-// srcts/store/commit.ts
-function target(of) {
-  return "block" in of ? JSON.stringify(["block", of.block]) : JSON.stringify(["plugin", of.plugin]);
-}
-function commit(board, delta, places = {}) {
-  const failures = [];
-  const targets = /* @__PURE__ */ new Set();
-  const blocks = collection(
-    (id2) => `block "${id2}"`,
-    board.blocks,
-    delta.blocks,
-    (old, mod, id2) => modifyBlock(old, mod, id2, failures),
-    places.blocks,
-    void 0,
-    failures
-  );
-  for (const id2 of blocks.touched) targets.add(target({ block: id2 }));
-  const links = collection(
-    (id2) => `link "${id2}"`,
-    board.links,
-    delta.links,
-    modifyFields,
-    places.links,
-    delta.links?.before,
-    failures
-  );
-  const stacks = collection(
-    (id2) => `stack "${id2}"`,
-    board.stacks,
-    delta.stacks,
-    modifyFields,
-    places.stacks,
-    void 0,
-    failures
-  );
-  const options = values(
-    board.options,
-    delta.options,
-    (id2) => `the board option "${id2}"`,
-    failures
-  );
-  let next = {
-    ...board,
-    name: delta.name ?? board.name,
-    blocks: blocks.next,
-    links: links.next,
-    stacks: stacks.next,
-    options: options.next
-  };
-  const patched = patch(next, delta.patches ?? [], places.patches ?? {}, failures);
-  for (const plugin of patched.plugins) targets.add(target({ plugin }));
-  next = patched.board;
-  if (failures.length > 0) return { failures };
-  const inverse = {
-    ...empty(blocks.inverse) ? {} : { blocks: blocks.inverse },
-    ...empty(links.inverse) ? {} : { links: links.inverse },
-    ...empty(stacks.inverse) ? {} : { stacks: stacks.inverse },
-    ...delta.name === void 0 || delta.name === board.name ? {} : { name: board.name },
-    ...patched.inverse.length === 0 ? {} : { patches: patched.inverse }
-  };
-  return {
-    board: next,
-    inverse: {
-      delta: inverse,
-      places: {
-        blocks: blocks.places,
-        links: links.places,
-        stacks: stacks.places,
-        patches: patched.places
-      }
-    },
-    changed: {
-      blocks: new Set(blocks.changed),
-      links: new Set(links.changed),
-      stacks: new Set(stacks.changed),
-      options: options.changed,
-      plugins: patched.plugins,
-      targets
-    }
-  };
-}
-function patch(board, patches2, placed2, failures) {
-  let next = board;
-  const inverse = [];
-  const places = {};
-  const plugins = /* @__PURE__ */ new Set();
-  for (const [i, given] of patches2.entries()) {
-    const name2 = `The patch ${String(i + 1)}`;
-    const problems = malformed(given);
-    if (problems.length > 0) {
-      failures.push(`${name2} ${problems.join(", ")}.`);
-      continue;
-    }
-    const segments = segmentsFromPath(given.path) ?? [];
-    const misplaced2 = outside(segments, given.op);
-    if (misplaced2 !== void 0) {
-      failures.push(`${name2}, ${given.op} at "${given.path}", ${misplaced2}.`);
-      continue;
-    }
-    const place = given.op === "add" ? own(placed2, given.path) : void 0;
-    const applied = applyPatch(next, given, segments, place);
-    if ("failure" in applied) {
-      failures.push(`${name2}, ${given.op} at "${given.path}", ${applied.failure}.`);
-      continue;
-    }
-    next = applied.next;
-    if (applied.inverse === void 0) continue;
-    inverse.unshift(applied.inverse);
-    if (applied.place !== void 0) places[applied.inverse.path] = applied.place;
-    plugins.add(segments[1] ?? "");
-  }
-  return { board: next, inverse, places, plugins };
-}
-function outside(segments, op) {
-  const [boardProperty, plugin] = segments;
-  if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the state of the board's plugins alone`;
-  if (plugin === void 0) return "changes the board's plugins as a whole, where a patch changes the state of one plugin";
-  if (segments.length === 2 && op !== "replace") {
-    return `${op === "add" ? "adds" : "removes"} what the board holds for the plugin "${plugin}", where a patch changes a plugin's state alone, since the app sets the plugins that run`;
-  }
-  return void 0;
-}
-function collection(name2, current2, part, modify, places, before, failures) {
-  if (part === void 0) {
-    return { next: current2, inverse: {}, places: {}, changed: [], touched: [] };
-  }
-  const order = Object.keys(current2);
-  const removed = /* @__PURE__ */ new Set();
-  for (const id2 of part.rm ?? []) {
-    if (Object.hasOwn(current2, id2)) removed.add(id2);
-    else failures.push(`The board holds no ${name2(id2)} to remove.`);
-  }
-  const readd = {};
-  const readdPlaces = {};
-  for (const id2 of removed) {
-    readd[id2] = current2[id2];
-    const after = order.slice(order.indexOf(id2) + 1);
-    readdPlaces[id2] = after.find((other) => !removed.has(other)) ?? null;
-  }
-  const kept = order.filter((id2) => !removed.has(id2)).map((id2) => [id2, current2[id2]]);
-  const keptSuccessor = (named5) => named5 === null ? null : removed.has(named5) ? own(readdPlaces, named5) ?? null : named5;
-  const moves2 = [];
-  for (const [id2, named5] of Object.entries(before ?? {})) {
-    if (Object.hasOwn(part.add ?? {}, id2)) continue;
-    const at = kept.findIndex(([other]) => other === id2);
-    const entry = kept[at];
-    if (entry === void 0) {
-      failures.push(`The board holds no ${name2(id2)} to move.`);
-      continue;
-    }
-    const to = keptSuccessor(named5);
-    const was = kept[at + 1]?.[0] ?? null;
-    if (to === was || to === id2) continue;
-    if (to !== null && !kept.some(([other]) => other === to)) {
-      failures.push(`The board holds no ${name2(to)} for ${name2(id2)} to go before.`);
-      continue;
-    }
-    kept.splice(at, 1);
-    if (to === null) kept.push(entry);
-    else kept.splice(kept.findIndex(([other]) => other === to), 0, entry);
-    moves2.unshift([id2, was]);
-  }
-  const added = [];
-  for (const [id2, value2] of Object.entries(part.add ?? {})) {
-    if (kept.some(([other]) => other === id2)) {
-      failures.push(`The board holds ${name2(id2)} already.`);
-      continue;
-    }
-    const named5 = own(before ?? {}, id2);
-    const successor = named5 === void 0 ? own(places ?? {}, id2) ?? null : keptSuccessor(named5);
-    const at = successor === null ? -1 : kept.findIndex(([other]) => other === successor);
-    if (at < 0 && successor !== null && named5 !== void 0) {
-      failures.push(
-        `The board holds no ${name2(successor)} for ${name2(id2)} to go before.`
-      );
-      continue;
-    }
-    if (at < 0) kept.push([id2, value2]);
-    else kept.splice(at, 0, [id2, value2]);
-    added.push(id2);
-  }
-  const remod = {};
-  const modded = [];
-  for (const [id2, mod] of Object.entries(part.mod ?? {})) {
-    const at = kept.findIndex(([other]) => other === id2);
-    const entry = kept[at];
-    if (entry === void 0) {
-      failures.push(`The board holds no ${name2(id2)} to change.`);
-      continue;
-    }
-    const { value: value2, inverse } = modify(entry[1], mod, id2);
-    if (Object.keys(inverse).length === 0) continue;
-    kept[at] = [id2, value2];
-    if (!added.includes(id2)) remod[id2] = inverse;
-    modded.push(id2);
-  }
-  return {
-    next: Object.fromEntries(kept),
-    inverse: {
-      ...added.length === 0 ? {} : { rm: added },
-      ...removed.size === 0 ? {} : { add: readd },
-      ...Object.keys(remod).length === 0 ? {} : { mod: remod },
-      ...moves2.length === 0 ? {} : { before: Object.fromEntries(moves2) }
-    },
-    places: readdPlaces,
-    changed: [.../* @__PURE__ */ new Set([...added, ...modded])],
-    touched: [.../* @__PURE__ */ new Set([...removed, ...added, ...modded])]
-  };
-}
-function empty(part) {
-  return Object.keys(part).length === 0;
-}
-function changes(current2, set, unset, both, failures) {
-  const setting2 = Object.entries(set).filter(
-    ([name2, value2]) => !jsonEqual(own(current2, name2), value2)
-  );
-  const restore = {};
-  const remove2 = [];
-  const removing2 = [];
-  for (const name2 of unset) {
-    if (Object.hasOwn(set, name2)) failures.push(both(name2));
-    const was = own(current2, name2);
-    if (was === void 0) continue;
-    removing2.push(name2);
-    restore[name2] = was;
-  }
-  for (const [name2] of setting2) {
-    const was = own(current2, name2);
-    if (was === void 0) remove2.push(name2);
-    else restore[name2] = was;
-  }
-  return {
-    next: setting2.length === 0 && removing2.length === 0 ? current2 : { ...without(current2, removing2), ...Object.fromEntries(setting2) },
-    set: setting2.map(([name2]) => name2),
-    unset: removing2,
-    restore,
-    remove: remove2
-  };
-}
-function values(current2, change, what, failures) {
-  if (change === void 0) {
-    return { next: current2, changed: /* @__PURE__ */ new Set() };
-  }
-  const result = changes(
-    current2,
-    change.set ?? {},
-    change.unset ?? [],
-    (name2) => `The change both sets and unsets ${what(name2)}.`,
-    failures
-  );
-  return {
-    next: result.next,
-    changed: /* @__PURE__ */ new Set([...result.set, ...result.unset])
-  };
-}
-function modifyBlock(old, mod, id2, failures) {
-  const state2 = changes(
-    old.state,
-    mod.state ?? {},
-    mod.unset ?? [],
-    (arg) => `The change to block "${id2}" both sets and unsets "${arg}".`,
-    failures
-  );
-  const name2 = mod.name === old.name ? void 0 : mod.name;
-  const locked2 = mod.locked === void 0 || mod.locked === old.locked ? void 0 : mod.locked;
-  return {
-    value: {
-      ...old,
-      state: state2.next,
-      name: name2 ?? old.name,
-      locked: locked2 === void 0 ? old.locked : locked2
-    },
-    inverse: {
-      ...Object.keys(state2.restore).length === 0 ? {} : { state: state2.restore },
-      ...state2.remove.length === 0 ? {} : { unset: state2.remove },
-      ...name2 === void 0 ? {} : { name: old.name },
-      ...locked2 === void 0 ? {} : { locked: old.locked }
-    }
-  };
-}
-function modifyFields(old, mod) {
-  const inverse = {};
-  const changed = {};
-  for (const field of Object.keys(mod)) {
-    if (jsonEqual(old[field], mod[field])) continue;
-    inverse[field] = old[field];
-    changed[field] = mod[field];
-  }
-  return { value: { ...old, ...changed }, inverse };
-}
-
-// srcts/store/delta.ts
-function isDeltas(delta) {
-  return Array.isArray(delta);
-}
-
-// srcts/store/error.ts
-var StoreError = class extends Error {
-  failures;
-  constructor(message, failures) {
-    super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"));
-    this.name = "StoreError";
-    this.failures = failures;
-  }
-};
-function thrown(of, error, attributes) {
-  const failure = `${of}: ${errorMessage(error)}`;
-  log.error(new Error(failure, { cause: error }), attributes);
-  return failure;
-}
-
-// srcts/store/expand.ts
-var ROUNDS = 10;
-function expand(delta, board, registrations) {
-  let expanded = delta;
-  for (let round = 0; round < ROUNDS; round++) {
-    const adding = [];
-    const failures = [];
-    const core = expandCore(expanded, board);
-    const grew = core !== expanded;
-    expanded = core;
-    for (const id2 of Object.keys(board.plugins)) {
-      const def = registrations.plugin(id2)?.def;
-      if (def?.state?.update === void 0) continue;
-      let patches2;
-      try {
-        patches2 = def.state.update(expanded, board, id2);
-      } catch (error) {
-        failures.push(
-          thrown(`The plugin class "${id2}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id2 })
-        );
-        continue;
-      }
-      const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
-      if (wrong.length > 0) {
-        failures.push(...wrong);
-        continue;
-      }
-      const merged = merge(expanded, delta, patches2, board);
-      if (merged !== expanded) adding.push(id2);
-      expanded = merged;
-    }
-    if (failures.length > 0) return { failures };
-    if (!grew && adding.length === 0) return expanded;
-    if (round === ROUNDS - 1) {
-      return {
-        failures: [
-          `The delta kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin${adding.length > 1 ? "s" : ""} ${quoted(adding)}.`
-        ]
-      };
-    }
-  }
-  return expanded;
-}
-function afterStep(board, before, registrations) {
-  const patches2 = [];
-  const failures = [];
-  for (const id2 of Object.keys(board.plugins)) {
-    const def = registrations.plugin(id2)?.def;
-    if (def?.state?.afterStep === void 0) continue;
-    let returned;
-    try {
-      returned = def.state.afterStep(board, before, id2);
-    } catch (error) {
-      failures.push(thrown(`The afterStep of the plugin class "${id2}" failed`, error, { "blockr.plugin.class_id": id2 }));
-      continue;
-    }
-    const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
-    if (wrong.length > 0) {
-      failures.push(...wrong);
-      continue;
-    }
-    patches2.push(...returned);
-  }
-  if (failures.length > 0) return { failures };
-  return patches2.length === 0 ? void 0 : { patches: patches2 };
-}
-function expandCore(delta, board) {
-  const gone = new Set(delta.blocks?.rm ?? []);
-  if (gone.size === 0) return delta;
-  const linksRm = delta.links?.rm ?? [];
-  const incident = Object.entries(board.links).filter(([id2, link]) => (gone.has(link.from) || gone.has(link.to)) && !linksRm.includes(id2)).map(([id2]) => id2);
-  const stacksRm = delta.stacks?.rm ?? [];
-  const stacksMod = delta.stacks?.mod ?? {};
-  const placed2 = {};
-  for (const [id2, stack] of Object.entries(board.stacks)) {
-    if (stacksRm.includes(id2)) continue;
-    const mod = own(stacksMod, id2);
-    const blocks = mod?.blocks ?? stack.blocks;
-    if (blocks.some((block) => gone.has(block))) {
-      placed2[id2] = { ...mod, blocks: blocks.filter((block) => !gone.has(block)) };
-    }
-  }
-  if (incident.length === 0 && Object.keys(placed2).length === 0) return delta;
-  return {
-    ...delta,
-    ...incident.length === 0 ? {} : { links: { ...delta.links, rm: [...linksRm, ...incident] } },
-    ...Object.keys(placed2).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed2 } } }
-  };
-}
-function misplaced(id2, patches2, of) {
-  if (!Array.isArray(patches2)) return [`${of} no array of patches.`];
-  const failures = [];
-  for (const patch2 of patches2) {
-    const problems = malformed(patch2);
-    if (problems.length > 0) {
-      failures.push(`${of} a patch that ${problems.join(", ")}.`);
-      continue;
-    }
-    const { path } = patch2;
-    const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
-    if (boardProperty !== "plugins" || plugin !== id2) {
-      failures.push(`${of} a patch at "${path}", outside that plugin's state.`);
-    }
-  }
-  return failures;
-}
-function merge(delta, given, patches2, board) {
-  const held4 = delta.patches ?? [];
-  const fixed2 = (given.patches ?? []).map(({ path }) => segmentsFromPath(path) ?? []);
-  const added = [];
-  for (const patch2 of patches2) {
-    const segments = segmentsFromPath(patch2.path) ?? [];
-    if ([...held4, ...added].some((other) => same(other, patch2))) continue;
-    if (fixed2.some((other) => overlap(other, segments, board))) continue;
-    added.push(patch2);
-  }
-  if (added.length === 0) return delta;
-  return { ...delta, patches: [...held4, ...added] };
-}
-function same(a, b) {
-  return a.op === b.op && a.path === b.path && jsonEqual(a.value, b.value);
-}
-
-// srcts/store/lock.ts
-function fixes(board, block, boardLock) {
-  if (!boardLock) return false;
-  const held4 = board === void 0 ? void 0 : own(board.blocks, block);
-  return held4?.locked !== false;
-}
-function lockFailures(before, inverse) {
-  const failures = [];
-  const refuse = (verb, one2, several, ids2) => {
-    if (ids2.length === 0) return;
-    failures.push(`The board lock refuses to ${verb} ${ids2.length === 1 ? one2 : several} ${quoted(ids2)}.`);
-  };
-  const blocks = inverse.blocks;
-  const mods = Object.entries(blocks?.mod ?? {});
-  refuse("add", "block", "blocks", blocks?.rm ?? []);
-  refuse("remove", "block", "blocks", Object.keys(blocks?.add ?? {}));
-  refuse("rename", "block", "blocks", mods.filter(([, mod]) => mod.name !== void 0).map(([id2]) => id2));
-  refuse(
-    "change",
-    "the lock of block",
-    "the locks of the blocks",
-    mods.filter(([, mod]) => mod.locked !== void 0).map(([id2]) => id2)
-  );
-  for (const [id2, mod] of mods) {
-    if (mod.state === void 0 && mod.unset === void 0) continue;
-    const locked2 = own(before.blocks, id2)?.locked;
-    if (locked2 === true) {
-      failures.push(`The lock of block "${id2}" fixes its state under the board lock.`);
-    } else if (locked2 === null) {
-      failures.push(`The board lock fixes the state of block "${id2}", whose lock follows the board lock.`);
-    }
-  }
-  for (const [part, one2, several] of [
-    [inverse.links, "link", "links"],
-    [inverse.stacks, "stack", "stacks"]
-  ]) {
-    refuse("add", one2, several, part?.rm ?? []);
-    refuse("change", one2, several, Object.keys(part?.mod ?? {}));
-    refuse("remove", one2, several, Object.keys(part?.add ?? {}));
-  }
-  refuse("move", "link", "links", Object.keys(inverse.links?.before ?? {}));
-  if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
-  return failures;
-}
-
-// srcts/store/undo.ts
-function fit(delta, board) {
-  const blocks = collection2(board.blocks, delta.blocks);
-  const kept = /* @__PURE__ */ new Set([
-    ...Object.keys(board.blocks).filter((id2) => !(blocks.rm ?? []).includes(id2)),
-    ...Object.keys(blocks.add ?? {})
-  ]);
-  const holds2 = (id2) => kept.has(id2);
-  const links = collection2(
-    board.links,
-    delta.links,
-    (link) => (link.from === void 0 || holds2(link.from)) && (link.to === void 0 || holds2(link.to))
-  );
-  const held4 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
-  const before = Object.fromEntries(
-    Object.entries(delta.links?.before ?? {}).flatMap(([id2, named5]) => {
-      if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named5]];
-      if (!held4(id2)) return [];
-      return [[id2, named5 !== null && Object.hasOwn(board.links, named5) ? named5 : null]];
-    })
-  );
-  const stacks = collection2(board.stacks, delta.stacks);
-  const placed2 = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds2) };
-  return prune({
-    blocks,
-    links: { ...links, ...Object.keys(before).length === 0 ? {} : { before } },
-    stacks: {
-      ...stacks.rm === void 0 ? {} : { rm: stacks.rm },
-      ...stacks.add === void 0 ? {} : { add: Object.fromEntries(Object.entries(stacks.add).map(([id2, s]) => [id2, placed2(s)])) },
-      ...stacks.mod === void 0 ? {} : { mod: Object.fromEntries(Object.entries(stacks.mod).map(([id2, s]) => [id2, placed2(s)])) }
-    },
-    ...delta.options === void 0 ? {} : { options: delta.options },
-    ...delta.name === void 0 ? {} : { name: delta.name },
-    patches: patches(delta.patches ?? [], board)
-  });
-}
-function patches(given, board) {
-  let at = board;
-  const fitted = [];
-  for (const patch2 of given) {
-    const segments = segmentsFromPath(patch2.path) ?? [];
-    if (segments[0] !== "plugins") continue;
-    const applied = applyPatch(at, patch2, segments);
-    if ("failure" in applied) continue;
-    at = applied.next;
-    fitted.push(patch2);
-  }
-  return fitted;
-}
-function collection2(current2, part, keep = () => true) {
-  if (part === void 0) return {};
-  const rm = (part.rm ?? []).filter((id2) => Object.hasOwn(current2, id2));
-  const there = (id2) => Object.hasOwn(current2, id2) && !rm.includes(id2);
-  const add = Object.entries(part.add ?? {}).filter(([id2, entry]) => !there(id2) && keep(entry));
-  const mod = Object.entries(part.mod ?? {}).filter(([id2, change]) => there(id2) && keep(change));
-  return {
-    ...rm.length === 0 ? {} : { rm },
-    ...add.length === 0 ? {} : { add: Object.fromEntries(add) },
-    ...mod.length === 0 ? {} : { mod: Object.fromEntries(mod) }
-  };
-}
-function prune(delta) {
-  const parts = Object.entries(delta);
-  return Object.fromEntries(
-    parts.filter(
-      ([, part]) => Array.isArray(part) ? part.length > 0 : !isObject(part) || Object.keys(part).length > 0
-    )
-  );
-}
-function isEmpty(delta) {
-  return Object.keys(prune(delta)).length === 0;
-}
-
-// srcts/store/plugins.ts
-function inRole(plugins, registeredClass, role) {
-  return Object.keys(plugins).filter((id2) => registeredClass(id2)?.[role] !== void 0);
-}
-function keptPlugins(board, app, registeredClass) {
-  return Object.fromEntries(
-    Object.entries(board).filter(
-      (entry) => Object.hasOwn(app, entry[0]) && registeredClass(entry[0])?.state !== void 0
-    )
-  );
-}
-function droppedPlugins(board, app, registeredClass) {
-  return Object.keys(board).filter((id2) => !Object.hasOwn(app, id2) || registeredClass(id2) === void 0);
-}
-function pluginsWithDefaults(kept, app, registeredClass) {
-  const plugins = {};
-  for (const id2 of Object.keys(app)) {
-    const state2 = registeredClass(id2)?.state;
-    if (state2 === void 0) continue;
-    const held4 = own(kept, id2);
-    plugins[id2] = held4 === void 0 ? frozenCopy(state2.default) : held4;
-  }
-  return plugins;
-}
-
-// srcts/store/open.ts
-var FORMAT = 1;
-var COLLECTIONS = ["blocks", "links", "stacks", "options", "plugins"];
-var PROPERTIES = ["id", "name", ...COLLECTIONS];
-var refused = "The store refused to open the board";
-function parse(text) {
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    throw new StoreError(refused, [`The text holds no JSON: ${errorMessage(error)}`]);
-  }
-}
-function checkJsonBoard(json) {
-  if (!isObject(json)) throw new StoreError(refused, ["The JSON is no JSON board."]);
-  if (!Object.hasOwn(json, "format")) {
-    throw new StoreError(refused, [
-      "The JSON board has no format, as a file of today's stack has none, which a conversion outside core turns into a JSON board first."
-    ]);
-  }
-  if (typeof json.format !== "number" || !Number.isInteger(json.format)) {
-    throw new StoreError(refused, [`The JSON board's format ${JSON.stringify(json.format)} is no whole number.`]);
-  }
-  if (json.format > FORMAT) {
-    throw new StoreError(refused, [
-      `The JSON board's format is ${String(json.format)}, while this client reads format ${String(FORMAT)} at most.`
-    ]);
-  }
-  if (!isObject(json.packages) || !Object.values(json.packages).every((v) => typeof v === "string")) {
-    throw new StoreError(refused, ["The JSON board names no packages with their versions."]);
-  }
-  if (!isObject(json.board)) throw new StoreError(refused, ["The JSON board holds no board."]);
-  const board = json.board;
-  const lacking = COLLECTIONS.filter((name2) => !isObject(board[name2]));
-  if (lacking.length > 0) {
-    throw new StoreError(refused, [`The board holds its ${listing(lacking)} in no object by id.`]);
-  }
-  checkRecorded(board);
-  return json;
-}
-function isVersion(value2) {
-  return typeof value2 === "number" && Number.isInteger(value2) && value2 >= 1;
-}
-function checkRecorded(board) {
-  const failures = [];
-  for (const [cls, plugin] of Object.entries(board.plugins)) {
-    if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
-      failures.push(`The plugin "${cls}" is recorded as no state with the version of its class's state.`);
-    }
-  }
-  for (const [id2, block] of Object.entries(board.blocks)) {
-    if (isObject(block) && !isVersion(block.version)) {
-      failures.push(`The block "${id2}" records no version of its class's state.`);
-    }
-  }
-  for (const [id2, option] of Object.entries(board.options)) {
-    if (!isObject(option) || !Object.hasOwn(option, "value") || !isVersion(option.version) || !(option.package === null || typeof option.package === "string")) {
-      failures.push(
-        `The board option "${id2}" is recorded as no value with the version of its shape and the package that lists it.`
-      );
-    }
-  }
-  if (failures.length > 0) throw new StoreError(refused, failures);
-}
-function unversioned(board) {
-  const record = board;
-  return {
-    ...Object.fromEntries(Object.entries(record).filter(([name2]) => PROPERTIES.includes(name2))),
-    blocks: Object.fromEntries(
-      Object.entries(board.blocks).map(([id2, block]) => [
-        id2,
-        without(block, ["version"])
-      ])
-    ),
-    options: Object.fromEntries(Object.entries(board.options).map(([id2, option]) => [id2, option.value])),
-    plugins: Object.fromEntries(Object.entries(board.plugins).map(([cls, plugin]) => [cls, plugin.state]))
-  };
-}
-function migrate(board, json, reply, registrations) {
-  const failures = /* @__PURE__ */ new Set();
-  const changed = /* @__PURE__ */ new Set();
-  const plugins = Object.fromEntries(
-    Object.entries(board.plugins).map(([cls, state2]) => {
-      const def = registrations.plugin(cls)?.def;
-      if (def === void 0) return [cls, state2];
-      const from = own(json.plugins, cls)?.version;
-      const to = own(reply.plugins, cls)?.version ?? 1;
-      if (from === void 0 || from === to) return [cls, state2];
-      if (from > to) {
-        failures.add(
-          `The board records version ${String(from)} of the plugin class "${cls}", while R gives version ${String(to)}.`
-        );
-        return [cls, state2];
-      }
-      if (def.state?.migrate === void 0) return [cls, state2];
-      changed.add("plugins");
-      return [
-        cls,
-        migratedValue(
-          `The migration of the plugin class "${cls}"`,
-          { "blockr.plugin.class_id": cls },
-          () => def.state?.migrate?.(frozenCopy(state2), from)
-        )
-      ];
-    })
-  );
-  const blocks = Object.fromEntries(
-    Object.entries(board.blocks).map(([id2, block]) => {
-      const from = own(json.blocks, id2)?.version;
-      const to = own(reply.block_registry, block.registry_id)?.version;
-      if (from === void 0 || to === void 0 || from === to) return [id2, block];
-      if (from > to) {
-        failures.add(
-          `The block "${id2}" records version ${String(from)} of the state of "${block.registry_id}", while its class is at version ${String(to)}.`
-        );
-        return [id2, block];
-      }
-      const fn = registrations.migration(block.registry_id);
-      if (fn === void 0) return [id2, block];
-      changed.add("blocks");
-      const state2 = migrated(
-        `The migration of the block class "${block.registry_id}"`,
-        { "blockr.block.registry_id": block.registry_id },
-        () => fn(frozenCopy(block.state), from)
-      );
-      return [id2, { ...block, state: state2 }];
-    })
-  );
-  const options = Object.fromEntries(
-    Object.entries(board.options).map(([id2, value2]) => {
-      const def = registrations.option(id2)?.def;
-      if (def === void 0) return [id2, value2];
-      const from = own(json.options, id2)?.version;
-      const to = own(reply.options, id2)?.version ?? 1;
-      if (from === void 0 || from === to) return [id2, value2];
-      if (from > to) {
-        failures.add(
-          `The board records version ${String(from)} of the value of the board option "${id2}", while R gives version ${String(to)}.`
-        );
-        return [id2, value2];
-      }
-      if (def.migrate === void 0) return [id2, value2];
-      changed.add("options");
-      return [
-        id2,
-        migratedValue(
-          `The migration of the board option "${id2}"`,
-          { "blockr.option.id": id2 },
-          () => def.migrate?.(frozenCopy(value2), from)
-        )
-      ];
-    })
-  );
-  if (failures.size > 0) throw new StoreError(refused, [...failures]);
-  if (changed.size === 0) return board;
-  return { ...board, plugins, blocks, options };
-}
-function migrated(what, attributes, fn) {
-  const out = migratedValue(what, attributes, fn);
-  if (!isObject(out)) throw new StoreError(refused, [`${what} returned no object.`]);
-  return out;
-}
-function migratedValue(what, attributes, fn) {
-  let out;
-  try {
-    out = fn();
-  } catch (error) {
-    throw new StoreError(refused, [thrown(`${what} failed`, error, attributes)]);
-  }
-  if (out === void 0) throw new StoreError(refused, [`${what} returned nothing.`]);
-  return frozenCopy(out);
-}
-function openJsonBoard(json, reply, registrations) {
-  const registeredClass = (id2) => registrations.plugin(id2)?.def;
-  const read = unversioned(json.board);
-  const held4 = keptPlugins(read.plugins, reply.plugins, registeredClass);
-  const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
-    about: { plugin: id2 },
-    package: packageFromId(id2)
-  }));
-  const migrated2 = migrate({ ...read, plugins: held4 }, json.board, reply, registrations);
-  const lacking = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0);
-  const blocks = lacking.map(([id2, block]) => ({
-    about: { block: id2, name: block.name, registry_id: block.registry_id },
-    package: packageFromId(block.registry_id)
-  }));
-  const gone = lacking.map(([id2]) => id2);
-  const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
-  const options = unclaimed.map((id2) => ({
-    about: { option: id2 },
-    package: own(json.board.options, id2)?.package ?? null
-  }));
-  const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
-  const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
-  const failures = check(board, reply.block_registry, registrations);
-  if (failures.length > 0) throw new StoreError(refused, failures);
-  const used = /* @__PURE__ */ new Set([
-    ...[...Object.values(read.blocks).map((block) => block.registry_id), ...Object.keys(read.plugins)].map(packageFromId),
-    ...Object.values(json.board.options).map((option) => option.package)
-  ]);
-  const packages = Object.entries(json.packages).filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
-  return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
-}
-function remove(board, gone, registrations) {
-  if (gone.length === 0) return board;
-  const delta = expand({ blocks: { rm: gone } }, board, registrations);
-  if ("failures" in delta) throw new StoreError(refused, delta.failures);
-  const committed = commit(board, delta);
-  if ("failures" in committed) throw new StoreError(refused, committed.failures);
-  return committed.board;
-}
-
-// srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "@preact/signals-core";
-var STATE_FUNCTIONS = [["update", "an"], ["afterStep", "an"], ["migrate", "a"]];
-function createRegistrations(migration = () => void 0) {
-  const classes2 = signal2(/* @__PURE__ */ new Map());
-  const options = signal2([]);
-  const optionIndex = computed2(
-    () => new Map(options.value.map((option) => [option.def.id, option]))
-  );
-  const classDefs = computed2(
-    () => Object.fromEntries([...classes2.value].map(([id2, cls]) => [id2, cls.def]))
-  );
-  const optionDefs = computed2(
-    () => Object.fromEntries(options.value.map((option) => [option.def.id, option.def]))
-  );
-  function checkInitial(what, validate, initial, field) {
-    if (initial === void 0) return;
-    const failures = validate(initial);
-    if (failures.length > 0) {
-      throw new Error(`The ${field} of ${what} ${failures.join(" ")}`);
-    }
-  }
-  function registerPlugin(def) {
-    const { id: id2 } = def;
-    if (typeof id2 !== "string" || !isPluginClassId(id2)) {
-      throw new Error(
-        `The plugin class id ${JSON.stringify(id2)} is not named as R names a plugin class, "{pkg}-{name}_plugin".`
-      );
-    }
-    if (classes2.value.has(id2)) {
-      throw new Error(`The plugin class "${id2}" is registered already.`);
-    }
-    const given = def;
-    for (const [member, article] of STATE_FUNCTIONS) {
-      if (given[member] !== void 0) {
-        throw new Error(`The plugin class "${id2}" gives ${article} ${member} outside its state.`);
-      }
-    }
-    if (given.start !== void 0 && typeof given.start !== "function") {
-      throw new Error(`The plugin class "${id2}" has a start that is no function.`);
-    }
-    for (const member of ["ui", "frontend"]) {
-      const drawn3 = given[member];
-      if (drawn3 !== void 0 && (!isObject(drawn3) || typeof drawn3.render !== "function")) {
-        throw new Error(`The plugin class "${id2}" has a ${member} without a render() function.`);
-      }
-    }
-    const frontend = given.frontend;
-    if (isObject(frontend) && frontend.advanced !== void 0 && typeof frontend.advanced !== "function") {
-      throw new Error(`The plugin class "${id2}" has a frontend whose advanced is no function.`);
-    }
-    const storage = given.storage;
-    if (storage !== void 0) {
-      if (!isObject(storage) || typeof storage.controls !== "function") {
-        throw new Error(`The plugin class "${id2}" has a storage without a controls() function.`);
-      }
-      if (storage.subscribe !== void 0 && typeof storage.subscribe !== "function") {
-        throw new Error(`The plugin class "${id2}" has a storage whose subscribe is no function.`);
-      }
-      if (storage.load !== void 0 && typeof storage.load !== "function") {
-        throw new Error(`The plugin class "${id2}" has a storage whose load is no function.`);
-      }
-    }
-    if (given.commands !== void 0 && !Array.isArray(given.commands)) {
-      throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
-    }
-    const what = `the state of the plugin class "${id2}"`;
-    let validate;
-    const state2 = given.state;
-    if (state2 !== void 0) {
-      if (!isObject(state2) || !isObject(state2.schema) || !Object.hasOwn(state2, "default")) {
-        throw new Error(`The plugin class "${id2}" gives a state without a schema and a default.`);
-      }
-      for (const [member] of STATE_FUNCTIONS) {
-        if (state2[member] !== void 0 && typeof state2[member] !== "function") {
-          throw new Error(`The plugin class "${id2}" has a state whose ${member} is no function.`);
-        }
-      }
-      validate = compile(what, state2.schema);
-      checkInitial(what, validate, state2.default, "default");
-    }
-    const item2 = { def, validate };
-    classes2.value = new Map([...classes2.value, [id2, item2]]);
-    return () => {
-      if (classes2.value.get(id2) !== item2) return;
-      const rest = new Map(classes2.value);
-      rest.delete(id2);
-      classes2.value = rest;
-    };
-  }
-  return {
-    plugins: {
-      register: registerPlugin,
-      registered: () => classDefs.value
-    },
-    options: {
-      register(def) {
-        const what = `the board option "${def.id}"`;
-        if (optionIndex.value.has(def.id)) {
-          throw new Error(`The board option "${def.id}" is registered already.`);
-        }
-        const ui = def.ui;
-        if (!isObject(ui) || typeof ui.render !== "function") {
-          throw new Error(`The board option "${def.id}" has no UI module with a render() function.`);
-        }
-        const { onChange } = def;
-        if (onChange !== void 0 && typeof onChange !== "function") {
-          throw new Error(`The onChange of the board option "${def.id}" is no function.`);
-        }
-        if (def.migrate !== void 0 && typeof def.migrate !== "function") {
-          throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
-        }
-        const validate = compile(what, def.schema);
-        if (typeof def.default !== "function") {
-          checkInitial(what, validate, def.default, "default");
-        }
-        const item2 = { def, validate };
-        options.value = [...options.value, item2];
-        return () => {
-          options.value = options.value.filter((x) => x !== item2);
-        };
-      },
-      registered: () => optionDefs.value
-    },
-    plugin: (id2) => classes2.value.get(id2),
-    option: (id2) => optionIndex.value.get(id2),
-    migration
-  };
-}
-function isPluginClassId(id2) {
-  const pkg = packageFromId(id2);
-  return pkg !== null && /^.+_plugin$/.test(id2.slice(pkg.length + 1));
-}
-
-// srcts/store/store.ts
-var ENDED = "Another board opened in a new store, so this store changes its board no more.";
-function createStore(options = {}) {
-  const registrations = createRegistrations(options.migration);
-  const board = signal3(void 0);
-  let hello = options.hello;
-  const registry = signal3(options.hello?.block_registry ?? {});
-  const packages = signal3(options.hello?.packages ?? {});
-  const history = signal3({ undo: [], redo: [] });
-  const subscribers = /* @__PURE__ */ new Set();
-  let opening2 = false;
-  const ended = () => options.signal?.aborted === true;
-  options.signal?.addEventListener(
-    "abort",
-    () => {
-      subscribers.clear();
-    },
-    { once: true }
-  );
-  const edits = /* @__PURE__ */ new Map();
-  let lastStep = 0;
-  let busy = false;
-  function guard2() {
-    if (busy) {
-      throw new Error(
-        "The store is applying or announcing a change, which a subscriber, a plugin class's update or a migration may not change, since what follows from a delta is a plugin class's update."
-      );
-    }
-  }
-  function current2(refused2) {
-    if (ended()) throw new StoreError(refused2, [ENDED]);
-    if (board.value !== void 0) return board.value;
-    throw new StoreError(refused2, ["The store holds no board until it opens one."]);
-  }
-  function announce2(change, next) {
-    for (const fn of [...subscribers]) {
-      try {
-        fn(change, next);
-      } catch (error) {
-        log.error(asError(error));
-      }
-    }
-  }
-  function run(start3, deltas, how, refused2) {
-    const applied = [];
-    const inverses = [];
-    let current3 = start3;
-    function applyOne(given, delta, places, prefix) {
-      const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
-      const expanded = expand(delta, current3, registrations);
-      if ("failures" in expanded) throw fail(expanded.failures);
-      const committed = commit(current3, expanded, places);
-      if ("failures" in committed) throw fail(committed.failures);
-      if (hello?.lock.board === true) {
-        const locked2 = lockFailures(current3, committed.inverse.delta);
-        if (locked2.length > 0) throw fail(locked2);
-      }
-      const inverse = isEmpty(committed.inverse.delta) ? void 0 : committed.inverse;
-      if (inverse === void 0 && committed.changed.options.size === 0) return;
-      const failures = check(
-        committed.board,
-        registry.value,
-        registrations,
-        committed.changed
-      );
-      if (failures.length > 0) throw fail(failures);
-      applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
-      if (inverse !== void 0 && given.undo !== false) inverses.unshift(inverse);
-      current3 = committed.board;
-    }
-    for (const [i, given] of deltas.entries()) {
-      const delta = how.fit === true ? fit(given, current3) : given;
-      if (how.fit === true && isEmpty(delta)) continue;
-      applyOne(given, delta, how.places?.[i], deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "");
-    }
-    if (how.afterStep === true && applied.length > 0) {
-      const after = afterStep(current3, start3, registrations);
-      if (after !== void 0 && "failures" in after) throw new StoreError(refused2, after.failures);
-      if (after !== void 0) {
-        const delta = inverses.length > 0 ? after : { ...after, undo: false };
-        applyOne(delta, delta, void 0, "What afterStep returned: ");
-      }
-    }
-    return { applied, inverses };
-  }
-  function exists(next, key2) {
-    const [kind, id2] = JSON.parse(key2);
-    return Object.hasOwn(kind === "block" ? next.blocks : next.plugins, id2);
-  }
-  function describe2(key2) {
-    const [kind, id2] = JSON.parse(key2);
-    return kind === "block" ? `block "${id2}"` : `the plugin "${id2}"`;
-  }
-  function named5(deltas) {
-    const failures = [];
-    const compare = (key2, edit) => {
-      if (edit === void 0) return;
-      const id2 = edits.get(key2);
-      if (id2 !== edit) {
-        failures.push(
-          id2 === void 0 ? `The delta was built on edit ${String(edit)} of ${describe2(key2)}, which the board lacks.` : `The delta was built on edit ${String(edit)} of ${describe2(key2)}, which another edit has replaced with edit ${String(id2)}.`
-        );
-      }
-    };
-    for (const delta of deltas) {
-      for (const [id2, mod] of Object.entries(delta.blocks?.mod ?? {})) {
-        compare(target({ block: id2 }), mod.edit);
-      }
-      for (const patch2 of delta.patches ?? []) {
-        const plugin = pluginClassFromPath(patch2.path);
-        if (plugin !== void 0) compare(target({ plugin }), patch2.edit);
-      }
-    }
-    return [...new Set(failures)];
-  }
-  function number(applied, last) {
-    const step2 = ++lastStep;
-    for (const key2 of new Set(applied.flatMap(({ changed }) => [...changed.targets]))) {
-      if (exists(last, key2)) edits.set(key2, step2);
-      else edits.delete(key2);
-    }
-  }
-  function runOnBoard(deltas, how) {
-    const refused2 = "The store rejected the delta";
-    const start3 = current2(refused2);
-    const failures = named5(deltas);
-    if (failures.length > 0) throw new StoreError(refused2, failures);
-    return { start: start3, ...run(start3, deltas, how, refused2) };
-  }
-  function apply(delta, origin = "user", opts = {}) {
-    guard2();
-    const given = isDeltas(delta) ? delta : [delta];
-    if (given.length === 0) return false;
-    const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
-    busy = true;
-    try {
-      const { start: start3, applied, inverses } = runOnBoard(deltas, { afterStep: true });
-      if (applied.length === 0) return false;
-      number(applied, applied.at(-1)?.board ?? start3);
-      const undoStep = inverses.length > 0;
-      if (undoStep) {
-        history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
-      }
-      for (const { delta: delta2, board: next } of applied) {
-        board.value = next;
-        announce2({ delta: delta2, origin }, next);
-      }
-      return undoStep;
-    } finally {
-      busy = false;
-    }
-  }
-  function dryRun(delta) {
-    const deltas = isDeltas(delta) ? delta : [delta];
-    const was = busy;
-    busy = true;
-    try {
-      const { start: start3, applied } = runOnBoard(deltas, { afterStep: false });
-      return applied.at(-1)?.board ?? start3;
-    } finally {
-      busy = was;
-    }
-  }
-  function revert(back, origin) {
-    guard2();
-    const { undo, redo } = history.value;
-    const at = back ? lastStepIndex(undo, origin) : redo.length - 1;
-    const step2 = (back ? undo : redo)[at];
-    if (step2 === void 0) return;
-    busy = true;
-    try {
-      const refused2 = back ? "The store refused to undo the step" : "The store refused to redo the step";
-      const start3 = current2(refused2);
-      const { applied, inverses } = run(
-        start3,
-        step2.inverses.map(({ delta }) => delta),
-        { fit: true, places: step2.inverses.map(({ places }) => places), afterStep: true },
-        refused2
-      );
-      number(applied, applied.at(-1)?.board ?? start3);
-      const kept = { origin: step2.origin, inverses };
-      history.value = back ? { undo: [...undo.slice(0, at), ...undo.slice(at + 1)], redo: [...redo, kept] } : { undo: [...undo, kept], redo: redo.slice(0, -1) };
-      const asking = origin ?? "user";
-      for (const { delta, board: next } of applied) {
-        board.value = next;
-        announce2({ delta, origin: asking }, next);
-      }
-    } finally {
-      busy = false;
-    }
-  }
-  const refusedOpen = "The store refused to open the board";
-  function prepareOpen(given) {
-    if (typeof given !== "string") {
-      hello = given;
-      registry.value = given.block_registry;
-      packages.value = given.packages;
-      return { json: checkJsonBoard(given.board), reply: given };
-    }
-    const reply = lastHello();
-    if (reply.lock.load) {
-      throw new StoreError(refusedOpen, [
-        "The load lock fixes the app to its opening board, so the store opens no other board."
-      ]);
-    }
-    return { json: checkJsonBoard(parse(given)), reply };
-  }
-  function lastHello() {
-    if (hello === void 0) {
-      throw new StoreError(refusedOpen, ["The store opens a JSON board only once R has answered `hello`."]);
-    }
-    return hello;
-  }
-  function build(json, reply) {
-    guard2();
-    busy = true;
-    try {
-      return openJsonBoard(json, reply, registrations);
-    } finally {
-      busy = false;
-    }
-  }
-  function stillOpen() {
-    if (ended()) throw new StoreError(refusedOpen, [ENDED]);
-  }
-  function open(given) {
-    return settled(() => {
-      stillOpen();
-      if (opening2) {
-        throw new StoreError(refusedOpen, [
-          "The store holds a board or opens one already: a store opens one board, and core opens the next in a new store as it starts again."
-        ]);
-      }
-      opening2 = true;
-      try {
-        const { json, reply } = prepareOpen(given);
-        const opened = build(json, reply);
-        guard2();
-        busy = true;
-        try {
-          board.value = opened.board;
-          const step2 = ++lastStep;
-          for (const key2 of everyTarget(opened.board)) edits.set(key2, step2);
-          announce2({ opened: opened.board, dropped: opened.dropped }, opened.board);
-          return opened.dropped;
-        } finally {
-          busy = false;
-        }
-      } catch (error) {
-        opening2 = board.value !== void 0;
-        throw error;
-      }
-    });
-  }
-  function checkText(text) {
-    return settled(() => {
-      stillOpen();
-      const { json, reply } = prepareOpen(text);
-      return build(json, reply).dropped;
-    });
-  }
-  function readText(text) {
-    return settled(() => {
-      stillOpen();
-      const reply = lastHello();
-      return build(checkJsonBoard(parse(text)), reply);
-    });
-  }
-  function jsonBoard() {
-    const next = board.value;
-    if (next === void 0) {
-      throw new Error("The store holds no board until it opens one.");
-    }
-    const options2 = Object.fromEntries(
-      Object.entries(next.options).map(([id3, value2]) => {
-        const entry = own(hello?.options ?? {}, id3);
-        return [id3, { value: value2, version: entry?.version ?? 1, package: entry?.package ?? null }];
-      })
-    );
-    const classes2 = Object.keys(next.plugins);
-    const owned = /* @__PURE__ */ new Set([
-      ...classes2.flatMap((cls) => packageFromId(cls) ?? []),
-      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
-      ...Object.values(options2).flatMap((option) => option.package ?? [])
-    ]);
-    const recorded = Object.fromEntries(
-      [...owned].sort().flatMap((pkg) => {
-        const version = own(packages.value, pkg);
-        return version === void 0 ? [] : [[pkg, version]];
-      })
-    );
-    const blocks = Object.fromEntries(
-      Object.entries(next.blocks).map(([id3, block]) => [
-        id3,
-        {
-          registry_id: block.registry_id,
-          version: own(registry.value, block.registry_id)?.version ?? 1,
-          state: block.state,
-          name: block.name,
-          locked: block.locked
-        }
-      ])
-    );
-    const plugins = Object.fromEntries(
-      Object.entries(next.plugins).map(([cls, state2]) => [
-        cls,
-        { state: state2, version: own(hello?.plugins ?? {}, cls)?.version ?? 1 }
-      ])
-    );
-    const { id: id2, name: name2, links, stacks } = next;
-    return {
-      format: FORMAT,
-      packages: recorded,
-      board: { id: id2, name: name2, blocks, links, stacks, options: options2, plugins }
-    };
-  }
-  function save() {
-    return `${JSON.stringify(jsonBoard(), null, 2)}
-`;
-  }
-  function everyTarget(next) {
-    const targets = [
-      ...Object.keys(next.blocks).map((id2) => ({ block: id2 })),
-      ...Object.keys(next.plugins).map((id2) => ({ plugin: id2 }))
-    ];
-    return targets.map(target);
-  }
-  return {
-    board() {
-      if (board.value === void 0) {
-        throw new Error("The store holds no board until it opens one.");
-      }
-      return board.value;
-    },
-    hasBoard: () => board.value !== void 0,
-    locked: (block) => fixes(board.value, block, hello?.lock.board === true),
-    subscribe(fn) {
-      if (ended()) return () => void 0;
-      const wrapped = (change, next) => {
-        fn(change, next);
-      };
-      subscribers.add(wrapped);
-      return () => {
-        subscribers.delete(wrapped);
-      };
-    },
-    apply,
-    dryRun,
-    open,
-    check: checkText,
-    read: readText,
-    undo: (origin) => {
-      revert(true, origin);
-    },
-    redo: () => {
-      revert(false);
-    },
-    canUndo: (origin) => lastStepIndex(history.value.undo, origin) >= 0,
-    canRedo: () => history.value.redo.length > 0,
-    plugins: registrations.plugins,
-    options: registrations.options,
-    jsonBoard,
-    save,
-    blockRegistry: () => registry.value,
-    packages: () => packages.value,
-    editId: (of) => edits.get(target(of))
-  };
-}
-function lastStepIndex(steps2, origin) {
-  return origin === void 0 ? steps2.length - 1 : steps2.map((step2) => step2.origin).lastIndexOf(origin);
-}
-function settled(fn) {
-  try {
-    return Promise.resolve(fn());
-  } catch (error) {
-    return Promise.reject(asError(error));
-  }
-}
-
-// srcts/commands/schemas.ts
-var id = { type: "string", pattern: "\\D" };
-var blockId = {
-  ...id,
-  description: "The id of a block, unique among the board's blocks."
-};
-var linkId = {
-  ...id,
-  description: "The id of a link, unique among the board's links."
-};
-var stackId = {
-  ...id,
-  description: "The id of a stack, unique among the board's stacks."
-};
-var registryId = {
-  type: "string",
-  minLength: 1,
-  description: `A block class's id in the block registry, such as "blockr.core-head_block".`
-};
-var name = {
-  type: "string",
-  description: "A name that the user sees and may change, which nothing refers to."
-};
-var input = {
-  type: "string",
-  description: 'An input of the block a link goes to, such as "data", or empty for a variadic block, which takes such links in their order.'
-};
-var state = {
-  type: "object",
-  description: "Values of a block's state args, which the schema of its class types."
-};
-var stateArgs = {
-  type: "array",
-  items: { type: "string" },
-  uniqueItems: true,
-  description: "Names of a block's state args."
-};
-var blockIds = {
-  type: "array",
-  items: blockId,
-  uniqueItems: true,
-  description: "Ids of blocks, in order."
-};
-var locked = {
-  type: ["boolean", "null"],
-  description: "A block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open, and null follows the board lock."
-};
-var color = {
-  type: ["string", "null"],
-  pattern: HEX_COLOR,
-  description: 'A hex colour, such as "#66c2a5", which frontends draw a stack in, or null for none. A frontend draws a stack without a colour in a default of its own.'
-};
-var optionId = {
-  type: "string",
-  minLength: 1,
-  description: 'The id of a board option, such as "n_rows".'
-};
-var value = {
-  description: "A JSON value, which the schema of what it is set on types."
-};
-var pluginClassId = {
-  type: "string",
-  minLength: 1,
-  description: `The id of a plugin's class, such as "blockr.dag-dag_plugin", which identifies the plugin, since an app runs at most one plugin of each class.`
-};
-var statePatches = {
-  type: "array",
-  items: {
-    type: "object",
-    properties: {
-      op: { enum: ["add", "remove", "replace"] },
-      path: {
-        type: "string",
-        pattern: "^(/.*)?$",
-        description: `A JSON Pointer within the plugin's state, such as "/positions/a", or "" for the whole state.`
-      },
-      value: { description: "What an add or a replace puts at the path." }
-    },
-    required: ["op", "path"],
-    additionalProperties: false
-  },
-  description: "Changes of a plugin's state, as JSON Patch operations, which apply in their order and which the schema of the plugin's class types."
-};
-
-// srcts/commands/core.ts
-var newBlock = {
-  registry_id: { ...registryId, description: "The class of the new block." },
-  id: {
-    ...blockId,
-    description: "The new block's id, which is minted where it is left out."
-  },
-  name: {
-    ...name,
-    description: "The new block's name, which its class gives where it is left out."
-  },
-  state: {
-    ...state,
-    description: "Values of the new block's state args, which the schema of its class types, in place of those its class starts a block with."
-  }
-};
-function coreCommands(store) {
-  function registryEntry(command2, registryId2) {
-    const entry = own(store.blockRegistry(), registryId2);
-    if (entry === void 0) {
-      throw refusal(command2, [`The block registry has no block class "${registryId2}".`]);
-    }
-    return entry;
-  }
-  function added(command2, board2, args, mintId2) {
-    const entry = registryEntry(command2, args.registry_id);
-    const state2 = { ...entry.state, ...args.state };
-    const failures = stateFailures(entry, state2);
-    if (failures.length > 0) {
-      throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
-    }
-    const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? entry.block_name, locked: null }];
-  }
-  function inputFailures(board2, to, given) {
-    const registry = store.blockRegistry();
-    if (!named(given)) {
-      const free = freeInputs(board2, registry, to) ?? [];
-      return free.length > 0 ? [] : [noFreeInput(board2, to)];
-    }
-    const other = linkFeeding(board2, registry, to, given);
-    return other === void 0 ? [] : [`The link "${other}" feeds the input "${given}" of block "${to}" already.`];
-  }
-  function noFreeInput(board2, to) {
-    const block = own(board2.blocks, to);
-    if (block === void 0) return `The board holds no block "${to}".`;
-    const entry = own(store.blockRegistry(), block.registry_id);
-    if (entry === void 0) return `The block registry has no block class "${block.registry_id}".`;
-    if (entry.inputs.length === 0) {
-      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
-    }
-    return `Every input of the block "${to}" takes a link already.`;
-  }
-  function linkInput(command2, board2, to, given, except) {
-    if (named(given)) return given;
-    const free = freeInputs(board2, store.blockRegistry(), to, except) ?? [];
-    return one(
-      command2,
-      free,
-      noFreeInput(board2, to),
-      `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`
-    );
-  }
-  const blocks = [
-    command({
-      id: "blockr.core-add_block",
-      label: "Add block",
-      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
-      args: object(newBlock, ["registry_id"]),
-      run(board2, args, { mintId: mintId2 }) {
-        const [id2, block] = added(this.id, board2, args, mintId2);
-        return { blocks: { add: { [id2]: block } } };
-      }
-    }),
-    command({
-      id: "blockr.core-remove_block",
-      label: "Remove block",
-      description: "Removes a block, with its links and its place in its stack.",
-      args: object({ id: blockId }, ["id"]),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
-      run: (_board, { id: id2 }) => ({ blocks: { rm: [id2] } })
-    }),
-    command({
-      id: "blockr.core-change_block",
-      label: "Change block",
-      description: "Changes a block's name, its lock or its state. It sets the state args given, which the schema of the block's class types, and unsets those named, as a block's UI submits an edit. The block keeps what the args leave out.",
-      args: object(
-        {
-          id: blockId,
-          name: { ...name, description: "The block's name, which it keeps where this is left out." },
-          locked: {
-            ...locked,
-            description: "The block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock. The block keeps its lock where this is left out."
-          },
-          state: { ...state, description: "Values of the block's state args to set." },
-          unset: { ...stateArgs, description: "Names of the block's state args to unset." }
-        },
-        ["id"]
-      ),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
-      // The args but the id are the block's change, as the schema admits no
-      // other args.
-      run(board2, { id: id2, ...change }) {
-        const block = own(board2.blocks, id2);
-        if (block === void 0) return [];
-        const { state: state2, unset } = change;
-        if (state2 !== void 0 || unset !== void 0) {
-          const entry = registryEntry(this.id, block.registry_id);
-          const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
-          if (failures.length > 0) {
-            throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
-          }
-        }
-        return { blocks: { mod: { [id2]: change } } };
-      }
-    })
-  ];
-  const links = [
-    command({
-      id: "blockr.core-add_link",
-      label: "Add link",
-      description: "Adds a link, through which a block takes the result of another as one of its inputs.",
-      args: object(
-        {
-          from: { ...blockId, description: "The block whose result the link carries." },
-          to: { ...blockId, description: "The block that takes the result." },
-          input: {
-            ...input,
-            description: "The input of the block that takes the result, which may be left out where only one of its inputs is free or it is variadic."
-          },
-          id: {
-            ...linkId,
-            description: "The new link's id, which is minted where it is left out."
-          }
-        },
-        ["from", "to"]
-      ),
-      preflight: (board2, { from, to, input: input2 }, { refusal: refusal2 }) => Object.hasOwn(board2.blocks, from) && Object.hasOwn(board2.blocks, to) && passes([...cycleFailures(board2, from, to), ...inputFailures(board2, to, input2)], refusal2),
-      run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
-        const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
-        const resolved = linkInput(this.id, board2, to, input2);
-        return { links: { add: { [link]: { from, to, input: resolved } } } };
-      }
-    }),
-    command({
-      id: "blockr.core-change_link",
-      label: "Change link",
-      description: "Changes the block a link comes from, the block it goes to, the input it feeds or its place among the links into its block, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from.",
-      args: object(
-        {
-          id: linkId,
-          from: { ...blockId, description: "The block whose result the link carries." },
-          to: { ...blockId, description: "The block that takes the result." },
-          input: {
-            ...input,
-            description: "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic. Where the link keeps its block, an input that another link feeds swaps the inputs of the two links."
-          },
-          before: {
-            ...linkId,
-            type: ["string", "null"],
-            description: "The link that the link goes before, among the links into the block that it goes to, or null to put it last among them. The link keeps its place where this is left out. A block that is not variadic takes each input by its name, so the command refuses this for a link into one."
-          }
-        },
-        ["id"]
-      ),
-      preflight(board2, args, { refusal: refusal2 }) {
-        const link = own(board2.links, args.id);
-        if (link === void 0) return false;
-        const from = args.from ?? link.from;
-        const to = args.to ?? link.to;
-        if (!Object.hasOwn(board2.blocks, from) || !Object.hasOwn(board2.blocks, to)) return false;
-        const inputs = to === link.to ? [] : inputFailures(board2, to, args.input);
-        return passes([...cycleFailures(board2, from, to, args.id), ...inputs], refusal2);
-      },
-      run(board2, args) {
-        const link = own(board2.links, args.id);
-        if (link === void 0) return [];
-        const to = args.to ?? link.to;
-        const input2 = args.input === void 0 && to === link.to ? link.input : linkInput(this.id, board2, to, args.input, args.id);
-        const changed = { [args.id]: { from: args.from ?? link.from, to, input: input2 } };
-        const other = to === link.to ? linkFeeding(board2, store.blockRegistry(), to, input2, args.id) : void 0;
-        const mod = other === void 0 ? changed : { ...changed, [other]: { input: link.input } };
-        const { before } = args;
-        if (before === void 0) return { links: { mod } };
-        const block = own(board2.blocks, to);
-        if (block !== void 0 && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
-          throw refusal(this.id, [
-            `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`
-          ]);
-        }
-        if (before !== null) {
-          if (before === args.id) {
-            throw refusal(this.id, [`The link "${args.id}" cannot go before itself.`]);
-          }
-          const next = own(board2.links, before);
-          if (next !== void 0 && next.to !== to) {
-            throw refusal(this.id, [
-              `The link "${args.id}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`
-            ]);
-          }
-        }
-        const place = before ?? lastPlace(board2, to, args.id);
-        return { links: { mod, ...place === void 0 ? {} : { before: { [args.id]: place } } } };
-      }
-    }),
-    command({
-      id: "blockr.core-remove_link",
-      label: "Remove link",
-      description: "Removes a link.",
-      args: object({ id: linkId }, ["id"]),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
-      run: (_board, { id: id2 }) => ({ links: { rm: [id2] } })
-    })
-  ];
-  const stacks = [
-    command({
-      id: "blockr.core-add_stack",
-      label: "Add stack",
-      description: "Adds a stack of blocks, taking each out of the stack it is in, since a block sits in one stack at most.",
-      args: object({
-        id: {
-          ...stackId,
-          description: "The new stack's id, which is minted where it is left out."
-        },
-        name: {
-          ...name,
-          description: `The new stack's name, the first free "Stack n" where it is left out.`
-        },
-        blocks: { ...blockIds, description: "The blocks of the new stack, in order." },
-        color: {
-          ...color,
-          description: "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own."
-        }
-      }),
-      run(board2, { id: id2, name: name2, blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
-        const stack = id2 ?? mintId2((id3) => Object.hasOwn(board2.stacks, id3));
-        const left2 = leave(board2, stack, blocks2);
-        return {
-          stacks: {
-            add: {
-              [stack]: { name: name2 ?? suggestedName(Object.values(board2.stacks)), blocks: blocks2, color: color2 }
-            },
-            ...Object.keys(left2).length === 0 ? {} : { mod: left2 }
-          }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-change_stack",
-      label: "Change stack",
-      description: "Changes the name of a stack, its blocks or its colour, taking each block out of the stack it is in, since a block sits in one stack at most.",
-      args: object(
-        {
-          id: stackId,
-          name: { ...name, description: "The stack's name, which it keeps where this is left out." },
-          blocks: {
-            ...blockIds,
-            description: "The blocks of the stack, in order, which it keeps where they are left out."
-          },
-          color: {
-            ...color,
-            description: "The stack's colour, which frontends draw it in, or null to clear it. A frontend draws a stack without a colour in a default of its own. The stack keeps its colour where this is left out."
-          }
-        },
-        ["id"]
-      ),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
-      // The args but the id are the stack's change, as for change_block.
-      run: (board2, { id: id2, ...change }) => ({
-        stacks: { mod: { ...change.blocks === void 0 ? {} : leave(board2, id2, change.blocks), [id2]: change } }
-      })
-    }),
-    command({
-      id: "blockr.core-remove_stack",
-      label: "Remove stack",
-      description: "Removes a stack, leaving its blocks on the board.",
-      args: object({ id: stackId }, ["id"]),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
-      run: (_board, { id: id2 }) => ({ stacks: { rm: [id2] } })
-    })
-  ];
-  const board = [
-    command({
-      id: "blockr.core-change_board",
-      label: "Change board",
-      description: "Changes the board's name. The board keeps what the args leave out.",
-      args: object({ name: { ...name, description: "The board's name, which it keeps where this is left out." } }),
-      run: (_board, change) => change
-    }),
-    command({
-      id: "blockr.core-set_option",
-      label: "Set board option",
-      description: "Sets the value of a board option, which the board option's schema types.",
-      args: object({ id: optionId, value }, ["id", "value"]),
-      preflight: (_board, { id: id2 }) => own(store.options.registered(), id2) !== void 0,
-      run: (_board, { id: id2, value: value2 }) => ({ options: { set: { [id2]: value2 } } })
-    })
-  ];
-  const plugins = [
-    command({
-      id: "blockr.core-set_plugin_state",
-      label: "Set plugin state",
-      description: "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It fails its preflight on a locked board, where only the commands of a plugin's class know what the plugin locks.",
-      args: object(
-        {
-          plugin: {
-            ...pluginClassId,
-            description: "The id of the class of the plugin whose state the patches change."
-          },
-          patches: statePatches
-        },
-        ["plugin", "patches"]
-      ),
-      preflight: (board2, { plugin }, { lock }) => !lock.board && Object.hasOwn(board2.plugins, plugin),
-      run: (_board, { plugin, patches: patches2 }) => ({
-        patches: patches2.map((patch2) => ({ ...patch2, path: `${pathFromSegments(["plugins", plugin])}${patch2.path}` }))
-      })
-    })
-  ];
-  return [...blocks, ...links, ...stacks, ...board, ...plugins];
-}
-function freeInputs(board, registry, to, except) {
-  const block = own(board.blocks, to);
-  if (block === void 0) return void 0;
-  const inputs = own(registry, block.registry_id)?.inputs;
-  if (inputs === void 0) return void 0;
-  if (inputs.includes("...")) return [""];
-  const fed = new Set(
-    Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
-  );
-  return inputs.filter((input2) => !fed.has(input2));
-}
-function takesLink(board, registry, to) {
-  return (freeInputs(board, registry, to)?.length ?? 0) > 0;
-}
-function linkFeeding(board, registry, to, input2, except) {
-  const block = own(board.blocks, to);
-  const inputs = block === void 0 ? void 0 : own(registry, block.registry_id)?.inputs;
-  if (inputs === void 0 || inputs.includes("...")) return void 0;
-  return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
-}
-function suggestedName(stacks) {
-  const names = new Set(stacks.map((stack) => stack.name));
-  let n = 1;
-  while (names.has(`Stack ${String(n)}`)) n++;
-  return `Stack ${String(n)}`;
-}
-function cycleFailures(board, from, to, except) {
-  if (from === to) return [`The link would join block "${to}" to itself.`];
-  const links = except === void 0 ? board.links : without(board.links, [except]);
-  const cycle = createGraph({ blocks: board.blocks, links }).path(to, from);
-  return cycle === void 0 ? [] : [`The link would close a cycle through the blocks ${quoted(cycle)}.`];
-}
-function passes(failures, refusal2) {
-  if (failures.length > 0) throw refusal2(failures);
-  return true;
-}
-function lastPlace(board, to, id2) {
-  const others = Object.keys(board.links).filter((other) => other !== id2);
-  const last = others.filter((other) => own(board.links, other)?.to === to).at(-1);
-  if (last === void 0) return void 0;
-  return others[others.indexOf(last) + 1] ?? null;
-}
-function leave(board, id2, blocks) {
-  const moving = new Set(blocks);
-  return Object.fromEntries(
-    Object.entries(board.stacks).filter(([other, stack]) => other !== id2 && stack.blocks.some((block) => moving.has(block))).map(([other, stack]) => [
-      other,
-      { blocks: stack.blocks.filter((block) => !moving.has(block)) }
-    ])
-  );
-}
-function object(properties, required = []) {
-  return { type: "object", properties, required, additionalProperties: false };
-}
-function named(input2) {
-  return input2 !== void 0 && input2 !== "";
-}
-function one(command2, inputs, none, several) {
-  const [input2, ...rest] = inputs;
-  if (input2 === void 0) throw refusal(command2, [none]);
-  if (rest.length > 0) throw refusal(command2, [several]);
-  return input2;
-}
-function command(def) {
-  return {
-    ...def,
-    run: def.run.bind(def),
-    ...def.preflight === void 0 ? {} : { preflight: def.preflight.bind(def) }
-  };
-}
-
-// srcts/commands/commands.ts
-var CommandError = class extends Error {
-  // The id of the command that was stopped, such as
-  // "blockr.core-remove_block". It is left out only where the store refused a
-  // batch as a whole, after the dry run of each command's deltas had passed,
-  // which the first line says. There, a plugin class's afterStep failed, or
-  // returned what the store refuses, and the failures name the class.
-  command;
-  // What stopped the command:
-  // - "registry": the command registry refused to run it, as where no command
-  //   has its id, its args fail their schema or the store holds no board.
-  // - "preflight": its preflight() answered false. The assistant's edit tool
-  //   reads this to tell the model what to check.
-  // - "command": the command refused, throwing the refusal() of its context.
-  // - "code": the command's own preflight(), prepare() or run() threw
-  //   anything else. That is the cause, and the command registry has logged
-  //   it at error.
-  // - "store": the store refused its deltas. The StoreError is the cause.
-  by;
-  failures;
-  // The command's place in the batch that run() or plan() was given, counted
-  // from 0, where it was stopped as one of a batch.
-  index;
-  constructor(fields) {
-    super(
-      [firstLine(fields), ...fields.failures.map((failure) => `- ${failure}`)].join("\n"),
-      fields.cause === void 0 ? void 0 : { cause: fields.cause }
-    );
-    this.name = "CommandError";
-    this.by = fields.by;
-    this.failures = fields.failures;
-    if (fields.command !== void 0) this.command = fields.command;
-    if (fields.index !== void 0) this.index = fields.index;
-  }
-};
-function firstLine({ command: command2, by, index }) {
-  if (command2 === void 0) return "The store refused the batch as a whole, after the deltas of each command had passed";
-  if (index !== void 0) return `The batch was refused at command ${String(index + 1)}, "${command2}"`;
-  if (by === "code") return `The command "${command2}" failed`;
-  if (by === "store") return `The store refused the deltas of the command "${command2}"`;
-  return `The command "${command2}" refused to run`;
-}
-function refusal(id2, failures, by = "command") {
-  return new CommandError({ command: id2, by, failures });
-}
-var DROPPED = "A board opened while it prepared, which drops it.";
-function createCommands(store, options = {}) {
-  const commands = signal4(/* @__PURE__ */ new Map());
-  const registered = computed3(
-    () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
-  );
-  const ended = () => options.signal?.aborted === true;
-  const randId = asRandId(options.randId);
-  const shared = {
-    lock: options.lock ?? { board: false, load: false },
-    mintId: (taken) => mintId(taken, randId),
-    blockrOption: options.blockrOption ?? (() => Promise.resolve(void 0))
-  };
-  function register(command2) {
-    const { id: id2 } = command2;
-    if (typeof id2 !== "string" || !isCommandId(id2)) {
-      throw new Error(
-        `The command id ${JSON.stringify(id2)} is not named as a registry id is, "{pkg}-{name}".`
-      );
-    }
-    if (typeof command2.label !== "string" || command2.label === "") {
-      throw new Error(`The command "${id2}" has no label.`);
-    }
-    if (typeof command2.run !== "function") {
-      throw new Error(`The command "${id2}" has no run().`);
-    }
-    if (commands.value.has(id2)) {
-      throw new Error(`The command "${id2}" is registered already.`);
-    }
-    const validate = command2.args === void 0 ? void 0 : compile(`the args of the command "${id2}"`, command2.args, "fail their schema");
-    const item2 = {
-      command: command2,
-      validate,
-      context: { ...shared, refusal: (failures) => refusal(id2, failures) }
-    };
-    commands.value = new Map([...commands.value, [id2, item2]]);
-    return () => {
-      if (commands.value.get(id2) !== item2) return;
-      const rest = new Map(commands.value);
-      rest.delete(id2);
-      commands.value = rest;
-    };
-  }
-  function lookup(id2, given) {
-    const item2 = commands.value.get(id2);
-    if (item2 === void 0) {
-      throw refusal(id2, [`No command "${id2}" is registered.`], "registry");
-    }
-    const args = given ?? {};
-    const failures = item2.validate?.(args) ?? [];
-    if (failures.length > 0) {
-      throw refusal(id2, failures.map((failure) => `The args ${failure}`), "registry");
-    }
-    return { item: item2, args };
-  }
-  function current2(id2) {
-    if (ended()) {
-      throw refusal(id2, ["Another board opened in a new store, so this command registry runs no command."], "registry");
-    }
-    if (!store.hasBoard()) {
-      throw refusal(id2, ["The store holds no board until it opens one."], "registry");
-    }
-    return store.board();
-  }
-  function allow({ command: command2, context: context4 }, board, args) {
-    const passes2 = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
-    if (!passes2) {
-      throw refusal(
-        command2.id,
-        [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
-        "preflight"
-      );
-    }
-  }
-  function build({ command: command2, context: context4 }, board, args) {
-    const returned = attempt2(command2, () => command2.run(board, args, context4));
-    const deltas2 = isDeltas(returned) ? returned : [returned];
-    return deltas2.map((delta) => withEdits(command2.undo === false ? { ...delta, undo: false } : delta));
-  }
-  function deltas(item2, args) {
-    const board = current2(item2.command.id);
-    allow(item2, board, args);
-    if (item2.command.prepare === void 0) return build(item2, board, args);
-    return prepared(item2, board, args);
-  }
-  async function prepared(item2, board, args) {
-    const { command: command2 } = item2;
-    const input2 = await prepare(item2, board, args);
-    if (ended()) throw refusal(command2.id, [DROPPED], "registry");
-    const now = current2(command2.id);
-    allow(item2, now, args);
-    return build(item2, now, input2);
-  }
-  async function prepare({ command: command2, context: context4 }, board, args) {
-    try {
-      return await command2.prepare?.(board, args, context4);
-    } catch (error) {
-      throw failed(command2, error);
-    }
-  }
-  async function planned(batch2, then) {
-    const within = keepContext();
-    const checked4 = batch2.map(({ id: id2, args }, index) => {
-      try {
-        return lookup(id2, args);
-      } catch (error) {
-        throw inBatch(index, id2, error);
-      }
-    });
-    const [first] = checked4;
-    if (first === void 0) return then([]);
-    const inputs = /* @__PURE__ */ new Map();
-    let built = [];
-    let again = true;
-    while (again) {
-      again = false;
-      built = [];
-      let start3;
-      try {
-        start3 = current2(first.item.command.id);
-      } catch (error) {
-        throw inBatch(0, first.item.command.id, error);
-      }
-      let board = start3;
-      for (const [index, { item: item2, args }] of checked4.entries()) {
-        const { command: command2 } = item2;
-        try {
-          allow(item2, board, args);
-          if (command2.prepare !== void 0 && !inputs.has(index)) {
-            inputs.set(index, await within(() => prepare(item2, board, args)));
-            if (ended()) throw refusal(command2.id, [DROPPED], "registry");
-            if (store.board() !== start3) {
-              again = true;
-              break;
-            }
-          }
-          built.push(...build(item2, board, inputs.has(index) ? inputs.get(index) : args));
-          board = byStore(command2.id, () => store.dryRun(built));
-        } catch (error) {
-          throw inBatch(index, command2.id, error);
-        }
-      }
-    }
-    return within(() => then(built));
-  }
-  function runBatch(batch2, origin) {
-    const ids2 = batch2.map(({ id: id2 }) => id2);
-    return traced(
-      "command batch",
-      { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(batch2, (built) => byStore(void 0, () => store.apply(built, origin)))
-    );
-  }
-  async function traced(name2, attributes, run) {
-    const span = tracer().startSpan(name2, { attributes });
-    try {
-      return await otelContext.with(trace3.setSpan(otelContext.active(), span), run);
-    } catch (error) {
-      failSpan(span, error);
-      throw error;
-    } finally {
-      span.end();
-    }
-  }
-  function withEdits(delta) {
-    const blocks = delta.blocks?.mod;
-    const patches2 = delta.patches;
-    if (blocks === void 0 && patches2 === void 0) return delta;
-    const edit = (change, id2) => change.edit !== void 0 || id2 === void 0 ? change : { ...change, edit: id2 };
-    return {
-      ...delta,
-      ...blocks === void 0 ? {} : {
-        blocks: {
-          ...delta.blocks,
-          mod: Object.fromEntries(
-            Object.entries(blocks).map(([id2, mod]) => [
-              id2,
-              edit(mod, store.editId({ block: id2 }))
-            ])
-          )
-        }
-      },
-      ...patches2 === void 0 ? {} : {
-        patches: patches2.map((patch2) => {
-          const plugin = pluginClassFromPath(patch2.path);
-          return plugin === void 0 ? patch2 : edit(patch2, store.editId({ plugin }));
-        })
-      }
-    };
-  }
-  const registry = {
-    register,
-    registered: () => registered.value,
-    preflight(id2, given) {
-      try {
-        const { item: item2, args } = lookup(id2, given);
-        allow(item2, current2(id2), args);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    // A batch comes with its origin second, in place of the args, and its
-    // options third, in place of the origin. The command registry ignores the
-    // notifier in the options, which CoreApi acts on (../core/core.ts).
-    async run(target2, given, third) {
-      if (typeof target2 !== "string") return runBatch(target2, typeof given === "string" ? given : "user");
-      const origin = typeof third === "string" ? third : "user";
-      return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
-        const within = keepContext();
-        const { item: item2, args } = lookup(target2, given);
-        const step2 = deltas(item2, args);
-        const ready = Array.isArray(step2) ? step2 : await step2;
-        return within(() => byStore(target2, () => store.apply(ready, origin)));
-      });
-    },
-    async plan(target2, given) {
-      if (typeof target2 !== "string") return planned(target2, (built) => built);
-      const { item: item2, args } = lookup(target2, given);
-      return deltas(item2, args);
-    }
-  };
-  for (const command2 of coreCommands(store)) {
-    registry.register(command2);
-  }
-  return registry;
-}
-function isCommandId(id2) {
-  const pkg = packageFromId(id2);
-  return pkg !== null && id2.length > pkg.length + 1;
-}
-function isLogged(error) {
-  return error instanceof CommandError && error.by === "code";
-}
-function inBatch(index, id2, error) {
-  if (!(error instanceof CommandError)) return error;
-  return new CommandError({ command: id2, by: error.by, failures: error.failures, index, cause: error.cause });
-}
-function byStore(id2, fn) {
-  try {
-    return fn();
-  } catch (error) {
-    if (!(error instanceof StoreError)) throw error;
-    throw new CommandError({ command: id2, by: "store", failures: error.failures, cause: error });
-  }
-}
-function failed(command2, error) {
-  if (error instanceof CommandError) return error;
-  const failure = new CommandError({ command: command2.id, by: "code", failures: [errorMessage(error)], cause: error });
-  log.error(failure);
-  return failure;
-}
-function attempt2(command2, fn) {
-  try {
-    return fn();
-  } catch (error) {
-    throw failed(command2, error);
-  }
-}
+// srcts/actions/advanced.ts
+init_log2();
+init_util2();
 
 // srcts/actions/given.ts
+init_util2();
 function targetGiven(given) {
   if (isObject(given) && Object.keys(given).length === 1) {
     if (given.board === true) return Object.freeze({ board: true });
@@ -7521,6 +10080,8 @@ function isElement(value2) {
 }
 
 // srcts/actions/quick.ts
+init_log2();
+init_util2();
 var SUBJECTS = {
   quick: "The quick action of the board action",
   pick: "A row of the quick action of the board action",
@@ -8220,6 +10781,36 @@ function createAdvanced(parts) {
     }
   };
 }
+var showDialog = (args, at) => {
+  const doc = at.el.ownerDocument;
+  const host = doc.createElement("div");
+  doc.body.append(host);
+  let open = true;
+  let unmount;
+  const offAbort = at.signal === void 0 ? () => void 0 : onAbort(at.signal, hide);
+  function hide() {
+    if (!open) return;
+    open = false;
+    offAbort();
+    if (unmount !== void 0) attempt(unmount);
+    host.remove();
+    args.close();
+    const active = doc.activeElement;
+    if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
+  }
+  Promise.resolve().then(() => (init_dialog(), dialog_exports)).then(
+    ({ drawDialog: drawDialog2 }) => {
+      if (open) unmount = drawDialog2(host, args, hide);
+    },
+    (error) => {
+      log.error(new Error(`Core's dialog failed to load, so it shows no advanced action of the board action "${args.id}": ${errorMessage(error)}`, { cause: error }));
+      hide();
+    }
+  );
+  return () => {
+    hide();
+  };
+};
 function sameTarget(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -8227,1083 +10818,12 @@ function isThenable2(value2) {
   return (typeof value2 === "object" || typeof value2 === "function") && value2 !== null && typeof value2.then === "function";
 }
 
-// srcts/ui/blocks.tsx
-import { ComboBoxItem, Text } from "@blockr/ui";
-import { jsx, jsxs } from "react/jsx-runtime";
-function blockItem(board, registry, id2) {
-  const block = own(board.blocks, id2);
-  const cls = block === void 0 ? void 0 : own(registry, block.registry_id)?.name ?? block.registry_id;
-  return { id: id2, name: block?.name ?? id2, detail: cls === void 0 ? id2 : `${id2} \xB7 ${cls}` };
-}
-function blockTexts(item2) {
-  return [item2.name, item2.detail, item2.id];
-}
-function blockRow(item2) {
-  return /* @__PURE__ */ jsxs(ComboBoxItem, { id: item2.id, textValue: item2.name, children: [
-    /* @__PURE__ */ jsx(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item2.name }),
-    /* @__PURE__ */ jsx(Text, { slot: "description", children: item2.detail })
-  ] });
-}
-function blockName(board, block) {
-  return own(board.blocks, block)?.name ?? block;
-}
-function classInputs(board, registry, block) {
-  const held4 = own(board.blocks, block);
-  return (held4 === void 0 ? void 0 : own(registry, held4.registry_id)?.inputs) ?? [];
-}
-function isVariadicBlock(board, registry, block) {
-  return classInputs(board, registry, block).includes("...");
-}
+// srcts/actions/core.ts
+init_util2();
 
-// srcts/ui/edits.ts
-import { useMemo, useState } from "react";
-function runCommand(core, target2, args) {
-  const running3 = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
-  return running3.then(
-    () => true,
-    () => false
-  );
-}
-function useEdits(core) {
-  const [refusal2, setRefusal] = useState(null);
-  return useMemo(() => {
-    const opts = { notifier: () => void 0 };
-    function run(title, target2, given) {
-      setRefusal(null);
-      const running3 = typeof target2 === "string" ? core.commands.run(target2, given, "user", opts) : typeof given === "function" ? given(target2, opts) : core.commands.run(target2, "user", opts);
-      return running3.then(
-        () => true,
-        (error) => {
-          setRefusal({ title, reasons: reasons(error) });
-          return false;
-        }
-      );
-    }
-    return {
-      refusal: refusal2,
-      run,
-      clear: () => {
-        setRefusal(null);
-      }
-    };
-  }, [core, refusal2]);
-}
-function reasons(error) {
-  const failures = error instanceof Error && "failures" in error ? error.failures : void 0;
-  return isSentences(failures) ? failures : [errorMessage(error)];
-}
-function notifiedReasons(notifications) {
-  return notifications.flatMap(({ message }) => {
-    const [, ...lines] = message.split("\n");
-    const failures = lines.filter((line) => line.startsWith("- "));
-    return failures.length > 0 && failures.length === lines.length ? failures.map((line) => line.slice(2)) : [message];
-  });
-}
-function isSentences(x) {
-  return Array.isArray(x) && x.length > 0 && x.every((item2) => typeof item2 === "string");
-}
-
-// srcts/ui/hooks.ts
-import { useCallback, useSyncExternalStore } from "react";
-function useHistory(core) {
-  const subscribe = useCallback(
-    (notify) => core.store.subscribe(() => {
-      notify();
-    }),
-    [core]
-  );
-  const canUndo = useSyncExternalStore(subscribe, () => core.store.canUndo());
-  const canRedo = useSyncExternalStore(subscribe, () => core.store.canRedo());
-  return { canUndo, canRedo };
-}
-
-// srcts/ui/search.ts
-import { useState as useState2 } from "react";
-import { useFilter } from "@blockr/ui";
-function useSearch(all, texts, none = "No options", start3 = "") {
-  const { contains } = useFilter({ sensitivity: "base" });
-  const [query, setQuery] = useState2(start3);
-  const [started, setStarted] = useState2(start3 !== "");
-  return {
-    items: query === "" ? all : all.filter((item2) => texts(item2).some((text) => contains(text, query))),
-    onInputChange: (text) => {
-      setStarted(false);
-      setQuery(text);
-    },
-    onOpenChange: (isOpen, trigger) => {
-      if (isOpen && trigger === "manual" && !started) setQuery("");
-    },
-    renderEmptyState: () => all.length === 0 ? none : "No matches"
-  };
-}
-
-// srcts/ui/table.tsx
-import { useState as useState3 } from "react";
-import { Button, SearchField } from "@blockr/ui";
-import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
-var PAGE_SIZE = 10;
-function useTableView(rows, text, size = PAGE_SIZE) {
-  const [query, setQueryState] = useState3("");
-  const [page, setPage] = useState3(0);
-  const needle = query.trim().toLowerCase();
-  const matching = needle === "" ? rows : rows.filter((row) => text(row).toLowerCase().includes(needle));
-  const pages = Math.max(1, Math.ceil(matching.length / size));
-  const shown2 = Math.min(page, pages - 1);
-  const first = shown2 * size;
-  return {
-    rows: matching.slice(first, first + size),
-    query,
-    setQuery: (next) => {
-      setQueryState(next);
-      setPage(0);
-    },
-    page: shown2,
-    pages,
-    setPage,
-    found: matching.length,
-    first
-  };
-}
-function TableSearch({ label, view }) {
-  return /* @__PURE__ */ jsx2("search", { children: /* @__PURE__ */ jsx2(SearchField, { label, spellCheck: "false", autoComplete: "off", value: view.query, onChange: view.setQuery }) });
-}
-function Pager({ label, view }) {
-  const { page, pages, found, first, rows } = view;
-  if (pages < 2) return null;
-  return /* @__PURE__ */ jsxs2("nav", { "aria-label": label, className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-muted-foreground", children: [
-    /* @__PURE__ */ jsxs2("span", { "aria-live": "polite", children: [
-      "Rows ",
-      first + 1,
-      "\u2013",
-      first + rows.length,
-      " of ",
-      found
-    ] }),
-    /* @__PURE__ */ jsxs2("span", { className: "bc:flex bc:gap-1", children: [
-      /* @__PURE__ */ jsx2(
-        Button,
-        {
-          variant: "secondary",
-          isDisabled: page === 0,
-          onPress: () => {
-            view.setPage(page - 1);
-          },
-          children: "Previous"
-        }
-      ),
-      /* @__PURE__ */ jsx2(
-        Button,
-        {
-          variant: "secondary",
-          isDisabled: page >= pages - 1,
-          onPress: () => {
-            view.setPage(page + 1);
-          },
-          children: "Next"
-        }
-      )
-    ] })
-  ] });
-}
-
-// srcts/ui/ui.tsx
-import { useRef as useRef2, useState as useState6 } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
-import { Button as Button2, TextField } from "@blockr/ui";
-
-// srcts/card/footer.tsx
-import { useCallback as useCallback2, useId, useState as useState4 } from "react";
-import { Fragment, jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
-var SEVERITIES2 = ["error", "warning", "message"];
-function useFooter(status, notifications) {
-  const shown2 = useShown(status);
-  const opened = useOpened(OPEN_AT_START);
-  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
-}
-function usePills(notifications) {
-  const opened = useOpened(NONE_OPEN);
-  return { status: void 0, shown: void 0, settled: true, notifications, ...opened };
-}
-function useOpened(atStart) {
-  const [open, setOpen] = useState4(atStart);
-  const panel = useId();
-  const toggle = useCallback2((severity) => {
-    setOpen((was) => {
-      const next = new Set(was);
-      if (!next.delete(severity)) next.add(severity);
-      return next;
-    });
-  }, []);
-  return { open, toggle, panel };
-}
-function Footer({ status, shown: shown2, settled: settled2 }) {
-  return /* @__PURE__ */ jsx3(
-    "footer",
-    {
-      "aria-busy": status?.running === true,
-      "data-status": shown2?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-muted-foreground bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
-      children: shown2?.status === "ready" ? shown2.summary : null
-    }
-  );
-}
-function Pills({
-  status,
-  shown: shown2,
-  settled: settled2,
-  notifications,
-  open,
-  toggle,
-  panel,
-  className = "bc:justify-center bc:px-5"
-}) {
-  const pills = SEVERITIES2.flatMap((severity) => {
-    const n = counted(shown2, notifications, severity);
-    return n === 0 ? [] : [{ severity, n }];
-  });
-  if (pills.length === 0) return null;
-  return /* @__PURE__ */ jsx3(
-    "div",
-    {
-      role: "group",
-      "aria-label": "Status",
-      "aria-busy": status?.running === true,
-      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
-      children: pills.map(({ severity, n }) => {
-        const mark = MARKS[severity];
-        return /* @__PURE__ */ jsxs3(
-          "button",
-          {
-            type: "button",
-            "aria-expanded": open.has(severity),
-            "aria-controls": panel,
-            onClick: () => {
-              toggle(severity);
-            },
-            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
-            children: [
-              /* @__PURE__ */ jsx3(SeverityIcon, { severity }),
-              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
-            ]
-          },
-          severity
-        );
-      })
-    }
-  );
-}
-function Banners({ shown: shown2, notifications, open, panel }) {
-  const listed = notifications.filter(
-    (notification) => open.has(notification.severity)
-  );
-  const reason = shown2?.reason ?? null;
-  if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
-  if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx3("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx3(Banner, { severity, message }, i)) });
-}
-function isSettled(status, shown2) {
-  return status !== void 0 && status === shown2 && !status.running;
-}
-function counted(status, notifications, severity) {
-  const n = notifications.filter((notification) => notification.severity === severity).length;
-  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
-}
-var MARKS = {
-  error: {
-    label: "Error",
-    noun: "error",
-    text: "bc:text-destructive-text",
-    tint: "bc:bg-destructive/10",
-    border: "bc:border-destructive"
-  },
-  warning: {
-    label: "Warning",
-    noun: "warning",
-    text: "bc:text-warning-text",
-    tint: "bc:bg-warning/10",
-    border: "bc:border-warning"
-  },
-  message: {
-    label: "Message",
-    noun: "message",
-    text: "bc:text-primary-text",
-    tint: "bc:bg-primary/10",
-    border: "bc:border-primary"
-  }
-};
-function Banner({ severity, message }) {
-  const mark = MARKS[severity];
-  return /* @__PURE__ */ jsxs3(
-    "li",
-    {
-      "data-severity": severity,
-      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
-      children: [
-        /* @__PURE__ */ jsx3("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx3(SeverityIcon, { severity }) }),
-        /* @__PURE__ */ jsxs3("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
-          /* @__PURE__ */ jsx3("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx3("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
-        ] })
-      ]
-    }
-  );
-}
-function SeverityIcon({ severity }) {
-  return /* @__PURE__ */ jsx3(
-    "svg",
-    {
-      "aria-hidden": "true",
-      viewBox: "0 0 16 16",
-      className: "bc:size-3 bc:shrink-0",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.6,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs3(Fragment, { children: [
-        /* @__PURE__ */ jsx3("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
-        /* @__PURE__ */ jsx3("path", { d: "M8 6.2v3.2M8 11.6v.1" })
-      ] }) : /* @__PURE__ */ jsxs3(Fragment, { children: [
-        /* @__PURE__ */ jsx3("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx3("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
-      ] })
-    }
-  );
-}
-function useShown(status) {
-  const [kept, setKept] = useState4(void 0);
-  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
-  if (now !== void 0 && now !== kept) setKept(now);
-  return now ?? kept;
-}
-var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
-var NONE_OPEN = /* @__PURE__ */ new Set();
-
-// srcts/card/mounted.tsx
-import { useLayoutEffect, useRef } from "react";
-import { jsx as jsx4 } from "react/jsx-runtime";
-function Mounted({
-  mount: mount2,
-  label,
-  className,
-  data,
-  deferred = false
-}) {
-  const ref = useRef(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (el === null) return;
-    let cleanup;
-    let gone = false;
-    const start3 = () => {
-      if (!gone) cleanup = mount2(el);
-    };
-    if (deferred) queueMicrotask(start3);
-    else start3();
-    return () => {
-      gone = true;
-      queueMicrotask(() => {
-        cleanup?.();
-      });
-    };
-  }, [mount2, deferred]);
-  return /* @__PURE__ */ jsx4("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
-}
-
-// srcts/card/status.ts
-import { useState as useState5 } from "react";
-function useSized(status) {
-  const ready = status?.status === "ready";
-  const [sized, setSized] = useState5(ready);
-  if (ready && !sized) setSized(true);
-  return sized || ready;
-}
-
-// srcts/ui/ui.tsx
-import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
-var classes = {
-  // The board's page, in the page's colour and the colour of its text,
-  // `background` and `foreground`
-  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
-  page: "bc:bg-background bc:text-foreground",
-  // What sits over the board, as a dialog or a menu does, in the colours of
-  // every overlay, `popover`.
-  surface: "bc:bg-popover bc:text-popover-foreground",
-  // A card on the page, in the colours of a card, `card`.
-  card: "bc:bg-card bc:text-card-foreground",
-  heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
-  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0",
-  // A hint beside the fields of a form or in place of a list, in the colour
-  // of secondary text, as blockr.ui draws a field's description.
-  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
-  // A line that says why something cannot happen, in the colour of an error's
-  // text, as blockr.ui draws a field's error.
-  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap",
-  // A group of controls under a legend, which takes the look of a field's
-  // label, as blockr.ui draws it.
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
-  legend: "bc:mb-1 bc:p-0 bc:text-sm bc:font-medium"
-};
-function NameField({
-  label,
-  name: name2,
-  onSubmit,
-  onDone
-}) {
-  const [text, setText] = useState6(name2);
-  const done = useRef2(false);
-  function finish(submit) {
-    if (done.current) return;
-    done.current = true;
-    const trimmed = text.trim();
-    if (submit && trimmed !== "" && trimmed !== name2) onSubmit(trimmed);
-    onDone();
-  }
-  return /* @__PURE__ */ jsx5(
-    TextField,
-    {
-      "aria-label": label,
-      value: text,
-      autoFocus: true,
-      spellCheck: "false",
-      className: "bc:min-w-40",
-      onChange: setText,
-      onFocus: (event) => {
-        event.target.select();
-      },
-      onKeyDown: (event) => {
-        if (event.key === "Enter" && !event.nativeEvent.isComposing) finish(true);
-        else if (event.key === "Escape") finish(false);
-        else event.continuePropagation();
-      },
-      onBlur: () => {
-        finish(true);
-      }
-    }
-  );
-}
-function ActionsButton({
-  ref,
-  label,
-  onPress
-}) {
-  return /* @__PURE__ */ jsx5(Button2, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx5("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
-}
-function drawForm(el, form) {
-  const root = createRoot(el);
-  flushSync(() => {
-    root.render(form);
-  });
-  return () => {
-    root.unmount();
-  };
-}
-var identifier = { spellCheck: "false", autoCapitalize: "none", autoCorrect: "off" };
-function Refusal({ refusal: refusal2 }) {
-  if (refusal2 === null) return null;
-  const mark = MARKS.error;
-  const { title, reasons: reasons2 } = refusal2;
-  return /* @__PURE__ */ jsxs4(
-    "div",
-    {
-      role: "alert",
-      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
-      children: [
-        /* @__PURE__ */ jsx5("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx5(SeverityIcon, { severity: "error" }) }),
-        /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1 bc:text-sm bc:break-words", children: [
-          /* @__PURE__ */ jsx5("p", { className: `bc:m-0 bc:font-semibold ${mark.text}`, children: title }),
-          reasons2.length === 1 ? /* @__PURE__ */ jsx5("p", { className: "bc:m-0 bc:whitespace-pre-wrap", children: reasons2[0] }) : /* @__PURE__ */ jsx5("ul", { className: "bc:m-0 bc:list-disc bc:pl-5", children: reasons2.map((reason, i) => /* @__PURE__ */ jsx5("li", { className: "bc:whitespace-pre-wrap", children: reason }, i)) })
-        ] })
-      ]
-    }
-  );
-}
-
-// srcts/picker/picker.tsx
-import { useMemo as useMemo3, useState as useState8 } from "react";
-import { flushSync as flushSync3 } from "react-dom";
-import { Button as Button3, ComboBox, ComboBoxItem as ComboBoxItem2, ComboBoxSection, Form, Select, SelectItem, Text as Text2, TextField as TextField2 } from "@blockr/ui";
-
-// srcts/react/hooks.ts
-import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef3, useState as useState7, useSyncExternalStore as useSyncExternalStore2 } from "react";
-
-// srcts/binding/binding.ts
-var PAUSE = 500;
-function bind(host, key2, next, last, given) {
-  const [change, show2, options] = typeof key2 === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
-  const source = createSource(host);
-  const held4 = source.value(key2, change);
-  const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
-  let shown2;
-  let typed;
-  let timer;
-  let released = false;
-  const display = (again = false) => {
-    if (released || timer !== void 0) return;
-    const value2 = held4.get();
-    if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
-    shown2 = { value: value2 };
-    show2(value2);
-  };
-  let unbuilt;
-  const unbuild = (error) => {
-    host.log.error(asError(error));
-    unbuilt?.();
-    unbuilt = options.notifier === void 0 ? host.notify({
-      severity: "error",
-      code: "change_failed",
-      message: `The control failed to build the change it submits: ${errorMessage(error)}`
-    }) : void 0;
-  };
-  const submit = async (value2) => {
-    let submitted;
-    try {
-      submitted = held4.submit(value2, submitting);
-    } catch (error) {
-      unbuild(error);
-      options.settled?.(error);
-      return false;
-    }
-    unbuilt?.();
-    unbuilt = void 0;
-    try {
-      if (submitted !== null) await submitted;
-    } catch (error) {
-      options.settled?.(error);
-      return false;
-    }
-    options.settled?.(null);
-    return true;
-  };
-  const send = () => {
-    const value2 = typed;
-    typed = void 0;
-    if (value2 !== void 0) void submit(value2);
-  };
-  const flush = () => {
-    if (timer === void 0) return;
-    clearTimeout(timer);
-    timer = void 0;
-    send();
-  };
-  const off = source.onValues(() => {
-    display();
-  });
-  display(true);
-  return {
-    get: () => held4.get(),
-    async commit(value2) {
-      const took = await submit(value2);
-      if (!took) display(true);
-      return took;
-    },
-    async unset() {
-      const took = await submit(void 0);
-      if (!took) display(true);
-      return took;
-    },
-    type(value2) {
-      if (released) return;
-      typed = value2;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = void 0;
-        send();
-      }, PAUSE);
-    },
-    flush,
-    release() {
-      if (released) return;
-      released = true;
-      off();
-      flush();
-    }
-  };
-}
-function createSource(host) {
-  if ("option" in host) {
-    return {
-      value(key2) {
-        if (typeof key2 === "function") {
-          throw new TypeError(`The value of the board option "${host.option}" is bound by its id, not through functions.`);
-        }
-        if (key2 !== host.option) {
-          throw new Error(`The host of the board option "${host.option}" holds no value "${key2}".`);
-        }
-        return {
-          get: () => host.value(),
-          submit(value2, opts) {
-            if (jsonEqual(host.value(), value2)) return null;
-            if (value2 === void 0) {
-              return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
-            }
-            return host.submit(value2, opts);
-          }
-        };
-      },
-      onValues: (fn) => host.on("value", fn),
-      onContext: () => () => void 0,
-      inputs: () => null,
-      request: (name2, args, opts) => host.request(name2, args, opts)
-    };
-  }
-  return {
-    value(key2, change) {
-      const read = typeof key2 === "function" ? key2 : (state2) => own(state2, key2);
-      const build = typeof key2 === "function" ? change : (value2) => ({ [key2]: value2 });
-      if (typeof build !== "function") {
-        throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
-      }
-      return {
-        get: () => read(host.state()),
-        submit(value2, opts) {
-          const state2 = host.state();
-          const next = build(value2, state2);
-          return holds(state2, next) ? null : host.submit(next, opts);
-        }
-      };
-    },
-    onValues: (fn) => host.on("state", fn),
-    onContext: (fn) => host.on("context", fn),
-    inputs: () => host.context().inputs.map((input2) => ({ input: input2.input, revision: input2.revision })),
-    request: (name2, args, opts) => host.request(name2, args, opts)
-  };
-}
-function holds(state2, change) {
-  return Object.entries(change).every(([arg, value2]) => jsonEqual(own(state2, arg), value2));
-}
-
-// srcts/react/hooks.ts
-function useValue(host, key2, change) {
-  const read = typeof key2 === "function" ? key2 : null;
-  const name2 = typeof key2 === "function" ? null : key2 ?? ("option" in host ? host.option : "");
-  const given = read === null || change === void 0 ? null : { read, change };
-  const [value2, setValue] = useState7(() => held2(host, name2, { current: given }));
-  const [error, setError] = useState7(null);
-  const binding = useRef3(null);
-  const functions = useRef3(given);
-  useLayoutEffect2(() => {
-    binding.current = start(host, name2, functions, setValue, setError);
-    return () => {
-      const bound = binding.current;
-      binding.current = null;
-      bound?.release();
-    };
-  }, [host, name2]);
-  useLayoutEffect2(() => {
-    if (read === null || change === void 0) return;
-    const last = functions.current;
-    if (last !== null && last.read === read && last.change === change) return;
-    const moved = last === null || !readAlike(last.read, read, host.state());
-    if (moved) binding.current?.release();
-    functions.current = { read, change };
-    if (moved) binding.current = start(host, name2, functions, setValue, setError);
-  }, [read, change, host, name2]);
-  return useMemo2(
-    () => ({
-      value: value2,
-      error,
-      get: () => binding.current?.get() ?? held2(host, name2, functions),
-      commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
-      unset: () => binding.current?.unset() ?? Promise.resolve(false),
-      type: (next) => {
-        binding.current?.type(next);
-      },
-      flush: () => {
-        binding.current?.flush();
-      }
-    }),
-    [value2, error, host, name2]
-  );
-}
-function start(host, name2, functions, show2, refused2) {
-  const options = {
-    settled: (error) => {
-      refused2(error === null ? null : errorMessage(error));
-    },
-    notifier: () => void 0
-  };
-  if (name2 !== null) return bind(host, name2, show2, options);
-  return bind(
-    host,
-    (state2) => functions.current?.read(state2),
-    (value2, state2) => functions.current?.change(value2, state2) ?? {},
-    show2,
-    options
-  );
-}
-function held2(host, name2, functions) {
-  if ("option" in host) return host.value();
-  return name2 === null ? functions.current?.read(host.state()) : own(host.state(), name2);
-}
-function readAlike(a, b, state2) {
-  try {
-    return jsonEqual(a(state2), b(state2));
-  } catch {
-    return false;
-  }
-}
-function useBoard(core, select) {
-  const subscribe = useCallback3(
-    (notify) => core.store.subscribe(() => {
-      notify();
-    }),
-    [core]
-  );
-  const read = useMemo2(() => {
-    if (select === void 0) return () => core.store.board();
-    let last;
-    return () => {
-      const board = core.store.board();
-      if (last?.board !== board) {
-        const value2 = select(board);
-        last = { board, value: last !== void 0 && jsonEqual(last.value, value2) ? last.value : value2 };
-      }
-      return last.value;
-    };
-  }, [core, select]);
-  return useSyncExternalStore2(subscribe, read);
-}
-function useStatus(core, block) {
-  const subscribe = useCallback3(
-    (notify) => core.scheduler.subscribe((changed) => {
-      if (changed.includes(block)) notify();
-    }),
-    [core, block]
-  );
-  return useSyncExternalStore2(subscribe, () => core.scheduler.status(block));
-}
-function useNotified(core, about) {
-  const subscribe = useCallback3(
-    (notify) => core.notifications.subscribe(() => {
-      notify();
-    }),
-    [core]
-  );
-  const all = useSyncExternalStore2(subscribe, () => core.notifications.get());
-  const [kind, id2] = about === null ? [] : Object.entries(about)[0] ?? [];
-  return useMemo2(
-    () => kind === void 0 ? all : all.filter((notification) => notification.about !== void 0 && own(notification.about, kind) === id2),
-    [all, kind, id2]
-  );
-}
-
-// srcts/react/module.tsx
-import { Component } from "react";
-import { flushSync as flushSync2 } from "react-dom";
-import { createRoot as createRoot2 } from "react-dom/client";
-import { jsx as jsx6 } from "react/jsx-runtime";
-function reactModule(Draw) {
-  return {
-    render({ el, host, signal: signal5 }) {
-      const root = createRoot2(el);
-      flushSync2(() => {
-        root.render(/* @__PURE__ */ jsx6(Draw, { host, signal: signal5 }));
-      });
-      return () => {
-        root.unmount();
-      };
-    }
-  };
-}
-
-// srcts/react/notifications.tsx
-import { jsx as jsx7 } from "react/jsx-runtime";
-
-// srcts/picker/picker.tsx
-import { jsx as jsx8, jsxs as jsxs5 } from "react/jsx-runtime";
-function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
-  const registry = core.blockRegistry();
-  const edits = useEdits(core);
-  const [picked, setPicked] = useState8(void 0);
-  const [input2, setInput] = useState8(void 0);
-  const [inputName, setInputName] = useState8("");
-  const [place, setPlace] = useState8(void 0);
-  const [id2, setId] = useState8("");
-  const [name2, setName] = useState8("");
-  const [errors, setErrors] = useState8({});
-  const [busy, setBusy] = useState8(false);
-  const takes = mode.kind === "after" || mode.kind === "on";
-  const options = useMemo3(() => blockClasses(Object.values(registry).filter((entry2) => !takes || entry2.inputs.length > 0)), [registry, takes]);
-  const search = useSearch(
-    options,
-    (item2) => [item2.name, item2.description, item2.id, item2.category, item2.pkg ?? "", ...item2.keywords],
-    "No block class to pick.",
-    filter
-  );
-  const entry = picked === void 0 ? void 0 : own(registry, picked);
-  const link = useBoard(core, (board) => linkChoice(mode, board, core.blockRegistry(), entry));
-  const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
-  const places = link.kind === "name" ? link.places : void 0;
-  const position = places === void 0 ? void 0 : place !== void 0 && place <= places.length ? place : places.length + 1;
-  const on = useBoard(core, (board) => mode.kind === "on" ? own(board.links, mode.link) : void 0);
-  if (mode.kind === "on" && on === void 0) return null;
-  function check2() {
-    return {
-      ...entry === void 0 ? { registry: "Pick the class of the new block." } : {},
-      ...optional2("id", blockIdError(id2, core.store.board())),
-      ...link.kind === "name" ? optional2("input", inputNameError(inputName, link.taken)) : {}
-    };
-  }
-  async function submit(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const found = check2();
-    flushSync3(() => {
-      setErrors(found);
-      edits.clear();
-    });
-    if (Object.keys(found).length > 0 || entry === void 0 || busy) {
-      focusFirstInvalid(form);
-      return;
-    }
-    const args = {
-      registry_id: entry.id,
-      ...filled("id", id2),
-      ...filled("name", name2)
-    };
-    const into = {
-      ...chosen === void 0 ? {} : { input: chosen },
-      ...link.kind === "name" ? filled("input", inputName) : {},
-      ...link.kind === "fixed" ? { input: link.input } : {}
-    };
-    const before = places === void 0 || position === void 0 ? void 0 : places[position - 1];
-    setBusy(true);
-    await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into, before), done);
-    setBusy(false);
-  }
-  return /* @__PURE__ */ jsxs5(
-    Form,
-    {
-      "aria-label": "Add block",
-      validationBehavior: "aria",
-      onSubmit: (event) => {
-        void submit(event);
-      },
-      children: [
-        /* @__PURE__ */ jsx8(
-          ComboBox,
-          {
-            label: "Block class",
-            autoFocus: autofocus,
-            defaultInputValue: filter,
-            ...search,
-            items: byCategory(search.items),
-            value: picked ?? null,
-            placeholder: options.length === 0 ? "No block class to pick" : "Search by name, description or keyword",
-            isInvalid: errors.registry !== void 0,
-            errorMessage: errors.registry,
-            description: entry?.description === "" ? void 0 : entry?.description,
-            onChange: (key2) => {
-              setPicked(key2 === null ? void 0 : String(key2));
-              if (takes) setInput(void 0);
-              setErrors((now) => without3(now, "registry"));
-            },
-            children: (category) => /* @__PURE__ */ jsx8(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item2) => /* @__PURE__ */ jsxs5(ComboBoxItem2, { id: item2.id, textValue: item2.name, children: [
-              /* @__PURE__ */ jsx8(Text2, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item2.name }),
-              item2.description === "" ? null : /* @__PURE__ */ jsx8(Text2, { slot: "description", children: item2.description }),
-              item2.pkg === null ? null : /* @__PURE__ */ jsx8("span", { className: BADGE, children: item2.pkg })
-            ] }) })
-          }
-        ),
-        link.kind === "pick" ? /* @__PURE__ */ jsx8(
-          Select,
-          {
-            label: link.label,
-            isRequired: true,
-            items: link.inputs.map((input3) => ({ id: input3 })),
-            value: chosen ?? null,
-            onChange: (key2) => {
-              if (key2 !== null) setInput(String(key2));
-            },
-            children: (item2) => /* @__PURE__ */ jsx8(SelectItem, { id: item2.id, children: item2.id })
-          }
-        ) : null,
-        link.kind === "name" ? /* @__PURE__ */ jsxs5("div", { className: places === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx8(
-            TextField2,
-            {
-              label: link.label,
-              value: inputName,
-              description: "Optional. Leave it empty for an input without a name, which the block takes in the order of its links.",
-              errorMessage: errors.input,
-              isInvalid: errors.input !== void 0,
-              autoComplete: "off",
-              onChange: (value2) => {
-                setInputName(value2);
-                setErrors((now) => without3(now, "input"));
-              },
-              onBlur: () => {
-                setErrors((now) => ({ ...now, ...optional2("input", inputNameError(inputName, link.taken)) }));
-              }
-            }
-          ),
-          places === void 0 ? null : /* @__PURE__ */ jsx8(
-            Select,
-            {
-              label: "Position",
-              isRequired: true,
-              items: Array.from({ length: places.length + 1 }, (_, i) => ({ id: String(i + 1) })),
-              value: position === void 0 ? null : String(position),
-              isDisabled: places.length === 0,
-              onChange: (key2) => {
-                if (key2 !== null) setPlace(Number(key2));
-              },
-              children: (item2) => /* @__PURE__ */ jsx8(SelectItem, { id: item2.id, children: item2.id })
-            }
-          )
-        ] }) : null,
-        link.kind === "fixed" ? /* @__PURE__ */ jsx8("p", { className: classes.hint, children: link.line }) : null,
-        link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx8("p", { className: classes.alert, children: link.why }) : null,
-        /* @__PURE__ */ jsxs5("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx8(
-            TextField2,
-            {
-              label: "ID",
-              value: id2,
-              description: "Optional. Made up where left empty.",
-              errorMessage: errors.id,
-              isInvalid: errors.id !== void 0,
-              autoComplete: "off",
-              ...identifier,
-              onChange: (value2) => {
-                setId(value2);
-                setErrors((now) => without3(now, "id"));
-              },
-              onBlur: () => {
-                setErrors((now) => ({ ...now, ...optional2("id", blockIdError(id2, core.store.board())) }));
-              }
-            }
-          ),
-          /* @__PURE__ */ jsx8(
-            TextField2,
-            {
-              label: "Name",
-              value: name2,
-              placeholder: entry?.block_name,
-              description: "Optional. The class's name where left empty.",
-              autoComplete: "off",
-              onChange: setName
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsx8("div", { children: /* @__PURE__ */ jsx8(Button3, { type: "submit", variant: "primary", isDisabled: busy || link.kind === "no_free_inputs", children: "Add block" }) }),
-        /* @__PURE__ */ jsx8(Refusal, { refusal: edits.refusal })
-      ]
-    }
-  );
-}
-function linkChoice(mode, board, registry, entry) {
-  if (mode.kind === "before") {
-    const target2 = own(board.blocks, mode.to);
-    const free = freeInputs(board, registry, mode.to) ?? [];
-    const name2 = target2?.name ?? mode.to;
-    const of = `of "${name2}"`;
-    if (mode.input !== void 0 && mode.input !== "") return fixedInput(free, mode.input, name2);
-    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to), places: linksInto(board, mode.to) };
-    if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
-    return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
-  }
-  if ((mode.kind === "after" || mode.kind === "on") && entry !== void 0) {
-    if (entry.inputs.includes("...")) return { kind: "name", label: `Input name of the new ${entry.name}`, taken: [] };
-    if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
-  }
-  return { kind: "none" };
-}
-function fixedInput(free, input2, name2) {
-  const named5 = `the input "${input2}" of "${name2}"`;
-  if (free.includes(input2)) return { kind: "fixed", input: input2, line: `The new block feeds ${named5}.` };
-  return { kind: "no_free_inputs", why: `A link feeds ${named5} already.` };
-}
-function pickedBatch(core, mode, on, args, into, before) {
-  const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
-  const add = { id: "blockr.core-add_block", args: { ...args, id: block } };
-  const linked = (from, to, id2) => ({
-    id: "blockr.core-add_link",
-    args: { ...id2 === void 0 ? {} : { id: id2 }, from, to, ...into }
-  });
-  switch (mode.kind) {
-    case "add":
-      return [add];
-    case "after":
-      return [add, linked(mode.from, block)];
-    case "before": {
-      if (before === void 0) return [add, linked(block, mode.to)];
-      const link = core.mintId((id2) => Object.hasOwn(core.store.board().links, id2));
-      return [add, linked(block, mode.to, link), { id: "blockr.core-change_link", args: { id: link, before } }];
-    }
-    case "on":
-      return on === void 0 ? [] : [add, linked(on.from, block), { id: "blockr.core-change_link", args: { id: mode.link, from: block } }];
-  }
-}
-function linksInto(board, to) {
-  return Object.keys(board.links).filter((id2) => own(board.links, id2)?.to === to);
-}
-function namesInto(board, to, except) {
-  return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
-}
-function inputNameError(value2, taken) {
-  const trimmed = value2.trim();
-  if (trimmed === "") return void 0;
-  if (taken.includes(trimmed)) return `Another link gives the input the name "${trimmed}" already.`;
-  return void 0;
-}
-function isVariadic(free) {
-  return free.length === 1 && free[0] === "";
-}
-function blockClasses(entries2) {
-  return entries2.map(classItem).sort(byGroupAndName);
-}
-function classItem(entry) {
-  return {
-    id: entry.id,
-    name: entry.name,
-    description: entry.description,
-    icon: entry.icon,
-    pkg: packageFromId(entry.id),
-    category: entry.category === "" ? UNCATEGORIZED : entry.category,
-    keywords: entry.keywords
-  };
-}
-var UNCATEGORIZED = "uncategorized";
-function byGroupAndName(a, b) {
-  const last = (item2) => item2.category.toLowerCase() === UNCATEGORIZED ? 1 : 0;
-  return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
-}
-function byCategory(items) {
-  const categories = /* @__PURE__ */ new Map();
-  for (const item2 of items) {
-    const members = categories.get(item2.category) ?? [];
-    members.push(item2);
-    categories.set(item2.category, members);
-  }
-  return [...categories].map(([name2, members]) => ({ id: `category:${name2}`, name: name2, items: members }));
-}
-var BADGE = "bc:ml-auto bc:shrink-0 bc:rounded-sm bc:border bc:border-border bc:px-1 bc:text-xs bc:text-muted-foreground";
-function filled(arg, value2) {
-  const trimmed = value2.trim();
-  return trimmed === "" ? {} : { [arg]: trimmed };
-}
-function optional2(key2, error) {
-  return error === void 0 ? {} : { [key2]: error };
-}
-function focusFirstInvalid(form) {
-  form.querySelector('[aria-invalid="true"]')?.focus();
-}
-function blockIdError(value2, board) {
-  return idError(value2, "block", (id2) => own(board.blocks, id2) !== void 0);
-}
-function idError(value2, what, taken) {
-  const id2 = value2.trim();
-  if (id2 === "") return void 0;
-  if (/^\d+$/.test(id2)) return `An ID needs a character other than a digit, such as "${what}_${id2}".`;
-  if (taken(id2)) return `The board holds a ${what} "${id2}" already.`;
-  return void 0;
-}
-function without3(errors, key2) {
-  return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key2));
-}
+// srcts/actions/add.ts
+init_commands2();
+init_util2();
 
 // srcts/actions/icons.ts
 var PLUS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>';
@@ -9315,53 +10835,8 @@ function escaped(color2) {
   return color2.replace(/[&<>"']/g, (char) => `&#${String(char.charCodeAt(0))};`);
 }
 
-// srcts/actions/targets.ts
-var KINDS2 = {
-  board: true,
-  block: true,
-  input: true,
-  link: true,
-  stack: true,
-  option: true,
-  plugin: true,
-  selection: true
-};
-function kindsFailure(on, empty2) {
-  if (!Array.isArray(on)) return "is no array of the kinds of target that it applies to";
-  if (on.length === 0) return empty2;
-  const other = on.find((kind) => typeof kind !== "string" || !Object.hasOwn(KINDS2, kind));
-  return other === void 0 ? void 0 : `names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}`;
-}
-function idOf(target2, kind) {
-  if (kind === "block") return "block" in target2 ? target2.block : void 0;
-  if (kind === "link") return "link" in target2 ? target2.link : void 0;
-  return "stack" in target2 ? target2.stack : void 0;
-}
-function blockOf(target2) {
-  return idOf(target2, "block");
-}
-function inputOf(target2) {
-  return "input" in target2 ? target2.input : void 0;
-}
-function heldBlock(board, target2) {
-  const block = blockOf(target2);
-  return block !== void 0 && Object.hasOwn(board.blocks, block) ? block : void 0;
-}
-function held3(board, target2, kind) {
-  const objects = "selection" in target2 ? target2.selection : [target2];
-  const kept = { block: board.blocks, link: board.links, stack: board.stacks }[kind];
-  const ids2 = objects.flatMap((object2) => {
-    const id2 = idOf(object2, kind);
-    return id2 !== void 0 && Object.hasOwn(kept, id2) ? [id2] : [];
-  });
-  return [...new Set(ids2)];
-}
-function heldBlocks(board, target2) {
-  return held3(board, target2, "block");
-}
-
-// srcts/actions/add.tsx
-import { jsx as jsx9 } from "react/jsx-runtime";
+// srcts/actions/add.ts
+init_targets();
 function addingBoardActions(registry) {
   const adds = (taking2) => Object.values(registry()).some((entry) => !taking2 || hasInput(entry));
   return [
@@ -9472,28 +10947,24 @@ function freeInputOf(board, registry, target2) {
 function pickerModule(mode) {
   const focused = /* @__PURE__ */ new WeakSet();
   return {
-    render({ el, core, target: target2, filter, done }) {
+    async render({ el, core, target: target2, filter, signal: signal5, done }) {
       const at = mode(target2);
-      if (at === void 0) return () => void 0;
+      if (at === void 0) return void 0;
       const autofocus = filter !== void 0 || focused.delete(el);
-      return drawForm(
-        el,
-        /* @__PURE__ */ jsx9(
-          BlockPicker,
-          {
-            core,
-            mode: at,
-            ...filter === void 0 ? {} : { filter },
-            autofocus,
-            done: (calls, opts) => {
-              if (el.contains(el.ownerDocument.activeElement)) focused.add(el);
-              return done(calls, opts).finally(() => {
-                focused.delete(el);
-              });
-            }
-          }
-        )
-      );
+      const { drawPicker: drawPicker2 } = await Promise.resolve().then(() => (init_picker2(), picker_exports));
+      if (signal5.aborted) return void 0;
+      return drawPicker2(el, {
+        core,
+        mode: at,
+        ...filter === void 0 ? {} : { filter },
+        autofocus,
+        done: (calls, opts) => {
+          if (el.contains(el.ownerDocument.activeElement)) focused.add(el);
+          return done(calls, opts).finally(() => {
+            focused.delete(el);
+          });
+        }
+      });
     }
   };
 }
@@ -9527,670 +10998,15 @@ function copyCommand(doc, text) {
   }
 }
 
-// srcts/actions/inputs.tsx
-import { useState as useState9 } from "react";
-import { flushSync as flushSync4 } from "react-dom";
-import { Button as Button4, ComboBox as ComboBox2, Form as Form2, GridList, GridListItem, TextField as TextField3, useDragAndDrop } from "@blockr/ui";
-import { jsx as jsx10, jsxs as jsxs6 } from "react/jsx-runtime";
-var ADD_LINK = "blockr.core-add_link";
-var CHANGE_LINK = "blockr.core-change_link";
-var REMOVE_LINK = "blockr.core-remove_link";
-var editInputs = {
-  render({ el, core, target: target2, done }) {
-    if (!("block" in target2)) return void 0;
-    return drawForm(el, /* @__PURE__ */ jsx10(EditInputs, { core, block: target2.block, done }));
-  }
-};
-function EditInputs({ core, block, done }) {
-  const board = useBoard(core);
-  if (own(board.blocks, block) === void 0) return null;
-  const registry = core.blockRegistry();
-  const parts = { core, done, board, registry, block, sources: sourcesOf(board, registry, block) };
-  return isVariadicBlock(board, registry, block) ? /* @__PURE__ */ jsx10(VariadicInputs, { ...parts }) : /* @__PURE__ */ jsx10(FixedInputs, { ...parts });
-}
-function sourcesOf(board, registry, block) {
-  const downstream = createGraph(board).withDownstream([block]);
-  return Object.keys(board.blocks).filter((id2) => !downstream.has(id2)).map((id2) => blockItem(board, registry, id2));
-}
-function InputsForm({
-  core,
-  done,
-  board,
-  block,
-  variadic: variadic2,
-  prepare,
-  children
-}) {
-  const edits = useEdits(core);
-  const [busy, setBusy] = useState9(false);
-  const name2 = blockName(board, block);
-  async function submit(event) {
-    event.preventDefault();
-    if (busy) return;
-    const form = event.currentTarget;
-    const calls = prepare();
-    if (calls === void 0) {
-      edits.clear();
-      focusFirstInvalid(form);
-      return;
-    }
-    setBusy(true);
-    await edits.run(`Could not change the inputs of the block "${name2}".`, calls, done);
-    setBusy(false);
-  }
-  return /* @__PURE__ */ jsxs6(
-    Form2,
-    {
-      "aria-label": "Change inputs",
-      validationBehavior: "aria",
-      className: "bc:font-sans bc:text-sm",
-      onSubmit: (event) => {
-        void submit(event);
-      },
-      children: [
-        /* @__PURE__ */ jsx10("p", { className: classes.hint, children: variadic2 ? `The inputs of the block "${name2}", which it takes in this order.` : `The inputs of the block "${name2}".` }),
-        children,
-        /* @__PURE__ */ jsx10("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx10(Button4, { type: "submit", variant: "primary", isDisabled: busy, children: "Apply" }) }),
-        /* @__PURE__ */ jsx10(Refusal, { refusal: edits.refusal })
-      ]
-    }
-  );
-}
-function FixedInputs(parts) {
-  const { core, board, registry, block, sources } = parts;
-  const [given, setGiven] = useState9({});
-  const inputs = classInputs(board, registry, block);
-  return /* @__PURE__ */ jsx10(InputsForm, { ...parts, variadic: false, prepare: () => fixedBatch(core, board, registry, block, given), children: /* @__PURE__ */ jsx10("div", { className: "bc:grid bc:gap-2", children: inputs.map((input2) => /* @__PURE__ */ jsx10(
-    FixedInput,
-    {
-      sources,
-      input: input2,
-      source: shownSource(board, registry, block, input2, given),
-      onChange: (source) => {
-        setGiven((now) => ({ ...now, [input2]: source }));
-      }
-    },
-    input2
-  )) }) });
-}
-function shownSource(board, registry, block, input2, given) {
-  const source = own(given, input2);
-  if (source === null || source !== void 0 && Object.hasOwn(board.blocks, source)) return source;
-  const id2 = linkFeeding(board, registry, block, input2);
-  return (id2 === void 0 ? void 0 : own(board.links, id2)?.from) ?? null;
-}
-function fixedBatch(core, board, registry, block, given) {
-  const removes = [];
-  const changes2 = [];
-  const adds = [];
-  const minted = /* @__PURE__ */ new Set();
-  for (const input2 of classInputs(board, registry, block)) {
-    const source = shownSource(board, registry, block, input2, given);
-    const id2 = linkFeeding(board, registry, block, input2);
-    const from = id2 === void 0 ? void 0 : own(board.links, id2)?.from;
-    if (id2 === void 0) {
-      if (source !== null) adds.push({ id: ADD_LINK, args: { id: mint(core, minted), from: source, to: block, input: input2 } });
-    } else if (source === null) {
-      removes.push({ id: REMOVE_LINK, args: { id: id2 } });
-    } else if (source !== from) {
-      changes2.push({ id: CHANGE_LINK, args: { id: id2, from: source } });
-    }
-  }
-  return [...removes, ...changes2, ...adds];
-}
-function mint(core, minted) {
-  const id2 = core.mintId((taken) => minted.has(taken) || Object.hasOwn(core.store.board().links, taken));
-  minted.add(id2);
-  return id2;
-}
-function FixedInput({
-  sources,
-  input: input2,
-  source,
-  onChange
-}) {
-  const search = useSearch(sources, blockTexts, "No block can feed the input.");
-  return /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:items-end bc:gap-2", children: [
-    /* @__PURE__ */ jsx10(
-      ComboBox2,
-      {
-        label: input2,
-        ...search,
-        value: source,
-        placeholder: "Search blocks",
-        isRequired: source !== null,
-        className: "bc:min-w-0 bc:flex-1",
-        onChange: (key2) => {
-          if (key2 !== null) onChange(String(key2));
-        },
-        children: blockRow
-      }
-    ),
-    /* @__PURE__ */ jsx10("div", { className: "bc:flex bc:w-7 bc:shrink-0 bc:justify-center bc:pb-1", children: source === null ? null : /* @__PURE__ */ jsx10(
-      RemoveButton,
-      {
-        label: `Remove the source of ${input2}`,
-        onPress: () => {
-          onChange(null);
-        }
-      }
-    ) })
-  ] });
-}
-var UNCHANGED = { links: {}, removed: [], added: [], next: 1 };
-function VariadicInputs(parts) {
-  const { core, board, block, sources } = parts;
-  const [changes2, setChanges] = useState9(UNCHANGED);
-  const [checked4, setChecked] = useState9(/* @__PURE__ */ new Set());
-  const shown2 = shownInputs(board, block, changes2);
-  const { dragAndDropHooks } = useDragAndDrop({
-    getItems: (keys) => [...keys].map((key2) => ({ "text/plain": String(key2) })),
-    onReorder(event) {
-      const [moved] = [...event.keys];
-      if (moved === void 0) return;
-      const keys = shown2.map(({ key: key2 }) => key2);
-      const order = reordered(keys, String(moved), String(event.target.key), event.target.dropPosition);
-      if (order !== null) {
-        setChanges((now) => ({ ...now, order }));
-      }
-    }
-  });
-  const rows = shown2.map((input2, i) => ({
-    id: input2.key,
-    input: input2,
-    place: i + 1,
-    error: checked4.has(input2.key) ? nameError(board, shown2, input2.key) : void 0
-  }));
-  function prepare() {
-    flushSync4(() => {
-      setChecked(new Set(shown2.map(({ key: key2 }) => key2)));
-    });
-    return shown2.some(({ key: key2 }) => nameError(board, shown2, key2) !== void 0) ? void 0 : variadicBatch(core, board, block, shown2);
-  }
-  return /* @__PURE__ */ jsxs6(InputsForm, { ...parts, variadic: true, prepare, children: [
-    /* @__PURE__ */ jsx10(
-      GridList,
-      {
-        "aria-label": `Inputs of ${blockName(board, block)}`,
-        items: rows,
-        dragAndDropHooks,
-        keyboardNavigationBehavior: "tab",
-        renderEmptyState: () => "No link feeds the block yet.",
-        className: "bc:gap-1.5",
-        children: (row) => /* @__PURE__ */ jsx10(GridListItem, { id: row.id, textValue: inputText(board, row.input, row.place), className: ROW, children: /* @__PURE__ */ jsx10(
-          VariadicInput,
-          {
-            sources,
-            input: row.input,
-            place: row.place,
-            error: row.error,
-            onChange: (change) => {
-              setChanges((now) => withChange(now, row.id, change));
-            },
-            onCheck: () => {
-              setChecked((now) => /* @__PURE__ */ new Set([...now, row.id]));
-            },
-            onRemove: () => {
-              setChanges((now) => withRemoved(now, row.id));
-            }
-          }
-        ) })
-      }
-    ),
-    /* @__PURE__ */ jsx10(
-      AddInput,
-      {
-        sources,
-        onAdd: (from) => {
-          setChanges((now) => ({ ...now, added: [...now.added, { key: String(now.next), from, input: "" }], next: now.next + 1 }));
-        }
-      }
-    )
-  ] });
-}
-function shownInputs(board, block, changes2) {
-  const removed = new Set(changes2.removed);
-  const held4 = (from) => from !== void 0 && Object.hasOwn(board.blocks, from);
-  const links = createGraph(board).linksInto(block).flatMap((id2) => {
-    const link = own(board.links, id2);
-    if (link === void 0 || removed.has(id2)) return [];
-    const change = own(changes2.links, id2);
-    const from = change?.from;
-    return [{ key: id2, from: held4(from) ? from : link.from, input: change?.input ?? link.input }];
-  });
-  const inputs = [...links, ...changes2.added.filter(({ from }) => held4(from))];
-  const { order } = changes2;
-  if (order === void 0) return inputs;
-  const place = ({ key: key2 }) => {
-    const at = order.indexOf(key2);
-    return at === -1 ? order.length : at;
-  };
-  return inputs.sort((a, b) => place(a) - place(b));
-}
-function withChange(changes2, key2, change) {
-  if (changes2.added.some((input2) => input2.key === key2)) {
-    return { ...changes2, added: changes2.added.map((input2) => input2.key === key2 ? { ...input2, ...change } : input2) };
-  }
-  return { ...changes2, links: { ...changes2.links, [key2]: { ...own(changes2.links, key2), ...change } } };
-}
-function withRemoved(changes2, key2) {
-  if (changes2.added.some((input2) => input2.key === key2)) {
-    return { ...changes2, added: changes2.added.filter((input2) => input2.key !== key2) };
-  }
-  return { ...changes2, removed: [...changes2.removed, key2] };
-}
-function reordered(keys, moved, target2, position) {
-  const others = keys.filter((key2) => key2 !== moved);
-  const at = others.indexOf(target2);
-  if (moved === target2 || position === "on" || at === -1) return null;
-  const index = position === "before" ? at : at + 1;
-  const next = [...others.slice(0, index), moved, ...others.slice(index)];
-  return next.every((key2, i) => key2 === keys[i]) ? null : next;
-}
-function nameError(board, shown2, key2) {
-  const input2 = shown2.find((other) => other.key === key2);
-  if (input2 === void 0 || input2.input.trim() === own(board.links, key2)?.input) return void 0;
-  const taken = shown2.flatMap((other) => other.key === key2 ? [] : [other.input.trim()]);
-  return inputNameError(input2.input, taken);
-}
-function variadicBatch(core, board, block, shown2) {
-  const into = createGraph(board).linksInto(block);
-  const minted = /* @__PURE__ */ new Set();
-  const order = [];
-  const changes2 = [];
-  const adds = [];
-  for (const { key: key2, from, input: input2 } of shown2) {
-    const name2 = input2.trim();
-    const link = own(board.links, key2);
-    if (link === void 0) {
-      const id2 = mint(core, minted);
-      order.push(id2);
-      adds.push({ id: ADD_LINK, args: { id: id2, from, to: block, ...name2 === "" ? {} : { input: name2 } } });
-      continue;
-    }
-    order.push(key2);
-    const args = { ...from === link.from ? {} : { from }, ...name2 === link.input ? {} : { input: name2 } };
-    if (Object.keys(args).length > 0) changes2.push({ id: CHANGE_LINK, args: { id: key2, ...args } });
-  }
-  const kept = into.filter((id2) => order.includes(id2));
-  return [
-    ...into.filter((id2) => !order.includes(id2)).map((id2) => ({ id: REMOVE_LINK, args: { id: id2 } })),
-    ...changes2,
-    ...adds,
-    ...moves([...kept, ...minted], order)
-  ];
-}
-function moves(from, to) {
-  if (from.length === to.length && from.every((id2, i) => id2 === to[i])) return [];
-  return to.map((id2) => ({ id: CHANGE_LINK, args: { id: id2, before: null } }));
-}
-function inputText(board, { from, input: input2 }, place) {
-  const source = blockName(board, from);
-  const name2 = input2.trim();
-  return name2 === "" ? `Input ${String(place)}, from ${source}` : `Input ${String(place)}, ${name2}, from ${source}`;
-}
-function VariadicInput({
-  sources,
-  input: input2,
-  place,
-  error,
-  onChange,
-  onCheck,
-  onRemove
-}) {
-  const search = useSearch(sources, blockTexts, "No block can feed the block.");
-  const what = `input ${String(place)}`;
-  return /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2", onPointerDownCapture: holdStill, children: [
-    /* @__PURE__ */ jsx10(
-      ComboBox2,
-      {
-        "aria-label": `Source of ${what}`,
-        ...search,
-        value: input2.from,
-        placeholder: "Search blocks",
-        isRequired: true,
-        className: "bc:min-w-0 bc:flex-1",
-        onChange: (key2) => {
-          if (key2 !== null && String(key2) !== input2.from) onChange({ from: String(key2) });
-        },
-        children: blockRow
-      }
-    ),
-    /* @__PURE__ */ jsx10(
-      TextField3,
-      {
-        "aria-label": `Name of ${what}`,
-        value: input2.input,
-        placeholder: "No name",
-        isInvalid: error !== void 0,
-        errorMessage: error,
-        autoComplete: "off",
-        ...identifier,
-        className: "bc:w-1/3 bc:shrink-0",
-        onChange: (value2) => {
-          onChange({ input: value2 });
-        },
-        onBlur: onCheck
-      }
-    ),
-    /* @__PURE__ */ jsx10(RemoveButton, { label: `Remove ${what}`, onPress: onRemove })
-  ] });
-}
-function holdStill(event) {
-  const item2 = event.currentTarget.closest('[role="row"][draggable="true"]');
-  if (item2 === null) return;
-  item2.setAttribute("draggable", "false");
-  const doc = item2.ownerDocument;
-  const release = () => {
-    item2.setAttribute("draggable", "true");
-    doc.removeEventListener("pointerup", release, true);
-    doc.removeEventListener("pointercancel", release, true);
-  };
-  doc.addEventListener("pointerup", release, true);
-  doc.addEventListener("pointercancel", release, true);
-}
-function AddInput({ sources, onAdd }) {
-  const search = useSearch(sources, blockTexts, "No block can feed the block.");
-  return /* @__PURE__ */ jsx10(
-    ComboBox2,
-    {
-      label: "Add input",
-      ...search,
-      value: null,
-      placeholder: "Search blocks",
-      onChange: (key2) => {
-        if (key2 !== null) onAdd(String(key2));
-      },
-      children: blockRow
-    }
-  );
-}
-function RemoveButton({ label, onPress }) {
-  return /* @__PURE__ */ jsx10(Button4, { variant: "quiet", "aria-label": label, onPress, className: "bc:size-7 bc:shrink-0 bc:justify-center bc:p-0", children: /* @__PURE__ */ jsx10("span", { title: label, className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx10(Cross, {}) }) });
-}
-function Cross() {
-  return /* @__PURE__ */ jsx10("svg", { width: "10", height: "10", viewBox: "0 0 10 10", fill: "none", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx10("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" }) });
-}
-var ROW = "bc:rounded-md bc:border bc:border-border bc:bg-muted bc:py-1 bc:data-dragging:opacity-60";
-
-// srcts/actions/link-form.tsx
-import { useState as useState10 } from "react";
-import { flushSync as flushSync5 } from "react-dom";
-import { Button as Button5, ComboBox as ComboBox3, Form as Form3, Select as Select2, SelectItem as SelectItem2, TextField as TextField4 } from "@blockr/ui";
-import { jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
-var ADD_LINK2 = "blockr.core-add_link";
-var CHANGE_LINK2 = "blockr.core-change_link";
-var createLinkForm = {
-  render({ el, core, target: target2, picked, done }) {
-    const given = picked === void 0 ? {} : startOf(picked);
-    if ("input" in target2) {
-      const input2 = target2.input === "" ? {} : { input: target2.input };
-      const fixedInput2 = target2.input === "" ? {} : { fixedInput: target2.input };
-      return drawForm(el, /* @__PURE__ */ jsx11(LinkForm, { core, start: { ...given, to: target2.block, ...input2 }, fixed: "to", ...fixedInput2, done }));
-    }
-    if (!("block" in target2)) return drawForm(el, /* @__PURE__ */ jsx11(LinkForm, { core, start: given, done }));
-    const { block } = target2;
-    const fixed2 = given.to === block ? "to" : "from";
-    const start3 = fixed2 === "to" ? { ...given, to: block } : { ...given, from: block };
-    return drawForm(el, /* @__PURE__ */ jsx11(LinkForm, { core, start: start3, fixed: fixed2, done }));
-  }
-};
-var editLinkForm = {
-  render({ el, core, target: target2, done }) {
-    if (!("link" in target2)) return void 0;
-    return drawForm(el, /* @__PURE__ */ jsx11(EditLink, { core, id: target2.link, done }));
-  }
-};
-function startOf(picked) {
-  if (!isObject(picked)) return {};
-  const { from, to, input: input2 } = picked;
-  return {
-    ...typeof from === "string" ? { from } : {},
-    ...typeof to === "string" ? { to } : {},
-    ...typeof input2 === "string" ? { input: input2 } : {}
-  };
-}
-function fixedEnd(board, end, block, input2) {
-  const name2 = block === void 0 ? "" : blockName(board, block);
-  if (end === "from") return `A link from "${name2}".`;
-  return input2 === void 0 ? `A link into "${name2}".` : `A link into the input "${input2}" of "${name2}".`;
-}
-function EditLink({ core, id: id2, done }) {
-  const link = useBoard(core, (board) => own(board.links, id2));
-  return link === void 0 ? null : /* @__PURE__ */ jsx11(LinkForm, { core, editing: { id: id2, link }, done });
-}
-function LinkForm({
-  core,
-  start: start3 = {},
-  fixed: fixed2,
-  fixedInput: fixedInput2,
-  editing,
-  done
-}) {
-  const except = editing?.id;
-  const [from, setFrom] = useState10(editing?.link.from ?? start3.from);
-  const [to, setTo] = useState10(editing?.link.to ?? start3.to);
-  const [input2, setInput] = useState10(editing?.link.input ?? start3.input);
-  const [name2, setName] = useState10(
-    () => editing !== void 0 && isVariadicBlock(core.store.board(), core.blockRegistry(), editing.link.to) ? editing.link.input : ""
-  );
-  const [place, setPlace] = useState10(void 0);
-  const [errors, setErrors] = useState10({});
-  const [busy, setBusy] = useState10(false);
-  const edits = useEdits(core);
-  const { source, target: target2, fromOptions, toOptions, variadic: variadic2, offered, chosen, hint, taken, among, fixedLine, targetName, few } = useBoard(
-    core,
-    (board) => {
-      const registry = core.blockRegistry();
-      const others = withoutLink(board, except);
-      const held4 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
-      const source2 = held4(from) ? from : void 0;
-      const target3 = held4(to) ? to : void 0;
-      const free = target3 === void 0 ? [] : freeInputs(others, registry, target3) ?? [];
-      const variadic3 = isVariadic(free);
-      const offered2 = !variadic3 && editing !== void 0 && target3 === editing.link.to ? classInputs(board, registry, target3) : free;
-      const chosen2 = variadic3 ? void 0 : input2 !== void 0 && offered2.includes(input2) ? input2 : free[0];
-      return {
-        source: source2,
-        target: target3,
-        ...ends(others, registry, source2, target3),
-        variadic: variadic3,
-        offered: offered2,
-        chosen: chosen2,
-        // What the form says below the input where another link feeds the one
-        // picked, so that applying the form swaps the inputs of the two links.
-        hint: editing !== void 0 && target3 === editing.link.to && chosen2 !== void 0 ? swapHint(board, registry, editing, chosen2) : void 0,
-        taken: target3 === void 0 ? [] : namesInto(board, target3, except),
-        // Where the link goes into a variadic block, the block's other links
-        // and the place that the link falls in where nothing moves it, which
-        // the form offers until the user picks another.
-        among: target3 === void 0 || !variadic3 ? void 0 : placeAmong(board, target3, except),
-        fixedLine: fixed2 === void 0 ? void 0 : fixedEnd(board, fixed2, fixed2 === "from" ? from : to, fixedInput2),
-        targetName: target3 === void 0 ? "" : blockName(board, target3),
-        // Whether the board holds fewer blocks than a link joins.
-        few: Object.keys(board.blocks).length < 2
-      };
-    }
-  );
-  const fromSearch = useSearch(fromOptions, blockTexts);
-  const toSearch = useSearch(toOptions, blockTexts);
-  const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
-  function check2() {
-    return {
-      ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
-      ...target2 === void 0 ? { to: "Pick the block that the link goes to." } : {},
-      ...variadic2 ? optional3("input", inputNameError(name2, taken)) : {}
-    };
-  }
-  function batch2(source2, target3) {
-    const linkInput = fixedInput2 ?? (variadic2 ? name2.trim() : chosen);
-    const link = { from: source2, to: target3, ...linkInput === void 0 ? {} : { input: linkInput } };
-    const moved = among !== void 0 && position !== void 0 && position !== among.place;
-    const before = moved ? among.others[position - 1] ?? null : void 0;
-    if (editing === void 0) {
-      const id2 = core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
-      const added = { id: ADD_LINK2, args: { id: id2, ...link } };
-      return before === void 0 ? [added] : [added, { id: CHANGE_LINK2, args: { id: id2, before } }];
-    }
-    return [{ id: CHANGE_LINK2, args: { id: editing.id, ...link, ...before === void 0 ? {} : { before } } }];
-  }
-  async function submit(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const found = check2();
-    flushSync5(() => {
-      setErrors(found);
-      edits.clear();
-    });
-    if (Object.keys(found).length > 0 || source === void 0 || target2 === void 0 || busy) {
-      focusFirstInvalid(form);
-      return;
-    }
-    const board = core.store.board();
-    const title = editing === void 0 ? "Could not add the link." : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
-    const calls = batch2(source, target2);
-    setBusy(true);
-    await edits.run(title, calls, done);
-    setBusy(false);
-  }
-  return /* @__PURE__ */ jsxs7(
-    Form3,
-    {
-      "aria-label": editing === void 0 ? "Add link" : "Change link",
-      validationBehavior: "aria",
-      onSubmit: (event) => {
-        void submit(event);
-      },
-      children: [
-        fixedLine === void 0 ? null : /* @__PURE__ */ jsx11("p", { className: classes.hint, children: fixedLine }),
-        /* @__PURE__ */ jsxs7("div", { className: fixed2 === void 0 ? "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2" : "bc:grid", children: [
-          fixed2 === "from" ? null : /* @__PURE__ */ jsx11(
-            ComboBox3,
-            {
-              label: "From",
-              ...fromSearch,
-              value: source ?? null,
-              placeholder: "Search blocks",
-              isInvalid: errors.from !== void 0,
-              errorMessage: errors.from,
-              onChange: (key2) => {
-                setFrom(key2 === null ? void 0 : String(key2));
-                setErrors((now) => without3(now, "from"));
-              },
-              children: blockRow
-            }
-          ),
-          fixed2 === "to" ? null : /* @__PURE__ */ jsx11(
-            ComboBox3,
-            {
-              label: "To",
-              ...toSearch,
-              value: target2 ?? null,
-              placeholder: "Search blocks",
-              isInvalid: errors.to !== void 0,
-              errorMessage: errors.to,
-              description: toOptions.length === 0 ? "No block takes a link from this block." : void 0,
-              onChange: (key2) => {
-                setTo(key2 === null ? void 0 : String(key2));
-                setInput(void 0);
-                setPlace(void 0);
-                setErrors((now) => without3(without3(now, "to"), "input"));
-              },
-              children: blockRow
-            }
-          )
-        ] }),
-        target2 === void 0 || fixedInput2 !== void 0 ? null : variadic2 ? /* @__PURE__ */ jsxs7("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx11(
-            TextField4,
-            {
-              label: "Input name",
-              value: name2,
-              description: `Optional. The block "${targetName}" takes any number of links, each by its name or, where it has none, by its position.`,
-              errorMessage: errors.input,
-              isInvalid: errors.input !== void 0,
-              autoComplete: "off",
-              ...identifier,
-              onChange: (value2) => {
-                setName(value2);
-                setErrors((now) => without3(now, "input"));
-              },
-              onBlur: () => {
-                setErrors((now) => ({ ...now, ...optional3("input", inputNameError(name2, taken)) }));
-              }
-            }
-          ),
-          among === void 0 ? null : /* @__PURE__ */ jsx11(
-            Select2,
-            {
-              label: "Position",
-              isRequired: true,
-              items: Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) })),
-              value: position === void 0 ? null : String(position),
-              isDisabled: among.others.length === 0,
-              onChange: (key2) => {
-                if (key2 !== null) setPlace(Number(key2));
-              },
-              children: (item2) => /* @__PURE__ */ jsx11(SelectItem2, { id: item2.id, children: item2.id })
-            }
-          )
-        ] }) : /* @__PURE__ */ jsx11(
-          Select2,
-          {
-            label: "Input",
-            isRequired: true,
-            items: offered.map((id2) => ({ id: id2 })),
-            value: chosen ?? null,
-            isDisabled: offered.length < 2,
-            description: hint,
-            onChange: (key2) => {
-              if (key2 !== null) setInput(String(key2));
-            },
-            children: (item2) => /* @__PURE__ */ jsx11(SelectItem2, { id: item2.id, children: item2.id })
-          }
-        ),
-        editing === void 0 && few ? /* @__PURE__ */ jsx11("p", { className: classes.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
-        /* @__PURE__ */ jsx11("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx11(Button5, { type: "submit", variant: "primary", isDisabled: busy, children: editing === void 0 ? "Add link" : "Apply" }) }),
-        /* @__PURE__ */ jsx11(Refusal, { refusal: edits.refusal })
-      ]
-    }
-  );
-}
-function ends(board, registry, source, target2) {
-  const graph = createGraph(board);
-  const upstream = source === void 0 ? /* @__PURE__ */ new Set() : graph.withUpstream([source]);
-  const downstream = target2 === void 0 ? /* @__PURE__ */ new Set() : graph.withDownstream([target2]);
-  const ids2 = Object.keys(board.blocks);
-  return {
-    fromOptions: ids2.filter((id2) => !downstream.has(id2)).map((id2) => blockItem(board, registry, id2)),
-    toOptions: ids2.filter((id2) => !upstream.has(id2) && takesLink(board, registry, id2)).map((id2) => blockItem(board, registry, id2))
-  };
-}
-function swapHint(board, registry, editing, input2) {
-  const other = linkFeeding(board, registry, editing.link.to, input2, editing.id);
-  const from = other === void 0 ? void 0 : own(board.links, other)?.from;
-  if (from === void 0) return void 0;
-  return `The link from "${blockName(board, from)}" feeds "${input2}". Applying gives that link "${editing.link.input}", so the two links swap their inputs.`;
-}
-function placeAmong(board, to, id2) {
-  const ids2 = Object.keys(board.links).filter((other) => other === id2 || own(board.links, other)?.to === to);
-  const others = ids2.filter((other) => other !== id2);
-  return { others, place: id2 === void 0 ? others.length + 1 : ids2.indexOf(id2) + 1 };
-}
-function withoutLink(board, id2) {
-  if (id2 === void 0 || !Object.hasOwn(board.links, id2)) return board;
-  const links = Object.fromEntries(Object.entries(board.links).filter(([other]) => other !== id2));
-  return { ...board, links };
-}
-function optional3(key2, error) {
-  return error === void 0 ? {} : { [key2]: error };
-}
-
 // srcts/actions/links.ts
+init_commands2();
+init_graph2();
+init_util2();
+init_targets();
 var CREATE_LINK = "blockr.core-add_link_action";
 var EDIT_LINK = "blockr.core-edit_link_action";
-var ADD_LINK3 = "blockr.core-add_link";
-var CHANGE_LINK3 = "blockr.core-change_link";
+var ADD_LINK2 = "blockr.core-add_link";
+var CHANGE_LINK2 = "blockr.core-change_link";
 function createLinkAction(parts) {
   return {
     id: CREATE_LINK,
@@ -10229,7 +11045,7 @@ function createLinkAction(parts) {
       ];
       return rows.length === 0 ? void 0 : { filter: true, rows };
     },
-    advanced: createLinkForm,
+    advanced: loadedModule(async () => (await Promise.resolve().then(() => (init_link_form(), link_form_exports))).createLinkForm),
     role: "add_link_role"
   };
 }
@@ -10259,7 +11075,7 @@ function editLinkAction(parts) {
       }
       return rows.length === 0 ? void 0 : { rows };
     },
-    advanced: editLinkForm,
+    advanced: loadedModule(async () => (await Promise.resolve().then(() => (init_link_form(), link_form_exports))).editLinkForm),
     role: "edit_link_role"
   };
 }
@@ -10267,7 +11083,7 @@ function newLink(core, parts, from, to, input2) {
   const board = core.store.board();
   const adding = (into) => [
     {
-      id: ADD_LINK3,
+      id: ADD_LINK2,
       args: { id: core.mintId((id2) => Object.hasOwn(core.store.board().links, id2)), from, to, ...into === void 0 ? {} : { input: into } }
     }
   ];
@@ -10277,7 +11093,7 @@ function newLink(core, parts, from, to, input2) {
   return {
     title: `Into which input of ${blockName(board, to)}?`,
     picked: { from, to },
-    rows: free.filter((input3) => parts.preflight(ADD_LINK3, { from, to, input: input3 })).map((input3) => ({ kind: "item", label: input3, pick: () => adding(input3) }))
+    rows: free.filter((input3) => parts.preflight(ADD_LINK2, { from, to, input: input3 })).map((input3) => ({ kind: "item", label: input3, pick: () => adding(input3) }))
   };
 }
 function joiningOn(board, parts) {
@@ -10294,7 +11110,7 @@ function feeds(joining, block, first = false) {
   const upstream = joining.graph.withUpstream([block]);
   return passing(
     [...joining.takers].filter((to) => !upstream.has(to)),
-    (to) => joining.preflight(ADD_LINK3, { from: block, to }),
+    (to) => joining.preflight(ADD_LINK2, { from: block, to }),
     first
   );
 }
@@ -10304,7 +11120,7 @@ function fedBy(joining, block, first = false, input2) {
   const downstream = joining.graph.withDownstream([block]);
   return passing(
     Object.keys(joining.board.blocks).filter((from) => !downstream.has(from)),
-    (from) => joining.preflight(ADD_LINK3, { from, to: block, ...input2 === void 0 ? {} : { input: input2 } }),
+    (from) => joining.preflight(ADD_LINK2, { from, to: block, ...input2 === void 0 ? {} : { input: input2 } }),
     first
   );
 }
@@ -10315,17 +11131,17 @@ function passing(blocks, check2, first) {
 }
 function sourceRows(board, registry, parts, id2, link) {
   const downstream = createGraph(board).withDownstream([link.to]);
-  return Object.keys(board.blocks).filter((from) => from !== link.from && !downstream.has(from) && parts.preflight(CHANGE_LINK3, { id: id2, from })).map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ id: CHANGE_LINK3, args: { id: id2, from } }] }));
+  return Object.keys(board.blocks).filter((from) => from !== link.from && !downstream.has(from) && parts.preflight(CHANGE_LINK2, { id: id2, from })).map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ id: CHANGE_LINK2, args: { id: id2, from } }] }));
 }
 function inputRows(board, registry, parts, id2, link) {
-  return classInputs(board, registry, link.to).filter((input2) => input2 !== link.input && parts.preflight(CHANGE_LINK3, { id: id2, input: input2 })).map((input2) => {
+  return classInputs(board, registry, link.to).filter((input2) => input2 !== link.input && parts.preflight(CHANGE_LINK2, { id: id2, input: input2 })).map((input2) => {
     const other = linkFeeding(board, registry, link.to, input2, id2);
     const from = other === void 0 ? void 0 : own(board.links, other)?.from;
     return {
       kind: "item",
       label: input2,
       ...from === void 0 ? {} : { detail: `swaps with ${blockName(board, from)}` },
-      pick: () => [{ id: CHANGE_LINK3, args: { id: id2, input: input2 } }]
+      pick: () => [{ id: CHANGE_LINK2, args: { id: id2, input: input2 } }]
     };
   });
 }
@@ -10338,7 +11154,7 @@ function renameRow(board, id2, link) {
     check: (value2) => inputNameError(value2, taken),
     submit(value2) {
       const input2 = value2.trim();
-      return input2 === link.input ? [] : [{ id: CHANGE_LINK3, args: { id: id2, input: input2 } }];
+      return input2 === link.input ? [] : [{ id: CHANGE_LINK2, args: { id: id2, input: input2 } }];
     }
   };
 }
@@ -10352,209 +11168,11 @@ function heldLink(board, target2) {
   return link === void 0 ? void 0 : [target2.link, link];
 }
 
-// srcts/actions/stack-form.tsx
-import { useState as useState11 } from "react";
-import {
-  Button as Button6,
-  Checkbox,
-  ColorArea,
-  ColorField,
-  ColorPicker,
-  ColorSlider,
-  ColorSwatchPicker,
-  ColorSwatchPickerItem,
-  ComboBox as ComboBox4,
-  ComboBoxSection as ComboBoxSection2,
-  Form as Form4,
-  TextField as TextField5
-} from "@blockr/ui";
-import { jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
-var ADD_STACK = "blockr.core-add_stack";
-var CHANGE_STACK = "blockr.core-change_stack";
-var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
-function suggestedColor(stacks) {
-  const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
-  return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
-}
-var createStackForm = {
-  render({ el, core, target: target2, done }) {
-    return drawForm(el, /* @__PURE__ */ jsx12(StackForm, { core, given: heldBlocks(core.store.board(), target2), done }));
-  }
-};
-var editStackForm = {
-  render({ el, core, target: target2, done }) {
-    if (!("stack" in target2)) return void 0;
-    return drawForm(el, /* @__PURE__ */ jsx12(EditStack, { core, id: target2.stack, done }));
-  }
-};
-function EditStack({ core, id: id2, done }) {
-  const stack = useBoard(core, (board) => own(board.stacks, id2));
-  return stack === void 0 ? null : /* @__PURE__ */ jsx12(StackForm, { core, editing: { id: id2, stack }, done });
-}
-function stackColor(color2) {
-  return typeof color2 === "string" ? color2 : color2.toString("hex");
-}
-function sameColor(a, b) {
-  return a === null || b === null ? a === b : a.toLowerCase() === b.toLowerCase();
-}
-function StackForm({
-  core,
-  given = [],
-  editing,
-  done
-}) {
-  const [name2, setName] = useState11(editing?.stack.name ?? "");
-  const [color2, setColor] = useState11(
-    () => editing === void 0 ? suggestedColor(Object.values(core.store.board().stacks)) : editing.stack.color
-  );
-  const [blocks, setBlocks] = useState11(editing?.stack.blocks ?? given);
-  const fixed2 = editing === void 0 && given.length > 0;
-  const [busy, setBusy] = useState11(false);
-  const edits = useEdits(core);
-  const { options, kept, fallbackName, line } = useBoard(core, (board) => {
-    const registry = core.blockRegistry();
-    const holder = /* @__PURE__ */ new Map();
-    for (const [id2, stack] of Object.entries(board.stacks)) {
-      if (id2 === editing?.id) continue;
-      for (const block of stack.blocks) holder.set(block, stack.name);
-    }
-    const kept2 = blocks.filter((block) => Object.hasOwn(board.blocks, block));
-    return {
-      // The blocks, those in no stack first, and those in another stack, which
-      // say that they leave it.
-      options: Object.keys(board.blocks).map((id2) => {
-        const item2 = blockItem(board, registry, id2);
-        const other = holder.get(id2);
-        return other === void 0 ? { ...item2, free: true } : { ...item2, free: false, detail: `${item2.detail} \xB7 leaves the stack ${other}` };
-      }),
-      kept: kept2,
-      fallbackName: editing === void 0 ? suggestedName(Object.values(board.stacks)) : editing.stack.name,
-      // The line that names the new stack's blocks, where the target fixes
-      // them.
-      line: fixed2 ? stackOf(board, kept2) : void 0
-    };
-  });
-  const search = useSearch(options, blockTexts, "The board holds no block.");
-  const sections = [
-    { id: "free", title: "In no stack", items: search.items.filter((item2) => item2.free) },
-    { id: "held", title: "In another stack", items: search.items.filter((item2) => !item2.free) }
-  ].filter((section) => section.items.length > 0);
-  function batch2() {
-    const trimmed = name2.trim();
-    const hex3 = color2 === null ? null : stackColor(color2);
-    if (editing === void 0) {
-      const id3 = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
-      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, ...trimmed === "" ? {} : { name: trimmed } } }];
-    }
-    const { id: id2, stack } = editing;
-    const changed = {
-      ...trimmed === "" || trimmed === stack.name ? {} : { name: trimmed },
-      ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
-      ...sameColor(hex3, stack.color) ? {} : { color: hex3 }
-    };
-    return Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id: id2, ...changed } }];
-  }
-  async function submit(event) {
-    event.preventDefault();
-    if (busy) return;
-    const title = editing === void 0 ? "Could not add the stack." : `Could not change the stack "${editing.stack.name}".`;
-    const calls = batch2();
-    setBusy(true);
-    await edits.run(title, calls, done);
-    setBusy(false);
-  }
-  return /* @__PURE__ */ jsxs8(
-    Form4,
-    {
-      "aria-label": editing === void 0 ? "Add stack" : "Change stack",
-      validationBehavior: "aria",
-      onSubmit: (event) => {
-        void submit(event);
-      },
-      children: [
-        line === void 0 ? null : /* @__PURE__ */ jsx12("p", { className: classes.hint, children: line }),
-        /* @__PURE__ */ jsxs8("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx12(
-            TextField5,
-            {
-              label: "Name",
-              value: name2,
-              placeholder: fallbackName,
-              description: editing === void 0 ? `Optional. "${fallbackName}" where left empty.` : void 0,
-              autoComplete: "off",
-              onChange: setName
-            }
-          ),
-          /* @__PURE__ */ jsx12(StackColor, { color: color2, onChange: setColor })
-        ] }),
-        fixed2 ? null : /* @__PURE__ */ jsx12(
-          ComboBox4,
-          {
-            selectionMode: "multiple",
-            label: "Blocks",
-            ...search,
-            items: sections,
-            value: kept,
-            placeholder: "No blocks",
-            description: "A block sits in one stack at most.",
-            onChange: (keys) => {
-              setBlocks(keys.map(String));
-            },
-            children: (section) => /* @__PURE__ */ jsx12(ComboBoxSection2, { id: section.id, title: section.title, items: section.items, children: blockRow })
-          }
-        ),
-        /* @__PURE__ */ jsx12("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx12(Button6, { type: "submit", variant: "primary", isDisabled: busy, children: editing === void 0 ? "Add stack" : "Apply" }) }),
-        /* @__PURE__ */ jsx12(Refusal, { refusal: edits.refusal })
-      ]
-    }
-  );
-}
-function StackColor({ color: color2, onChange }) {
-  const [last, setLast] = useState11(color2 ?? PALETTE[0]);
-  const shown2 = color2 ?? last;
-  return /* @__PURE__ */ jsxs8("fieldset", { className: classes.fieldset, children: [
-    /* @__PURE__ */ jsx12("legend", { className: classes.legend, children: "Colour" }),
-    /* @__PURE__ */ jsxs8("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1", children: [
-      /* @__PURE__ */ jsx12(
-        Checkbox,
-        {
-          isSelected: color2 !== null,
-          onChange: (selected) => {
-            onChange(selected ? last : null);
-          },
-          children: "A colour of its own"
-        }
-      ),
-      /* @__PURE__ */ jsxs8(
-        ColorPicker,
-        {
-          label: stackColor(shown2).toUpperCase(),
-          value: shown2,
-          isDisabled: color2 === null,
-          onChange: (picked) => {
-            setLast(picked);
-            onChange(picked);
-          },
-          children: [
-            /* @__PURE__ */ jsx12(ColorArea, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
-            /* @__PURE__ */ jsx12(ColorSlider, { colorSpace: "hsb", channel: "hue" }),
-            /* @__PURE__ */ jsx12(ColorField, { label: "Hex" }),
-            /* @__PURE__ */ jsx12(ColorSwatchPicker, { "aria-label": "Palette", className: "bc:max-w-36", children: PALETTE.map((hex3) => /* @__PURE__ */ jsx12(ColorSwatchPickerItem, { color: hex3 }, hex3)) })
-          ]
-        }
-      )
-    ] })
-  ] });
-}
-function stackOf(board, blocks) {
-  const names = quoted(blocks.map((block) => blockName(board, block)));
-  return blocks.length === 1 ? `A stack of the block ${names}.` : `A stack of the blocks ${names}.`;
-}
-function sameBlocks(a, b) {
-  return a.length === b.length && a.every((block, i) => block === b[i]);
-}
-
 // srcts/actions/stacks.ts
+init_commands2();
+init_util2();
+init_palette();
+init_targets();
 var CREATE_STACK = "blockr.core-add_stack_action";
 var EDIT_STACK = "blockr.core-edit_stack_action";
 var ADD_TO_STACK = "blockr.core-add_to_stack_action";
@@ -10574,7 +11192,7 @@ function createStackAction() {
       const rows = [nameRow(suggestedName(Object.values(board.stacks)), (name2) => newStack(core, blocks, name2))];
       return blocks.length === 0 ? { rows } : { title: `New stack of ${blocksLabel(board, blocks)}`, rows };
     },
-    advanced: createStackForm,
+    advanced: loadedModule(async () => (await Promise.resolve().then(() => (init_stack_form(), stack_form_exports))).createStackForm),
     role: "add_stack_role"
   };
 }
@@ -10596,7 +11214,7 @@ function editStackAction() {
         ]
       };
     },
-    advanced: editStackForm,
+    advanced: loadedModule(async () => (await Promise.resolve().then(() => (init_stack_form(), stack_form_exports))).editStackForm),
     role: "edit_stack_role"
   };
 }
@@ -10688,6 +11306,7 @@ function heldStack(board, target2) {
 }
 
 // srcts/actions/core.ts
+init_targets();
 function coreBoardActions(parts) {
   const { raise } = parts;
   return [
@@ -10719,7 +11338,7 @@ function coreBoardActions(parts) {
         const block = blockOf(target2);
         return !lock.board && block !== void 0 && classInputs(board, parts.blockRegistry(), block).length > 0;
       },
-      advanced: editInputs,
+      advanced: loadedModule(async () => (await Promise.resolve().then(() => (init_inputs(), inputs_exports))).editInputs),
       role: "edit_inputs_role"
     },
     editStackAction(),
@@ -10802,12 +11421,15 @@ function removing(command2, id2) {
 }
 function removals(board, target2) {
   if (!("selection" in target2)) return [];
-  const removing2 = (kind) => held3(board, target2, kind).map((id2) => ({ id: `blockr.core-remove_${kind}`, args: { id: id2 } }));
+  const removing2 = (kind) => held2(board, target2, kind).map((id2) => ({ id: `blockr.core-remove_${kind}`, args: { id: id2 } }));
   return [...removing2("link"), ...removing2("block"), ...removing2("stack")];
 }
 var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';
 
 // srcts/actions/roles.ts
+init_commands2();
+init_util2();
+init_targets();
 var CORE_ROLES = [
   // Adds a block on its own.
   { id: "add_block_role", on: ["board"], default: "blockr.core-add_block_action", advanced: true },
@@ -10908,6 +11530,7 @@ function checkedRoles(plugin, given, taken, actions) {
 }
 
 // srcts/actions/actions.ts
+init_targets();
 var CORE2 = "blockr.core";
 var NO_BOARD2 = "Core opens no board, since the blockr option board_actions holds for every board of the app.";
 function createBoardActions(parts) {
@@ -11292,58 +11915,9 @@ function kindOf(target2) {
   return "plugin";
 }
 
-// srcts/actions/dialog.tsx
-import { flushSync as flushSync6 } from "react-dom";
-import { createRoot as createRoot3 } from "react-dom/client";
-import { Button as Button7, Dialog, Heading, Modal } from "@blockr/ui";
-import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
-var showDialog = (args, at) => {
-  const doc = at.el.ownerDocument;
-  const host = doc.createElement("div");
-  doc.body.append(host);
-  const root = createRoot3(host);
-  let open = true;
-  const offAbort = at.signal === void 0 ? () => void 0 : onAbort(at.signal, hide);
-  function hide() {
-    if (!open) return;
-    open = false;
-    offAbort();
-    root.unmount();
-    host.remove();
-    args.close();
-    const active = doc.activeElement;
-    if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
-  }
-  flushSync6(() => {
-    root.render(/* @__PURE__ */ jsx13(CoreDialog, { args, onClose: hide }));
-  });
-  return () => {
-    hide();
-  };
-};
-function CoreDialog({ args, onClose }) {
-  const { mount: mount2 } = args;
-  return /* @__PURE__ */ jsx13(
-    Modal,
-    {
-      isOpen: true,
-      onOpenChange: (isOpen) => {
-        if (!isOpen) onClose();
-      },
-      className: WIDTH,
-      children: /* @__PURE__ */ jsx13(Dialog, { children: /* @__PURE__ */ jsxs9("div", { className: "bc:grid bc:gap-3", children: [
-        /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
-          /* @__PURE__ */ jsx13(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
-          /* @__PURE__ */ jsx13(Button7, { variant: "secondary", onPress: onClose, children: "Close" })
-        ] }),
-        /* @__PURE__ */ jsx13(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" })
-      ] }) })
-    }
-  );
-}
-var WIDTH = "bc:min-w-[min(420px,100%)]";
-
 // srcts/actions/module.ts
+init_log2();
+init_util2();
 var MENU_OPTION = "board_action_menu";
 var CORE_MENU = "blockr.core-board_action_menu";
 async function menuModule(loader, value2) {
@@ -11426,7 +12000,16 @@ function rowGiven(row, member) {
   return row;
 }
 
+// srcts/core/core.ts
+init_commands2();
+init_store2();
+init_log2();
+init_util2();
+
 // srcts/core/plugins.ts
+init_store2();
+init_log2();
+init_util2();
 var NONE = Object.freeze({});
 var NOTHING_FAILED = Promise.resolve([]);
 function runPlugins(deps) {
@@ -11580,6 +12163,8 @@ function runPlugins(deps) {
 }
 
 // srcts/core/requests.ts
+init_trace2();
+init_util2();
 var ATTEMPTS3 = 3;
 async function pluginRequest(deps, plugin, name2, args, opts) {
   if (typeof plugin !== "string" || plugin === "") {
@@ -12078,6 +12663,8 @@ function unheld(object2) {
 }
 
 // srcts/core/frontends.ts
+init_log2();
+init_util2();
 function loadingNote() {
   const box = document.createElement("div");
   box.setAttribute("role", "status");
@@ -12182,7 +12769,16 @@ function pageFrontEnds(el) {
   };
 }
 
+// srcts/core/start.ts
+init_commands2();
+init_store2();
+init_log2();
+init_trace2();
+init_util2();
+
 // srcts/core/migrations.ts
+init_log2();
+init_util2();
 function createMigrations(loader) {
   const known = /* @__PURE__ */ new Map();
   async function load(registryId2, module) {
@@ -12237,6 +12833,8 @@ function migrationFromExports(exports, module, pkg) {
 }
 
 // srcts/core/notifications.ts
+init_log2();
+init_util2();
 var EVALUATE_PHASES = {
   expr: true,
   inputs: true,
@@ -12847,7 +13445,7 @@ function start2(options) {
     if (dropped.length > 0) raise(droppedNotification(dropped, "opened"));
     if (alone) {
       try {
-        options.frontEnds?.card?.(core, signal5);
+        await options.frontEnds?.card?.(core, signal5);
       } finally {
         scheduler.start();
       }
@@ -13125,15 +13723,25 @@ function noOtel() {
   return Promise.reject(new Error("Core was given no OpenTelemetry module to send log records or spans with."));
 }
 
+// srcts/stubs/core.ts
+init_log2();
+
 // srcts/modules/basic/index.tsx
 import { flushSync as flushSync7 } from "react-dom";
 import { createRoot as createRoot4 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
+init_card();
+init_react();
+init_ui2();
 import { useCallback as useCallback7, useMemo as useMemo4, useState as useState13 } from "react";
 import { Button as Button9, Text as Text4, Toast, ToastContent, ToastRegion } from "@blockr/ui";
 
 // srcts/modules/basic/card.tsx
+init_card();
+init_react();
+init_ui2();
+init_util2();
 import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect3, useRef as useRef4, useSyncExternalStore as useSyncExternalStore3 } from "react";
 import { Disclosure, DisclosureHeader, DisclosurePanel } from "@blockr/ui";
 
@@ -13147,7 +13755,7 @@ function useFrontEnd() {
 }
 
 // srcts/modules/basic/card.tsx
-import { jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
+import { jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
 var BlockCard = memo(function BlockCard2({ id: id2, block }) {
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
@@ -13180,10 +13788,10 @@ var BlockCard = memo(function BlockCard2({ id: id2, block }) {
       onFocus: focus,
       children: [
         /* @__PURE__ */ jsxs10("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
-          /* @__PURE__ */ jsx14("h3", { className: classes.heading, children: block.name }),
-          /* @__PURE__ */ jsx14("span", { className: "bc:text-xs bc:text-muted-foreground", children: entry?.name ?? block.registry_id }),
-          /* @__PURE__ */ jsx14(StatusBadge, { status }),
-          offered ? /* @__PURE__ */ jsx14("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx14(
+          /* @__PURE__ */ jsx12("h3", { className: classes.heading, children: block.name }),
+          /* @__PURE__ */ jsx12("span", { className: "bc:text-xs bc:text-muted-foreground", children: entry?.name ?? block.registry_id }),
+          /* @__PURE__ */ jsx12(StatusBadge, { status }),
+          offered ? /* @__PURE__ */ jsx12("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx12(
             ActionsButton,
             {
               ref: actions,
@@ -13195,13 +13803,13 @@ var BlockCard = memo(function BlockCard2({ id: id2, block }) {
             }
           ) }) : null
         ] }),
-        inputs ? /* @__PURE__ */ jsx14(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        inputs ? /* @__PURE__ */ jsx12(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
         /* @__PURE__ */ jsxs10(
           "div",
           {
             className: `bc:min-w-0 ${sized ? "bc:flex bc:h-104 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
-              /* @__PURE__ */ jsx14(
+              /* @__PURE__ */ jsx12(
                 Mounted,
                 {
                   mount: mountOutput2,
@@ -13210,12 +13818,12 @@ var BlockCard = memo(function BlockCard2({ id: id2, block }) {
                   className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              sized ? /* @__PURE__ */ jsx14(Footer, { ...footer }) : null
+              sized ? /* @__PURE__ */ jsx12(Footer, { ...footer }) : null
             ]
           }
         ),
-        /* @__PURE__ */ jsx14(Pills, { ...footer }),
-        /* @__PURE__ */ jsx14(Banners, { ...footer })
+        /* @__PURE__ */ jsx12(Pills, { ...footer }),
+        /* @__PURE__ */ jsx12(Banners, { ...footer })
       ]
     }
   );
@@ -13224,7 +13832,7 @@ function StackGroup({ id: id2, stack, children }) {
   const { groups } = useFrontEnd();
   const collapsed = useSyncExternalStore3(groups.subscribe, () => groups.collapsed(id2));
   const color2 = stack.color ?? void 0;
-  return /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsx12(
     "section",
     {
       "aria-label": stack.name,
@@ -13238,8 +13846,8 @@ function StackGroup({ id: id2, stack, children }) {
             groups.collapse(id2, !expanded);
           },
           children: [
-            /* @__PURE__ */ jsx14(DisclosureHeader, { children: stack.name }),
-            /* @__PURE__ */ jsx14(DisclosurePanel, { children: /* @__PURE__ */ jsx14("div", { hidden: collapsed, children: /* @__PURE__ */ jsx14("div", { className: "bc:grid bc:gap-3 bc:pt-3", children }) }) })
+            /* @__PURE__ */ jsx12(DisclosureHeader, { children: stack.name }),
+            /* @__PURE__ */ jsx12(DisclosurePanel, { children: /* @__PURE__ */ jsx12("div", { hidden: collapsed, children: /* @__PURE__ */ jsx12("div", { className: "bc:grid bc:gap-3 bc:pt-3", children }) }) })
           ]
         }
       )
@@ -13263,7 +13871,7 @@ function StatusBadge({ status }) {
       "aria-busy": status.running,
       className: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border bc:px-2 bc:py-0.5 bc:text-xs bc:text-muted-foreground",
       children: [
-        /* @__PURE__ */ jsx14(
+        /* @__PURE__ */ jsx12(
           "span",
           {
             "aria-hidden": "true",
@@ -13303,27 +13911,31 @@ function stackBlocks(board, stack) {
 }
 
 // srcts/modules/basic/options.tsx
+init_card();
+init_react();
+init_ui2();
 import { useCallback as useCallback5 } from "react";
 
 // srcts/modules/basic/ui.tsx
+init_ui2();
 import { Button as Button8, Dialog as SdkDialog, Heading as Heading2, Modal as Modal2 } from "@blockr/ui";
-import { jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
+import { jsx as jsx13, jsxs as jsxs11 } from "react/jsx-runtime";
 function Dialog2({
   title,
   onClose,
   children
 }) {
-  return /* @__PURE__ */ jsx15(
+  return /* @__PURE__ */ jsx13(
     Modal2,
     {
       isOpen: true,
       onOpenChange: (open) => {
         if (!open) onClose();
       },
-      children: /* @__PURE__ */ jsx15(SdkDialog, { children: /* @__PURE__ */ jsxs11("div", { className: "bc:grid bc:gap-3", children: [
+      children: /* @__PURE__ */ jsx13(SdkDialog, { children: /* @__PURE__ */ jsxs11("div", { className: "bc:grid bc:gap-3", children: [
         /* @__PURE__ */ jsxs11("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
-          /* @__PURE__ */ jsx15(Heading2, { slot: "title", className: classes.heading, children: title }),
-          /* @__PURE__ */ jsx15(Button8, { variant: "secondary", onPress: onClose, children: "Close" })
+          /* @__PURE__ */ jsx13(Heading2, { slot: "title", className: classes.heading, children: title }),
+          /* @__PURE__ */ jsx13(Button8, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
         children
       ] }) })
@@ -13332,7 +13944,7 @@ function Dialog2({
 }
 
 // srcts/modules/basic/options.tsx
-import { jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
+import { jsx as jsx14, jsxs as jsxs12 } from "react/jsx-runtime";
 function OptionsDialog({ onClose }) {
   const { core } = useFrontEnd();
   const board = useBoard(core);
@@ -13343,21 +13955,24 @@ function OptionsDialog({ onClose }) {
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id2]);
   }
-  return /* @__PURE__ */ jsx16(Dialog2, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx16("p", { className: classes.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx16("div", { className: "bc:grid bc:divide-y bc:divide-border", children: [...categories].map(([category, ids2]) => /* @__PURE__ */ jsxs12("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
-    /* @__PURE__ */ jsx16("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-muted-foreground", children: category }),
-    ids2.map((id2) => /* @__PURE__ */ jsx16(OptionUi, { id: id2 }, id2))
+  return /* @__PURE__ */ jsx14(Dialog2, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx14("p", { className: classes.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx14("div", { className: "bc:grid bc:divide-y bc:divide-border", children: [...categories].map(([category, ids2]) => /* @__PURE__ */ jsxs12("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
+    /* @__PURE__ */ jsx14("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-muted-foreground", children: category }),
+    ids2.map((id2) => /* @__PURE__ */ jsx14(OptionUi, { id: id2 }, id2))
   ] }, category)) }) });
 }
 function OptionUi({ id: id2 }) {
   const { core } = useFrontEnd();
   const mount2 = useCallback5((el) => core.mountOption(el, id2), [core, id2]);
-  return /* @__PURE__ */ jsx16(Mounted, { mount: mount2 });
+  return /* @__PURE__ */ jsx14(Mounted, { mount: mount2 });
 }
 
 // srcts/modules/basic/plugins.tsx
+init_card();
+init_react();
+init_ui2();
 import { useCallback as useCallback6, useLayoutEffect as useLayoutEffect4, useRef as useRef5, useSyncExternalStore as useSyncExternalStore4 } from "react";
 import { Disclosure as Disclosure2, DisclosureHeader as DisclosureHeader2, DisclosurePanel as DisclosurePanel2 } from "@blockr/ui";
-import { jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
+import { jsx as jsx15, jsxs as jsxs13 } from "react/jsx-runtime";
 function createSections() {
   const collapsed = /* @__PURE__ */ new Set();
   const listeners = /* @__PURE__ */ new Set();
@@ -13390,12 +14005,12 @@ function Plugins() {
   const { core } = useFrontEnd();
   const shown2 = placed(core);
   if (shown2.length === 0) return null;
-  return /* @__PURE__ */ jsx17(
+  return /* @__PURE__ */ jsx15(
     "aside",
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx17(PluginSection, { id: id2, plugin }, id2))
+      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx15(PluginSection, { id: id2, plugin }, id2))
     }
   );
 }
@@ -13410,7 +14025,7 @@ function PluginSection({ id: id2, plugin }) {
     return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
   }, [inView2, id2]);
   const mount2 = useCallback6((el) => core.mountPlugin(el, id2), [core, id2]);
-  return /* @__PURE__ */ jsx17(
+  return /* @__PURE__ */ jsx15(
     "section",
     {
       "aria-label": plugin.name,
@@ -13425,12 +14040,12 @@ function PluginSection({ id: id2, plugin }) {
           children: [
             /* @__PURE__ */ jsxs13("div", { className: "bc:grid bc:min-w-0 bc:gap-3", children: [
               /* @__PURE__ */ jsxs13("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
-                /* @__PURE__ */ jsx17(DisclosureHeader2, { children: plugin.name }),
-                /* @__PURE__ */ jsx17(Pills, { ...pills, className: "" })
+                /* @__PURE__ */ jsx15(DisclosureHeader2, { children: plugin.name }),
+                /* @__PURE__ */ jsx15(Pills, { ...pills, className: "" })
               ] }),
-              /* @__PURE__ */ jsx17(Banners, { ...pills })
+              /* @__PURE__ */ jsx15(Banners, { ...pills })
             ] }),
-            /* @__PURE__ */ jsx17(DisclosurePanel2, { className: "bc:min-w-0", children: /* @__PURE__ */ jsx17("div", { ref, hidden: collapsed, className: "bc:min-w-0 bc:pt-3", children: /* @__PURE__ */ jsx17(Mounted, { mount: mount2, className: "bc:min-w-0" }) }) })
+            /* @__PURE__ */ jsx15(DisclosurePanel2, { className: "bc:min-w-0", children: /* @__PURE__ */ jsx15("div", { ref, hidden: collapsed, className: "bc:min-w-0 bc:pt-3", children: /* @__PURE__ */ jsx15(Mounted, { mount: mount2, className: "bc:min-w-0" }) }) })
           ]
         }
       )
@@ -13439,6 +14054,7 @@ function PluginSection({ id: id2, plugin }) {
 }
 
 // srcts/modules/basic/toasts.ts
+init_util2();
 import { ToastQueue } from "@blockr/ui";
 var SHOWN_FOR = 5e3;
 function createToasts(notifications, sectioned) {
@@ -13503,6 +14119,8 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
+init_ui2();
+init_util2();
 import { useEffect, useId as useId2, useReducer, useState as useState12 } from "react";
 import {
   Button as SdkButton,
@@ -13520,6 +14138,7 @@ import {
 } from "@blockr/ui";
 
 // srcts/modules/basic/storage.ts
+init_util2();
 var KINDS3 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
 function drawnControls(core) {
   const storage = core.plugins.storage();
@@ -13567,7 +14186,7 @@ function distinct(list, twice) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { Fragment as Fragment2, jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx16, jsxs as jsxs14 } from "react/jsx-runtime";
 function Toolbar({ board, showOptions }) {
   const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
@@ -13581,7 +14200,7 @@ function Toolbar({ board, showOptions }) {
     }
   }
   return /* @__PURE__ */ jsxs14("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border bc:pb-3", children: [
-    renaming ? /* @__PURE__ */ jsx18(
+    renaming ? /* @__PURE__ */ jsx16(
       NameField,
       {
         label: "Board name",
@@ -13593,8 +14212,8 @@ function Toolbar({ board, showOptions }) {
           setRenaming(false);
         }
       }
-    ) : /* @__PURE__ */ jsx18("h1", { className: "bc:m-0 bc:font-sans bc:text-lg bc:font-semibold", children: board.name }),
-    locked2 || renaming ? null : /* @__PURE__ */ jsx18(
+    ) : /* @__PURE__ */ jsx16("h1", { className: "bc:m-0 bc:font-sans bc:text-lg bc:font-semibold", children: board.name }),
+    locked2 || renaming ? null : /* @__PURE__ */ jsx16(
       SdkButton,
       {
         variant: "quiet",
@@ -13606,7 +14225,7 @@ function Toolbar({ board, showOptions }) {
       }
     ),
     /* @__PURE__ */ jsxs14(SdkToolbar, { "aria-label": "Board", className: "bc:ml-auto", children: [
-      /* @__PURE__ */ jsx18(
+      /* @__PURE__ */ jsx16(
         SdkButton,
         {
           variant: "secondary",
@@ -13616,8 +14235,8 @@ function Toolbar({ board, showOptions }) {
           children: "Options"
         }
       ),
-      /* @__PURE__ */ jsx18(Separator, { orientation: "vertical" }),
-      /* @__PURE__ */ jsx18(
+      /* @__PURE__ */ jsx16(Separator, { orientation: "vertical" }),
+      /* @__PURE__ */ jsx16(
         SdkButton,
         {
           variant: "secondary",
@@ -13629,7 +14248,7 @@ function Toolbar({ board, showOptions }) {
           children: "Undo"
         }
       ),
-      /* @__PURE__ */ jsx18(
+      /* @__PURE__ */ jsx16(
         SdkButton,
         {
           variant: "secondary",
@@ -13641,7 +14260,7 @@ function Toolbar({ board, showOptions }) {
           children: "Redo"
         }
       ),
-      /* @__PURE__ */ jsx18(StorageControls, {})
+      /* @__PURE__ */ jsx16(StorageControls, {})
     ] })
   ] });
 }
@@ -13665,25 +14284,25 @@ function StorageControls() {
   }, [core, problem]);
   if (drawn3 === void 0 || !drawn3.failed && drawn3.controls.length === 0) return null;
   return /* @__PURE__ */ jsxs14(Fragment2, { children: [
-    /* @__PURE__ */ jsx18(Separator, { orientation: "vertical" }),
-    drawn3.failed ? /* @__PURE__ */ jsx18("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-destructive-text", children: /* @__PURE__ */ jsx18(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn3.controls.map((control) => /* @__PURE__ */ jsx18(Control, { control }, control.id))
+    /* @__PURE__ */ jsx16(Separator, { orientation: "vertical" }),
+    drawn3.failed ? /* @__PURE__ */ jsx16("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-destructive-text", children: /* @__PURE__ */ jsx16(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn3.controls.map((control) => /* @__PURE__ */ jsx16(Control, { control }, control.id))
   ] });
 }
 function Control({ control }) {
   switch (control.kind) {
     case "button":
-      return /* @__PURE__ */ jsx18(StorageButton, { button: control });
+      return /* @__PURE__ */ jsx16(StorageButton, { button: control });
     case "menu":
-      return /* @__PURE__ */ jsx18(StorageMenu, { label: control.label, items: control.items });
+      return /* @__PURE__ */ jsx16(StorageMenu, { label: control.label, items: control.items });
     case "status":
-      return /* @__PURE__ */ jsx18("span", { role: "status", className: "bc:font-sans bc:text-sm bc:text-muted-foreground", children: /* @__PURE__ */ jsx18(Tipped, { tooltip: control.tooltip, children: control.text }) });
+      return /* @__PURE__ */ jsx16("span", { role: "status", className: "bc:font-sans bc:text-sm bc:text-muted-foreground", children: /* @__PURE__ */ jsx16(Tipped, { tooltip: control.tooltip, children: control.text }) });
   }
 }
 function StorageButton({ button }) {
   const { core } = useFrontEnd();
   const reason = useId2();
   const off = button.disabled === true;
-  const drawn3 = /* @__PURE__ */ jsx18(
+  const drawn3 = /* @__PURE__ */ jsx16(
     SdkButton,
     {
       variant: "secondary",
@@ -13700,19 +14319,19 @@ function StorageButton({ button }) {
   if (off) {
     return /* @__PURE__ */ jsxs14(Fragment2, { children: [
       drawn3,
-      /* @__PURE__ */ jsx18("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-muted-foreground", children: button.tooltip })
+      /* @__PURE__ */ jsx16("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-muted-foreground", children: button.tooltip })
     ] });
   }
   return /* @__PURE__ */ jsxs14(TooltipTrigger, { children: [
     drawn3,
-    /* @__PURE__ */ jsx18(Tooltip, { children: button.tooltip })
+    /* @__PURE__ */ jsx16(Tooltip, { children: button.tooltip })
   ] });
 }
 function Tipped({ tooltip, children }) {
-  if (tooltip === void 0) return /* @__PURE__ */ jsx18(Fragment2, { children });
+  if (tooltip === void 0) return /* @__PURE__ */ jsx16(Fragment2, { children });
   return /* @__PURE__ */ jsxs14(TooltipTrigger, { children: [
-    /* @__PURE__ */ jsx18(Focusable, { children: /* @__PURE__ */ jsx18("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded-sm bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-ring", children }) }),
-    /* @__PURE__ */ jsx18(Tooltip, { children: tooltip })
+    /* @__PURE__ */ jsx16(Focusable, { children: /* @__PURE__ */ jsx16("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded-sm bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-ring", children }) }),
+    /* @__PURE__ */ jsx16(Tooltip, { children: tooltip })
   ] });
 }
 function StorageMenu({ label, items }) {
@@ -13721,17 +14340,17 @@ function StorageMenu({ label, items }) {
   return /* @__PURE__ */ jsxs14(MenuTrigger, { placement: "bottom end", children: [
     /* @__PURE__ */ jsxs14(SdkButton, { variant: "secondary", children: [
       label,
-      /* @__PURE__ */ jsx18("span", { "aria-hidden": "true", children: "\u25BE" })
+      /* @__PURE__ */ jsx16("span", { "aria-hidden": "true", children: "\u25BE" })
     ] }),
-    /* @__PURE__ */ jsx18(Menu, { "aria-label": label, children: entries(items, core, mac) })
+    /* @__PURE__ */ jsx16(Menu, { "aria-label": label, children: entries(items, core, mac) })
   ] });
 }
 function entries(items, core, mac) {
   return items.map((item2) => {
     if (item2.kind === "menu") {
       return /* @__PURE__ */ jsxs14(SubmenuTrigger, { children: [
-        /* @__PURE__ */ jsx18(MenuItem, { id: item2.id, textValue: item2.label, children: item2.label }),
-        /* @__PURE__ */ jsx18(Menu, { "aria-label": item2.label, children: entries(item2.items, core, mac) })
+        /* @__PURE__ */ jsx16(MenuItem, { id: item2.id, textValue: item2.label, children: item2.label }),
+        /* @__PURE__ */ jsx16(Menu, { "aria-label": item2.label, children: entries(item2.items, core, mac) })
       ] }, item2.id);
     }
     const label = item2.kind === "button" ? item2.label : item2.text;
@@ -13746,9 +14365,9 @@ function entries(items, core, mac) {
           void runButton(core, item2);
         } : void 0,
         children: [
-          /* @__PURE__ */ jsx18(Text3, { slot: "label", children: label }),
-          item2.tooltip === void 0 ? null : /* @__PURE__ */ jsx18(Text3, { slot: "description", children: item2.tooltip }),
-          shortcut === void 0 ? null : /* @__PURE__ */ jsx18(Keyboard, { children: shortcut })
+          /* @__PURE__ */ jsx16(Text3, { slot: "label", children: label }),
+          item2.tooltip === void 0 ? null : /* @__PURE__ */ jsx16(Text3, { slot: "description", children: item2.tooltip }),
+          shortcut === void 0 ? null : /* @__PURE__ */ jsx16(Keyboard, { children: shortcut })
         ]
       },
       item2.id
@@ -13757,9 +14376,9 @@ function entries(items, core, mac) {
 }
 
 // srcts/modules/basic/board.tsx
-import { jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
+import { jsx as jsx17, jsxs as jsxs15 } from "react/jsx-runtime";
 function BasicBoard({ front }) {
-  return /* @__PURE__ */ jsx19(FrontEndContext, { value: front, children: /* @__PURE__ */ jsx19(Page, {}) });
+  return /* @__PURE__ */ jsx17(FrontEndContext, { value: front, children: /* @__PURE__ */ jsx17(Page, {}) });
 }
 function Page() {
   const { core } = useFrontEnd();
@@ -13772,10 +14391,10 @@ function Page() {
   const card = (id2) => {
     const block = board.blocks[id2];
     if (block === void 0) return null;
-    return /* @__PURE__ */ jsx19(BlockCard, { id: id2, block }, `block-${id2}`);
+    return /* @__PURE__ */ jsx17(BlockCard, { id: id2, block }, `block-${id2}`);
   };
   return /* @__PURE__ */ jsxs15("div", { className: `${classes.page} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`, children: [
-    /* @__PURE__ */ jsx19(
+    /* @__PURE__ */ jsx17(
       Toolbar,
       {
         board,
@@ -13785,25 +14404,25 @@ function Page() {
       }
     ),
     /* @__PURE__ */ jsxs15("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
-      /* @__PURE__ */ jsx19(Plugins, {}),
+      /* @__PURE__ */ jsx17(Plugins, {}),
       /* @__PURE__ */ jsxs15("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
-        items.length === 0 ? /* @__PURE__ */ jsx19("p", { className: classes.hint, children: "The board holds no blocks yet." }) : null,
+        items.length === 0 ? /* @__PURE__ */ jsx17("p", { className: classes.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item2) => {
           if ("block" in item2) return card(item2.block);
           const stack = board.stacks[item2.stack];
           if (stack === void 0) return null;
-          return /* @__PURE__ */ jsx19(StackGroup, { id: item2.stack, stack, children: item2.blocks.length === 0 ? /* @__PURE__ */ jsx19("p", { className: classes.hint, children: "The stack holds no blocks." }) : item2.blocks.map(card) }, `stack-${item2.stack}`);
+          return /* @__PURE__ */ jsx17(StackGroup, { id: item2.stack, stack, children: item2.blocks.length === 0 ? /* @__PURE__ */ jsx17("p", { className: classes.hint, children: "The stack holds no blocks." }) : item2.blocks.map(card) }, `stack-${item2.stack}`);
         })
       ] })
     ] }),
-    options ? /* @__PURE__ */ jsx19(OptionsDialog, { onClose: close }) : null,
-    /* @__PURE__ */ jsx19(Toasts, {})
+    options ? /* @__PURE__ */ jsx17(OptionsDialog, { onClose: close }) : null,
+    /* @__PURE__ */ jsx17(Toasts, {})
   ] });
 }
 function Toasts() {
   const { core, toasts } = useFrontEnd();
   const board = useBoard(core);
-  return /* @__PURE__ */ jsx19(ToastRegion, { queue: toasts.queue, children: ({ toast }) => /* @__PURE__ */ jsx19(ToastItem, { toast, title: concerned(toast.content.about, core, board) }) });
+  return /* @__PURE__ */ jsx17(ToastRegion, { queue: toasts.queue, children: ({ toast }) => /* @__PURE__ */ jsx17(ToastItem, { toast, title: concerned(toast.content.about, core, board) }) });
 }
 function ToastItem({ toast, title }) {
   const notification = toast.content;
@@ -13811,7 +14430,7 @@ function ToastItem({ toast, title }) {
   const mark = MARKS[severity];
   const pkg = sourcePackage(notification);
   return /* @__PURE__ */ jsxs15(Toast, { toast, "data-severity": severity, className: `bc:border-l-4 ${LEFT[severity]}`, children: [
-    /* @__PURE__ */ jsx19("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx19(SeverityIcon, { severity }) }),
+    /* @__PURE__ */ jsx17("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx17(SeverityIcon, { severity }) }),
     /* @__PURE__ */ jsxs15(ToastContent, { role: severity === "message" ? "status" : void 0, className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1", children: [
       /* @__PURE__ */ jsxs15(Text4, { slot: "title", elementType: "p", className: "bc:m-0 bc:text-xs bc:font-semibold", children: [
         title,
@@ -13820,8 +14439,8 @@ function ToastItem({ toast, title }) {
           pkg
         ] })
       ] }),
-      /* @__PURE__ */ jsx19(Text4, { slot: "description", elementType: "p", className: "bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap", children: notification.message }),
-      isReload(notification) ? /* @__PURE__ */ jsx19("div", { children: /* @__PURE__ */ jsx19(
+      /* @__PURE__ */ jsx17(Text4, { slot: "description", elementType: "p", className: "bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap", children: notification.message }),
+      isReload(notification) ? /* @__PURE__ */ jsx17("div", { children: /* @__PURE__ */ jsx17(
         Button9,
         {
           variant: "secondary",
@@ -13832,7 +14451,7 @@ function ToastItem({ toast, title }) {
         }
       ) }) : null
     ] }),
-    /* @__PURE__ */ jsx19(Button9, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx19("span", { "aria-hidden": "true", children: "\xD7" }) })
+    /* @__PURE__ */ jsx17(Button9, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx17("span", { "aria-hidden": "true", children: "\xD7" }) })
   ] });
 }
 var LEFT = {
@@ -13908,6 +14527,7 @@ function inView(el, view) {
 }
 
 // srcts/modules/basic/shortcuts.ts
+init_util2();
 function bindShortcuts(doc, core) {
   function onKey(event) {
     if (event.defaultPrevented || editable(event.target)) return;
@@ -13946,7 +14566,7 @@ function editable(target2) {
 }
 
 // srcts/modules/basic/index.tsx
-import { jsx as jsx20 } from "react/jsx-runtime";
+import { jsx as jsx18 } from "react/jsx-runtime";
 var basic_default = {
   frontend: { render, show }
 };
@@ -13958,7 +14578,7 @@ function render({ el, core }) {
   const front = { core, toasts, inView: shown2, sections: createSections(), groups: createSections() };
   const root = createRoot4(el);
   flushSync7(() => {
-    root.render(/* @__PURE__ */ jsx20(BasicBoard, { front }));
+    root.render(/* @__PURE__ */ jsx18(BasicBoard, { front }));
   });
   shown2.measure();
   const unbind = bindShortcuts(doc, core);
@@ -13992,14 +14612,25 @@ import { flushSync as flushSync8 } from "react-dom";
 import { createRoot as createRoot5 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
+init_card();
+init_react();
+init_ui2();
 import { useCallback as useCallback10, useMemo as useMemo6 } from "react";
 import { Button as Button11, Cell, Column, Disclosure as Disclosure3, DisclosureHeader as DisclosureHeader3, DisclosurePanel as DisclosurePanel3, Row, Table, TableBody, TableHeader } from "@blockr/ui";
 
+// srcts/modules/edit-board/blocks.tsx
+init_react();
+init_ui2();
+init_util2();
+
 // srcts/modules/edit-board/menus.tsx
+init_card();
+init_ui2();
+init_util2();
 import { useCallback as useCallback8, useContext as useContext2, useEffect as useEffect2, useLayoutEffect as useLayoutEffect5, useMemo as useMemo5, useRef as useRef6, useState as useState14 } from "react";
 import { Button as Button10 } from "@blockr/ui";
 import { TableStateContext } from "react-aria-components";
-import { jsx as jsx21, jsxs as jsxs16 } from "react/jsx-runtime";
+import { jsx as jsx19, jsxs as jsxs16 } from "react/jsx-runtime";
 function useMenus(core) {
   const [refusal2, setRefusal] = useState14(null);
   const [shown2, setShown] = useState14(() => /* @__PURE__ */ new Map());
@@ -14075,7 +14706,7 @@ function MenuButton({ menus, target: target2, place, label }) {
   useLayoutEffect5(() => {
     if (back) ref.current?.focus();
   }, [back]);
-  return /* @__PURE__ */ jsx21(
+  return /* @__PURE__ */ jsx19(
     ActionsButton,
     {
       ref,
@@ -14108,9 +14739,9 @@ function PlaceForm({ args, onClose }) {
     };
   }, [onClose]);
   return /* @__PURE__ */ jsxs16("div", { ref: box, role: "group", "aria-label": args.title, className: "bc:grid bc:gap-2 bc:py-1 bc:whitespace-normal", ...KEPT, children: [
-    /* @__PURE__ */ jsx21(TakesKeys, {}),
-    /* @__PURE__ */ jsx21(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" }),
-    /* @__PURE__ */ jsx21("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx21(Button10, { variant: "secondary", onPress: onClose, children: "Close" }) })
+    /* @__PURE__ */ jsx19(TakesKeys, {}),
+    /* @__PURE__ */ jsx19(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" }),
+    /* @__PURE__ */ jsx19("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx19(Button10, { variant: "secondary", onPress: onClose, children: "Close" }) })
   ] });
 }
 var KEPT = Object.fromEntries(
@@ -14175,7 +14806,7 @@ function without4(map, key2) {
 }
 
 // srcts/modules/edit-board/blocks.tsx
-import { Fragment as Fragment3, jsx as jsx22, jsxs as jsxs17 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx20, jsxs as jsxs17 } from "react/jsx-runtime";
 var ROLE = "add_block_role";
 var COLUMNS = [
   { id: "name", name: "Name", rowHeader: true },
@@ -14189,10 +14820,10 @@ function BlocksSection({ core }) {
   const count2 = blocks.length;
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs17(Section, { title: "Blocks", count: count2, children: [
-    adds ? /* @__PURE__ */ jsx22(Part, { title: "Add a block", children: /* @__PURE__ */ jsx22(Advanced, { core, role: ROLE, target: BOARD }) }) : null,
-    /* @__PURE__ */ jsx22(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx22("p", { className: classes.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs17(Fragment3, { children: [
-      /* @__PURE__ */ jsx22(TableSearch, { label: "Search blocks", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx22("p", { className: classes.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx22(
+    adds ? /* @__PURE__ */ jsx20(Part, { title: "Add a block", children: /* @__PURE__ */ jsx20(Advanced, { core, role: ROLE, target: BOARD }) }) : null,
+    /* @__PURE__ */ jsx20(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx20("p", { className: classes.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs17(Fragment3, { children: [
+      /* @__PURE__ */ jsx20(TableSearch, { label: "Search blocks", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx20("p", { className: classes.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx20(
         ObjectsTable,
         {
           core,
@@ -14205,15 +14836,15 @@ function BlocksSection({ core }) {
             text: block.name,
             menuLabel: `Actions of the block ${block.name}`,
             cells: [
-              { content: /* @__PURE__ */ jsx22("span", { className: "bc:font-medium", children: block.name }), className: WRAP },
+              { content: /* @__PURE__ */ jsx20("span", { className: "bc:font-medium", children: block.name }), className: WRAP },
               { content: block.id, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
               { content: block.cls, className: `${WRAP} bc:text-muted-foreground` }
             ]
           }))
         }
       ),
-      /* @__PURE__ */ jsx22(Refusal, { refusal: menus.refusal }),
-      /* @__PURE__ */ jsx22(Pager, { label: "Pages of blocks", view })
+      /* @__PURE__ */ jsx20(Refusal, { refusal: menus.refusal }),
+      /* @__PURE__ */ jsx20(Pager, { label: "Pages of blocks", view })
     ] }) })
   ] });
 }
@@ -14226,7 +14857,11 @@ function blockRows(board, registry) {
 }
 
 // srcts/modules/edit-board/links.tsx
-import { Fragment as Fragment4, jsx as jsx23, jsxs as jsxs18 } from "react/jsx-runtime";
+init_graph2();
+init_react();
+init_ui2();
+init_util2();
+import { Fragment as Fragment4, jsx as jsx21, jsxs as jsxs18 } from "react/jsx-runtime";
 var ROLE2 = "add_link_role";
 var COLUMNS2 = [
   { id: "from", name: "From", rowHeader: true },
@@ -14240,10 +14875,10 @@ function LinksSection({ core, locked: locked2 }) {
   const view = useTableView(links, (link) => [link.fromName, link.from, link.toName, link.to, link.input].join(" "));
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs18(Section, { title: "Links", count: links.length, children: [
-    locked2 ? null : /* @__PURE__ */ jsx23(Part, { title: "Add a link", children: adds ? /* @__PURE__ */ jsx23(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx23("p", { className: classes.hint, children: two ? "No new link can join two blocks of the board." : "A link joins two blocks, so the board needs two blocks first." }) }),
-    /* @__PURE__ */ jsx23(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx23("p", { className: classes.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs18(Fragment4, { children: [
-      /* @__PURE__ */ jsx23(TableSearch, { label: "Search links", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx23("p", { className: classes.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx23(
+    locked2 ? null : /* @__PURE__ */ jsx21(Part, { title: "Add a link", children: adds ? /* @__PURE__ */ jsx21(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx21("p", { className: classes.hint, children: two ? "No new link can join two blocks of the board." : "A link joins two blocks, so the board needs two blocks first." }) }),
+    /* @__PURE__ */ jsx21(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx21("p", { className: classes.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs18(Fragment4, { children: [
+      /* @__PURE__ */ jsx21(TableSearch, { label: "Search links", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx21("p", { className: classes.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx21(
         ObjectsTable,
         {
           core,
@@ -14256,18 +14891,18 @@ function LinksSection({ core, locked: locked2 }) {
             text: `${link.fromName} \u2192 ${link.toName}`,
             menuLabel: `Actions of the link from ${link.fromName} to ${link.toName}`,
             cells: [
-              { content: /* @__PURE__ */ jsx23(BlockLabel, { id: link.from, name: link.fromName }), className: WRAP },
-              { content: /* @__PURE__ */ jsx23(BlockLabel, { id: link.to, name: link.toName }), className: WRAP },
+              { content: /* @__PURE__ */ jsx21(BlockLabel, { id: link.from, name: link.fromName }), className: WRAP },
+              { content: /* @__PURE__ */ jsx21(BlockLabel, { id: link.to, name: link.toName }), className: WRAP },
               {
-                content: link.place === null ? /* @__PURE__ */ jsx23("span", { className: "bc:font-mono bc:text-xs", children: link.input }) : /* @__PURE__ */ jsx23(VariadicInput2, { input: link.input, place: link.place }),
+                content: link.place === null ? /* @__PURE__ */ jsx21("span", { className: "bc:font-mono bc:text-xs", children: link.input }) : /* @__PURE__ */ jsx21(VariadicInput2, { input: link.input, place: link.place }),
                 className: WRAP
               }
             ]
           }))
         }
       ),
-      /* @__PURE__ */ jsx23(Refusal, { refusal: menus.refusal }),
-      /* @__PURE__ */ jsx23(Pager, { label: "Pages of links", view })
+      /* @__PURE__ */ jsx21(Refusal, { refusal: menus.refusal }),
+      /* @__PURE__ */ jsx21(Pager, { label: "Pages of links", view })
     ] }) })
   ] });
 }
@@ -14285,13 +14920,13 @@ function linkRows(board, registry) {
 }
 function BlockLabel({ id: id2, name: name2 }) {
   return /* @__PURE__ */ jsxs18("span", { className: "bc:grid", children: [
-    /* @__PURE__ */ jsx23("span", { children: name2 }),
-    /* @__PURE__ */ jsx23("span", { className: "bc:font-mono bc:text-xs bc:text-muted-foreground bc:break-all", children: id2 })
+    /* @__PURE__ */ jsx21("span", { children: name2 }),
+    /* @__PURE__ */ jsx21("span", { className: "bc:font-mono bc:text-xs bc:text-muted-foreground bc:break-all", children: id2 })
   ] });
 }
 function VariadicInput2({ input: input2, place }) {
   return /* @__PURE__ */ jsxs18("span", { className: "bc:grid", children: [
-    input2 === "" ? /* @__PURE__ */ jsx23("span", { className: "bc:text-muted-foreground", children: "No name" }) : /* @__PURE__ */ jsx23("span", { className: "bc:font-mono bc:text-xs", children: input2 }),
+    input2 === "" ? /* @__PURE__ */ jsx21("span", { className: "bc:text-muted-foreground", children: "No name" }) : /* @__PURE__ */ jsx21("span", { className: "bc:font-mono bc:text-xs", children: input2 }),
     /* @__PURE__ */ jsxs18("span", { className: "bc:text-xs bc:text-muted-foreground", children: [
       "Position ",
       place
@@ -14337,8 +14972,11 @@ function idOf2(object2, kind) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
+init_react();
+init_ui2();
+init_util2();
 import { ColorSwatch } from "@blockr/ui";
-import { Fragment as Fragment5, jsx as jsx24, jsxs as jsxs19 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx22, jsxs as jsxs19 } from "react/jsx-runtime";
 var ROLE3 = "add_stack_role";
 var COLUMNS3 = [
   { id: "name", name: "Name", rowHeader: true },
@@ -14350,10 +14988,10 @@ function StacksSection({ core, locked: locked2 }) {
   const view = useTableView(stacks, (stack) => [stack.name, stack.id, ...stack.blocks.map((block) => block.name)].join(" "));
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs19(Section, { title: "Stacks", count: stacks.length, children: [
-    locked2 || !adds ? null : /* @__PURE__ */ jsx24(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx24(Advanced, { core, role: ROLE3, target: BOARD }) }),
-    /* @__PURE__ */ jsx24(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx24("p", { className: classes.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs19(Fragment5, { children: [
-      /* @__PURE__ */ jsx24(TableSearch, { label: "Search stacks", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx24("p", { className: classes.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx24(
+    locked2 || !adds ? null : /* @__PURE__ */ jsx22(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx22(Advanced, { core, role: ROLE3, target: BOARD }) }),
+    /* @__PURE__ */ jsx22(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx22("p", { className: classes.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs19(Fragment5, { children: [
+      /* @__PURE__ */ jsx22(TableSearch, { label: "Search stacks", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx22("p", { className: classes.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx22(
         ObjectsTable,
         {
           core,
@@ -14368,18 +15006,18 @@ function StacksSection({ core, locked: locked2 }) {
             cells: [
               {
                 content: /* @__PURE__ */ jsxs19("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
-                  /* @__PURE__ */ jsx24(Swatch, { color: stack.color }),
-                  /* @__PURE__ */ jsx24("span", { className: "bc:font-medium", children: stack.name })
+                  /* @__PURE__ */ jsx22(Swatch, { color: stack.color }),
+                  /* @__PURE__ */ jsx22("span", { className: "bc:font-medium", children: stack.name })
                 ] }),
                 className: WRAP
               },
-              { content: /* @__PURE__ */ jsx24(StackBlocks, { blocks: stack.blocks }), className: WRAP }
+              { content: /* @__PURE__ */ jsx22(StackBlocks, { blocks: stack.blocks }), className: WRAP }
             ]
           }))
         }
       ),
-      /* @__PURE__ */ jsx24(Refusal, { refusal: menus.refusal }),
-      /* @__PURE__ */ jsx24(Pager, { label: "Pages of stacks", view })
+      /* @__PURE__ */ jsx22(Refusal, { refusal: menus.refusal }),
+      /* @__PURE__ */ jsx22(Pager, { label: "Pages of stacks", view })
     ] }) })
   ] });
 }
@@ -14393,13 +15031,13 @@ function stackRows(board) {
 }
 var SHOWN_BLOCKS = 6;
 function StackBlocks({ blocks }) {
-  if (blocks.length === 0) return /* @__PURE__ */ jsx24("span", { className: "bc:text-muted-foreground", children: "No blocks" });
+  if (blocks.length === 0) return /* @__PURE__ */ jsx22("span", { className: "bc:text-muted-foreground", children: "No blocks" });
   const rest = blocks.length - SHOWN_BLOCKS;
   return /* @__PURE__ */ jsxs19("ul", { "aria-label": "Blocks", className: "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0", children: [
     blocks.slice(0, SHOWN_BLOCKS).map((block) => /* @__PURE__ */ jsxs19("li", { className: "bc:rounded-sm bc:border bc:border-border bc:px-1 bc:text-xs", children: [
       block.name,
       " ",
-      /* @__PURE__ */ jsx24("span", { className: "bc:font-mono bc:text-muted-foreground", children: block.id })
+      /* @__PURE__ */ jsx22("span", { className: "bc:font-mono bc:text-muted-foreground", children: block.id })
     ] }, block.id)),
     rest > 0 ? /* @__PURE__ */ jsxs19("li", { className: "bc:px-1 bc:text-xs bc:text-muted-foreground", children: [
       "and ",
@@ -14409,20 +15047,20 @@ function StackBlocks({ blocks }) {
   ] });
 }
 function Swatch({ color: color2 }) {
-  return color2 === null ? /* @__PURE__ */ jsx24("span", { "aria-hidden": "true", className: RING }) : /* @__PURE__ */ jsx24(ColorSwatch, { color: color2, className: DOT });
+  return color2 === null ? /* @__PURE__ */ jsx22("span", { "aria-hidden": "true", className: RING }) : /* @__PURE__ */ jsx22(ColorSwatch, { color: color2, className: DOT });
 }
 var RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border";
 var DOT = "bc:size-3! bc:rounded-full!";
 
 // srcts/modules/edit-board/board.tsx
-import { jsx as jsx25, jsxs as jsxs20 } from "react/jsx-runtime";
+import { jsx as jsx23, jsxs as jsxs20 } from "react/jsx-runtime";
 function EditBoard({ core }) {
   const locked2 = core.lock.board;
   return /* @__PURE__ */ jsxs20("div", { className: "bc:grid bc:gap-3 bc:font-sans", children: [
-    /* @__PURE__ */ jsx25(SelectionBar, { core }),
-    locked2 ? null : /* @__PURE__ */ jsx25(BlocksSection, { core }),
-    /* @__PURE__ */ jsx25(LinksSection, { core, locked: locked2 }),
-    /* @__PURE__ */ jsx25(StacksSection, { core, locked: locked2 })
+    /* @__PURE__ */ jsx23(SelectionBar, { core }),
+    locked2 ? null : /* @__PURE__ */ jsx23(BlocksSection, { core }),
+    /* @__PURE__ */ jsx23(LinksSection, { core, locked: locked2 }),
+    /* @__PURE__ */ jsx23(StacksSection, { core, locked: locked2 })
   ] });
 }
 var SELECTION = "selection";
@@ -14440,8 +15078,8 @@ function SelectionBar({ core }) {
         " selected"
       ] }),
       /* @__PURE__ */ jsxs20("span", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: [
-        offered ? /* @__PURE__ */ jsx25(MenuButton, { menus, target: target2, place: SELECTION, label: "Actions of the selection" }) : null,
-        /* @__PURE__ */ jsx25(
+        offered ? /* @__PURE__ */ jsx23(MenuButton, { menus, target: target2, place: SELECTION, label: "Actions of the selection" }) : null,
+        /* @__PURE__ */ jsx23(
           Button11,
           {
             variant: "quiet",
@@ -14453,7 +15091,7 @@ function SelectionBar({ core }) {
         )
       ] })
     ] }),
-    form === void 0 ? null : /* @__PURE__ */ jsx25(
+    form === void 0 ? null : /* @__PURE__ */ jsx23(
       PlaceForm,
       {
         args: form,
@@ -14462,21 +15100,21 @@ function SelectionBar({ core }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx25(Refusal, { refusal: menus.refusal })
+    /* @__PURE__ */ jsx23(Refusal, { refusal: menus.refusal })
   ] });
 }
 function Section({ title, count: count2, children }) {
-  return /* @__PURE__ */ jsx25("section", { "aria-label": title, className: "bc:rounded-md bc:border bc:border-border", children: /* @__PURE__ */ jsxs20(Disclosure3, { defaultExpanded: true, children: [
+  return /* @__PURE__ */ jsx23("section", { "aria-label": title, className: "bc:rounded-md bc:border bc:border-border", children: /* @__PURE__ */ jsxs20(Disclosure3, { defaultExpanded: true, children: [
     /* @__PURE__ */ jsxs20(DisclosureHeader3, { className: "bc:text-sm bc:font-semibold bc:[&>button]:gap-2 bc:[&>button]:px-3 bc:[&>button]:py-2", children: [
       title,
-      /* @__PURE__ */ jsx25("span", { className: "bc:rounded-full bc:border bc:border-border bc:px-1.5 bc:text-xs bc:font-normal bc:text-muted-foreground", children: count2 })
+      /* @__PURE__ */ jsx23("span", { className: "bc:rounded-full bc:border bc:border-border bc:px-1.5 bc:text-xs bc:font-normal bc:text-muted-foreground", children: count2 })
     ] }),
-    /* @__PURE__ */ jsx25(DisclosurePanel3, { children: /* @__PURE__ */ jsx25("div", { className: "bc:grid bc:gap-4 bc:border-t bc:border-border bc:p-3", children }) })
+    /* @__PURE__ */ jsx23(DisclosurePanel3, { children: /* @__PURE__ */ jsx23("div", { className: "bc:grid bc:gap-4 bc:border-t bc:border-border bc:p-3", children }) })
   ] }) });
 }
 function Part({ title, children }) {
   return /* @__PURE__ */ jsxs20("div", { role: "group", "aria-label": title, className: "bc:grid bc:gap-2", children: [
-    /* @__PURE__ */ jsx25("h4", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-muted-foreground", children: title }),
+    /* @__PURE__ */ jsx23("h4", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-muted-foreground", children: title }),
     children
   ] });
 }
@@ -14510,17 +15148,17 @@ function ObjectsTable({
       },
       children: [
         /* @__PURE__ */ jsxs20(TableHeader, { children: [
-          columns.map((column) => /* @__PURE__ */ jsx25(Column, { id: column.id, isRowHeader: column.rowHeader === true, children: column.name }, column.id)),
-          actions ? /* @__PURE__ */ jsx25(Column, { id: "actions", textValue: "Actions", className: "bc:w-px", children: /* @__PURE__ */ jsx25("span", { className: "bc:sr-only", children: "Actions" }) }) : null
+          columns.map((column) => /* @__PURE__ */ jsx23(Column, { id: column.id, isRowHeader: column.rowHeader === true, children: column.name }, column.id)),
+          actions ? /* @__PURE__ */ jsx23(Column, { id: "actions", textValue: "Actions", className: "bc:w-px", children: /* @__PURE__ */ jsx23("span", { className: "bc:sr-only", children: "Actions" }) }) : null
         ] }),
-        /* @__PURE__ */ jsx25(TableBody, { children: rows.map((row) => {
+        /* @__PURE__ */ jsx23(TableBody, { children: rows.map((row) => {
           const form = menus.shown.get(row.id);
-          return /* @__PURE__ */ jsx25(Row, { id: row.id, textValue: row.text, children: form === void 0 ? [
-            ...row.cells.map(({ content, className }, i) => /* @__PURE__ */ jsx25(Cell, { className, children: content }, i)),
+          return /* @__PURE__ */ jsx23(Row, { id: row.id, textValue: row.text, children: form === void 0 ? [
+            ...row.cells.map(({ content, className }, i) => /* @__PURE__ */ jsx23(Cell, { className, children: content }, i)),
             ...actions ? [
-              /* @__PURE__ */ jsx25(Cell, { className: "bc:text-right", children: offered.includes(row.id) ? /* @__PURE__ */ jsx25(MenuButton, { menus, target: objectOf(kind, row.id), place: row.id, label: row.menuLabel }) : null }, "actions")
+              /* @__PURE__ */ jsx23(Cell, { className: "bc:text-right", children: offered.includes(row.id) ? /* @__PURE__ */ jsx23(MenuButton, { menus, target: objectOf(kind, row.id), place: row.id, label: row.menuLabel }) : null }, "actions")
             ] : []
-          ] : /* @__PURE__ */ jsx25(Cell, { colSpan: span, className: WRAP, children: /* @__PURE__ */ jsx25(
+          ] : /* @__PURE__ */ jsx23(Cell, { colSpan: span, className: WRAP, children: /* @__PURE__ */ jsx23(
             PlaceForm,
             {
               args: form,
@@ -14541,17 +15179,17 @@ function offers(core, role, target2) {
 function Advanced({ core, role, target: target2 }) {
   const key2 = JSON.stringify(target2);
   const mount2 = useCallback10((el) => core.boardActions.mountAdvanced(el, role, JSON.parse(key2)), [core, role, key2]);
-  return /* @__PURE__ */ jsx25(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" });
+  return /* @__PURE__ */ jsx23(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" });
 }
 
 // srcts/modules/edit-board/index.tsx
-import { jsx as jsx26 } from "react/jsx-runtime";
+import { jsx as jsx24 } from "react/jsx-runtime";
 var edit_board_default = {
   ui: {
     render({ el, core }) {
       const root = createRoot5(el);
       flushSync8(() => {
-        root.render(/* @__PURE__ */ jsx26(EditBoard, { core }));
+        root.render(/* @__PURE__ */ jsx24(EditBoard, { core }));
       });
       return () => {
         root.unmount();
@@ -14561,6 +15199,7 @@ var edit_board_default = {
 };
 
 // srcts/storage/storage.ts
+init_util2();
 function coreStorage(doc) {
   return {
     controls({ core, plugin }) {
@@ -14651,6 +15290,9 @@ var file_storage_default = {
   storage: coreStorage()
 };
 
+// srcts/options/options.ts
+init_util2();
+
 // srcts/options/schemas.ts
 var optionSchemas = {
   n_rows: {
@@ -14666,22 +15308,6 @@ var optionSchemas = {
   }
 };
 
-// srcts/options/ui.tsx
-import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/ui";
-import { jsx as jsx27 } from "react/jsx-runtime";
-function numberUi(label, min) {
-  function NumberUi({ host }) {
-    return /* @__PURE__ */ jsx27(NumberField, { bound: useValue(host), label, minValue: min, step: 1 });
-  }
-  return reactModule(NumberUi);
-}
-function toggleButtonGroupUi(label, items) {
-  function ToggleButtonGroupUi({ host }) {
-    return /* @__PURE__ */ jsx27(ToggleButtonGroup, { bound: useValue(host), label, disallowEmptySelection: true, children: items.map((item2) => /* @__PURE__ */ jsx27(ToggleButton, { id: item2.id, children: item2.name }, item2.id)) });
-  }
-  return reactModule(ToggleButtonGroupUi);
-}
-
 // srcts/options/options.ts
 var nRows = {
   label: "Preview rows",
@@ -14693,7 +15319,7 @@ var nRows = {
     if (value2 === void 0) return 10;
     return checked3("n_rows", takesRows, value2, typeof value2 === "string" ? asNumber(value2) : value2);
   },
-  ui: numberUi("Preview rows", optionSchemas.n_rows.minimum)
+  ui: loadedModule(async () => (await Promise.resolve().then(() => (init_ui3(), ui_exports))).numberUi("Preview rows", optionSchemas.n_rows.minimum))
 };
 var darkMode = {
   label: "Light/dark mode",
@@ -14706,10 +15332,12 @@ var darkMode = {
     if (typeof logical === "boolean") return logical ? "dark" : "light";
     return checked3("dark_mode", takesTheme, value2);
   },
-  ui: toggleButtonGroupUi("Light/dark mode", [
-    { id: "light", name: "Light" },
-    { id: "dark", name: "Dark" }
-  ]),
+  ui: loadedModule(
+    async () => (await Promise.resolve().then(() => (init_ui3(), ui_exports))).toggleButtonGroupUi("Light/dark mode", [
+      { id: "light", name: "Light" },
+      { id: "dark", name: "Dark" }
+    ])
+  ),
   onChange(value2) {
     setTheme(value2);
   }
@@ -14735,6 +15363,9 @@ function takesTheme(value2) {
   const allowed = optionSchemas.dark_mode.enum;
   return allowed.includes(value2);
 }
+
+// srcts/stubs/core.ts
+init_util2();
 
 // srcts/stubs/advanced.ts
 function stubDialogs() {
@@ -14768,6 +15399,7 @@ function stubDialogs() {
 }
 
 // srcts/stubs/menu.ts
+init_util2();
 function stubMenus() {
   let open;
   const driven = /* @__PURE__ */ new WeakMap();
@@ -15925,6 +16557,8 @@ function failed2(id2, phase, message, before = []) {
 }
 
 // srcts/stubs/menu-module.ts
+init_log2();
+init_util2();
 function menuModuleTests(exports) {
   return TESTS.map(({ name: name2, check: check2 }) => ({ name: name2, run: () => running2(exports, check2) }));
 }

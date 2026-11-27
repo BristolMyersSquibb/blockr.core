@@ -56,3 +56,4 @@ export interface Advanced {
     mount(el: HTMLElement, action: BoardAction, target: Target, picked: Json | undefined): () => void;
 }
 export declare function createAdvanced(parts: AdvancedParts): Advanced;
+export declare const showDialog: ShowDialog;

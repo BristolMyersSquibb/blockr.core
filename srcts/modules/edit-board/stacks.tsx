@@ -27,7 +27,8 @@ import { ColorSwatch } from "@blockr/ui";
 import { useBoard } from "../../react/index.ts";
 import type { BlockId, Board, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { blockName, classes, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
+import { classes, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
+import { blockName } from "../../util/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
 

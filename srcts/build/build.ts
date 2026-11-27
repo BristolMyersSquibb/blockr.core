@@ -4,10 +4,12 @@
 // - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js.
 // - A module, srcts/modules/<name>/index.ts or index.tsx, is bundled into
 //   <name>.js on its own, by the build preset of ./preset.ts.
-// - Core's React SDK, srcts/react, its binding, srcts/binding, and its
-//   controls, srcts/controls, are bundled into files of their own,
-//   blockr-core-react.js, blockr-core-binding.js and blockr-core-controls.js,
-//   and so is its OpenTelemetry module, srcts/otel, into blockr-core-otel.js.
+// - Core's React SDK, srcts/react, the components that core draws,
+//   srcts/components, its binding, srcts/binding, and its controls,
+//   srcts/controls, are bundled into files of their own, blockr-core-react.js,
+//   blockr-core-components.js, blockr-core-binding.js and
+//   blockr-core-controls.js, and so is its OpenTelemetry module, srcts/otel,
+//   into blockr-core-otel.js.
 // - The parts of OpenTelemetry's SDK that the OpenTelemetry module uses, which
 //   srcts/otel/sdk.ts names, are bundled, minified, into a file of their own,
 //   opentelemetry-<hash>.js, which the module imports by that name, so that
@@ -38,6 +40,21 @@
 //   package's modules.
 //   The runtime leaves its import of the OpenTelemetry module an import as
 //   well, so that a page loads the module only where it imports it.
+// - A source in srcts that one of these files imports with import() is
+//   bundled into a file of its own beside the file, as that file is bundled,
+//   and the file imports it by that file's name, as it loads it.
+//   The name is the source's path in srcts and a hash of the content, as
+//   page-card-3f2a9c1d.js for srcts/page/card.tsx, since R serves a file
+//   beside a module at its path, and no browser should run an old copy from
+//   its cache.
+//   So a page loads that code, and what the code imports up front, such as
+//   blockr.ui's components, only as the code first runs, as core's runtime
+//   loads the card of a block that serve() serves alone as it first draws it.
+//   Otherwise esbuild would put the code into the file that imports it, and
+//   the code's imports would load up front with that file
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.4#the-bundle).
+//   The runtime's import of the OpenTelemetry module is the exception, which
+//   it imports by its name, as above.
 // - What each file imports up front, the static imports of `@blockr/ui/build`,
 //   goes into preload.json.
 //   R names those files in the page's head, so that the browser fetches them at
@@ -66,12 +83,13 @@
 // - The types that modules are written against, srcts/index.ts, and the stubs
 //   of the hosts, srcts/stubs/index.ts, go into inst/types, which a package's
 //   build resolves as `@blockr/core`, and so do core's React SDK, srcts/react,
-//   its binding, srcts/binding, and the build preset, srcts/build, each as the
-//   export of its name, such as `@blockr/core/react`: their declarations, the
-//   SDK and the binding bundled for a package's tests, whose build leaves its
-//   imports of them to the page's import map, the preset bundled for a
-//   package's build, with the preset of blockr.ui left an import, the stubs
-//   bundled for a test runner, and the package.json that names them.
+//   the components that core draws, srcts/components, its binding,
+//   srcts/binding, and the build preset, srcts/build, each as the export of its
+//   name, such as `@blockr/core/react`: their declarations, the SDK, the
+//   components and the binding bundled for a package's tests, whose build
+//   leaves its imports of them to the page's import map, the preset bundled
+//   for a package's build, with the preset of blockr.ui left an import, the
+//   stubs bundled for a test runner, and the package.json that names them.
 //   That package.json names React, React Aria's components and
 //   OpenTelemetry's API as its peers.
 //   The bundles leave their imports of blockr.ui an import, which a package
@@ -212,13 +230,19 @@ async function vendored(
   }
 
   const text = result.outputFiles[0]?.text ?? "";
-  const file = hashed ? `${name}-${createHash("sha256").update(text).digest("hex").slice(0, 8)}.js` : `${name}.js`;
+  const file = hashed ? hashedFile(name, text) : `${name}.js`;
   await writeFile(join(out, file), text);
   return {
     file,
     imports: externalImports(result.metafile),
     sources: [...licensedSources(result.metafile, repo).values()].flat(),
   };
+}
+
+// The name of a file that holds the code given, with a hash of the code, as
+// vendor-3f2a9c1d.js, which changes whenever the code does.
+function hashedFile(name: string, code: string): string {
+  return `${name}-${createHash("sha256").update(code).digest("hex").slice(0, 8)}.js`;
 }
 
 // The imports that the files of a build leave imports, by their specifiers.
@@ -294,12 +318,13 @@ const LIBRARIES = [
   ["@blockr/core/react", "react"],
   ["@blockr/core/binding", "binding"],
   ["@blockr/core/controls", "controls"],
+  ["@blockr/core/components", "components"],
   ["@blockr/core/otel", "otel"],
 ] as const;
 
-// Maps the imports in core's sources of core's React SDK, its binding and its
-// controls, from their sources in srcts, to their names in the import map,
-// which the preset leaves imports.
+// Maps the imports in core's sources of core's React SDK, its components, its
+// binding and its controls, from their sources in srcts, to their names in the
+// import map, which the preset leaves imports.
 // The build of a library bundles the library's own sources, which `own` names.
 function sourceImports(src: string, own?: Import): esbuild.Plugin {
   const libraries: readonly (readonly [Import, string])[] = LIBRARIES;
@@ -315,6 +340,84 @@ function sourceImports(src: string, own?: Import): esbuild.Plugin {
         return await build.resolve(name, { kind: args.kind, resolveDir: args.resolveDir });
       });
     },
+  };
+}
+
+// Bundles each source in srcts that one of core's files imports with import()
+// into a file of its own, as the header describes. It gives these:
+// - The plugin that plugin() makes, which leaves each such import an import
+//   of the file that holds the source, by the file's name.
+// - The metafile of each file that it wrote, which metafiles() gives.
+// The build of such a file runs the plugins that `plugins` gives, so that the
+// file imports React, blockr.ui, core's libraries and core's vendor file as
+// the file that imports it does.
+// Those plugins hold this one too, so a source that the file imports with
+// import() gets a file of its own in turn.
+// Each source gets one file, however many files import it.
+// Each build knows the chain of sources whose builds led to it. So a source
+// that imports itself with import(), through other sources, fails the build,
+// where the builds would otherwise never end.
+interface Apart {
+  plugin(chain: readonly string[]): esbuild.Plugin;
+  metafiles(): readonly esbuild.Metafile[];
+}
+
+function apart(
+  root: string,
+  options: esbuild.BuildOptions & { readonly outdir: string; readonly metafile: true },
+  plugins: (chain: readonly string[]) => esbuild.Plugin[],
+): Apart {
+  const src = join(root, "srcts");
+  const files = new Map<string, Promise<string>>();
+  const metafiles: esbuild.Metafile[] = [];
+
+  async function write(source: string, chain: readonly string[]): Promise<string> {
+    const name = relative(src, source)
+      .replace(/(\/index)?\.tsx?$/, "")
+      .replaceAll("/", "-");
+    const result = await esbuild.build({
+      ...options,
+      plugins: plugins(chain),
+      entryPoints: [{ in: source, out: name }],
+      write: false,
+    });
+    if (result.warnings.length > 0) {
+      throw new Error("esbuild warned, as printed above");
+    }
+    const [output, ...others] = result.outputFiles;
+    const [built] = Object.values(result.metafile.outputs);
+    if (output === undefined || built === undefined || others.length > 0) {
+      throw new Error(`The build of ${relative(root, source)}, which core's code imports with import(), wrote other files than one module.`);
+    }
+    const file = hashedFile(name, output.text);
+    await writeFile(join(options.outdir, file), output.text);
+    metafiles.push({ inputs: result.metafile.inputs, outputs: { [relative(root, join(options.outdir, file))]: built } });
+    return file;
+  }
+
+  return {
+    plugin: (chain) => ({
+      name: "blockr.core-apart",
+      setup(build) {
+        build.onResolve({ filter: /^\.\.?\// }, async (args) => {
+          if (args.kind !== "dynamic-import") return undefined;
+          const source = resolve(args.resolveDir, args.path);
+          if (relative(src, source).startsWith("..")) return undefined;
+          if (chain.includes(source)) {
+            throw new Error(
+              `${relative(root, source)} imports itself with import(), through ${listing(chain.map((file) => relative(root, file)))}, so core's build would bundle it apart without end.`,
+            );
+          }
+          let file = files.get(source);
+          if (file === undefined) {
+            file = write(source, [...chain, source]);
+            files.set(source, file);
+          }
+          return { path: `./${await file}`, external: true };
+        });
+      },
+    }),
+    metafiles: () => metafiles,
   };
 }
 
@@ -383,7 +486,14 @@ export async function build(root: string): Promise<string[]> {
     metafile: true,
   } satisfies esbuild.BuildOptions;
   const vendor = await vendorBundle(out);
-  const plugins = (own?: Import) => [vendorImports(vendor.file), sourceImports(src, own), ...preset.plugins, vendorCheck];
+  const plugins = (own?: Import, chain: readonly string[] = []) => [
+    vendorImports(vendor.file),
+    sourceImports(src, own),
+    apartFiles.plugin(chain),
+    ...preset.plugins,
+    vendorCheck,
+  ];
+  const apartFiles = apart(root, options, (chain) => plugins(undefined, chain));
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
   const otel = await otelSdk(src, out);
   const sdk = otel?.file;
@@ -418,9 +528,12 @@ export async function build(root: string): Promise<string[]> {
     throw new Error("esbuild warned, as printed above");
   }
 
-  const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
+  // The metafiles of every file that the builds above wrote, those that they
+  // bundled apart among them.
+  const metafiles = [...results.map((result) => result.metafile), ...apartFiles.metafiles()];
+  const written = metafiles.flatMap((metafile) => Object.keys(metafile.outputs));
   // What each file holds from other projects, by the file's path.
-  const bundled = new Map(results.flatMap((result) => [...licensedSources(result.metafile, root)]));
+  const bundled = new Map(metafiles.flatMap((metafile) => [...licensedSources(metafile, root)]));
   written.push(relative(root, join(out, vendor.file)));
   bundled.set(join(out, vendor.file), vendor.sources);
   if (otel !== undefined) {
@@ -429,7 +542,7 @@ export async function build(root: string): Promise<string[]> {
   }
   // OpenTelemetry's API, where core's runtime, a module, a library or the
   // bundle of the SDK imports it.
-  if ([...results.flatMap((result) => externalImports(result.metafile)), ...(otel?.imports ?? [])].includes(OTEL_API)) {
+  if ([...metafiles.flatMap(externalImports), ...(otel?.imports ?? [])].includes(OTEL_API)) {
     const api = await otelApi(out);
     written.push(relative(root, join(out, api.file)));
     bundled.set(join(out, api.file), api.sources);
@@ -451,7 +564,7 @@ export async function build(root: string): Promise<string[]> {
   // SDK imports, its API.
   const preload = join(out, "preload.json");
   const imported: Record<string, readonly string[]> = {
-    ...staticImports(results.map((result) => result.metafile)),
+    ...staticImports(metafiles),
     ...(otel === undefined || otel.imports.length === 0 ? {} : { [otel.file]: otel.imports }),
   };
   await writeJson(preload, Object.fromEntries(Object.entries(imported).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
@@ -701,7 +814,7 @@ async function optionSchemas(root: string): Promise<string[]> {
 
 // The name of the module of core's board option with the id given, as
 // n-rows-option for n_rows, which core lists in R with the board option.
-function optionModuleName(id: string): string {
+export function optionModuleName(id: string): string {
   return `${id.replaceAll("_", "-")}-option`;
 }
 
@@ -800,7 +913,8 @@ function packageVersion(name: string): string {
 
 // The package that inst/types is: the types modules are written against, as
 // `@blockr/core`, the stubs of the hosts, as `@blockr/core/stubs`, and core's
-// React SDK, its binding and the build preset, as `@blockr/core/react`,
+// React SDK, the components that core draws, its binding and the build
+// preset, as `@blockr/core/react`, `@blockr/core/components`,
 // `@blockr/core/binding` and `@blockr/core/build`.
 // Its bundles leave React an import, so it names the React that blockr.ui's
 // files hold, at that version, as its peer.
@@ -842,13 +956,14 @@ export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
   description:
-    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, the React SDK, its binding and the build preset that they may be built with, and the controls they may draw with, as the R package blockr.core ships them.",
+    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, the React SDK, its binding and the build preset that they may be built with, and the components and the controls they may draw with, as the R package blockr.core ships them.",
   type: "module",
   exports: {
     ".": { types: "./index.d.ts" },
     "./binding": { types: "./binding/index.d.ts", default: "./binding/index.js" },
     "./build": { types: "./build/index.d.ts", default: "./build/index.js" },
     "./react": { types: "./react/index.d.ts", default: "./react/index.js" },
+    "./components": { types: "./components/index.d.ts", default: "./components/index.js" },
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
     "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
@@ -866,7 +981,7 @@ export const TYPES_PACKAGE = {
 
 // The modules of srcts that the types package bundles,
 // each as the export of its name.
-const BUNDLED = ["stubs", "binding", "react", "build", "controls"];
+const BUNDLED = ["stubs", "binding", "react", "components", "build", "controls"];
 
 // Leaves each import of a package that `names` holds an import.
 // The packages have no side effects, as their package.json files say.

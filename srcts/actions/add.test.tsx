@@ -25,6 +25,7 @@ import {
 import type { HelloReply } from "../protocol/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
+import { waitForLoaded } from "../testing/loading.ts";
 import { held } from "../testing/notifications.ts";
 import type { Board, Link } from "../types/board.ts";
 import type { Target } from "./actions.ts";
@@ -76,7 +77,8 @@ function triggered(s: Awaited<ReturnType<typeof stubbed>>, id: string, target: T
 
 // Opens the advanced action of the board action on the target, the picker,
 // through the open icon of its quick action, after typing the filter's text
-// given, and returns the element in which core's dialog shows it.
+// given, and returns the element in which core's dialog shows it, once core
+// has loaded the picker and drawn it there.
 async function picker(s: Awaited<ReturnType<typeof stubbed>>, id: string, target: Target, filter = ""): Promise<HTMLElement> {
   const { menu } = triggered(s, id, target);
   menu.type(filter);
@@ -85,6 +87,7 @@ async function picker(s: Awaited<ReturnType<typeof stubbed>>, id: string, target
   });
   const shown = s.advanced();
   if (shown === undefined) throw new Error("Core's dialog shows no advanced action.");
+  await waitForLoaded(() => labelled(shown.el, "Block class"));
   return shown.el;
 }
 
@@ -544,6 +547,7 @@ describe("the block picker, their advanced action,", () => {
     await step(() => {
       unmount = s.core.boardActions.mountAdvanced(room, ADD, { board: true });
     });
+    await waitForLoaded(() => labelled(room, "Block class"));
     expect(document.activeElement).toBe(document.body);
 
     await chosen(room, "dataset", "dataset block");
@@ -554,11 +558,33 @@ describe("the block picker, their advanced action,", () => {
 
     expect(added(s.core.store.board())).toHaveLength(1);
     // Core rendered the picker afresh, ready for the next block.
+    await waitForLoaded(() => labelled(room, "Block class"));
     expect(labelled(room, "Block class").value).toBe("");
     expect(document.activeElement).toBe(labelled(room, "Block class"));
     await step(() => {
       unmount();
     });
+    expect(room.childNodes).toHaveLength(0);
+  });
+
+  test("draws nothing, not even for a moment, in a plugin's room that ends it before the picker has loaded", async () => {
+    const s = await stubbed();
+    const room = document.createElement("div");
+    document.body.append(room);
+    const drawn: Node[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const record of records) drawn.push(...record.addedNodes);
+    });
+    observer.observe(room, { childList: true, subtree: true });
+
+    await step(() => {
+      s.core.boardActions.mountAdvanced(room, ADD, { board: true })();
+    });
+    await import("../picker/index.ts");
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    observer.disconnect();
+
+    expect(drawn).toEqual([]);
     expect(room.childNodes).toHaveLength(0);
   });
 });

@@ -7,6 +7,7 @@ var IMPORTS = [
   "@blockr/core/react",
   "@blockr/core/binding",
   "@blockr/core/controls",
+  "@blockr/core/components",
   "@blockr/core/otel",
   OTEL_API
 ];

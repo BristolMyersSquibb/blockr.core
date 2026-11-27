@@ -2,6 +2,8 @@
 // an input of blockr.ui and bound to the board option's value, so that
 // it keeps the contract's rules as core's block UIs do
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
+// The UI of each board option imports this file as it first renders
+// (./options.ts).
 
 import type { ReactElement } from "react";
 import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/ui";

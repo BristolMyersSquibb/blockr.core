@@ -1406,54 +1406,52 @@ test_that("the page names what the runtime and the modules import up front", {
     link(paste0(sub("^[.]/", "", imports[[name]]), "\""))
   }
 
-  # The runtime imports React, whose entry points import React's file, which
-  # blockr.ui ships, as blockr.ui's build lists it in the preload.json beside
-  # them, and which comes without a hash.
-  react <- yyjsonr::read_json_file(
-    system.file("js", "preload.json", package = "blockr.ui")
-  )[["react.js"]]
-
-  # The runtime also imports core's React SDK, which imports its binding.
+  # The runtime imports OpenTelemetry's API and core's vendor file up front,
+  # as core's build lists them in the preload.json beside the runtime.
   # These keep their priority, since the page needs them before Shiny
   # connects.
-  expect_match(page$head, paste0(by_name("react"), "/>"), fixed = TRUE)
+  runtime <- yyjsonr::read_json_file(
+    real("js", "preload.json", pkg = "blockr.core")
+  )[["blockr-core.js"]]
+  vendor <- sub("^[.]/", "", grep("^[.]/vendor-", runtime, value = TRUE))
+
+  expect_length(vendor, 1L)
   expect_match(
     page$head,
-    link(paste0("blockr.ui/js/", sub("^[.]/", "", react), "\"/>")),
+    paste0(by_name("@opentelemetry/api"), "/>"),
     fixed = TRUE
   )
   expect_match(
     page$head,
-    paste0(by_name("@blockr/core/react"), "/>"),
-    fixed = TRUE
-  )
-  expect_match(
-    page$head,
-    paste0(by_name("@blockr/core/binding"), "/>"),
+    link(paste0("blockr.core/js/", vendor, "\"/>")),
     fixed = TRUE
   )
 
   # The package's module imports the controls and its vendor file.
   # They come at a low priority, since the page needs them only once R has
   # answered.
-  # The controls import the SDK and the binding too.
-  # Those two keep the priority that the runtime gives them.
+  # The controls import React, blockr.ui's components and core's binding,
+  # which come at a low priority too, since the runtime imports none of them.
+  # So does React's file, which React's entry points import, as blockr.ui's
+  # build lists it in the preload.json beside them, and which comes without a
+  # hash.
+  # The runtime loads each UI that it draws as it first draws it, so no file
+  # on the page imports core's React SDK up front.
+  react <- yyjsonr::read_json_file(
+    system.file("js", "preload.json", package = "blockr.ui")
+  )[["react.js"]]
+
   low <- " fetchpriority=\"low\"/>"
+  for (name in c("@blockr/core/controls", "react", "@blockr/ui",
+                 "@blockr/core/binding")) {
+    expect_match(page$head, paste0(by_name(name), low), fixed = TRUE)
+  }
   expect_match(
     page$head,
-    paste0(by_name("@blockr/core/controls"), low),
+    link(paste0("blockr.ui/js/", sub("^[.]/", "", react), "\"", low)),
     fixed = TRUE
   )
-  expect_no_match(
-    page$head,
-    paste0(by_name("@blockr/core/react"), low),
-    fixed = TRUE
-  )
-  expect_no_match(
-    page$head,
-    paste0(by_name("@blockr/core/binding"), low),
-    fixed = TRUE
-  )
+  expect_no_match(page$head, by_name("@blockr/core/react"), fixed = TRUE)
   expect_match(page$head, link("blockr.fake/js/fake.js?v="), fixed = TRUE)
   expect_match(
     page$head,

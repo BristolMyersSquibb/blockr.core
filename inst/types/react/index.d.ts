@@ -2,5 +2,3 @@ export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } fro
 export type { Answered, OutputSnapshot, RequestOptions } from "./hooks.ts";
 export { outputRenderer, reactModule } from "./module.tsx";
 export type { ModuleProps, OutputProps } from "./module.tsx";
-export { NotificationList } from "./notifications.tsx";
-export type { NotificationListProps } from "./notifications.tsx";

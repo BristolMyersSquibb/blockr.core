@@ -18,7 +18,7 @@ export interface FrontEnds {
     render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
     show(object: Parameters<CoreApi["show"]>[0], signal: AbortSignal): Promise<void>;
     advanced?(signal: AbortSignal): Place | undefined;
-    card?(core: CoreApi, signal: AbortSignal): void;
+    card?(core: CoreApi, signal: AbortSignal): Promise<void> | undefined;
 }
 export interface Changed {
     readonly package: string;

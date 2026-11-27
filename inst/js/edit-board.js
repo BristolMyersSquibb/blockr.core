@@ -100,8 +100,7 @@ function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
 
-// srcts/ui/blocks.tsx
-import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+// srcts/util/blocks.ts
 function blockName(board, block) {
   return own(board.blocks, block)?.name ?? block;
 }
@@ -112,6 +111,9 @@ function classInputs(board, registry, block) {
 function isVariadicBlock(board, registry, block) {
   return classInputs(board, registry, block).includes("...");
 }
+
+// srcts/ui/blocks.tsx
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 
 // srcts/ui/edits.ts
 import { useMemo, useState as useState3 } from "react";

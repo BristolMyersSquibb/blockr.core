@@ -1,2 +1,2 @@
-import type { ShowDialog } from "./advanced.ts";
-export declare const showDialog: ShowDialog;
+import type { PlaceArgs } from "./advanced.ts";
+export declare function drawDialog(el: HTMLElement, args: PlaceArgs, onClose: () => void): () => void;

@@ -544,7 +544,8 @@ export function StatusBadge({ core, block }: { core: CoreApi; block: BlockId }):
 }
 `,
   "src/block-errors.tsx": `import type { BlockId, CoreApi } from "@blockr/core";
-import { NotificationList, useNotified } from "@blockr/core/react";
+import { NotificationList } from "@blockr/core/components";
+import { useNotified } from "@blockr/core/react";
 import type { ReactElement } from "react";
 
 export function BlockErrors({ core, block }: { core: CoreApi; block: BlockId }): ReactElement {

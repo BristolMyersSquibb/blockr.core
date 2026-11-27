@@ -1,7 +1,7 @@
 // The block picker: the form that adds a block of a class from the block
 // registry. It is the advanced action of core's four board actions that add a
 // block: Add block, Append block, Prepend block and Insert block
-// (../actions/add.tsx,
+// (../actions/add.ts,
 // https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions).
 // So every place that shows one of them adds a block the same way, the Edit
 // board plugin among them, which mounts the advanced action of Add block.
@@ -69,9 +69,10 @@ import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { classes, identifier, Refusal, useEdits, useSearch } from "../ui/index.ts";
+import { classes, drawForm, identifier, Refusal, useEdits, useSearch } from "../ui/index.ts";
 import type { Done } from "../ui/index.ts";
-import { own, packageFromId } from "../util/index.ts";
+import { blockClasses, inputNameError, namesInto, own } from "../util/index.ts";
+import type { ClassItem } from "../util/index.ts";
 
 // Where the new block goes: on its own, after a block, before a block, or on
 // a link. Before a block, it may feed the input given, or "" for the next
@@ -97,6 +98,13 @@ export interface PickerProps {
   // Whether the form puts the keyboard's focus in its search of block classes
   // as it shows.
   readonly autofocus?: boolean;
+}
+
+// Draws the block picker in the element, as the advanced action of core's
+// board actions that add a block renders it once its code has loaded
+// (../actions/add.ts), and returns what unmounts it.
+export function drawPicker(el: HTMLElement, props: PickerProps): () => void {
+  return drawForm(el, <BlockPicker {...props} />);
 }
 
 type Errors = Partial<Record<"registry" | "id" | "input", string>>;
@@ -406,68 +414,10 @@ function linksInto(board: Pick<Board, "links">, to: BlockId): readonly LinkId[] 
   return Object.keys(board.links).filter((id) => own(board.links, id)?.to === to);
 }
 
-// The names that the links into a variadic block give its inputs.
-export function namesInto(board: Pick<Board, "links">, to: BlockId, except?: string): readonly string[] {
-  return Object.entries(board.links)
-    .filter(([id, link]) => id !== except && link.to === to && link.input !== "")
-    .map(([, link]) => link.input);
-}
-
-// Why the name of a variadic block's input does not do, where it does not: a
-// name that another of its links gives already would leave two arguments of
-// one name. An empty name does, for an input without a name.
-export function inputNameError(value: string, taken: readonly string[]): string | undefined {
-  const trimmed = value.trim();
-  if (trimmed === "") return undefined;
-  if (taken.includes(trimmed)) return `Another link gives the input the name "${trimmed}" already.`;
-  return undefined;
-}
-
 // Whether the free inputs are those of a variadic block, the one empty input
 // that takes its links in order.
 export function isVariadic(free: readonly string[]): boolean {
   return free.length === 1 && free[0] === "";
-}
-
-// A block class as the select and the quick actions that add a block offer
-// it: by its name, with its description, its icon and its package, under its
-// category, and found by those, by its keywords and by its registry id too.
-export interface ClassItem {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string;
-  readonly icon: string;
-  readonly pkg: string | null;
-  readonly category: string;
-  readonly keywords: readonly string[];
-}
-
-// The block classes of the entries, in the order in which the picker and the
-// quick actions that add a block list them (byGroupAndName(), below).
-export function blockClasses(entries: readonly RegistryEntry[]): ClassItem[] {
-  return entries.map(classItem).sort(byGroupAndName);
-}
-
-function classItem(entry: RegistryEntry): ClassItem {
-  return {
-    id: entry.id,
-    name: entry.name,
-    description: entry.description,
-    icon: entry.icon,
-    pkg: packageFromId(entry.id),
-    category: entry.category === "" ? UNCATEGORIZED : entry.category,
-    keywords: entry.keywords,
-  };
-}
-
-// The category of a class that gives none, as R's registry names it.
-const UNCATEGORIZED = "uncategorized";
-
-// The classes by category and then by name, the categories by name, but for
-// the classes without a category, which come last.
-function byGroupAndName(a: ClassItem, b: ClassItem): number {
-  const last = (item: ClassItem): number => (item.category.toLowerCase() === UNCATEGORIZED ? 1 : 0);
-  return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
 }
 
 // The classes under their categories, in their order.
