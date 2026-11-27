@@ -8,7 +8,7 @@
 import { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 import { find, inert, openDialog, press, step } from "@blockr/ui/stubs";
 import type { Delta } from "../store/index.ts";
 import type { PlaceArgs } from "./advanced.ts";
@@ -17,13 +17,16 @@ import { showDialog } from "./dialog.tsx";
 // Core's dialog for an advanced action that draws a field, opened from a
 // button that has the keyboard's focus, with a close() that counts its calls.
 // Where `react` is true, the advanced action draws the field in a React root
-// of its own, as core's forms of a link and of a stack do.
+// of its own with flushSync(), as core's forms of a link and of a stack do.
+// Its `flushed` says, for each mount, whether the field was drawn once
+// flushSync() returned.
 async function drawn(signal?: AbortSignal, react = false) {
   const trigger = document.createElement("button");
   trigger.textContent = "Open";
   document.body.append(trigger);
   trigger.focus();
   const mounted: HTMLElement[] = [];
+  const flushed: boolean[] = [];
   let unmounted = 0;
   let closed = 0;
   const args: PlaceArgs = {
@@ -37,6 +40,7 @@ async function drawn(signal?: AbortSignal, react = false) {
         flushSync(() => {
           root.render(<input aria-label="Name" />);
         });
+        flushed.push(el.querySelector("input") !== null);
         return () => {
           unmounted++;
           root.unmount();
@@ -61,7 +65,7 @@ async function drawn(signal?: AbortSignal, react = false) {
   });
   hides.push(hide);
   await settle();
-  return { trigger, mounted, unmounted: () => unmounted, closed: () => closed, hide };
+  return { trigger, mounted, flushed, unmounted: () => unmounted, closed: () => closed, hide };
 }
 
 // Waits for what React Aria scheduled, such as moving the focus.
@@ -111,6 +115,18 @@ describe("core's dialog", () => {
     expect(unmounted()).toBe(1);
     expect(closed()).toBe(1);
     expect(document.activeElement).toBe(trigger);
+  });
+
+  test("renders the advanced action once React has drawn the dialog, so that an advanced action written in React draws within its flushSync(), and React logs no error", async () => {
+    const error = vi.spyOn(console, "error");
+    onTestFinished(() => {
+      error.mockRestore();
+    });
+    const { flushed } = await drawn(undefined, true);
+
+    expect(flushed).toEqual([true]);
+    expect(find(openDialog(), 'input[aria-label="Name"]')).toBeTruthy();
+    expect(error).not.toHaveBeenCalledWith(expect.stringMatching(/^flushSync was called/));
   });
 
   test("unmounts an advanced action written in React once React has closed the dialog, so that the advanced action's root removes what it drew", async () => {

@@ -8587,17 +8587,27 @@ function Mounted({
   mount: mount2,
   label,
   className,
-  data
+  data,
+  deferred = false
 }) {
   const ref = useRef(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (el === null) return;
-    const cleanup = mount2(el);
-    return () => {
-      queueMicrotask(cleanup);
+    let cleanup;
+    let gone = false;
+    const start3 = () => {
+      if (!gone) cleanup = mount2(el);
     };
-  }, [mount2]);
+    if (deferred) queueMicrotask(start3);
+    else start3();
+    return () => {
+      gone = true;
+      queueMicrotask(() => {
+        cleanup?.();
+      });
+    };
+  }, [mount2, deferred]);
   return /* @__PURE__ */ jsx4("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
 }
 
@@ -11326,7 +11336,7 @@ function CoreDialog({ args, onClose }) {
           /* @__PURE__ */ jsx13(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
           /* @__PURE__ */ jsx13(Button7, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
-        /* @__PURE__ */ jsx13(Mounted, { mount: mount2, className: "bc:min-w-0" })
+        /* @__PURE__ */ jsx13(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" })
       ] }) })
     }
   );
@@ -14099,7 +14109,7 @@ function PlaceForm({ args, onClose }) {
   }, [onClose]);
   return /* @__PURE__ */ jsxs16("div", { ref: box, role: "group", "aria-label": args.title, className: "bc:grid bc:gap-2 bc:py-1 bc:whitespace-normal", ...KEPT, children: [
     /* @__PURE__ */ jsx21(TakesKeys, {}),
-    /* @__PURE__ */ jsx21(Mounted, { mount: mount2, className: "bc:min-w-0" }),
+    /* @__PURE__ */ jsx21(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" }),
     /* @__PURE__ */ jsx21("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx21(Button10, { variant: "secondary", onPress: onClose, children: "Close" }) })
   ] });
 }
@@ -14531,7 +14541,7 @@ function offers(core, role, target2) {
 function Advanced({ core, role, target: target2 }) {
   const key2 = JSON.stringify(target2);
   const mount2 = useCallback10((el) => core.boardActions.mountAdvanced(el, role, JSON.parse(key2)), [core, role, key2]);
-  return /* @__PURE__ */ jsx25(Mounted, { mount: mount2, className: "bc:min-w-0" });
+  return /* @__PURE__ */ jsx25(Mounted, { mount: mount2, deferred: true, className: "bc:min-w-0" });
 }
 
 // srcts/modules/edit-board/index.tsx
