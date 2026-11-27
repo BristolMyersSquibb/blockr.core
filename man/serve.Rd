@@ -155,6 +155,16 @@ option.
 Those components are the UI module of each block class in the app's block
 registry, the class's requests and the output families that make its
 outputs, and each plugin that the app runs.
+
+The blockr option \code{renderers} names the renderers that draw the outputs of
+output families, each under the class of a family (see \code{\link[=new_renderer]{new_renderer()}}).
+The app's output families are those that the available packages list and
+those that the block classes in its block registry reach.
+R ignores a key of the option that names no output family of the app that
+gives a renderer, such as the typo \code{tabel_output}.
+As \code{serve()} is called, R warns of each such key, naming it.
+The app still serves, and draws with the renderers that it would draw with
+anyway.
 }
 \section{End-to-end tests}{
 

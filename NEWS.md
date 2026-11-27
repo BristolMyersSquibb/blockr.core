@@ -115,7 +115,9 @@
   function that makes it, and an app draws with it by naming it in the blockr
   option `renderers`, under the family's class, which R reads before the family's own renderer, so loading a package changes nothing and no package takes the app's choice away. Such a
   renderer may bring requests of its own, which `run_output_class_request()`
-  runs when given the renderer (#425, #440, #465, #664).
+  runs when given the renderer.
+  R ignores a key of the option that names no output family of the app that gives a renderer, such as the typo `tabel_output`.
+  As `serve()` is called, R warns of each such key, naming it (#425, #440, #465, #664, #880).
 * R builds what it tells the client about the packages it has loaded, in its
   reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that

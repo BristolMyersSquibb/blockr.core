@@ -55,6 +55,9 @@ them until one does.
 R reads that choice before the family's own renderer, so loading a package
 that offers a renderer changes nothing, and no package takes the choice
 away.
+R ignores a key of the option that names no output family of the app that
+gives a renderer, such as the typo \code{tabel_output}.
+As \code{\link[=serve]{serve()}} is called, R warns of each such key.
 
 A renderer may bring requests of its own, for what the output
 does not hold, such as the labels of a table's columns, which core's table

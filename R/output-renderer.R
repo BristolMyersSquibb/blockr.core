@@ -35,6 +35,9 @@
 #' R reads that choice before the family's own renderer, so loading a package
 #' that offers a renderer changes nothing, and no package takes the choice
 #' away.
+#' R ignores a key of the option that names no output family of the app that
+#' gives a renderer, such as the typo `tabel_output`.
+#' As [serve()] is called, R warns of each such key.
 #'
 #' A renderer may bring requests of its own, for what the output
 #' does not hold, such as the labels of a table's columns, which core's table
@@ -168,8 +171,7 @@ chosen_renderers <- function() {
 family_renderers <- function(x, families = app_families()) {
 
   chosen <- chosen_renderers()
-  drawing <- Filter(function(f) not_null(attr(f, "renderer")),
-                    reached_families(x, families))
+  drawing <- drawing_families(reached_families(x, families))
 
   Map(
     function(family, class) {
@@ -178,6 +180,13 @@ family_renderers <- function(x, families = app_families()) {
     drawing,
     names(drawing)
   )
+}
+
+# The families among `x` that give a renderer, by class.
+# Only they draw outputs of their own class, so R reads the blockr option
+# `renderers` under their classes alone.
+drawing_families <- function(x) {
+  Filter(function(f) not_null(attr(f, "renderer")), x)
 }
 
 # The renderer that draws `out`, an output that family `x` made: that of the

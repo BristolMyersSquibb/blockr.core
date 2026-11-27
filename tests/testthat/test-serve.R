@@ -1202,6 +1202,115 @@ test_that("a plugin's board option that no package lists stops the app", {
   expect_s3_class(serve(served_board(), plugins = rows), "shiny.appobj")
 })
 
+test_that("serve() warns of a key of `renderers` that names no family", {
+
+  dir <- withr::local_tempdir()
+  writeLines("export const api = 1;", file.path(dir, "own-block.js"))
+  writeLines("export default {};", file.path(dir, "own-output.js"))
+  writeLines("export default {};", file.path(dir, "slider.js"))
+
+  slider <- new_renderer(
+    "slider",
+    js_module(file.path(dir, "slider.js"), package = NULL)
+  )
+
+  # A typo and the ID of a board option name no output family
+  withr::local_options(
+    blockr.renderers = list(tabel_output = slider, n_rows = slider)
+  )
+
+  expect_warning(
+    app <- serve(new_board()),
+    paste(
+      "R ignores the keys tabel_output and n_rows of the blockr option",
+      "`renderers`, since they name no output family of the app that gives",
+      "a renderer."
+    ),
+    fixed = TRUE,
+    class = "renderers_blockr_option_ignored"
+  )
+
+  # The app serves, and draws with the renderers that it would draw with
+  # anyway
+  expect_s3_class(app, "shiny.appobj")
+  expect_identical(
+    family_renderers(table_output)[["table_output"]]$id,
+    "blockr.core-table_output"
+  )
+
+  # A family that a block class of the app reaches counts, though no package
+  # lists it, but not a family that gives no renderer
+  own_output <- new_output_family(
+    function(result, ...) {
+      new_block_output(list(text = format(result)), "own_output")
+    },
+    "own_output",
+    renderer = new_renderer(
+      "own_output",
+      js_module(file.path(dir, "own-output.js"), package = NULL)
+    )
+  )
+
+  outer_output <- new_output_family(
+    function(result, ...) own_output(result, ...),
+    "outer_output",
+    families = list(own_output)
+  )
+
+  cls <- test_block_class(
+    "own_block",
+    expr = function() quote(month.name),
+    ui = js_module(file.path(dir, "own-block.js"), package = NULL),
+    output = outer_output
+  )
+
+  board <- new_board(c(a = block_constructor(cls)()))
+
+  withr::local_options(
+    blockr.renderers = list(
+      own_output = slider,
+      plot_output = slider,
+      outer_output = slider
+    )
+  )
+
+  # The script registers the class, which then joins every app that it
+  # serves, so it registers it only for these apps
+  local({
+    local_block_class(cls)
+
+    expect_warning(
+      serve(board),
+      paste(
+        "R ignores the key outer_output of the blockr option `renderers`,",
+        "since it names no output family of the app that gives a renderer."
+      ),
+      fixed = TRUE,
+      class = "renderers_blockr_option_ignored"
+    )
+
+    # An app serves without a warning where each key names such a family
+    withr::local_options(
+      blockr.renderers = list(own_output = slider, plot_output = slider)
+    )
+
+    expect_no_warning(serve(board))
+  })
+
+  # A block that serve() serves alone reaches its own class's families, beside
+  # those that the available packages list, as plot_output
+  expect_warning(
+    serve(new_dataset_block()),
+    paste(
+      "R ignores the keys own_output and outer_output of the blockr option",
+      "`renderers`, since they name no output family of the app that gives",
+      "a renderer."
+    ),
+    fixed = TRUE,
+    class = "renderers_blockr_option_ignored"
+  )
+})
+
 test_that("the page names the files that it imports, which R serves at once", {
 
   # A module of its own content, which R serves nowhere yet.
