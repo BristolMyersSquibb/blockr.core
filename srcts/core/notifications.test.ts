@@ -1009,6 +1009,27 @@ describe("core's notifications", () => {
     s.stop();
   });
 
+  test("of a plugin's edit go to its notifier where the plugin names its steps by the id of its class", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const plugin = interned("blockr.core", "file_storage_plugin");
+    const taken: Notification[] = [];
+    const notifier = (notifications: readonly Notification[]): void => {
+      taken.push(...notifications);
+    };
+
+    await expect(s.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }, plugin, { notifier })).resolves.toBe(true);
+    await expect(
+      s.core.commands.run([{ id: interned("blockr.core", "remove_block"), args: { id: "nowhere" } }], plugin, { notifier }),
+    ).rejects.toThrow('The batch was refused at command 1, "remove_block of blockr.core"');
+    await s.settled();
+
+    expect(s.core.store.canUndo(plugin)).toBe(true);
+    expect(taken.map((n) => n.message)).toEqual([expect.stringMatching(/^The batch was refused at command 1/)]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
+    s.stop();
+  });
+
   test("of an edit whose notifier is no function are none: the call fails with a TypeError at once, and the edit does not run", async () => {
     const s = await stubCore();
     await s.settled();

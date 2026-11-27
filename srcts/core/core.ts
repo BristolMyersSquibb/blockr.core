@@ -55,7 +55,7 @@ import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OnScreenOf, OutputEvent } from "../mount/index.ts";
 import type { Lock, OptionEntry, PluginEntry } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import { asRandId, mintId } from "../store/index.ts";
+import { asRandId, isOrigin, mintId } from "../store/index.ts";
 import type { Origin, Store } from "../store/index.ts";
 import type { BlockId, Board, CommandId, ModuleId, OptionId, PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Notifier, OnScreen, OutputEvents, Raised } from "../types/core-api.ts";
@@ -460,13 +460,13 @@ function refusing(store: Store, commands: Commands, refused: Refused): { store: 
       ...commands,
       // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
-      run(target: CommandId | readonly CommandCall[], given?: Json, third?: Origin | NotifierOpts, fourth?: NotifierOpts) {
+      run(target: CommandId | readonly CommandCall[], second?: Json | Origin, third?: Origin | NotifierOpts, fourth?: NotifierOpts) {
         if (!Array.isArray(target)) {
-          const origin = typeof third === "string" ? third : undefined;
-          return ran(fourth, () => commands.run(target as CommandId, given, origin));
+          const origin = isOrigin(third) ? third : undefined;
+          return ran(fourth, () => commands.run(target as CommandId, second as Json | undefined, origin));
         }
-        const batchOrigin = typeof given === "string" ? given : undefined;
-        return ran(typeof third === "string" ? undefined : third, () => commands.run(target, batchOrigin));
+        const batchOrigin = isOrigin(second) ? second : undefined;
+        return ran(isOrigin(third) ? undefined : third, () => commands.run(target, batchOrigin));
       },
     },
   };

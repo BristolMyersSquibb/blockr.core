@@ -27,7 +27,8 @@
 // span failed. The span goes under the span that is active as run() is called,
 // so that a plugin that runs a command inside a span of its own, as the
 // assistant's tools do, holds the command in its trace. It names the command
-// by its package and its id and the step's origin, as "assistant". A batch runs
+// by its package and its id and the step's origin, as "user", or a plugin's by
+// the id of its class and its package (originAttributes(), below). A batch runs
 // in one span, "command batch", which names the packages and the ids of its
 // commands in order, since the store applies their deltas as one step. The span is active while
 // the command prepares and runs, and while the store applies its deltas, so
@@ -50,7 +51,7 @@ import type { Attributes } from "@opentelemetry/api";
 import { computed, signal } from "@preact/signals-core";
 import { log } from "../log/index.ts";
 import type { Lock } from "../protocol/index.ts";
-import { asRandId, isDeltas, mintId, pluginClassFromPath, StoreError } from "../store/index.ts";
+import { asRandId, isDeltas, isOrigin, mintId, pluginClassFromPath, StoreError } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, Store } from "../store/index.ts";
 import type { Board, CommandId } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
@@ -503,7 +504,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     const attributes = {
       "blockr.command.packages": names.map((name) => name?.package),
       "blockr.command.ids": names.map((name) => name?.id),
-      "blockr.delta.origin": origin,
+      ...originAttributes(origin),
     };
     return traced("command batch", attributes, () => planned(batch, (built) => byStore(undefined, () => store.apply(built, origin))));
   }
@@ -581,13 +582,15 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(
       target: CommandId | readonly CommandCall[],
-      given?: Json,
+      second?: Json | Origin,
       third?: Origin | { notifier?(notifications: readonly Notification[]): void },
     ) {
-      if (isBatch(target)) return runBatch(target, typeof given === "string" ? given : "user");
-      const origin = typeof third === "string" ? third : "user";
+      if (isBatch(target)) return runBatch(target, isOrigin(second) ? second : "user");
+      // A command alone comes with its args second, which are JSON.
+      const given = second as Json | undefined;
+      const origin = isOrigin(third) ? third : "user";
       const named = nameOf(target);
-      const attributes = { ...(named === undefined ? {} : idAttributes("blockr.command.id", named)), "blockr.delta.origin": origin };
+      const attributes = { ...(named === undefined ? {} : idAttributes("blockr.command.id", named)), ...originAttributes(origin) };
       return traced(`command ${named === undefined ? "unnamed" : named.id}`, attributes, async () => {
         const within = keepContext();
         const { item, args } = lookup(target, given);
@@ -615,6 +618,14 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
 // plain JS may.
 function nameOf(name: unknown): CommandId | undefined {
   return isIdRecord(name) ? interned(name.package, name.id) : undefined;
+}
+
+// The attributes of a span that name the origin of its step: the string, or
+// the id of a plugin's class within its package and the package beside it,
+// as idAttributes() names an id, under "blockr.delta.origin" and
+// "blockr.delta.package".
+function originAttributes(origin: Origin): Record<string, string> {
+  return typeof origin === "string" ? { "blockr.delta.origin": origin } : idAttributes("blockr.delta.origin", origin);
 }
 
 // Whether run() or plan() was given a batch rather than a command alone.

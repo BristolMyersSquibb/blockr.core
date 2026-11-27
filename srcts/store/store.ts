@@ -20,7 +20,7 @@ import { asError, idText, nestedEntries, nestedRecord, nestedValue, own } from "
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
 import type { Changed, Inverse, Target, TargetKey } from "./commit.ts";
-import { isDeltas } from "./delta.ts";
+import { isDeltas, originOf } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
 import { afterStep, expand } from "./expand.ts";
@@ -463,10 +463,11 @@ export function createStore(options: StoreOptions = {}): Store {
 
   function apply(
     delta: Delta | readonly Delta[],
-    origin: Origin = "user",
+    by: Origin = "user",
     opts: { readonly undo?: false } = {},
   ): boolean {
     guard();
+    const origin = originOf(by);
     const given: readonly Delta[] = isDeltas(delta) ? delta : [delta];
     if (given.length === 0) return false;
     const deltas = opts.undo === false ? given.map((each): Delta => ({ ...each, undo: false })) : given;
@@ -515,8 +516,9 @@ export function createStore(options: StoreOptions = {}): Store {
   // whatever another origin changed in between.
   // It announces the edit as a change of the origin that asks for it, "user"
   // where none is given.
-  function revert(back: boolean, origin?: Origin): void {
+  function revert(back: boolean, by?: Origin): void {
     guard();
+    const origin = originOf(by);
     const { undo, redo } = history.value;
     const at = back ? lastStepIndex(undo, origin) : redo.length - 1;
     const step = (back ? undo : redo)[at];
@@ -732,7 +734,7 @@ export function createStore(options: StoreOptions = {}): Store {
     redo: () => {
       revert(false);
     },
-    canUndo: (origin) => lastStepIndex(history.value.undo, origin) >= 0,
+    canUndo: (origin) => lastStepIndex(history.value.undo, originOf(origin)) >= 0,
     canRedo: () => history.value.redo.length > 0,
     plugins: registrations.plugins,
     options: registrations.options,

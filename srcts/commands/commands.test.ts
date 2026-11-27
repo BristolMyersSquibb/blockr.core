@@ -7,7 +7,7 @@ import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { describe, expect, test, vi } from "vitest";
 import type { Lock } from "../protocol/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
-import type { PluginClass, Store } from "../store/index.ts";
+import type { Origin, PluginClass, Store } from "../store/index.ts";
 import { logged } from "../testing/logged.ts";
 import type { Logged } from "../testing/logged.ts";
 import { recordSpans } from "../testing/spans.ts";
@@ -142,8 +142,8 @@ async function rejection(promise: Promise<unknown>): Promise<CommandError> {
 }
 
 // The origins of the changes that the store announces from now on.
-function origins(store: Store): string[] {
-  const seen: string[] = [];
+function origins(store: Store): Origin[] {
+  const seen: Origin[] = [];
   store.subscribe((change) => {
     if ("delta" in change) seen.push(change.origin);
   });
@@ -297,6 +297,19 @@ describe("running a command", () => {
 
     await expect(commands.run(record, { name: "Sepals" })).resolves.toBe(true);
     expect(store.board().name).toBe("Sepals");
+  });
+
+  test("applies a command and a batch as steps of a plugin, by the id of its class as their origin", async () => {
+    const { store, commands } = await setup();
+    const dock = interned("blockr.dock", "dock_plugin");
+
+    await commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }, dock);
+    await commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Petals" } }], dock);
+    expect(store.canUndo("user")).toBe(false);
+    store.undo(dock);
+    expect(store.board().name).toBe("Sepals");
+    store.undo(dock);
+    expect(store.canUndo(dock)).toBe(false);
   });
 
   test("refuses a command that no package registered", async () => {
@@ -1266,6 +1279,21 @@ describe("spans", () => {
     // The command prepared before the store applied its delta, after an
     // await, and the span was active as the store announced it all the same.
     expect(announced).toEqual([span.spanContext().spanId]);
+    recorded.restore();
+  });
+
+  test("name the origin of a plugin's step by the id of its class within its package, and by its package", async () => {
+    const { commands } = await setup();
+    const recorded = recordSpans();
+
+    await commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }, interned("blockr.dock", "dock_plugin"));
+
+    expect(recorded.span("command change_board").attributes).toEqual({
+      "blockr.command.package": "blockr.core",
+      "blockr.command.id": "change_board",
+      "blockr.delta.origin": "dock_plugin",
+      "blockr.delta.package": "blockr.dock",
+    });
     recorded.restore();
   });
 

@@ -20,6 +20,7 @@ import type {
   Delta,
   Migration,
   Option,
+  Origin,
   Patch,
   PluginClass,
   Store,
@@ -3042,6 +3043,26 @@ describe("undo", () => {
 
     store.undo();
     expect(store.board().name).toBe("Iris review");
+  });
+
+  test("names a plugin's steps by the id of its class, which undo finds by ===, as it finds a record of the two that a caller in plain JS gives", async () => {
+    const store = await opened();
+    const dock = interned("blockr.dock", "dock_plugin");
+    const seen = changes(store);
+    store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, dock);
+    store.apply({ name: "Renamed" });
+
+    const origin = (change: Change | undefined): Origin | undefined => (change !== undefined && "delta" in change ? change.origin : undefined);
+    expect(seen.map(origin)).toEqual([dock, "user"]);
+    expect(origin(seen[0])).toBe(dock);
+    // The types ask for core's id, which a caller in plain JS may not give.
+    const record = { package: "blockr.dock", id: "dock_plugin" } as unknown as PluginClassId;
+    expect([store.canUndo(dock), store.canUndo(record), store.canUndo(interned("blockr.dock", "other_plugin"))]).toEqual([true, true, false]);
+
+    store.undo(record);
+    expect([store.board().name, store.board().stacks.s1?.name]).toEqual(["Renamed", "Input"]);
+    expect(origin(seen.at(-1))).toBe(dock);
+    expect(store.canUndo(dock)).toBe(false);
   });
 
   test("redoes the step that the last undo took back, whoever took it, as a change of the user's", async () => {

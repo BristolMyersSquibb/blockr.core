@@ -9,18 +9,38 @@ import type {
   Link,
   LinkId,
   OptionId,
+  PluginClassId,
   Stack,
   StackId,
 } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
+import { internedRecord, isIdRecord } from "../util/index.ts";
 
-// Who made a change: "user" unless its maker names another, such as a
-// plugin like the assistant, or a peer once a package syncs boards between
-// people.
+// Who made a change: "user" unless its maker names another. A plugin names its
+// own steps by the id of its class, as the dock names the delta that it
+// applies as it starts, so that what reads a step finds the plugin among
+// the app's plugins. Any other maker names itself by a string, as a peer would
+// once a package syncs boards between people.
+// The store compares origins with ===, as it compares the ids of plugins'
+// classes.
 // The store keeps the steps of every origin in one undo history, so that the
 // user's Undo takes back the assistant's edits too.
 // An undo given an origin takes back that origin's last step (./store.ts).
-export type Origin = string;
+export type Origin = string | PluginClassId;
+
+// Whether a value is an origin: a string, or the id of a plugin's class, which
+// is how a call that takes an origin or its options in one place tells them
+// apart.
+export function isOrigin(x: unknown): x is Origin {
+  return typeof x === "string" || isIdRecord(x);
+}
+
+// The origin given, where it names a plugin's class by a record of the package
+// and the id that is not the id that core gives, as a caller in plain JS may
+// give it, as core's id for the pair, so that === finds the plugin's steps.
+export function originOf<T extends Origin | undefined>(given: T): T {
+  return (typeof given === "object" && isIdRecord(given) ? internedRecord(given) : given) as T;
+}
 
 // Within each collection, `rm` applies before `add`,
 // since a delta may reuse an id it drops, and `mod` applies last.
