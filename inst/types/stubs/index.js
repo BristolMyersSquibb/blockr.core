@@ -277,6 +277,9 @@ function describe(errors, fails) {
   });
 }
 
+// srcts/stubs/util.ts
+import { act } from "react";
+
 // srcts/log/line.ts
 function writingLog(pkg, write2) {
   const line = (level, message, attributes) => {
@@ -535,6 +538,19 @@ function lineHolder(pkg = null) {
       logged.push(line);
     })
   };
+}
+function reactActs() {
+  return globalThis.IS_REACT_ACT_ENVIRONMENT === true;
+}
+async function acting(fn) {
+  return reactActs() ? await act(async () => await fn()) : await fn();
+}
+function actingNow(fn) {
+  if (reactActs()) {
+    act(fn);
+  } else {
+    fn();
+  }
 }
 
 // srcts/stubs/block.ts
@@ -15740,7 +15756,7 @@ async function stubCore(options = {}) {
   });
   let first;
   try {
-    first = await started.ready;
+    first = await acting(() => started.ready);
   } catch (error) {
     restore();
     throw error;
@@ -15766,13 +15782,15 @@ async function stubCore(options = {}) {
     settled: async () => {
       for (let quiet = 0; quiet < 3; ) {
         const before = r.sent.length;
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await acting(() => new Promise((resolve) => setTimeout(resolve, 0)));
         quiet = r.pending() === 0 && r.sent.length === before ? quiet + 1 : 0;
       }
     },
     logged,
     stop: () => {
-      started.stop();
+      actingNow(() => {
+        started.stop();
+      });
       restore();
     }
   };
@@ -15897,7 +15915,6 @@ function failed2(id2, phase, message, before = []) {
 }
 
 // srcts/stubs/menu-module.ts
-import { act } from "react";
 function menuModuleTests(exports) {
   return TESTS.map(({ name: name2, check: check2 }) => ({ name: name2, run: () => running2(exports, check2) }));
 }
@@ -16100,18 +16117,6 @@ function ticked(el) {
 }
 function valueOf(el) {
   return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.value : el.textContent;
-}
-function reactActs() {
-  return globalThis.IS_REACT_ACT_ENVIRONMENT === true;
-}
-async function acting(fn) {
-  if (reactActs()) {
-    await act(async () => {
-      await fn();
-    });
-  } else {
-    await fn();
-  }
 }
 async function pause(ms = 10) {
   await acting(() => new Promise((resolve) => setTimeout(resolve, ms)));
