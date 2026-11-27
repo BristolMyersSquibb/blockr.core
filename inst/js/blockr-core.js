@@ -8388,17 +8388,27 @@ function Mounted({
   mount,
   label,
   className,
-  data
+  data,
+  deferred = false
 }) {
   const ref = useRef(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (el === null) return;
-    const cleanup = mount(el);
-    return () => {
-      queueMicrotask(cleanup);
+    let cleanup;
+    let gone = false;
+    const start2 = () => {
+      if (!gone) cleanup = mount(el);
     };
-  }, [mount]);
+    if (deferred) queueMicrotask(start2);
+    else start2();
+    return () => {
+      gone = true;
+      queueMicrotask(() => {
+        cleanup?.();
+      });
+    };
+  }, [mount, deferred]);
   return /* @__PURE__ */ jsx4("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
 }
 
@@ -10798,7 +10808,7 @@ function CoreDialog({ args, onClose }) {
           /* @__PURE__ */ jsx11(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
           /* @__PURE__ */ jsx11(Button7, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
-        /* @__PURE__ */ jsx11(Mounted, { mount, className: "bc:min-w-0" })
+        /* @__PURE__ */ jsx11(Mounted, { mount, deferred: true, className: "bc:min-w-0" })
       ] }) })
     }
   );
