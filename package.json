@@ -1,7 +1,7 @@
 {
   "name": "blockr.core",
   "private": true,
-  "description": "Builds and checks the client of blockr.core: TypeScript in srcts/, bundled into inst/js.",
+  "description": "Builds, checks and documents the client of blockr.core: TypeScript in srcts/, bundled into inst/js, with its reference written into vignettes/articles/typescript for pkgdown.",
   "type": "module",
   "engines": {
     "node": "^22.18.0 || >=24"
@@ -10,7 +10,9 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "test": "vitest run",
-    "build": "node srcts/build/build.ts"
+    "build": "node srcts/build/build.ts",
+    "docs": "typedoc --options typedoc.config.ts",
+    "linkcheck": "linkinator \"**/articles/**/*.html\" --server-root docs --check-fragments --skip \"^https?://(?!127\\.0\\.0\\.1:|localhost:)\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -23,9 +25,12 @@
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "happy-dom": "^21.0.4",
+    "linkinator": "^8.1.0",
     "postcss": "^8.5.32",
     "tailwindcss": "^4.3.3",
     "ts-json-schema-generator": "^2.9.0",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.14.1",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.0.5"
