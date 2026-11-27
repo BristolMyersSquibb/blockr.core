@@ -1,49 +1,11 @@
-// The one object for each pair of a package and an id, the ids of block
-// classes, plugin classes, renderers, modules, commands and board actions
-// (Id, ../types/board.ts).
-// A table holds each object that interned() made, by package and then by id,
-// so that it gives the same object for the same pair, as interning does: as
-// Java interns strings, and as the TC39 proposal for composites makes
-// composites (https://github.com/tc39/proposal-composites).
-// So ===, a Set, a Map and includes() compare them as they compare strings,
-// and a React dependency or a signal that holds one changes only where the pair
-// does.
-// Core makes each id that it holds here: from what R sends, from what a JSON
-// board holds, and from what a caller passes.
-// The table holds one object for each pair that the page has met, a few
-// hundred, and frees none.
-// The page has one table, in core's runtime, which packages reach through
-// CoreApi's id(), since a copy of this module would make objects of its own,
-// which would never be === to core's.
+// What core's code does with the ids of what packages define, beside making
+// them, which ./interned.ts does: how a message names one, what JSON holds of
+// one, and the records by package and then by id that a board and R's reply to
+// `hello` hold.
 
 import type { Id } from "../types/board.ts";
+import { interned } from "./interned.ts";
 import { isPackageName } from "./util.ts";
-
-const made = new Map<string | null, Map<string, Id<string | null>>>();
-
-// The id of `id` in `pkg`, the same object for the same pair, or for a pkg of
-// null, the id of what an app script defines.
-// It throws a TypeError for a package that is not named as R names one and
-// for an id that is no string or is empty.
-export function interned<P extends string | null>(pkg: P, id: string): Id<P> {
-  if (pkg !== null && !isPackageName(pkg)) {
-    throw new TypeError(`The package ${JSON.stringify(pkg)} is not named as R names a package.`);
-  }
-  if (typeof id !== "string" || id === "") {
-    throw new TypeError(`The id ${JSON.stringify(id)} of ${pkg ?? "an app script"} is no non-empty string.`);
-  }
-  let ids = made.get(pkg);
-  if (ids === undefined) {
-    ids = new Map();
-    made.set(pkg, ids);
-  }
-  let found = ids.get(id);
-  if (found === undefined) {
-    found = Object.freeze({ package: pkg, id }) as unknown as Id<string | null>;
-    ids.set(id, found);
-  }
-  return found as Id<P>;
-}
 
 // Whether `x` holds a package and an id as an id does, as JSON gives one: an
 // object of exactly `package`, a package's name or null where `nullable` is
@@ -125,7 +87,7 @@ export function idAttributes(of: string, x: { readonly package: string | null; r
 export function givenPluginClassId(given: unknown, call: string): Id {
   if (!isIdRecord(given)) {
     throw new TypeError(
-      `${call} names a plugin by the id of its class, a package and an id, as { package: "blockr.dag", id: "dag_plugin" }, not by ${JSON.stringify(given)}.`,
+      `${call} names a plugin by the id of its class, as core.id("blockr.dag", "dag_plugin") gives it, not by ${JSON.stringify(given)}.`,
     );
   }
   return interned(given.package, given.id);
@@ -137,7 +99,7 @@ export function givenPluginClassId(given: unknown, call: string): Id {
 export function givenModuleId(given: unknown): Id {
   if (!isIdRecord(given)) {
     throw new TypeError(
-      `Core loads a module that a package offers by its package and id, as { package: "blockr.core", id: "controls" }, not by ${JSON.stringify(given)}.`,
+      `Core loads a module that a package offers by its id, as core.id("blockr.core", "controls") gives it, not by ${JSON.stringify(given)}.`,
     );
   }
   return interned(given.package, given.id);

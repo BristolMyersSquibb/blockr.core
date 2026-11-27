@@ -5,7 +5,8 @@
 
 import { expect, test } from "vitest";
 import type { Json } from "../types/json.ts";
-import { idNumber, interned, internedRecord, nestedEntries, nestedRecord, nestedValue } from "./ids.ts";
+import { idNumber, internedRecord, nestedEntries, nestedRecord, nestedValue } from "./ids.ts";
+import { interned } from "./interned.ts";
 
 test("interned() gives the same frozen object for the same pair, which compares as a string does and serializes as its record", () => {
   const head = interned("blockr.core", "head_block");

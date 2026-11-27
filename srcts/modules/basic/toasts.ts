@@ -30,7 +30,7 @@
 import { ToastQueue } from "../../react/index.ts";
 import type { Board, PluginClassId } from "../../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../../types/core-api.ts";
-import { idText, internedRecord, own } from "../../util/index.ts";
+import { idText, own } from "../../util/index.ts";
 
 // How long a message's toast shows before it goes, in milliseconds, its fade
 // included.
@@ -116,7 +116,7 @@ export function concerned(
 ): string {
   if (about === undefined) return "Board";
   if ("option" in about) return `Board option "${own(core.options.registered(), about.option)?.label ?? about.option}"`;
-  if ("plugin" in about) return `Plugin "${core.plugins.appPlugins().get(internedRecord(about.plugin))?.name ?? idText(about.plugin)}"`;
+  if ("plugin" in about) return `Plugin "${core.plugins.appPlugins().get(about.plugin)?.name ?? idText(about.plugin)}"`;
   if ("stack" in about) return `Stack "${own(board.stacks, about.stack)?.name ?? about.stack}"`;
   const block = (id: string): string => `"${own(board.blocks, id)?.name ?? id}"`;
   if ("block" in about) return `Block ${block(about.block)}`;

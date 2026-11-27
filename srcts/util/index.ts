@@ -25,13 +25,13 @@ export {
   idAttributes,
   idNumber,
   idText,
-  interned,
   internedRecord,
   isIdRecord,
   nestedEntries,
   nestedRecord,
   nestedValue,
 } from "./ids.ts";
+export { interned } from "./interned.ts";
 export {
   checkRaised,
   coreNotification,
