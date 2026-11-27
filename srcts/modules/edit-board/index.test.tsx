@@ -238,9 +238,11 @@ function names(el: HTMLElement, title: "Blocks" | "Stacks"): string[] {
 }
 
 // The text of each cell of a row that shows its object, after its checkbox
-// and before its "…".
+// and before the cell of its "…" button, which opens the row's menu.
 function cells(tr: HTMLElement): string[] {
-  return [...tr.querySelectorAll('[role="rowheader"], [role="gridcell"]')].slice(1).flatMap((cell) => (cell.textContent === "⋯" ? [] : [cell.textContent]));
+  return [...tr.querySelectorAll('[role="rowheader"], [role="gridcell"]')]
+    .slice(1)
+    .flatMap((cell) => (cell.querySelector('button[aria-haspopup="menu"]') === null ? [cell.textContent] : []));
 }
 
 // The ticked rows of the section's table, by the ids of their objects.

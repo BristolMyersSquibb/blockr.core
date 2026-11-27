@@ -2,7 +2,8 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Autocomplete, Menu, MenuItem, MenuSection, Popover, Text, TextField } from "@blockr/ui";
+import { Autocomplete, Icon, Menu, MenuItem, MenuSection, Popover, Text, TextField } from "@blockr/ui";
+import { SquareArrowUpRightExit } from "./vendor-64fbb1b0.js";
 import { Input, Separator, TextField as AriaTextField } from "react-aria-components";
 
 // srcts/util/shortcuts.ts
@@ -237,7 +238,7 @@ function Level({
           onClick: () => {
             openAdvanced();
           },
-          children: /* @__PURE__ */ jsx(OpenIcon, {})
+          children: /* @__PURE__ */ jsx(Icon, { icon: SquareArrowUpRightExit })
         }
       )
     ] }) : level.title === void 0 ? null : /* @__PURE__ */ jsx("p", { className: TITLE, children: level.title }),
@@ -360,31 +361,11 @@ function Item({
                 event.stopPropagation();
                 onOpen();
               },
-              children: /* @__PURE__ */ jsx(OpenIcon, {})
+              children: /* @__PURE__ */ jsx(Icon, { icon: SquareArrowUpRightExit })
             }
           ) : null
         ] }),
         row.advanced === true ? /* @__PURE__ */ jsx(Text, { slot: "description", className: "bc:sr-only", children: tip }) : null
-      ]
-    }
-  );
-}
-function OpenIcon() {
-  return /* @__PURE__ */ jsxs(
-    "svg",
-    {
-      "aria-hidden": "true",
-      width: "14",
-      height: "14",
-      viewBox: "0 0 16 16",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.25,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: [
-        /* @__PURE__ */ jsx("path", { d: "M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" }),
-        /* @__PURE__ */ jsx("path", { d: "M10 2.5h3.5V6M13.5 2.5 8 8" })
       ]
     }
   );

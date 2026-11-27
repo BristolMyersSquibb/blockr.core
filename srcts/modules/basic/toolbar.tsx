@@ -44,6 +44,7 @@ import type { ReactElement } from "react";
 import {
   Button as SdkButton,
   Focusable,
+  Icon,
   Keyboard,
   Menu,
   MenuItem,
@@ -55,6 +56,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@blockr/ui";
+import { ChevronDown } from "@blockr/ui/icons";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -257,7 +259,9 @@ function Tipped({ tooltip, children }: { tooltip: string | undefined; children: 
 }
 
 // A menu, a button that opens a list of what it holds, which closes as one of
-// its buttons runs, on Escape and on a press elsewhere.
+// its buttons runs, on Escape and on a press elsewhere. The button shows
+// Lucide's chevron after its label, 12 pixels wide, as blockr.ui's select
+// shows it.
 function StorageMenu({ label, items }: { label: string; items: readonly StorageControl[] }): ReactElement {
   const { core } = useFrontEnd();
   const mac = onMac(window);
@@ -265,7 +269,7 @@ function StorageMenu({ label, items }: { label: string; items: readonly StorageC
     <MenuTrigger placement="bottom end">
       <SdkButton variant="secondary">
         {label}
-        <span aria-hidden="true">▾</span>
+        <Icon icon={ChevronDown} size={12} />
       </SdkButton>
       <Menu aria-label={label}>{entries(items, core, mac)}</Menu>
     </MenuTrigger>

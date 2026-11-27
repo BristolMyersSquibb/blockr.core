@@ -13,7 +13,8 @@ import { useRef, useState } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Button, TextField } from "@blockr/ui";
+import { Button, Icon, TextField } from "@blockr/ui";
+import { Ellipsis } from "@blockr/ui/icons";
 import { MARKS, SeverityIcon } from "../card/index.ts";
 import type { Refused } from "./edits.ts";
 
@@ -91,11 +92,11 @@ export function NameField({
   );
 }
 
-// The "…" button that opens the menu of board actions of a board object, as
-// a card of the basic frontend and a row of the Edit board plugin draw it,
-// named by the label given, as "Actions of Head". It is a Button of blockr.ui,
-// which a row of React Aria's Table hears no press of, so that pressing it in
-// a row does not tick the row.
+// The button that opens the menu of board actions of a board object, as a
+// card of the basic frontend and a row of the Edit board plugin draw it, with
+// Lucide's ellipsis as its icon, and named by the label given, as "Actions of
+// Head". It is a Button of blockr.ui, which a row of React Aria's Table hears
+// no press of, so that pressing it in a row does not tick the row.
 export function ActionsButton({
   ref,
   label,
@@ -107,9 +108,7 @@ export function ActionsButton({
 }): ReactElement {
   return (
     <Button ref={ref} variant="quiet" aria-label={label} aria-haspopup="menu" onPress={onPress}>
-      <span aria-hidden="true" className="bc:text-base bc:leading-none">
-        ⋯
-      </span>
+      <Icon icon={Ellipsis} />
     </Button>
   );
 }

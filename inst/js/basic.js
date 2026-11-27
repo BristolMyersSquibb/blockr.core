@@ -4,11 +4,14 @@ import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
 import { useCallback as useCallback6, useMemo as useMemo2, useState as useState8 } from "react";
-import { Button as Button4, Text as Text3, Toast, ToastContent, ToastRegion } from "@blockr/ui";
+import { Button as Button4, Icon as Icon4, Text as Text3, Toast, ToastContent, ToastRegion } from "@blockr/ui";
+import { X } from "./vendor-64fbb1b0.js";
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
-import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+import { Icon } from "@blockr/ui";
+import { CircleX, Info, TriangleExclamationPoint } from "./vendor-64fbb1b0.js";
+import { jsx, jsxs } from "react/jsx-runtime";
 var SEVERITIES = ["error", "warning", "message"];
 function useFooter(status, notifications) {
   const shown = useShown(status);
@@ -144,27 +147,13 @@ function Banner({ severity, message }) {
   );
 }
 function SeverityIcon({ severity }) {
-  return /* @__PURE__ */ jsx(
-    "svg",
-    {
-      "aria-hidden": "true",
-      viewBox: "0 0 16 16",
-      className: "bc:size-3 bc:shrink-0",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.6,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
-        /* @__PURE__ */ jsx("path", { d: "M8 6.2v3.2M8 11.6v.1" })
-      ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
-      ] })
-    }
-  );
+  return /* @__PURE__ */ jsx(Icon, { icon: SEVERITY_ICONS[severity], size: 12 });
 }
+var SEVERITY_ICONS = {
+  error: CircleX,
+  warning: TriangleExclamationPoint,
+  message: Info
+};
 function useShown(status) {
   const [kept, setKept] = useState(void 0);
   const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
@@ -324,7 +313,8 @@ import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 import { useRef as useRef2, useState as useState6 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Button as Button2, TextField } from "@blockr/ui";
+import { Button as Button2, Icon as Icon2, TextField } from "@blockr/ui";
+import { Ellipsis } from "./vendor-64fbb1b0.js";
 import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 var classes = {
   // The board's page, in the page's colour and the colour of its text,
@@ -392,7 +382,7 @@ function ActionsButton({
   label,
   onPress
 }) {
-  return /* @__PURE__ */ jsx5(Button2, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx5("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
+  return /* @__PURE__ */ jsx5(Button2, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx5(Icon2, { icon: Ellipsis }) });
 }
 
 // srcts/modules/basic/card.tsx
@@ -772,6 +762,7 @@ import { useEffect, useId as useId2, useReducer, useState as useState7 } from "r
 import {
   Button as SdkButton,
   Focusable,
+  Icon as Icon3,
   Keyboard,
   Menu,
   MenuItem,
@@ -783,6 +774,7 @@ import {
   Tooltip,
   TooltipTrigger
 } from "@blockr/ui";
+import { ChevronDown } from "./vendor-64fbb1b0.js";
 
 // srcts/modules/basic/storage.ts
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -832,7 +824,7 @@ function distinct(list, twice) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
+import { Fragment, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 function Toolbar({ board, showOptions }) {
   const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
@@ -929,7 +921,7 @@ function StorageControls() {
     if (problem !== void 0) core.log("blockr.core").error(problem);
   }, [core, problem]);
   if (drawn2 === void 0 || !drawn2.failed && drawn2.controls.length === 0) return null;
-  return /* @__PURE__ */ jsxs9(Fragment2, { children: [
+  return /* @__PURE__ */ jsxs9(Fragment, { children: [
     /* @__PURE__ */ jsx10(Separator, { orientation: "vertical" }),
     drawn2.failed ? /* @__PURE__ */ jsx10("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-destructive-text", children: /* @__PURE__ */ jsx10(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn2.controls.map((control) => /* @__PURE__ */ jsx10(Control, { control }, control.id))
   ] });
@@ -963,7 +955,7 @@ function StorageButton({ button }) {
   );
   if (button.tooltip === void 0) return drawn2;
   if (off) {
-    return /* @__PURE__ */ jsxs9(Fragment2, { children: [
+    return /* @__PURE__ */ jsxs9(Fragment, { children: [
       drawn2,
       /* @__PURE__ */ jsx10("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-muted-foreground", children: button.tooltip })
     ] });
@@ -974,7 +966,7 @@ function StorageButton({ button }) {
   ] });
 }
 function Tipped({ tooltip, children }) {
-  if (tooltip === void 0) return /* @__PURE__ */ jsx10(Fragment2, { children });
+  if (tooltip === void 0) return /* @__PURE__ */ jsx10(Fragment, { children });
   return /* @__PURE__ */ jsxs9(TooltipTrigger, { children: [
     /* @__PURE__ */ jsx10(Focusable, { children: /* @__PURE__ */ jsx10("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded-sm bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-ring", children }) }),
     /* @__PURE__ */ jsx10(Tooltip, { children: tooltip })
@@ -986,7 +978,7 @@ function StorageMenu({ label, items }) {
   return /* @__PURE__ */ jsxs9(MenuTrigger, { placement: "bottom end", children: [
     /* @__PURE__ */ jsxs9(SdkButton, { variant: "secondary", children: [
       label,
-      /* @__PURE__ */ jsx10("span", { "aria-hidden": "true", children: "\u25BE" })
+      /* @__PURE__ */ jsx10(Icon3, { icon: ChevronDown, size: 12 })
     ] }),
     /* @__PURE__ */ jsx10(Menu, { "aria-label": label, children: entries(items, core, mac) })
   ] });
@@ -1097,7 +1089,7 @@ function ToastItem({ toast, title }) {
         }
       ) }) : null
     ] }),
-    /* @__PURE__ */ jsx11(Button4, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx11("span", { "aria-hidden": "true", children: "\xD7" }) })
+    /* @__PURE__ */ jsx11(Button4, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx11(Icon4, { icon: X }) })
   ] });
 }
 var LEFT = {

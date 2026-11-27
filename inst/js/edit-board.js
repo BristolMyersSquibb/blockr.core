@@ -8,7 +8,9 @@ import { Button as Button4, Cell, Column, Disclosure, DisclosureHeader, Disclosu
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
-import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+import { Icon } from "@blockr/ui";
+import { CircleX, Info, TriangleExclamationPoint } from "./vendor-64fbb1b0.js";
+import { jsx, jsxs } from "react/jsx-runtime";
 var MARKS = {
   error: {
     label: "Error",
@@ -33,27 +35,13 @@ var MARKS = {
   }
 };
 function SeverityIcon({ severity }) {
-  return /* @__PURE__ */ jsx(
-    "svg",
-    {
-      "aria-hidden": "true",
-      viewBox: "0 0 16 16",
-      className: "bc:size-3 bc:shrink-0",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.6,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
-        /* @__PURE__ */ jsx("path", { d: "M8 6.2v3.2M8 11.6v.1" })
-      ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
-      ] })
-    }
-  );
+  return /* @__PURE__ */ jsx(Icon, { icon: SEVERITY_ICONS[severity], size: 12 });
 }
+var SEVERITY_ICONS = {
+  error: CircleX,
+  warning: TriangleExclamationPoint,
+  message: Info
+};
 
 // srcts/card/mounted.tsx
 import { useLayoutEffect, useRef } from "react";
@@ -193,7 +181,8 @@ function Pager({ label, view }) {
 import { useRef as useRef2, useState as useState6 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Button as Button2, TextField } from "@blockr/ui";
+import { Button as Button2, Icon as Icon2, TextField } from "@blockr/ui";
+import { Ellipsis } from "./vendor-64fbb1b0.js";
 import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 var classes = {
   // The board's page, in the page's colour and the colour of its text,
@@ -223,7 +212,7 @@ function ActionsButton({
   label,
   onPress
 }) {
-  return /* @__PURE__ */ jsx5(Button2, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx5("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
+  return /* @__PURE__ */ jsx5(Button2, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx5(Icon2, { icon: Ellipsis }) });
 }
 function Refusal({ refusal }) {
   if (refusal === null) return null;
@@ -428,7 +417,7 @@ function without2(map, key) {
 }
 
 // srcts/modules/edit-board/blocks.tsx
-import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+import { Fragment, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var ROLE = "add_block_role";
 var COLUMNS = [
   { id: "name", name: "Name", rowHeader: true },
@@ -443,7 +432,7 @@ function BlocksSection({ core }) {
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs6(Section, { title: "Blocks", count, children: [
     adds ? /* @__PURE__ */ jsx7(Part, { title: "Add a block", children: /* @__PURE__ */ jsx7(Advanced, { core, role: ROLE, target: BOARD }) }) : null,
-    /* @__PURE__ */ jsx7(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx7("p", { className: classes.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs6(Fragment2, { children: [
+    /* @__PURE__ */ jsx7(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx7("p", { className: classes.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs6(Fragment, { children: [
       /* @__PURE__ */ jsx7(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx7("p", { className: classes.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsx7(
         ObjectsTable,
@@ -592,7 +581,7 @@ function findPath(from, to, downstream) {
 
 // srcts/modules/edit-board/links.tsx
 import { useBoard as useBoard2 } from "@blockr/core/react";
-import { Fragment as Fragment3, jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 var ROLE2 = "add_link_role";
 var COLUMNS2 = [
   { id: "from", name: "From", rowHeader: true },
@@ -607,7 +596,7 @@ function LinksSection({ core, locked }) {
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs7(Section, { title: "Links", count: links.length, children: [
     locked ? null : /* @__PURE__ */ jsx8(Part, { title: "Add a link", children: adds ? /* @__PURE__ */ jsx8(Advanced, { core, role: ROLE2, target: BOARD }) : /* @__PURE__ */ jsx8("p", { className: classes.hint, children: two ? "No new link can join two blocks of the board." : "A link joins two blocks, so the board needs two blocks first." }) }),
-    /* @__PURE__ */ jsx8(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx8("p", { className: classes.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs7(Fragment3, { children: [
+    /* @__PURE__ */ jsx8(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx8("p", { className: classes.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs7(Fragment2, { children: [
       /* @__PURE__ */ jsx8(TableSearch, { label: "Search links", view }),
       view.found === 0 ? /* @__PURE__ */ jsx8("p", { className: classes.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsx8(
         ObjectsTable,
@@ -705,7 +694,7 @@ function idOf(object, kind) {
 // srcts/modules/edit-board/stacks.tsx
 import { ColorSwatch } from "@blockr/ui";
 import { useBoard as useBoard3 } from "@blockr/core/react";
-import { Fragment as Fragment4, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var ROLE3 = "add_stack_role";
 var COLUMNS3 = [
   { id: "name", name: "Name", rowHeader: true },
@@ -718,7 +707,7 @@ function StacksSection({ core, locked }) {
   const menus = useMenus(core);
   return /* @__PURE__ */ jsxs8(Section, { title: "Stacks", count: stacks.length, children: [
     locked || !adds ? null : /* @__PURE__ */ jsx9(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx9(Advanced, { core, role: ROLE3, target: BOARD }) }),
-    /* @__PURE__ */ jsx9(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx9("p", { className: classes.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs8(Fragment4, { children: [
+    /* @__PURE__ */ jsx9(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx9("p", { className: classes.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs8(Fragment3, { children: [
       /* @__PURE__ */ jsx9(TableSearch, { label: "Search stacks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx9("p", { className: classes.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsx9(
         ObjectsTable,
