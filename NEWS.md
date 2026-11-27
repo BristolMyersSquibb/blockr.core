@@ -1042,6 +1042,17 @@
   Its board actions write theirs as SVG markup with `iconMarkup()`.
   The board actions that add show what they add: a box for a block, a link for Create link, and layers for Create stack and for Add to stack.
   Before, each of them showed the same plus, so a block's menu showed no difference between Append block, Create link and Create stack (#871).
+* Each method of `serve()` takes the app's theme in `theme`, as `blockr.ui::new_blockr_theme()` makes it.
+  A block that `serve()` serves alone draws in the app's theme too.
+  The argument defaults to the blockr option `theme`, and to a theme with no values where nothing sets the option.
+  Only an R option sets the blockr option, since an environment variable gives a string.
+  Each method refuses a `theme` that is not a theme, naming what it got.
+* The methods of `serve()` for a board and for a path call `frontend_theme()` on the app's frontend, and stop the app, naming the frontend, where the method returns anything but a theme.
+  R writes the rules of the frontend's theme and then those of the app's theme into the page's head, after blockr.ui's stylesheet.
+  So the page draws in both themes from the first paint, its loading note included, and the app's values win over the frontend's.
+  For each font of the two themes, R serves the font's file and writes its face with `font-display: swap`.
+  R also names the file in the page's head, so that the browser fetches it as the page loads.
+  A font that R cannot write or serve stops the app, such as one whose file does not exist (#868).
 
 # blockr.core 0.1.4
 

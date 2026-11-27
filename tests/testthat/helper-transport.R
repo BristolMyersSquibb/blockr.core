@@ -190,6 +190,17 @@ served_replies <- function(app, ..., session = transport_session()) {
   replies
 }
 
+# The head of the page of an app that serve() returned, as R makes the page
+# for a browser's request of the app's root.
+served_head <- function(app) {
+
+  page <- app$httpHandler(
+    list(REQUEST_METHOD = "GET", PATH_INFO = "/", QUERY_STRING = "")
+  )
+
+  sub(".*<head>(.*)</head>.*", "\\1", page$content)
+}
+
 # The block registry of an app that serve() returned, which serve() built for
 # the app and hands to the evaluator of each of its sessions.
 served_registry <- function(app) {

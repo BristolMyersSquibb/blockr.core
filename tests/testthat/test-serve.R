@@ -455,8 +455,8 @@ test_that("core's basic frontend takes no argument, and reads nothing", {
   writeLines(unclass(encode_message(proto_served_file())), path)
 
   expect_error(
-    serve(path, navbar = list(), theme = "dark"),
-    "and was given `navbar` and `theme`.",
+    serve(path, navbar = list(), title = "Trials"),
+    "and was given `navbar` and `title`.",
     fixed = TRUE,
     class = "frontend_args_invalid"
   )
@@ -935,6 +935,327 @@ test_that("the page leaves its mode to its root, whatever `dark_mode` is", {
     fixed = TRUE
   )
   expect_false(grepl("data-bc-theme", page$html, fixed = TRUE))
+})
+
+test_that("serve() writes the frontend's theme, then the app's, in the head", {
+
+  # The frontend sets its own popover and spacing in both modes, and the app
+  # its own primary color and popover in light mode alone.
+  front <- blockr.ui::new_blockr_theme(
+    light = list("--bk-color-popover" = "#fafafa", "--bk-spacing" = "0.3rem"),
+    dark = list("--bk-color-popover" = "#262626", "--bk-spacing" = "0.3rem")
+  )
+  theme <- blockr.ui::new_blockr_theme(
+    light = list(
+      "--bk-color-primary" = "#be2bbb",
+      "--bk-color-popover" = "#ffffff"
+    )
+  )
+
+  local_sheet_frontend(front)
+
+  # The rules of the app's theme come after those of the frontend's, with the
+  # same selectors, so that the app's popover wins in light mode.
+  rules <- paste0("<style>", format(front), "\n\n", format(theme), "</style>")
+
+  for (x in list(served_board(), local_board_path())) {
+
+    head <- served_head(serve(x, theme = theme))
+
+    expect_match(head, rules, fixed = TRUE)
+
+    # The rules follow the stylesheet of blockr.ui, so that the browser has
+    # them as it first paints the page.
+    at <- function(text) regexpr(text, head, fixed = TRUE)
+    expect_gt(at(rules), at("blockr.ui/js/blockr-ui.css?v="))
+  }
+
+  # A block that serve() serves alone has no frontend, so its page holds the
+  # app's theme alone.
+  head <- served_head(
+    serve(new_head_block(), data = list(data = datasets::BOD), theme = theme)
+  )
+
+  expect_match(head, paste0("<style>", format(theme), "</style>"), fixed = TRUE)
+})
+
+test_that("serve() takes the app's theme from the blockr option `theme`", {
+
+  plugins <- subset(available_plugins(), package == "blockr.core")
+  path <- local_board_path()
+
+  apps <- function(...) {
+    list(
+      serve(served_board(), plugins = plugins, ...),
+      serve(path, plugins = plugins, ...),
+      serve(new_head_block(), data = list(data = datasets::BOD), ...)
+    )
+  }
+
+  # Where nothing sets the blockr option, the app's theme has no values, and
+  # core's basic frontend keeps every default, so no page holds a theme's
+  # rules.
+  for (app in apps()) {
+    expect_no_match(served_head(app), "<style>", fixed = TRUE)
+  }
+
+  theme <- blockr.ui::new_blockr_theme(
+    light = list("--bk-color-primary" = "#be2bbb"),
+    dark = list("--bk-color-primary" = "#d66bd3")
+  )
+
+  withr::local_options(blockr.theme = theme)
+
+  for (app in apps()) {
+    expect_match(
+      served_head(app),
+      paste0("<style>", format(theme), "</style>"),
+      fixed = TRUE
+    )
+  }
+
+  # The theme that an app script passes to serve() wins over the option's.
+  other <- blockr.ui::new_blockr_theme(light = list("--bk-radius" = "0"))
+
+  for (app in apps(theme = other)) {
+    expect_match(
+      served_head(app),
+      paste0("<style>", format(other), "</style>"),
+      fixed = TRUE
+    )
+  }
+})
+
+test_that("each method of serve() refuses a theme that is not one", {
+
+  path <- local_board_path()
+
+  methods <- list(
+    function(...) serve(served_board(), ...),
+    function(...) serve(path, ...),
+    function(...) serve(new_head_block(), data = list(data = 1L), ...)
+  )
+
+  expected <- function(what) {
+    paste0(
+      "The app's theme is expected to be a theme, as ",
+      "`blockr.ui::new_blockr_theme()` makes it, and `serve()` got ", what,
+      ". An app passes its theme to `serve()` in `theme`"
+    )
+  }
+
+  for (method in methods) {
+
+    expect_error(
+      method(theme = NULL),
+      expected("`NULL`"),
+      fixed = TRUE,
+      class = "serve_theme_invalid"
+    )
+    expect_error(
+      method(theme = list(light = list())),
+      expected("an object of class list"),
+      fixed = TRUE,
+      class = "serve_theme_invalid"
+    )
+  }
+
+  # The environment variable `BLOCKR_THEME` gives the blockr option a string,
+  # which is no theme, so only an R option sets it.
+  withr::local_envvar(BLOCKR_THEME = "dark")
+
+  for (method in methods) {
+    expect_error(
+      method(),
+      expected("the string \"dark\""),
+      fixed = TRUE,
+      class = "serve_theme_invalid"
+    )
+  }
+})
+
+test_that("serve() refuses what a frontend's theme method returns but one", {
+
+  local_sheet_frontend(list(light = list("--bk-spacing" = "0.3rem")))
+
+  for (x in list(served_board(), local_board_path())) {
+    expect_error(
+      serve(x),
+      paste0(
+        "The method of `frontend_theme()` for the frontend ",
+        "blockr.test-sheet_plugin returns an object of class list, where a ",
+        "theme is expected, as `blockr.ui::new_blockr_theme()` makes it."
+      ),
+      fixed = TRUE,
+      class = "frontend_theme_invalid"
+    )
+  }
+
+  # A block that serve() serves alone has no frontend whose theme R reads.
+  expect_s3_class(
+    serve(new_head_block(), data = list(data = datasets::BOD)),
+    "shiny.appobj"
+  )
+})
+
+test_that("serve() serves the files of both themes' fonts, named in the head", {
+
+  dir <- withr::local_tempdir()
+  ui_font <- file.path(dir, "ui-sans.woff2")
+  app_font <- file.path(dir, "brand sans.woff2")
+  writeBin(as.raw(1:8), ui_font)
+  writeBin(as.raw(9:16), app_font)
+
+  # The frontend brings a face of its own, which the app's theme then does not
+  # use, while the app brings a face of a variable font, which it uses in both
+  # modes.
+  front <- blockr.ui::new_blockr_theme(
+    fonts = list(list(family = "Ui Sans", file = ui_font))
+  )
+  theme <- blockr.ui::new_blockr_theme(
+    light = list("--bk-font-sans" = "Brand Sans, sans-serif"),
+    dark = list("--bk-font-sans" = "Brand Sans, sans-serif"),
+    fonts = list(
+      list(family = "Brand Sans", file = app_font, weight = "100 900")
+    )
+  )
+
+  local_sheet_frontend(front)
+
+  head <- served_head(serve(served_board(), theme = theme))
+
+  # R serves each file from no package, in a directory named by its hash, as
+  # it serves a module that a script defines.
+  url <- function(file) {
+    url_path("blockr-modules", file.path(file_hash(file), basename(file)))
+  }
+
+  for (file in c(ui_font, app_font)) {
+    expect_true(
+      file.exists(file.path(served_dir(), utils::URLdecode(url(file))))
+    )
+  }
+
+  face <- function(family, weight, file) {
+    paste0(
+      "@font-face {\n",
+      "  font-family: \"", family, "\";\n",
+      "  font-style: normal;\n",
+      "  font-weight: ", weight, ";\n",
+      "  font-display: swap;\n",
+      "  src: url(\"./", url(file), "\");\n",
+      "}"
+    )
+  }
+
+  # The faces of each theme's fonts come before its rules, the frontend's
+  # first, so that the app's face of a font wins over the frontend's.
+  expect_match(
+    head,
+    paste0(
+      "<style>",
+      face("Ui Sans", "normal", ui_font), "\n\n",
+      face("Brand Sans", "100 900", app_font), "\n\n",
+      format(theme),
+      "</style>"
+    ),
+    fixed = TRUE
+  )
+
+  # The page names each file, so that the browser fetches it as the page
+  # loads, in the mode in which it fetches a font.
+  for (file in c(ui_font, app_font)) {
+    expect_match(
+      head,
+      paste0(
+        "<link rel=\"preload\" href=\"./", url(file),
+        "\" as=\"font\" crossorigin/>"
+      ),
+      fixed = TRUE
+    )
+  }
+
+  # A block that serve() serves alone serves the fonts of the app's theme.
+  head <- served_head(
+    serve(new_head_block(), data = list(data = datasets::BOD), theme = theme)
+  )
+
+  expect_match(
+    head,
+    paste0(
+      "<style>", face("Brand Sans", "100 900", app_font), "\n\n",
+      format(theme), "</style>"
+    ),
+    fixed = TRUE
+  )
+  expect_no_match(head, "ui-sans", fixed = TRUE)
+})
+
+test_that("serve() refuses a font of a theme that it cannot serve", {
+
+  file <- withr::local_tempfile(fileext = ".woff2")
+  writeBin(as.raw(1:8), file)
+
+  fonts <- function(...) {
+    blockr.ui::new_blockr_theme(fonts = list(list(...)))
+  }
+
+  plugins <- subset(available_plugins(), package == "blockr.core")
+
+  # A font gives its family and its file, and the weight and the style of its
+  # face, each as a string.
+  for (theme in list(fonts(file = file), fonts(family = "Brand", weight = 400,
+                                               file = file))) {
+    expect_error(
+      serve(served_board(), plugins = plugins, theme = theme),
+      paste0(
+        "The app's theme gives a font, font 1, that lacks the family, the ",
+        "path of its file, the weight or the style of its face as a string."
+      ),
+      fixed = TRUE,
+      class = "theme_font_invalid"
+    )
+  }
+
+  # R writes the family in quotes, and the weight and the style as they are,
+  # so it refuses what would end the string, the rule or the element.
+  for (theme in list(fonts(family = "Brand\" Sans", file = file),
+                     fonts(family = "Brand", style = "normal}", file = file),
+                     fonts(family = "Brand", weight = "</style>",
+                           file = file))) {
+    expect_error(
+      serve(served_board(), plugins = plugins, theme = theme),
+      "a family, a weight or a style that holds `\"`, `}` or `<`",
+      fixed = TRUE,
+      class = "theme_font_invalid"
+    )
+  }
+
+  # The function `system.file()` gives "" for a file that a package lacks.
+  expect_error(
+    serve(
+      new_head_block(),
+      data = list(data = datasets::BOD),
+      theme = fonts(family = "Brand", file = "")
+    ),
+    "The app's theme gives the font Brand the file \"\", which does not exist.",
+    fixed = TRUE,
+    class = "theme_font_invalid"
+  )
+
+  # The errors for a font of the frontend's theme name the frontend.
+  missing <- file.path(dirname(file), "missing.woff2")
+  local_sheet_frontend(fonts(family = "Ui Sans", file = missing))
+
+  expect_error(
+    serve(local_board_path()),
+    paste0(
+      "The theme of the frontend blockr.test-sheet_plugin gives the font ",
+      "Ui Sans the file \"", missing, "\", which does not exist."
+    ),
+    fixed = TRUE,
+    class = "theme_font_invalid"
+  )
 })
 
 test_that("the page imports the modules of plugins, options and blocks", {
