@@ -19,6 +19,7 @@ import { afterEach, beforeEach, expect, test } from "vitest";
 import { draw } from "@blockr/ui/stubs";
 import { stubBlockHost, stubOutputHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
+import { unmount } from "../testing/modules.ts";
 import { mountReact } from "../testing/react.ts";
 import type { OutputFixtures, TextOutput } from "../types/outputs.ts";
 import type * as Build from "./index.ts";
@@ -93,7 +94,7 @@ test("the module draws with the React and the SDK that it imports", async () => 
   const mounted = await mountReact(module, stubOutputHost({ output: { ...sample.output } }));
 
   expect(mounted.el.querySelector("pre")?.textContent).toBe(sample.output.text);
-  mounted.unmount();
+  unmount(mounted);
   expect(mounted.el.childNodes).toHaveLength(0);
 });
 
@@ -125,7 +126,7 @@ test("leaves a package's module written without React importing the controls, wi
   const mounted = await mountReact(module, stubBlockHost({ states: [{ label: "x" }], requests: [] }));
 
   expect(mounted.el.querySelector("input")?.value).toBe("x");
-  mounted.unmount();
+  unmount(mounted);
   expect(mounted.el.querySelector("input")).toBeNull();
 });
 
@@ -141,7 +142,7 @@ test("core's own block module, as core ships it, imports React, the SDK and bloc
   const mounted = await mountReact(module, stubBlockHost(fixture));
 
   expect(mounted.el.querySelector("input")).not.toBeNull();
-  mounted.unmount();
+  unmount(mounted);
   expect(mounted.el.querySelector("input")).toBeNull();
 });
 

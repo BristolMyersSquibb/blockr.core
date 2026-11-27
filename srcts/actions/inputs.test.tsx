@@ -203,7 +203,9 @@ describe("Edit inputs", () => {
 
     expect(into(s.core.store.board(), "e")).toEqual([["de", "d", "low"]]);
     expect(inputs(room)).toEqual(["Input 1, low, from Wide sepals"]);
-    s.core.store.undo();
+    await step(() => {
+      s.core.store.undo();
+    });
     expect(into(s.core.store.board(), "e")).toEqual([
       ["be", "b", ""],
       ["de", "d", ""],
@@ -568,7 +570,9 @@ describe("on a variadic block", () => {
         { id: "blockr.core-change_link", args: { id: merge, before: null } },
       ],
     ]);
-    s.core.store.undo();
+    await step(() => {
+      s.core.store.undo();
+    });
     expect(into(s.core.store.board(), "e")).toEqual([
       ["be", "b", ""],
       ["de", "d", ""],

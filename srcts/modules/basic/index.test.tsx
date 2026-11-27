@@ -915,7 +915,9 @@ describe("the storage controls", () => {
     expect(parts(page.el).slice(-2)).toEqual(["Saved", "Share"]);
 
     // The controls read the board, as a status may show the board's name.
-    storage.set(() => [{ kind: "status", id: "saved", text: `Unsaved ${page.board().name}` }]);
+    await step(() => {
+      storage.set(() => [{ kind: "status", id: "saved", text: `Unsaved ${page.board().name}` }]);
+    });
     await act(() => page.core.commands.run("blockr.core-change_board", { name: "Sepals" }));
     expect(parts(page.el).at(-1)).toBe("Unsaved Sepals");
 
@@ -1014,7 +1016,6 @@ describe("the storage controls", () => {
   });
 
   test("draw the first of the controls of one list that share an id, and a warning in their place where controls() fails, of which the page hears once", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { runs, ran } = running();
     const storage = storagePlugin(() => [
       { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: ran("save") },
