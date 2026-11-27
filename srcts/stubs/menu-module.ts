@@ -51,7 +51,7 @@ import type { Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
-import { jsonEqual } from "../util/index.ts";
+import { interned, jsonEqual } from "../util/index.ts";
 import { renderable } from "./mount.ts";
 
 // One test of a module that draws the menus of board actions: what it checks,
@@ -423,7 +423,7 @@ function action(label: string, more: Partial<BoardAction>): BoardAction {
 
 // The batch of a command of the test's own, by its name, with the args given.
 function call(name: string, args?: Json): CommandCall[] {
-  return [{ package: "blockr.test", id: name, ...(args === undefined ? {} : { args }) }];
+  return [{ id: interned("blockr.test", name), ...(args === undefined ? {} : { args }) }];
 }
 
 // An item that runs a batch that names its label as it is picked.

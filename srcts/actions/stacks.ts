@@ -35,7 +35,7 @@ import { CORE, suggestedName } from "../commands/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { blockName } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { interned, own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { PLUS, swatch } from "./icons.ts";
 import { levelItem, nameRow } from "./quick.ts";
@@ -46,8 +46,8 @@ import { heldBlocks } from "./targets.ts";
 const CREATE_STACK = "add_stack_action";
 const EDIT_STACK = "edit_stack_action";
 const ADD_TO_STACK = "add_to_stack_action";
-const ADD_STACK = { package: CORE, id: "add_stack" } as const;
-const CHANGE_STACK = { package: CORE, id: "change_stack" } as const;
+const ADD_STACK = interned(CORE, "add_stack");
+const CHANGE_STACK = interned(CORE, "change_stack");
 
 export function createStackAction(): Omit<BoardAction, "package"> {
   return {
@@ -110,7 +110,7 @@ export function addToStackAction(): Omit<BoardAction, "package"> {
             label: stack.name,
             icon: swatch(stack.color),
             detail: count(stack.blocks.length),
-            pick: () => [{ ...CHANGE_STACK, args: { id, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }],
+            pick: () => [{ id: CHANGE_STACK, args: { id, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }],
           }),
         ),
       };
@@ -124,7 +124,7 @@ export function addToStackAction(): Omit<BoardAction, "package"> {
 function newStack(core: CoreApi, blocks: readonly BlockId[], name: string): CommandCall[] {
   return [
     {
-      ...ADD_STACK,
+      id: ADD_STACK,
       args: {
         id: core.mintId((id) => Object.hasOwn(core.store.board().stacks, id)),
         name,
@@ -158,7 +158,7 @@ function colourRows(board: Board, id: StackId, stack: Stack): QuickRow[] {
         kind: "item",
         label: color.toUpperCase(),
         icon: swatch(color),
-        pick: () => [{ ...CHANGE_STACK, args: { id, color } }],
+        pick: () => [{ id: CHANGE_STACK, args: { id, color } }],
       }),
     ),
   ];
@@ -178,7 +178,7 @@ function blocksRow(board: Board, id: StackId, stack: Stack): QuickRow {
       ...members.map((block) => ({ id: block, label: blockName(board, block), picked: true })),
       ...free.map((block) => ({ id: block, label: blockName(board, block), picked: false })),
     ],
-    apply: (picked) => [{ ...CHANGE_STACK, args: { id, blocks: [...picked] } }],
+    apply: (picked) => [{ id: CHANGE_STACK, args: { id, blocks: [...picked] } }],
   };
 }
 

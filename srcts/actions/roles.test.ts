@@ -22,6 +22,7 @@ import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { createBoardActions } from "./actions.ts";
 import { checkedPlayer, CORE_ROLES } from "./roles.ts";
 import type { Role } from "./roles.ts";
+import type { BoardActionId } from "../types/board.ts";
 
 // Core's board actions on the block b, as on() gives them, which come first
 // in every menu of it.
@@ -38,8 +39,8 @@ const ON_BLOCK = ofCore(
 // What the page shows after why a pick of board_actions fails.
 const NO_BOARD = "Core opens no board, since the blockr option board_actions holds for every board of the app.";
 
-const ADD_BLOCK = { package: "blockr.core", id: "add_block" };
-const ADD_LINK = { package: "blockr.core", id: "add_link" };
+const ADD_BLOCK = interned("blockr.core", "add_block");
+const ADD_LINK = interned("blockr.core", "add_link");
 
 // The element that the user triggers from, which a trigger() needs.
 const el = document.body;
@@ -84,16 +85,16 @@ function ofCore(...given: readonly string[]): { package: string; id: string }[] 
 
 // A board action of blockr.test by its package and its id, which core gives it
 // as it registers the class that lists it.
-function ofTest(action: Pick<Definition, "id">): { package: string; id: string } {
-  return { package: "blockr.test", id: action.id };
+function ofTest(action: Pick<Definition, "id">): BoardActionId {
+  return interned("blockr.test", action.id);
 }
 
 // The batch that adds the block n, a Head, after the block that the target
 // names, as Append block's does.
 function appending(target: Target, from?: string): CommandCall[] {
   return [
-    { ...ADD_BLOCK, args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } },
-    { ...ADD_LINK, args: { from: from ?? ("block" in target ? target.block : ""), to: "n" } },
+    { id: ADD_BLOCK, args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } },
+    { id: ADD_LINK, args: { from: from ?? ("block" in target ? target.block : ""), to: "n" } },
   ];
 }
 
@@ -107,7 +108,7 @@ const notesRole: Role = { id: "notes_role", on: ["block"], default: "notes_actio
 function notes(name: string): Definition {
   return action("notes", ["block"], {
     role: "notes_role",
-    run: (_board, target) => ("block" in target ? [{ package: "blockr.core", id: "change_block", args: { id: target.block, name } }] : undefined),
+    run: (_board, target) => ("block" in target ? [{ id: interned("blockr.core", "change_block"), args: { id: target.block, name } }] : undefined),
   });
 }
 
@@ -278,8 +279,8 @@ describe("the board action that plays a role", () => {
       },
     });
     const s = await stubbed([listing("kit", [append, add])], {
-      append_block_role: ofTest(append),
-      add_block_role: ofTest(add),
+      append_block_role: { package: "blockr.test", id: append.id },
+      add_block_role: { package: "blockr.test", id: add.id },
     });
 
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([ofTest(append), ...ON_BLOCK.slice(1)]);
@@ -294,12 +295,12 @@ describe("the board action that plays a role", () => {
 
     // Core's Append block, which names the role, no longer plays it, so that
     // trigger() runs nothing for its id.
-    await s.core.boardActions.trigger({ package: "blockr.core", id: "append_block_action" }, { block: "b" }, { el });
+    await s.core.boardActions.trigger(interned("blockr.core", "append_block_action"), { block: "b" }, { el });
     expect(s.menu()).toBeUndefined();
 
     const room = document.createElement("div");
     s.core.boardActions.mountAdvanced(room, "add_block_role", { board: true })();
-    s.core.boardActions.mountAdvanced(room, { package: "blockr.core", id: "add_block_action" }, { board: true })();
+    s.core.boardActions.mountAdvanced(room, interned("blockr.core", "add_block_action"), { board: true })();
     expect(renders).toEqual([{ board: true }]);
     expect(room.childElementCount).toBe(0);
     s.stop();
@@ -314,7 +315,7 @@ describe("the board action that plays a role", () => {
 
   test("is the only one in a menu: a board action that names a role that it does not play is in none, and trigger() and mountAdvanced() run nothing for its id", async () => {
     const renders: Target[] = [];
-    const stray = action("stray", ["block"], { role: "append_block_role", run: () => [{ package: "blockr.core", id: "remove_block", args: { id: "b" } }] });
+    const stray = action("stray", ["block"], { role: "append_block_role", run: () => [{ id: interned("blockr.core", "remove_block"), args: { id: "b" } }] });
     const lost = action("lost", ["block"], {
       role: "nowhere_role",
       run: undefined,

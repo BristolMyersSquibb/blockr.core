@@ -25,15 +25,15 @@ import type { Target } from "./actions.ts";
 
 // Core's board actions that add a block, each by its package and its id, as a
 // caller names one.
-const ADD = { package: "blockr.core", id: "add_block_action" } as const;
-const APPEND = { package: "blockr.core", id: "append_block_action" } as const;
-const PREPEND = { package: "blockr.core", id: "prepend_block_action" } as const;
-const INSERT = { package: "blockr.core", id: "insert_block_action" } as const;
+const ADD = interned("blockr.core", "add_block_action");
+const APPEND = interned("blockr.core", "append_block_action");
+const PREPEND = interned("blockr.core", "prepend_block_action");
+const INSERT = interned("blockr.core", "insert_block_action");
 
 // Core's commands that the tests run as edits of their own.
-const REMOVE_BLOCK = { package: "blockr.core", id: "remove_block" } as const;
-const ADD_LINK = { package: "blockr.core", id: "add_link" } as const;
-const REMOVE_LINK = { package: "blockr.core", id: "remove_link" } as const;
+const REMOVE_BLOCK = interned("blockr.core", "remove_block");
+const ADD_LINK = interned("blockr.core", "add_link");
+const REMOVE_LINK = interned("blockr.core", "remove_link");
 
 // What trigger() takes: a board action by its package and its id, or a role by
 // its id.

@@ -118,8 +118,8 @@ export type Target =
   | { readonly block: BlockId; readonly input: string }
   | { readonly selection: readonly BoardObject[] };
 
-// A command of any package, by its package and its id, with its args: one entry
-// of the batch that a board action runs (../commands/commands.ts).
+// A command of any package, by its id, with its args: one entry of the batch
+// that a board action runs (../commands/commands.ts).
 export type { CommandCall };
 
 export interface BoardAction {
@@ -131,7 +131,7 @@ export interface BoardAction {
   // class that lists it otherwise. Core sets it as it registers the board
   // action, as it sets the id of a plugin class, so that a definition leaves
   // it out, as Omit<BoardAction, "package">. A caller names the board action
-  // by the two, as { package: "blockr.core", id: "remove_block_action" }.
+  // by its id, of the two, as core.id("blockr.core", "remove_block_action").
   readonly package: string;
   // What a menu shows, as "Remove block".
   readonly label: string;
@@ -528,7 +528,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     }
     if (!isIdRecord(id)) {
       throw new TypeError(
-        `A board action is named by its package and its id, as { package: "blockr.core", id: "rename_action" }, and a role by its id, as "rename_role", not by ${JSON.stringify(id)}.`,
+        `A board action is named by its id, as core.id("blockr.core", "rename_action") gives it, and a role by its id, as "rename_role", not by ${JSON.stringify(id)}.`,
       );
     }
     const action = actions.registered().find((each) => each.package === id.package && each.id === id.id);
@@ -555,7 +555,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       throw failed(
         action,
         new TypeError(
-          `The run of the board action "${idText(action)}" returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].`,
+          `The run of the board action "${idText(action)}" returned no batch of commands, as [{ id: core.id("blockr.core", "remove_block"), args: { id: "a" } }].`,
         ),
         notifier,
       );
@@ -619,7 +619,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       const extra: unknown = extend(deltas);
       if (!isBatch(extra)) {
         throw new TypeError(
-          `The \`extend\` of ${batching.call ?? "the call"} returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].`,
+          `The \`extend\` of ${batching.call ?? "the call"} returned no batch of commands, as [{ id: core.id("blockr.core", "remove_block"), args: { id: "a" } }].`,
         );
       }
       added = extra;

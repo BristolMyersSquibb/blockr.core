@@ -87,7 +87,7 @@ export interface CommandContext {
 export interface Command<A extends Json = Json, P = A> {
   // Its id within the package that registers it, unique there, such as
   // "remove_block". The command registry holds it under the package and the
-  // id, as { package: "blockr.core", id: "remove_block" }, so that two
+  // id, as core.id("blockr.core", "remove_block") names it, so that two
   // packages may give commands of one id.
   readonly id: string;
   // What menus and a command palette show.
@@ -129,7 +129,7 @@ export interface Commands {
   registered(): ReadonlyMap<CommandId, Command<Json, unknown>>;
   // Whether the command passes its preflight on the current board with these
   // args, which fit the schema of its args.
-  preflight(id: { readonly package: string; readonly id: string }, args?: Json): boolean;
+  preflight(id: CommandId, args?: Json): boolean;
   // Runs the command and applies its deltas as one step of the origin, "user"
   // unless given, or rejects with a CommandError that says what stopped it,
   // having changed nothing. It resolves with whether the step took an undo
@@ -139,7 +139,7 @@ export interface Commands {
   // Through `CoreApi`, core tells the user why the command was refused, or
   // hands that notification to the notifier in `opts`, before run() rejects
   // (../core/core.ts). The command registry itself ignores the notifier.
-  run(id: { readonly package: string; readonly id: string }, args?: Json, origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<boolean>;
+  run(id: CommandId, args?: Json, origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<boolean>;
   // Runs the commands of the batch in order, each planned on the board that the
   // deltas of the commands before it leave, and applies the deltas of every
   // command as one step of the origin, "user" unless given. Where a command
@@ -158,7 +158,7 @@ export interface Commands {
   // the edit ids of the board they were built on, so that the store refuses
   // them once another edit has come first, and with `undo: false` where the
   // command has it.
-  plan(id: { readonly package: string; readonly id: string }, args?: Json): Promise<Delta[]>;
+  plan(id: CommandId, args?: Json): Promise<Delta[]>;
   // The deltas of the commands of the batch in order, each built on the board
   // that the deltas of the commands before it leave, not applied. It rejects
   // where run() would reject for the batch. The deltas name the edit ids of the
@@ -166,11 +166,10 @@ export interface Commands {
   plan(batch: readonly CommandCall[]): Promise<Delta[]>;
 }
 
-// A command of any package, by its package and its id, with its args: one entry
-// of a batch, as { package: "blockr.core", id: "remove_block", args: { id: "a" } }.
+// A command of any package, by its id, with its args: one entry of a batch, as
+// { id: core.id("blockr.core", "remove_block"), args: { id: "a" } }.
 export interface CommandCall {
-  readonly package: string;
-  readonly id: string;
+  readonly id: CommandId;
   readonly args?: Json;
 }
 
@@ -333,15 +332,16 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   }
 
   // The registered command and its args, once they fit its schema, or a
-  // CommandError. A caller names the command by a record of its package and
-  // its id, which need not be the object that core's table holds.
+  // CommandError. A caller in plain JS may name the command by a record of its
+  // package and its id, which is not the object that core's table holds, and
+  // the registry finds the command all the same.
   function lookup(name: unknown, given: Json | undefined): { item: Registered; args: Json } {
     const id = nameOf(name);
     if (id === undefined) {
       throw new CommandError({
         by: "registry",
         failures: [
-          `No command is named ${JSON.stringify(name)}, where a command is named by its package and its id, as { package: "blockr.core", id: "remove_block" }.`,
+          `No command is named ${JSON.stringify(name)}, where a command is named by its id, as core.id("blockr.core", "remove_block") gives it.`,
         ],
       });
     }
@@ -441,8 +441,8 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     // prepare() and `then` run in after an await.
     const within = keepContext();
     const checked = batch.map((call, index) => {
-      // The command's name is the call's package and id, without its args.
-      const name: unknown = isObject(call) ? { package: call.package, id: call.id } : call;
+      // The command's name is the call's id, without its args.
+      const name: unknown = isObject(call) ? call.id : call;
       try {
         return lookup(name, call.args);
       } catch (error) {
@@ -497,9 +497,12 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // Where an afterStep threw, the store has logged that at error
   // (../store/expand.ts).
   function runBatch(batch: readonly CommandCall[], origin: Origin): Promise<boolean> {
+    // A caller in plain JS may give a call that names no command, which
+    // planned() refuses.
+    const names = batch.map((call) => nameOf(isObject(call) ? call.id : undefined));
     const attributes = {
-      "blockr.command.packages": batch.map((call) => call.package),
-      "blockr.command.ids": batch.map((call) => call.id),
+      "blockr.command.packages": names.map((name) => name?.package),
+      "blockr.command.ids": names.map((name) => name?.id),
       "blockr.delta.origin": origin,
     };
     return traced("command batch", attributes, () => planned(batch, (built) => byStore(undefined, () => store.apply(built, origin))));
@@ -577,7 +580,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     // options third, in place of the origin. The command registry ignores the
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(
-      target: { readonly package: string; readonly id: string } | readonly CommandCall[],
+      target: CommandId | readonly CommandCall[],
       given?: Json,
       third?: Origin | { notifier?(notifications: readonly Notification[]): void },
     ) {
@@ -593,7 +596,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         return within(() => byStore(item.id, () => store.apply(ready, origin)));
       });
     },
-    async plan(target: { readonly package: string; readonly id: string } | readonly CommandCall[], given?: Json) {
+    async plan(target: CommandId | readonly CommandCall[], given?: Json) {
       if (isBatch(target)) return planned(target, (built) => built);
       const { item, args } = lookup(target, given);
       return deltas(item, args);
@@ -608,13 +611,14 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
 }
 
 // The id of the command that a caller names, as core's table holds it, or
-// undefined where the caller names it by no package and id.
+// undefined where the caller names it by no package and id, as a caller in
+// plain JS may.
 function nameOf(name: unknown): CommandId | undefined {
   return isIdRecord(name) ? interned(name.package, name.id) : undefined;
 }
 
 // Whether run() or plan() was given a batch rather than a command alone.
-function isBatch(target: { readonly package: string; readonly id: string } | readonly CommandCall[]): target is readonly CommandCall[] {
+function isBatch(target: CommandId | readonly CommandCall[]): target is readonly CommandCall[] {
   return Array.isArray(target);
 }
 

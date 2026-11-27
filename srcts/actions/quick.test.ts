@@ -13,6 +13,7 @@ import type { Json } from "../types/json.ts";
 import type { BoardAction, CommandCall } from "./actions.ts";
 import { inMenuOrder, openMenu } from "./quick.ts";
 import type { MenuParts, MenuStart, QuickLevel, QuickRow } from "./quick.ts";
+import { interned } from "../util/index.ts";
 
 const BOARD = { name: "Board" } as unknown as Board;
 const CORE = {} as CoreApi;
@@ -24,7 +25,7 @@ function action(name: string, more: Partial<BoardAction> = {}): BoardAction {
 }
 
 // A batch that renames block a.
-const rename = (name: string): CommandCall[] => [{ package: "blockr.core", id: "change_block", args: { id: "a", name } }];
+const rename = (name: string): CommandCall[] => [{ id: interned("blockr.core", "change_block"), args: { id: "a", name } }];
 
 // An item that picks what it is given.
 function item(label: string, picked: () => ReturnType<Extract<QuickRow, { kind: "item" }>["pick"]>, more = {}): QuickRow {
@@ -58,7 +59,7 @@ function opened(start: MenuStart, more: Partial<MenuParts> = {}) {
     applies: () => true,
     run(batch, by) {
       ran.push([batch, by.id]);
-      return batch.some((call) => call.id === "refused") ? Promise.reject(new Error("Refused.")) : Promise.resolve();
+      return batch.some((call) => call.id.id === "refused") ? Promise.reject(new Error("Refused.")) : Promise.resolve();
     },
     trigger(by) {
       triggered.push(by.id);
@@ -238,7 +239,7 @@ describe("a quick action", () => {
   });
 
   test("rejects a pick with the refusal of its batch, once the menu has closed", async () => {
-    const asks = asking({ rows: [item("refused", () => [{ package: "blockr.test", id: "refused" }])] });
+    const asks = asking({ rows: [item("refused", () => [{ id: interned("blockr.test", "refused") }])] });
     const { menu, closings } = opened({ action: asks });
 
     await expect(menu.pick(0)).rejects.toThrow("Refused.");
@@ -306,7 +307,7 @@ describe("a quick action", () => {
       ],
       apply(picked) {
         applied.push(picked);
-        return [{ package: "blockr.core", id: "change_stack", args: { id: "s", blocks: [...picked] } }];
+        return [{ id: interned("blockr.core", "change_stack"), args: { id: "s", blocks: [...picked] } }];
       },
     };
     const asks = asking({ rows: [multi] });
@@ -330,7 +331,7 @@ describe("a quick action", () => {
     ticking.menu.tick(0, "z");
     await ticking.menu.close();
     expect(applied).toEqual([["b", "c"]]);
-    expect(ticking.ran).toEqual([[[{ package: "blockr.core", id: "change_stack", args: { id: "s", blocks: ["b", "c"] } }], asks.id]]);
+    expect(ticking.ran).toEqual([[[{ id: interned("blockr.core", "change_stack"), args: { id: "s", blocks: ["b", "c"] } }], asks.id]]);
 
     const unchanged = opened({ action: asks });
     unchanged.menu.tick(0, "b");
@@ -373,7 +374,7 @@ describe("a quick action", () => {
       [asks.id, 'A row of the quick action of the board action "asks_action of blockr.test" failed: boom'],
       [
         asks.id,
-        'A row of the quick action of the board action "asks_action of blockr.test" failed: It gave no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].',
+        'A row of the quick action of the board action "asks_action of blockr.test" failed: It gave no batch of commands, as [{ id: core.id("blockr.core", "remove_block"), args: { id: "a" } }].',
       ],
     ]);
   });

@@ -565,7 +565,7 @@ describe("starting the page", () => {
     const before = Object.keys(core.store.board().blocks);
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-    await core.commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: { package: "blockr.core", id: "head_block" } });
+    await core.commands.run(interned("blockr.core", "add_block"), { registry_id: { package: "blockr.core", id: "head_block" } });
 
     const minted = Object.keys(core.store.board().blocks).filter((id) => !before.includes(id));
     expect(minted).toHaveLength(1);
@@ -2144,13 +2144,13 @@ describe("a later session", () => {
     await tick();
     s.r.options();
     const core = await s.started.ready;
-    expect(await core.module({ package: "blockr.test", id: "shared" })).toBe(shared);
+    expect(await core.module(interned("blockr.test", "shared"))).toBe(shared);
 
     s.r.session(later);
     await tick();
     expect(reloads(core)).toEqual([asked]);
-    expect(await core.module({ package: "blockr.test", id: "shared" })).toBe(shared);
-    await expect(core.module({ package: "blockr.test", id: "other" })).rejects.toThrow(
+    expect(await core.module(interned("blockr.test", "shared"))).toBe(shared);
+    await expect(core.module(interned("blockr.test", "other"))).rejects.toThrow(
       "The module blockr.test/other.js of blockr.test is not loaded: R now runs blockr.test 1.1.0, where the page loaded 1.0.0. Reload the page to load it.",
     );
 
@@ -2162,7 +2162,7 @@ describe("a later session", () => {
     await opening;
     const next = s.started.core();
     expect(next?.store.board().name).toBe("Opened");
-    expect(await next?.module({ package: "blockr.test", id: "shared" })).toBe(shared);
+    expect(await next?.module(interned("blockr.test", "shared"))).toBe(shared);
     // The board that opens asks again, while R runs the other version.
     expect(reloads(next)).toEqual([asked]);
     expect(events).toEqual(["1.0.0 starts", "1.0.0 starts"]);
@@ -2390,7 +2390,7 @@ describe("the menus of board actions", () => {
       core.boardActions.menu({ block: "a" }, { el: trigger, anchor: new DOMRect(0, 0, 0, 0) });
     }).not.toThrow();
     // Rename has a quick action, which trigger() opens as a menu.
-    await core.boardActions.trigger({ package: "blockr.core", id: "rename_action" }, { block: "a" }, { el: trigger });
+    await core.boardActions.trigger(interned("blockr.core", "rename_action"), { block: "a" }, { el: trigger });
     reported.restore();
 
     // Core raises the notification anew for each failure, in place of the one

@@ -183,8 +183,7 @@ async function refusing(): Promise<Omit<Mounted, "notes" | "menu">> {
 // block. Each draw takes about 300 ms on happy-dom.
 async function addHeadBlocks(core: CoreApi): Promise<void> {
   const heads = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({
-    package: "blockr.core",
-    id: "add_block",
+    id: interned("blockr.core", "add_block"),
     args: { registry_id: { package: "blockr.core", id: "head_block" }, id: `h${String(i)}`, name: `Rows ${String(i)}` },
   }));
   await act(() => core.commands.run(heads));
@@ -492,7 +491,7 @@ describe("the blocks", () => {
 
   test("open the menu of their block from the … button at the end of each row, which offers what every menu of the block offers, another package's board actions among them", async () => {
     const documented = action("Add to document", ["block"], (_board, target) => [
-      { package: "blockr.core", id: "change_block", args: { id: "block" in target ? target.block : "", name: "In the document" } },
+      { id: interned("blockr.core", "change_block"), args: { id: "block" in target ? target.block : "", name: "In the document" } },
     ]);
     const m = await withActions([documented]);
     const blocks = section(m.el, "Blocks");
@@ -597,7 +596,7 @@ describe("the links", () => {
 
     // With Head's input free, Bind still may not feed it, since Head feeds
     // Bind, which would close a cycle.
-    await act(() => core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }));
     await chosen(add(), "From", "Bind");
     expect(await targets()).toEqual([]);
     expect(note(labelled(add(), "To"))).toBe("No block takes a link from this block.");
@@ -613,7 +612,7 @@ describe("the links", () => {
 
     // Picking the target first narrows the blocks that may feed it to those
     // not downstream of it.
-    await act(() => core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "bc" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "bc" }));
     await chosen(add(), "To", "Merge");
     await step(() => {
       labelled(add(), "From").click();
@@ -752,7 +751,7 @@ describe("the links", () => {
 
     // Into another block, the form offers the free inputs alone, since the
     // link's old input means nothing there.
-    await act(() => core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "bc" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "bc" }));
     await editing("Actions of the link from Iris to Head");
     await chosen(edit(), "To", "Merge");
     expect([selectShows(selectButton(edit(), "Input")), selectButton(edit(), "Input").disabled]).toEqual(["y", true]);
@@ -822,11 +821,11 @@ describe("the links", () => {
     const links = section(el, "Links");
 
     // Bind alone takes a new link.
-    await act(() => core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "e" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_block"), { id: "e" }));
     expect(links.querySelector('form[aria-label="Add link"]')).toBeNull();
     expect(links.textContent).toContain("No new link can join two blocks of the board.");
 
-    await act(() => core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }));
     expect(form(links, "Add link")).toBeDefined();
     expect(links.textContent).not.toContain("No new link can join two blocks of the board.");
   });
@@ -969,7 +968,7 @@ describe("the stacks", () => {
   test("are changed in their row, which turns into the form of Edit stack that the row's menu opens, once the user applies it: renamed, coloured and given other blocks, one of which leaves its stack, in one step", async () => {
     const m = await mounted();
     const { el, core, board } = m;
-    await act(() => core.commands.run({ package: "blockr.core", id: "add_stack" }, { id: "plots", name: "Plots", blocks: ["f"] }));
+    await act(() => core.commands.run(interned("blockr.core", "add_stack"), { id: "plots", name: "Plots", blocks: ["f"] }));
     const stacks = section(el, "Stacks");
 
     const menu = await openMenu(m, "Actions of the stack Input");
@@ -1022,7 +1021,7 @@ describe("the forms that add a block, a link and a stack", () => {
 
   test("are the advanced actions of the board actions that the app picks for add_block_role, add_link_role and add_stack_role, in place of core's, each rendered again once its done() has run a batch", async () => {
     const block = player("Kit block", "add_block_role", ["board"], [
-      { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } },
+      { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } },
     ]);
     const link = player("Kit link", "add_link_role", ["block", "input", "board"]);
     const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"]);
@@ -1235,12 +1234,12 @@ describe("each edit", () => {
   test("that the command registry or the store refuses, the plugin says why below the form that made it, in a banner in the colour of an error under a sentence that names the edit, until the user submits the form again, and core raises no notification of it", async () => {
     const { el, core, board, notes } = await mounted();
     const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
-    await act(() => core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }));
 
     // Another edit feeds Head's one input while the form is filled in.
     await chosen(add(), "From", "Scatter");
     await chosen(add(), "To", "Head");
-    await act(() => core.commands.run({ package: "blockr.core", id: "add_link" }, { from: "a", to: "b", input: "data" }));
+    await act(() => core.commands.run(interned("blockr.core", "add_link"), { from: "a", to: "b", input: "data" }));
     await click(button(add(), "Add link"));
 
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
@@ -1272,7 +1271,7 @@ describe("each edit", () => {
     const menu = await openMenu(m, "Actions of the link from Iris to Merge");
     await pick(menu, "Edit link");
     await pick(menu, "Change source…");
-    await act(() => core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "ce", from: "c", to: "e" }));
+    await act(() => core.commands.run(interned("blockr.core", "add_link"), { id: "ce", from: "c", to: "e" }));
     await expect(act(() => menu.pick("Bind"))).rejects.toThrow();
     await acting(() => undefined);
 
@@ -1295,7 +1294,7 @@ describe("each edit", () => {
   });
 
   test("of another package that the store refuses from the menu of a row, the table names by the board action's label", async () => {
-    const breaks = action("Add to document", ["block"], () => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }]);
+    const breaks = action("Add to document", ["block"], () => [{ id: interned("blockr.core", "remove_link"), args: { id: "nowhere" } }]);
     const m = await withActions([breaks]);
     const { el, core, notes } = m;
     const blocks = section(el, "Blocks");
@@ -1309,7 +1308,7 @@ describe("each edit", () => {
   });
 
   test("that the store refuses from the menu of the selection, the bar says why below itself, naming the selection", async () => {
-    const breaks = action("Archive", ["selection"], () => [{ package: "blockr.core", id: "remove_stack", args: { id: "nowhere" } }]);
+    const breaks = action("Archive", ["selection"], () => [{ id: interned("blockr.core", "remove_stack"), args: { id: "nowhere" } }]);
     const m = await withActions([breaks]);
     const { el, core } = m;
     await step(() => {
@@ -1376,7 +1375,7 @@ describe("each edit", () => {
     await chosen(edit(), "From", "Bind");
     // Another edit links Merge to Bind before the user applies the form, so
     // that the link from Bind would close a cycle.
-    await act(() => core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "ce", from: "c", to: "e" }));
+    await act(() => core.commands.run(interned("blockr.core", "add_link"), { id: "ce", from: "c", to: "e" }));
     await click(button(edit(), "Apply"));
 
     expect(refusals(edit())).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
@@ -1574,7 +1573,7 @@ describe("the cleanup that render() returns", () => {
     });
     expect(el.childNodes).toHaveLength(0);
 
-    await act(() => core.commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", name: "First rows" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_block"), { id: "b", name: "First rows" }));
     expect(el.childNodes).toHaveLength(0);
   });
 

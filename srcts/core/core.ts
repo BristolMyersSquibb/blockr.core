@@ -57,7 +57,7 @@ import type { Lock, OptionEntry, PluginEntry } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { asRandId, mintId } from "../store/index.ts";
 import type { Origin, Store } from "../store/index.ts";
-import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
+import type { BlockId, Board, CommandId, ModuleId, OptionId, PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Notifier, OnScreen, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { createLog, log } from "../log/index.ts";
@@ -323,7 +323,7 @@ export function createCore(parts: CoreParts): Core {
     request: <T = Json>(plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
       pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name, args, opts) as Promise<T | Blob>,
     id: interned,
-    module: <T = unknown>(id: { readonly package: string; readonly id: string }) => loader.module(givenModuleId(id)) as Promise<T>,
+    module: <T = unknown>(id: ModuleId) => loader.module(givenModuleId(id)) as Promise<T>,
     blockrOption: (name) => blockrOptions.read(name),
     mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
@@ -460,15 +460,10 @@ function refusing(store: Store, commands: Commands, refused: Refused): { store: 
       ...commands,
       // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
-      run(
-        target: { readonly package: string; readonly id: string } | readonly CommandCall[],
-        given?: Json,
-        third?: Origin | NotifierOpts,
-        fourth?: NotifierOpts,
-      ) {
+      run(target: CommandId | readonly CommandCall[], given?: Json, third?: Origin | NotifierOpts, fourth?: NotifierOpts) {
         if (!Array.isArray(target)) {
           const origin = typeof third === "string" ? third : undefined;
-          return ran(fourth, () => commands.run(target as { readonly package: string; readonly id: string }, given, origin));
+          return ran(fourth, () => commands.run(target as CommandId, given, origin));
         }
         const batchOrigin = typeof given === "string" ? given : undefined;
         return ran(typeof third === "string" ? undefined : third, () => commands.run(target, batchOrigin));
@@ -490,7 +485,7 @@ function shownObject(given: unknown): ShownObject {
     }
   }
   throw new TypeError(
-    `Core shows a block or a plugin, as { block: "a" } or { plugin: { package: "blockr.md", id: "md_plugin" } }, not ${JSON.stringify(given)}.`,
+    `Core shows a block or a plugin, as { block: "a" } or { plugin: core.id("blockr.md", "md_plugin") }, not ${JSON.stringify(given)}.`,
   );
 }
 
@@ -542,7 +537,7 @@ function seenGiven(given: unknown): Seen {
     }
   }
   throw new TypeError(
-    `A frontend says what is on screen as { blocks: ["a"], plugins: [{ package: "blockr.md", id: "md_plugin" }] }, not ${JSON.stringify(given)}.`,
+    `A frontend says what is on screen as { blocks: ["a"], plugins: [core.id("blockr.md", "md_plugin")] }, not ${JSON.stringify(given)}.`,
   );
 }
 

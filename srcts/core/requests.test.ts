@@ -169,7 +169,7 @@ describe("a plugin's request", () => {
   });
 
   test.each([
-    ["no plugin", "", "script", {}, {}, "names a plugin by the id of its class, a package and an id"],
+    ["no plugin", "", "script", {}, {}, 'names a plugin by the id of its class, as core.id("blockr.dag", "dag_plugin") gives it'],
     [
       "a plugin that the app does not run",
       interned("blockr.dag", "dag_plugin"),
@@ -184,7 +184,7 @@ describe("a plugin's request", () => {
       "script",
       {},
       {},
-      `A plugin's request names a plugin by the id of its class, a package and an id, as { package: "blockr.dag", id: "dag_plugin" }, not by "code".`,
+      `A plugin's request names a plugin by the id of its class, as core.id("blockr.dag", "dag_plugin") gives it, not by "code".`,
     ],
     ["no name", CODE, "", {}, {}, 'A request of the plugin "code_plugin of blockr.code" is named by a non-empty string'],
     ["args that are no object", CODE, "script", [], {}, "are an object"],

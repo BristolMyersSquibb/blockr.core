@@ -42,7 +42,7 @@ import { inputNameError, namesInto } from "../picker/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";
 import { blockName, classInputs, isVariadicBlock } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { interned, own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { CoreParts } from "./core.ts";
 import { PLUS } from "./icons.ts";
@@ -53,8 +53,8 @@ import { heldBlock, inputOf } from "./targets.ts";
 
 const CREATE_LINK = "add_link_action";
 const EDIT_LINK = "edit_link_action";
-const ADD_LINK = { package: CORE, id: "add_link" } as const;
-const CHANGE_LINK = { package: CORE, id: "change_link" } as const;
+const ADD_LINK = interned(CORE, "add_link");
+const CHANGE_LINK = interned(CORE, "change_link");
 
 // Create link, whose rows ask the command registry's preflights through
 // `parts`, since offers() gets no CoreApi.
@@ -143,7 +143,7 @@ function newLink(core: CoreApi, parts: CoreParts, from: BlockId, to: BlockId, in
   const board = core.store.board();
   const adding = (into?: string): CommandCall[] => [
     {
-      ...ADD_LINK,
+      id: ADD_LINK,
       args: { id: core.mintId((id) => Object.hasOwn(core.store.board().links, id)), from, to, ...(into === undefined ? {} : { input: into }) },
     },
   ];
@@ -227,7 +227,7 @@ function sourceRows(board: Board, registry: BlockRegistry, parts: CoreParts, id:
   const downstream = createGraph(board).withDownstream([link.to]);
   return Object.keys(board.blocks)
     .filter((from) => from !== link.from && !downstream.has(from) && parts.preflight(CHANGE_LINK, { id, from }))
-    .map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ ...CHANGE_LINK, args: { id, from } }] }));
+    .map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ id: CHANGE_LINK, args: { id, from } }] }));
 }
 
 // The rows of Move to input…: each other input of the block that the link goes
@@ -244,7 +244,7 @@ function inputRows(board: Board, registry: BlockRegistry, parts: CoreParts, id: 
         kind: "item",
         label: input,
         ...(from === undefined ? {} : { detail: `swaps with ${blockName(board, from)}` }),
-        pick: () => [{ ...CHANGE_LINK, args: { id, input } }],
+        pick: () => [{ id: CHANGE_LINK, args: { id, input } }],
       };
     });
 }
@@ -262,7 +262,7 @@ function renameRow(board: Board, id: LinkId, link: Link): QuickRow {
     check: (value) => inputNameError(value, taken),
     submit(value) {
       const input = value.trim();
-      return input === link.input ? [] : [{ ...CHANGE_LINK, args: { id, input } }];
+      return input === link.input ? [] : [{ id: CHANGE_LINK, args: { id, input } }];
     },
   };
 }

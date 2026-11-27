@@ -77,12 +77,12 @@ import {
   useSearch,
 } from "../ui/index.ts";
 import type { BlockItem, Done } from "../ui/index.ts";
-import { isObject, own } from "../util/index.ts";
+import { interned, isObject, own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
 
-const ADD_LINK = { package: CORE, id: "add_link" } as const;
-const CHANGE_LINK = { package: CORE, id: "change_link" } as const;
+const ADD_LINK = interned(CORE, "add_link");
+const CHANGE_LINK = interned(CORE, "change_link");
 
 // What the form that adds a link starts from: its source, its target and the
 // input, each where given.
@@ -255,10 +255,10 @@ function LinkForm({
     const before = moved ? (among.others[position - 1] ?? null) : undefined;
     if (editing === undefined) {
       const id = core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
-      const added: CommandCall = { ...ADD_LINK, args: { id, ...link } };
-      return before === undefined ? [added] : [added, { ...CHANGE_LINK, args: { id, before } }];
+      const added: CommandCall = { id: ADD_LINK, args: { id, ...link } };
+      return before === undefined ? [added] : [added, { id: CHANGE_LINK, args: { id, before } }];
     }
-    return [{ ...CHANGE_LINK, args: { id: editing.id, ...link, ...(before === undefined ? {} : { before }) } }];
+    return [{ id: CHANGE_LINK, args: { id: editing.id, ...link, ...(before === undefined ? {} : { before }) } }];
   }
 
   async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {

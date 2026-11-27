@@ -113,7 +113,7 @@ describe("a block's notifications", () => {
     await s.settled();
     expect(s.core.notifications.get().filter(concerning("b")).map(notificationCode)).toEqual(["simpleWarning", "share_failed", "module_failed"]);
 
-    await s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" });
+    await s.core.commands.run(interned("blockr.core", "remove_block"), { id: "b" });
     await s.settled();
     reported.restore();
     expect(held(s.core, concerning("b"))).toEqual([]);
@@ -130,9 +130,9 @@ describe("the notifications about a link or a stack", () => {
     s.core.notifications.notify(FILE, { severity: "warning", code: "crowded", message: "Crowded stack.", about: { stack: "s1" } });
     expect(held(s.core, fromModules).map(notificationCode)).toEqual(["slow", "crowded"]);
 
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" });
     expect(held(s.core, fromModules).map(notificationCode)).toEqual(["crowded"]);
-    await s.core.commands.run({ package: "blockr.core", id: "remove_stack" }, { id: "s1" });
+    await s.core.commands.run(interned("blockr.core", "remove_stack"), { id: "s1" });
     expect(held(s.core, fromModules)).toEqual([]);
 
     const reported = logged();
@@ -430,7 +430,7 @@ describe("the notifications of the modules of packages", () => {
       [undefined, { object: { block: "b" }, package: "blockr.core" }],
     ]);
 
-    await s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" });
+    await s.core.commands.run(interned("blockr.core", "remove_block"), { id: "b" });
     await s.settled();
     expect(held(s.core, fromModules)).toEqual([]);
     s.stop();
@@ -518,7 +518,7 @@ describe("the notifications of the modules of packages", () => {
     const s = await stubCore({ hello: withOptions(["zoom"]), ...listedModules([], [zoom]) });
     await s.settled();
 
-    await s.core.commands.run({ package: "blockr.core", id: "set_option" }, { id: "zoom", value: 3 });
+    await s.core.commands.run(interned("blockr.core", "set_option"), { id: "zoom", value: 3 });
     expect(held(s.core, fromModules)).toEqual([
       {
         severity: "warning",
@@ -527,7 +527,7 @@ describe("the notifications of the modules of packages", () => {
         about: { option: "zoom" },
       },
     ]);
-    await s.core.commands.run({ package: "blockr.core", id: "set_option" }, { id: "zoom", value: 2 });
+    await s.core.commands.run(interned("blockr.core", "set_option"), { id: "zoom", value: 2 });
     expect(held(s.core, fromModules)).toEqual([]);
     s.stop();
   });
@@ -727,7 +727,7 @@ describe("core's notifications", () => {
 
     // A command that the command registry refuses, and a delta that the store
     // refuses.
-    await expect(s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" })).rejects.toThrow(
+    await expect(s.core.commands.run(interned("blockr.core", "remove_block"), { id: "nowhere" })).rejects.toThrow(
       'The command "remove_block of blockr.core" refused to run',
     );
     expect(() => {
@@ -736,8 +736,8 @@ describe("core's notifications", () => {
     // The user removes the link from block a to block b, and the assistant
     // then feeds b's one input from block d. An undo of the user's last step,
     // past the assistant's, would give that input a second link.
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
-    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "b", input: "data" }, "assistant");
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" });
+    await s.core.commands.run(interned("blockr.core", "add_link"), { from: "d", to: "b", input: "data" }, "assistant");
     expect(() => {
       s.core.store.undo("user");
     }).toThrow("The store refused to undo the step");
@@ -745,8 +745,8 @@ describe("core's notifications", () => {
     // and takes that back. The assistant then feeds it from block b, in a step
     // that is no undo step and so keeps the redo list, which a redo would give
     // a second link.
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "keen_finch" });
-    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "df", from: "d", to: "f", input: "data" });
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "keen_finch" });
+    await s.core.commands.run(interned("blockr.core", "add_link"), { id: "df", from: "d", to: "f", input: "data" });
     s.core.store.undo();
     s.core.store.apply({ links: { add: { bf: { from: "b", to: "f", input: "data" } } } }, "assistant", { undo: false });
     expect(() => {
@@ -784,7 +784,7 @@ describe("core's notifications", () => {
     });
     const reported = logged();
 
-    await expect(s.core.commands.run({ package: "blockr.test", id: "relayout" })).rejects.toThrow('The command "relayout of blockr.test" failed\n- No layout.');
+    await expect(s.core.commands.run(interned("blockr.test", "relayout"))).rejects.toThrow('The command "relayout of blockr.test" failed\n- No layout.');
     await s.settled();
     reported.restore();
 
@@ -812,8 +812,8 @@ describe("core's notifications", () => {
     const reported = logged();
 
     await expect(s.core.commands.run([
-        { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
-        { package: "blockr.test", id: "relayout" },
+        { id: interned("blockr.core", "change_board"), args: { name: "Sepals" } },
+        { id: interned("blockr.test", "relayout") },
       ])).rejects.toThrow(
       'The batch was refused at command 2, "relayout of blockr.test"\n- No layout.',
     );
@@ -837,7 +837,7 @@ describe("core's notifications", () => {
     s.core.notifications.subscribe((all) => {
       heard.push(all.filter((n) => notificationCode(n) === "board_edit_failed").map((n) => n.message));
     });
-    const remove = (): Promise<boolean> => s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" });
+    const remove = (): Promise<boolean> => s.core.commands.run(interned("blockr.core", "remove_block"), { id: "nowhere" });
 
     await expect(remove()).rejects.toThrow();
     const [first] = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
@@ -871,15 +871,15 @@ describe("core's notifications", () => {
     reported.restore();
 
     const quiet = logged();
-    await expect(s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" }, "assistant")).rejects.toThrow();
+    await expect(s.core.commands.run(interned("blockr.core", "remove_block"), { id: "nowhere" }, "assistant")).rejects.toThrow();
     expect(() => {
       s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant");
     }).toThrow();
     // The assistant removes the link from block a to block b, and the user
     // then feeds b's one input from block d. An undo of the assistant's last
     // step, past the user's, would give that input a second link.
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" }, "assistant");
-    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "b", input: "data" });
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }, "assistant");
+    await s.core.commands.run(interned("blockr.core", "add_link"), { from: "d", to: "b", input: "data" });
     expect(() => {
       s.core.store.undo("assistant");
     }).toThrow("The store refused to undo the step");
@@ -907,8 +907,8 @@ describe("core's notifications", () => {
     const run = (origin?: string): Promise<boolean> =>
       s.core.commands.run(
         [
-          { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
-          { package: "blockr.core", id: "remove_block", args: { id: "nowhere" } },
+          { id: interned("blockr.core", "change_board"), args: { name: "Sepals" } },
+          { id: interned("blockr.core", "remove_block"), args: { id: "nowhere" } },
         ],
         origin,
       );
@@ -938,24 +938,24 @@ describe("core's notifications", () => {
       heard.push("notified");
       taken.push(...notifications);
     };
-    const refusing = (): Promise<boolean> => s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" }, "user", { notifier });
+    const refusing = (): Promise<boolean> => s.core.commands.run(interned("blockr.core", "remove_block"), { id: "nowhere" }, "user", { notifier });
 
     // A command, a batch, a delta, an undo and a redo, each of
     // which the store or the command registry refuses.
     await refusing().catch(() => heard.push("rejected"));
     await expect(
-      s.core.commands.run([{ package: "blockr.core", id: "remove_block", args: { id: "nowhere" } }], "assistant", { notifier }),
+      s.core.commands.run([{ id: interned("blockr.core", "remove_block"), args: { id: "nowhere" } }], "assistant", { notifier }),
     ).rejects.toThrow('The batch was refused at command 1, "remove_block of blockr.core"');
     expect(() => {
       s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant", { undo: false, notifier });
     }).toThrow("The store rejected the delta");
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
-    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "b", input: "data" }, "assistant");
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" });
+    await s.core.commands.run(interned("blockr.core", "add_link"), { from: "d", to: "b", input: "data" }, "assistant");
     expect(() => {
       s.core.store.undo("user", { notifier });
     }).toThrow("The store refused to undo the step");
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "keen_finch" });
-    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "df", from: "d", to: "f", input: "data" });
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "keen_finch" });
+    await s.core.commands.run(interned("blockr.core", "add_link"), { id: "df", from: "d", to: "f", input: "data" });
     s.core.store.undo();
     s.core.store.apply({ links: { add: { bf: { from: "b", to: "f", input: "data" } } } }, "assistant", { undo: false });
     expect(() => {
@@ -978,7 +978,7 @@ describe("core's notifications", () => {
 
     // The same refusal without a notifier raises the same notification, and
     // the next with a notifier leaves it held.
-    await expect(s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" })).rejects.toThrow();
+    await expect(s.core.commands.run(interned("blockr.core", "remove_block"), { id: "nowhere" })).rejects.toThrow();
     await expect(refusing()).rejects.toThrow();
     expect(s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed")).toEqual([taken[0]]);
     expect(taken[5]).toEqual(taken[0]);
@@ -998,9 +998,9 @@ describe("core's notifications", () => {
 
     expect(s.core.store.apply({ name: "Sepals" })).toBe(true);
     expect(s.core.store.apply({ name: "Petals" }, "assistant", { undo: false, notifier })).toBe(false);
-    await expect(s.core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }, "assistant", { notifier })).resolves.toBe(true);
-    await expect(s.core.commands.run({ package: "blockr.core", id: "set_option" }, { id: "n_rows", value: 30 })).resolves.toBe(false);
-    await expect(s.core.commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Petals" } }], "assistant", { notifier })).resolves.toBe(true);
+    await expect(s.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }, "assistant", { notifier })).resolves.toBe(true);
+    await expect(s.core.commands.run(interned("blockr.core", "set_option"), { id: "n_rows", value: 30 })).resolves.toBe(false);
+    await expect(s.core.commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Petals" } }], "assistant", { notifier })).resolves.toBe(true);
     await expect(s.core.commands.run([], "assistant")).resolves.toBe(false);
     await s.settled();
 
@@ -1014,10 +1014,10 @@ describe("core's notifications", () => {
     await s.settled();
     const bad = { notifier: "quiet" as never };
 
-    await expect(s.core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }, "user", bad)).rejects.toThrow(
+    await expect(s.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }, "user", bad)).rejects.toThrow(
       new TypeError("The `notifier` of run() is a function."),
     );
-    await expect(s.core.commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }], "user", bad)).rejects.toThrow(
+    await expect(s.core.commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Sepals" } }], "user", bad)).rejects.toThrow(
       new TypeError("The `notifier` of run() is a function."),
     );
     expect(() => {
@@ -1042,7 +1042,7 @@ describe("core's notifications", () => {
     const reported = logged();
 
     await expect(
-      s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" }, "user", {
+      s.core.commands.run(interned("blockr.core", "remove_block"), { id: "nowhere" }, "user", {
         notifier: () => {
           throw thrown;
         },

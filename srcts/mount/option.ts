@@ -37,7 +37,7 @@ import type { SourceModule } from "../types/core-api.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { createLog, log } from "../log/index.ts";
-import { asError, checkRaised, coreNotification, errorMessage, givenNotifier, isObject, own, sourceModule } from "../util/index.ts";
+import { asError, checkRaised, coreNotification, errorMessage, givenNotifier, interned, isObject, own, sourceModule } from "../util/index.ts";
 import type { Notify, Raise, Refused, Replied } from "../util/index.ts";
 import { RequestError } from "./requests.ts";
 import { announceTo, attempt, onAbort, REPLACED } from "./shared.ts";
@@ -125,7 +125,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       if (!bound()) throw unboundError();
       const notifier = givenNotifier(opts, `a submit of the board option "${option}"`);
       try {
-        await deps.commands.run({ package: "blockr.core", id: "set_option" }, { id: option, value: next });
+        await deps.commands.run(interned("blockr.core", "set_option"), { id: option, value: next });
       } catch (error) {
         deps.refused(error, { option }, notifier);
         throw error;

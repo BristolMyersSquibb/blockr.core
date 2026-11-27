@@ -70,7 +70,7 @@ import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { drawForm } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { interned, own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import { PLUS } from "./icons.ts";
@@ -154,7 +154,7 @@ export function addingBoardActions(registry: Registry): Omit<BoardAction, "packa
             : [
                 addBlockCall(entry, block),
                 addLinkCall(link.from, block, newBlockInput(entry)),
-                { package: CORE, id: "change_link", args: { id, from: block } },
+                { id: interned(CORE, "change_link"), args: { id, from: block } },
               ];
         }),
       advanced: pickerModule((target) => ("link" in target ? { kind: "on", link: target.link } : undefined)),
@@ -201,14 +201,14 @@ function classLevel(
 // The command that adds a block of the class under the id given, which takes
 // the class's name.
 function addBlockCall(entry: RegistryEntry, block: BlockId): CommandCall {
-  return { package: CORE, id: "add_block", args: { registry_id: { package: entry.package, id: entry.id }, id: block } };
+  return { id: interned(CORE, "add_block"), args: { registry_id: { package: entry.package, id: entry.id }, id: block } };
 }
 
 // The command that links two blocks, into the input given, which is empty for
 // a variadic block. Without one, the command finds the input, and refuses
 // where none is free.
 function addLinkCall(from: BlockId, to: BlockId, input: string | undefined): CommandCall {
-  return { package: CORE, id: "add_link", args: { from, to, ...(input === undefined ? {} : { input }) } };
+  return { id: interned(CORE, "add_link"), args: { from, to, ...(input === undefined ? {} : { input }) } };
 }
 
 // The first input of a new block of the class, which takes the link that the

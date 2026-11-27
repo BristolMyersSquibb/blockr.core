@@ -18,7 +18,7 @@ import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { idText } from "../../util/index.ts";
+import { idText, interned } from "../../util/index.ts";
 import coreMenu from "./index.tsx";
 
 // A board action of blockr.test on blocks, labelled by its name,
@@ -34,7 +34,7 @@ function action(name: string, more: Partial<BoardAction> = {}): BoardAction {
   };
 }
 
-const rename = (name: string): CommandCall[] => [{ package: "blockr.core", id: "change_block", args: { id: "a", name } }];
+const rename = (name: string): CommandCall[] => [{ id: interned("blockr.core", "change_block"), args: { id: "a", name } }];
 
 const item = (label: string, more: Partial<Extract<QuickRow, { kind: "item" }>> = {}): QuickRow => ({
   kind: "item",

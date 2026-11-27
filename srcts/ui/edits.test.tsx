@@ -16,11 +16,12 @@ import { step } from "../testing/react.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { notifiedReasons, Refusal, useEdits } from "./index.ts";
 import type { Done } from "./index.ts";
+import { interned } from "../util/index.ts";
 
 const stops: (() => void)[] = [];
 
 // Core's command that removes a block, by its package and its id.
-const removeBlock = { package: "blockr.core", id: "remove_block" };
+const removeBlock = interned("blockr.core", "remove_block");
 
 afterEach(() => {
   for (const stop of stops.splice(0)) stop();
@@ -36,12 +37,12 @@ function Control({ core, done }: { core: Pick<CoreApi, "commands">; done?: Done 
     "Remove nowhere": () => edits.run('Could not remove the block "nowhere".', removeBlock, { id: "nowhere" }),
     "Remove Iris and nowhere": () =>
       edits.run('Could not remove the blocks "Iris" and "nowhere".', [
-        { ...removeBlock, args: { id: "a" } },
-        { ...removeBlock, args: { id: "nowhere" } },
+        { id: removeBlock, args: { id: "a" } },
+        { id: removeBlock, args: { id: "nowhere" } },
       ]),
-    "Remove Head through done": () => edits.run('Could not remove the block "Head".', [{ ...removeBlock, args: { id: "b" } }], done),
+    "Remove Head through done": () => edits.run('Could not remove the block "Head".', [{ id: removeBlock, args: { id: "b" } }], done),
     "Remove nowhere through done": () =>
-      edits.run('Could not remove the block "nowhere".', [{ ...removeBlock, args: { id: "nowhere" } }], done),
+      edits.run('Could not remove the block "nowhere".', [{ id: removeBlock, args: { id: "nowhere" } }], done),
   };
   return (
     <div>
@@ -143,8 +144,8 @@ describe("an edit that the command registry or the store refuses", () => {
     expect(refusals(el)).toEqual([]);
     expect(Object.keys(core.store.board().blocks)).not.toContain("b");
     expect(batches).toEqual([
-      [{ package: "blockr.core", id: "remove_block", args: { id: "nowhere" } }],
-      [{ package: "blockr.core", id: "remove_block", args: { id: "b" } }],
+      [{ id: interned("blockr.core", "remove_block"), args: { id: "nowhere" } }],
+      [{ id: interned("blockr.core", "remove_block"), args: { id: "b" } }],
     ]);
   });
 });

@@ -45,7 +45,7 @@ describe("blocks", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: head });
+    await commands.run(interned("blockr.core", "add_block"), { registry_id: head });
 
     const [id = ""] = added(board.blocks, store.board().blocks);
     expect(isId(id)).toBe(true);
@@ -68,7 +68,7 @@ describe("blocks", () => {
     });
     const commands = createCommands(store);
 
-    await commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: { package: entry.package, id: entry.id }, id: "pca" });
+    await commands.run(interned("blockr.core", "add_block"), { registry_id: { package: entry.package, id: entry.id }, id: "pca" });
 
     expect(store.board().blocks.pca?.name).toBe("PCA");
   });
@@ -76,7 +76,7 @@ describe("blocks", () => {
   test("add_block changes the state its class starts a block with by the state args given", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "add_block" }, {
+    await commands.run(interned("blockr.core", "add_block"), {
       registry_id: head,
       id: "top",
       name: "Top rows",
@@ -96,10 +96,10 @@ describe("blocks", () => {
     const board = store.board();
 
     await expect(
-      commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: { package: "blockr.dplyr", id: "filter_block" } }),
+      commands.run(interned("blockr.core", "add_block"), { registry_id: { package: "blockr.dplyr", id: "filter_block" } }),
     ).rejects.toThrow('The block registry has no block class "filter_block of blockr.dplyr".');
 
-    const refused = commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: head, state: { n: "ten" } });
+    const refused = commands.run(interned("blockr.core", "add_block"), { registry_id: head, state: { n: "ten" } });
     await expect(refused).rejects.toThrow(CommandError);
     await expect(refused).rejects.toThrow("The state of the new block fails its schema at /n:");
     expect(store.board()).toBe(board);
@@ -107,7 +107,7 @@ describe("blocks", () => {
 
   test("add_block leaves an id that the board holds already to the store, which refuses it", async () => {
     const { commands } = await setup();
-    await expect(commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: head, id: "a" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "add_block"), { registry_id: head, id: "a" })).rejects.toThrow(
       'The board holds block "a" already.',
     );
   });
@@ -115,7 +115,7 @@ describe("blocks", () => {
   test("remove_block removes a block with its links and its place in its stack", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" });
+    await commands.run(interned("blockr.core", "remove_block"), { id: "b" });
 
     const board = store.board();
     expect(Object.keys(board.blocks)).toEqual(["a", "c", "d", "e", "f"]);
@@ -126,24 +126,24 @@ describe("blocks", () => {
   test("change_block renames a block, and makes no step for the name it has", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", name: "Head" });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", name: "Head" });
     expect(store.canUndo()).toBe(false);
 
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", name: "Top rows" });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", name: "Top rows" });
     expect(store.board().blocks.b?.name).toBe("Top rows");
   });
 
   test("change_block sets a block's lock, null among its values, and makes no step for the lock it has", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", locked: null });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", locked: null });
     expect(store.canUndo()).toBe(false);
 
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", locked: false });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", locked: false });
     expect(store.board().blocks.b?.locked).toBe(false);
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", locked: true });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", locked: true });
     expect(store.board().blocks.b?.locked).toBe(true);
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", locked: null });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", locked: null });
     expect(store.board().blocks.b?.locked).toBeNull();
 
     store.undo();
@@ -152,16 +152,16 @@ describe("blocks", () => {
     store.undo();
     expect(store.board().blocks.b?.locked).toBeNull();
 
-    await expect(commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", locked: "yes" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_block"), { id: "b", locked: "yes" })).rejects.toThrow(
       "The args fail their schema at /locked:",
     );
-    expect(commands.preflight({ package: "blockr.core", id: "change_block" }, { id: "z", locked: true })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "change_block"), { id: "z", locked: true })).toBe(false);
   });
 
   test("change_block sets and unsets state args, as one step", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "a", state: { package: "ggplot2" }, unset: ["dataset"] });
+    await commands.run(interned("blockr.core", "change_block"), { id: "a", state: { package: "ggplot2" }, unset: ["dataset"] });
 
     expect(store.board().blocks.a?.state).toEqual({ package: "ggplot2" });
     store.undo();
@@ -173,10 +173,10 @@ describe("blocks", () => {
     const board = store.board();
 
     const state = { ...board.blocks.b?.state, n: 3 };
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", name: "Top rows", locked: true, state: { n: 3 } });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", name: "Top rows", locked: true, state: { n: 3 } });
     expect(store.board().blocks.b).toEqual({ ...board.blocks.b, name: "Top rows", locked: true, state });
 
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", name: "First rows" });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", name: "First rows" });
     expect(store.board().blocks.b).toEqual({ ...board.blocks.b, name: "First rows", locked: true, state });
 
     store.undo();
@@ -202,8 +202,8 @@ describe("blocks", () => {
 
   test("change_block makes no step where nothing changes", async () => {
     const { store, commands } = await setup();
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", state: { n: 6 }, unset: ["x"] });
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b" });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", state: { n: 6 }, unset: ["x"] });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b" });
     expect(store.canUndo()).toBe(false);
   });
 
@@ -211,16 +211,16 @@ describe("blocks", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await expect(commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", state: { n: -1 } })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_block"), { id: "b", state: { n: -1 } })).rejects.toThrow(
       'The state of block "b" fails its schema at /n:',
     );
-    await expect(commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", unset: ["n"] })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_block"), { id: "b", unset: ["n"] })).rejects.toThrow(
       'The state of block "b" fails its schema: Instance does not have required property "n".',
     );
-    await expect(commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", state: { m: 1 } })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_block"), { id: "b", state: { m: 1 } })).rejects.toThrow(
       'The state of block "b" fails its schema',
     );
-    await expect(commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", name: "Top rows", state: { n: -1 } })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_block"), { id: "b", name: "Top rows", state: { n: -1 } })).rejects.toThrow(
       'The state of block "b" fails its schema at /n:',
     );
     expect(store.board()).toBe(board);
@@ -233,8 +233,8 @@ describe("appending, prepending and inserting, as batches", () => {
     const board = store.board();
 
     await commands.run([
-      { package: "blockr.core", id: "add_block", args: { registry_id: head, id: "top" } },
-      { package: "blockr.core", id: "add_link", args: { from: "d", to: "top" } },
+      { id: interned("blockr.core", "add_block"), args: { registry_id: head, id: "top" } },
+      { id: interned("blockr.core", "add_link"), args: { from: "d", to: "top" } },
     ]);
 
     expect(store.board().blocks.top?.registry_id).toBe(interned("blockr.core", "head_block"));
@@ -251,8 +251,8 @@ describe("appending, prepending and inserting, as batches", () => {
 
     await expect(
       commands.run([
-        { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "dataset_block" }, id: "cars" } },
-        { package: "blockr.core", id: "add_link", args: { from: "d", to: "cars" } },
+        { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "dataset_block" }, id: "cars" } },
+        { id: interned("blockr.core", "add_link"), args: { from: "d", to: "cars" } },
       ]),
     ).rejects.toThrow(
       'The batch was refused at command 2, "add_link of blockr.core"\n- The block "cars" takes no input, since its class "dataset_block of blockr.core" has none.',
@@ -265,11 +265,10 @@ describe("appending, prepending and inserting, as batches", () => {
 
     await commands.run([
       {
-        package: "blockr.core",
-        id: "add_block",
+        id: interned("blockr.core", "add_block"),
         args: { registry_id: { package: "blockr.core", id: "dataset_block" }, id: "cars", state: { dataset: "mtcars" } },
       },
-      { package: "blockr.core", id: "add_link", args: { from: "cars", to: "e" } },
+      { id: interned("blockr.core", "add_link"), args: { from: "cars", to: "e" } },
     ]);
 
     expect(store.board().blocks.cars?.state).toEqual({ dataset: "mtcars", package: "datasets" });
@@ -285,9 +284,9 @@ describe("appending, prepending and inserting, as batches", () => {
     const board = store.board();
 
     await commands.run([
-      { package: "blockr.core", id: "add_block", args: { registry_id: head, id: "top" } },
-      { package: "blockr.core", id: "add_link", args: { from: "b", to: "top" } },
-      { package: "blockr.core", id: "change_link", args: { id: "be", from: "top" } },
+      { id: interned("blockr.core", "add_block"), args: { registry_id: head, id: "top" } },
+      { id: interned("blockr.core", "add_link"), args: { from: "b", to: "top" } },
+      { id: interned("blockr.core", "change_link"), args: { id: "be", from: "top" } },
     ]);
 
     const after = store.board();
@@ -307,9 +306,9 @@ describe("appending, prepending and inserting, as batches", () => {
     const { store, commands } = await setup();
 
     await commands.run([
-      { package: "blockr.core", id: "add_block", args: { registry_id: head, id: "top" } },
-      { package: "blockr.core", id: "add_link", args: { from: "a", to: "top" } },
-      { package: "blockr.core", id: "change_link", args: { id: "ac", from: "top" } },
+      { id: interned("blockr.core", "add_block"), args: { registry_id: head, id: "top" } },
+      { id: interned("blockr.core", "add_link"), args: { from: "a", to: "top" } },
+      { id: interned("blockr.core", "change_link"), args: { id: "ac", from: "top" } },
     ]);
 
     expect(inputs(store.board(), "top")).toEqual([["a", "data"]]);
@@ -324,84 +323,84 @@ describe("links", () => {
   test("add_link goes to the only free input of a block of fixed arity, and in link order into a variadic block", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
-    await commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "b", id: "db" });
+    await commands.run(interned("blockr.core", "remove_link"), { id: "ab" });
+    await commands.run(interned("blockr.core", "add_link"), { from: "d", to: "b", id: "db" });
     expect(store.board().links.db).toEqual({ from: "d", to: "b", input: "data" });
 
-    await commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ac" });
-    await commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c", id: "dc" });
+    await commands.run(interned("blockr.core", "remove_link"), { id: "ac" });
+    await commands.run(interned("blockr.core", "add_link"), { from: "d", to: "c", id: "dc" });
     expect(store.board().links.dc).toEqual({ from: "d", to: "c", input: "x" });
 
-    await commands.run({ package: "blockr.core", id: "add_link" }, { from: "c", to: "e", id: "ce" });
+    await commands.run(interned("blockr.core", "add_link"), { from: "c", to: "e", id: "ce" });
     expect(store.board().links.ce).toEqual({ from: "c", to: "e", input: "" });
   });
 
   test("add_link refuses to pick one of several free inputs, naming them, and takes the one given", async () => {
     const { store, commands } = await setup();
-    await commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ac" });
-    await commands.run({ package: "blockr.core", id: "remove_link" }, { id: "bc" });
+    await commands.run(interned("blockr.core", "remove_link"), { id: "ac" });
+    await commands.run(interned("blockr.core", "remove_link"), { id: "bc" });
 
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c" })).toBe(true);
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c" })).rejects.toThrow(
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "d", to: "c" })).toBe(true);
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "d", to: "c" })).rejects.toThrow(
       'The block "c" has the free inputs "x" and "y", so the args have to name the one to use.',
     );
 
-    await commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c", input: "y", id: "dc" });
+    await commands.run(interned("blockr.core", "add_link"), { from: "d", to: "c", input: "y", id: "dc" });
     expect(store.board().links.dc).toEqual({ from: "d", to: "c", input: "y" });
   });
 
   test("add_link fails its preflight for a block without a free input, saying why, and for a block that the board lacks", async () => {
     const { commands } = await setup();
-    await commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: { package: "blockr.core", id: "dataset_block" }, id: "cars" });
+    await commands.run(interned("blockr.core", "add_block"), { registry_id: { package: "blockr.core", id: "dataset_block" }, id: "cars" });
 
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c" })).toBe(false);
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "d", to: "cars" })).toBe(false);
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "d", to: "zz" })).toBe(false);
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "zz", to: "e" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "d", to: "c" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "d", to: "cars" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "d", to: "zz" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "zz", to: "e" })).toBe(false);
 
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "d", to: "c" })).rejects.toThrow(
       'The command "add_link of blockr.core" refused to run\n- Every input of the block "c" takes a link already.',
     );
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "cars" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "d", to: "cars" })).rejects.toThrow(
       'The block "cars" takes no input, since its class "dataset_block of blockr.core" has none.',
     );
     // A block that the board lacks fails the preflight without a sentence.
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "zz" })).rejects.toMatchObject({
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "d", to: "zz" })).rejects.toMatchObject({
       by: "preflight",
     });
   });
 
   test("add_link fails its preflight for an input that another link feeds, naming that link, and leaves an input that the class lacks to the store", async () => {
     const { commands } = await setup();
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c", input: "x" })).toBe(false);
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c", input: "x" })).rejects.toThrow(
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "d", to: "c", input: "x" })).toBe(false);
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "d", to: "c", input: "x" })).rejects.toThrow(
       'The link "ac" feeds the input "x" of block "c" already.',
     );
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "c", input: "z", id: "dc" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "d", to: "c", input: "z", id: "dc" })).rejects.toThrow(
       'The link "dc" feeds the input "z" of block "c", whose class has no such input.',
     );
     // The rbind block e takes any number of links, so a third link without a
     // name passes, beside be and de.
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "c", to: "e", input: "" })).toBe(true);
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "c", to: "e", input: "" })).toBe(true);
   });
 
   test("add_link fails its preflight for a link that would join a block to itself or close a cycle, naming the blocks of the cycle in their order", async () => {
     const { commands } = await setup();
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "e", to: "e" })).toBe(false);
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "e", to: "e" })).rejects.toThrow(
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "e", to: "e" })).toBe(false);
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "e", to: "e" })).rejects.toThrow(
       'The link would join block "e" to itself.',
     );
 
     // A head block g takes the result of the rbind block e, and e takes that
     // of the head block b. The one input of b is free.
-    await commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: head, id: "g" });
-    await commands.run({ package: "blockr.core", id: "add_link" }, { from: "e", to: "g" });
-    await commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "g", to: "b" })).toBe(false);
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "g", to: "b" })).rejects.toThrow(
+    await commands.run(interned("blockr.core", "add_block"), { registry_id: head, id: "g" });
+    await commands.run(interned("blockr.core", "add_link"), { from: "e", to: "g" });
+    await commands.run(interned("blockr.core", "remove_link"), { id: "ab" });
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "g", to: "b" })).toBe(false);
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "g", to: "b" })).rejects.toThrow(
       'The link would close a cycle through the blocks "b", "e" and "g".',
     );
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "d", to: "b" })).toBe(true);
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "d", to: "b" })).toBe(true);
   });
 
   test("add_link and change_link give a sentence for each failure of the link", async () => {
@@ -413,24 +412,24 @@ describe("links", () => {
       'The link would close a cycle through the blocks "b" and "c".',
       'The link "ab" feeds the input "data" of block "b" already.',
     ];
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "c", to: "b", input: "data" })).rejects.toMatchObject({
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "c", to: "b", input: "data" })).rejects.toMatchObject({
       failures,
     });
     await expect(
-      commands.run({ package: "blockr.core", id: "change_link" }, { id: "be", from: "c", to: "b", input: "data" }),
+      commands.run(interned("blockr.core", "change_link"), { id: "be", from: "c", to: "b", input: "data" }),
     ).rejects.toMatchObject({ failures });
   });
 
   test("change_link keeps the input where the link goes to the same block, and takes the only free one where it goes to another", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "bc", from: "d" });
+    await commands.run(interned("blockr.core", "change_link"), { id: "bc", from: "d" });
     expect(store.board().links.bc).toEqual({ from: "d", to: "c", input: "y" });
 
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "bc", to: "e" });
+    await commands.run(interned("blockr.core", "change_link"), { id: "bc", to: "e" });
     expect(store.board().links.bc).toEqual({ from: "d", to: "e", input: "" });
 
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "ab", from: "a" });
+    await commands.run(interned("blockr.core", "change_link"), { id: "ab", from: "a" });
     expect(store.canUndo()).toBe(true);
     store.undo();
     store.undo();
@@ -439,28 +438,28 @@ describe("links", () => {
 
   test("change_link fails its preflight for another block whose inputs other links feed, saying so, and for a block or a link that the board lacks", async () => {
     const { commands } = await setup();
-    expect(commands.preflight({ package: "blockr.core", id: "change_link" }, { id: "ab", to: "d" })).toBe(false);
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "ab", to: "d" })).rejects.toThrow(
+    expect(commands.preflight(interned("blockr.core", "change_link"), { id: "ab", to: "d" })).toBe(false);
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "ab", to: "d" })).rejects.toThrow(
       'Every input of the block "d" takes a link already.',
     );
 
-    expect(commands.preflight({ package: "blockr.core", id: "change_link" }, { id: "ab", from: "zz" })).toBe(false);
-    expect(commands.preflight({ package: "blockr.core", id: "change_link" }, { id: "ab", to: "zz" })).toBe(false);
-    expect(commands.preflight({ package: "blockr.core", id: "change_link" }, { id: "zz", from: "d" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "change_link"), { id: "ab", from: "zz" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "change_link"), { id: "ab", to: "zz" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "change_link"), { id: "zz", from: "d" })).toBe(false);
   });
 
   test("change_link fails its preflight for a source that would join the link's block to itself or close a cycle, so that a menu offers no such source", async () => {
     const { commands } = await setup();
     const sources = (id: string): string[] =>
-      ["a", "b", "c", "d", "e", "f"].filter((from) => commands.preflight({ package: "blockr.core", id: "change_link" }, { id, from }));
+      ["a", "b", "c", "d", "e", "f"].filter((from) => commands.preflight(interned("blockr.core", "change_link"), { id, from }));
 
     // The link ab feeds the head block b. The merge block c and the rbind
     // block e take the result of b.
     expect(sources("ab")).toEqual(["a", "d", "f"]);
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "ab", from: "b" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "ab", from: "b" })).rejects.toThrow(
       'The link would join block "b" to itself.',
     );
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "ab", from: "e" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "ab", from: "e" })).rejects.toThrow(
       'The link would close a cycle through the blocks "b" and "e".',
     );
 
@@ -474,8 +473,8 @@ describe("links", () => {
 
     // The merge block c takes ac as x and bc as y. The link ac passes the
     // preflight for y, which bc feeds, since the two links swap their inputs.
-    expect(commands.preflight({ package: "blockr.core", id: "change_link" }, { id: "ac", input: "y" })).toBe(true);
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "ac", input: "y" });
+    expect(commands.preflight(interned("blockr.core", "change_link"), { id: "ac", input: "y" })).toBe(true);
+    await commands.run(interned("blockr.core", "change_link"), { id: "ac", input: "y" });
     expect(inputs(store.board(), "c")).toEqual([
       ["a", "y"],
       ["b", "x"],
@@ -486,7 +485,7 @@ describe("links", () => {
     expect(store.canUndo()).toBe(false);
 
     // A link that comes from another block now swaps too.
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "bc", from: "d", input: "x" });
+    await commands.run(interned("blockr.core", "change_link"), { id: "bc", from: "d", input: "x" });
     expect(inputs(store.board(), "c")).toEqual([
       ["a", "y"],
       ["d", "x"],
@@ -498,15 +497,15 @@ describe("links", () => {
 
     // The old input of ab, the data of block b, means nothing to block c, so
     // ac keeps x. The preflight refuses to have ab feed x as well.
-    expect(commands.preflight({ package: "blockr.core", id: "change_link" }, { id: "ab", to: "c", input: "x" })).toBe(false);
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "ab", to: "c", input: "x" })).rejects.toThrow(
+    expect(commands.preflight(interned("blockr.core", "change_link"), { id: "ab", to: "c", input: "x" })).toBe(false);
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "ab", to: "c", input: "x" })).rejects.toThrow(
       'The link "ac" feeds the input "x" of block "c" already.',
     );
 
     // The rbind block e takes be and de by their place, as neither gives a
     // name, and de gives none still once be has had a name and lost it.
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "be", input: "top" });
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "be", input: "" });
+    await commands.run(interned("blockr.core", "change_link"), { id: "be", input: "top" });
+    await commands.run(interned("blockr.core", "change_link"), { id: "be", input: "" });
     expect(inputs(store.board(), "e")).toEqual([
       ["b", ""],
       ["d", ""],
@@ -515,16 +514,16 @@ describe("links", () => {
 
   test("remove_link removes a link", async () => {
     const { store, commands } = await setup();
-    await commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
+    await commands.run(interned("blockr.core", "remove_link"), { id: "ab" });
     expect(Object.hasOwn(store.board().links, "ab")).toBe(false);
-    expect(commands.preflight({ package: "blockr.core", id: "remove_link" }, { id: "ab" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "remove_link"), { id: "ab" })).toBe(false);
   });
 
   test("change_link moves a link before another into its block, keeping its id and its ends, as one step", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "de", before: "be" });
+    await commands.run(interned("blockr.core", "change_link"), { id: "de", before: "be" });
     expect(inputs(store.board(), "e")).toEqual([
       ["d", ""],
       ["b", ""],
@@ -539,29 +538,29 @@ describe("links", () => {
   test("change_link puts a link last among the links into its block for a before of null, right after the block's last other link", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "be", before: null });
+    await commands.run(interned("blockr.core", "change_link"), { id: "be", before: null });
     expect(Object.keys(store.board().links)).toEqual(["ab", "ac", "bc", "ad", "de", "be", "keen_finch"]);
 
     // The last link into its block, and the only one, stay where they are.
     const board = store.board();
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "be", before: null });
+    await commands.run(interned("blockr.core", "change_link"), { id: "be", before: null });
     expect(store.board()).toBe(board);
-    await commands.run({ package: "blockr.core", id: "remove_link" }, { id: "de" });
+    await commands.run(interned("blockr.core", "remove_link"), { id: "de" });
     const alone = store.board();
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "be", before: null });
+    await commands.run(interned("blockr.core", "change_link"), { id: "be", before: null });
     expect(store.board()).toBe(alone);
   });
 
   test("change_link moves a link that goes to another variadic block to the place given among the links into that block, in one step", async () => {
     const { store, commands } = await setup();
     await commands.run([
-      { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "rbind_block" }, id: "g" } },
-      { package: "blockr.core", id: "add_link", args: { id: "cg", from: "c", to: "g" } },
-      { package: "blockr.core", id: "add_link", args: { id: "ag", from: "a", to: "g" } },
+      { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "rbind_block" }, id: "g" } },
+      { id: interned("blockr.core", "add_link"), args: { id: "cg", from: "c", to: "g" } },
+      { id: interned("blockr.core", "add_link"), args: { id: "ag", from: "a", to: "g" } },
     ]);
     const board = store.board();
 
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "de", to: "g", before: "ag" });
+    await commands.run(interned("blockr.core", "change_link"), { id: "de", to: "g", before: "ag" });
     expect(inputs(store.board(), "g")).toEqual([
       ["c", ""],
       ["d", ""],
@@ -573,7 +572,7 @@ describe("links", () => {
     expect(Object.keys(store.board().links)).toEqual(Object.keys(board.links));
     expect(store.board().links.de).toEqual(board.links.de);
 
-    await commands.run({ package: "blockr.core", id: "change_link" }, { id: "de", to: "g", before: null });
+    await commands.run(interned("blockr.core", "change_link"), { id: "de", to: "g", before: null });
     expect(inputs(store.board(), "g")).toEqual([
       ["c", ""],
       ["a", ""],
@@ -588,22 +587,22 @@ describe("links", () => {
     // The merge block c takes its links by their inputs, x and y.
     const variadic =
       'The block "c" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.';
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "bc", before: "ac" })).rejects.toThrow(variadic);
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "bc", input: "x", before: null })).rejects.toThrow(variadic);
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "bc", before: "ac" })).rejects.toThrow(variadic);
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "bc", input: "x", before: null })).rejects.toThrow(variadic);
 
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "de", before: "ad" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "de", before: "ad" })).rejects.toThrow(
       'The link "de" goes into block "e" and the link "ad" into block "d", so the args have to name a link into block "e".',
     );
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "de", before: "de" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "de", before: "de" })).rejects.toThrow(
       'The link "de" cannot go before itself.',
     );
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "de", before: "zz" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "de", before: "zz" })).rejects.toThrow(
       'The board holds no link "zz" for link "de" to go before.',
     );
-    await expect(commands.run({ package: "blockr.core", id: "change_link" }, { id: "de", before: 1 })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_link"), { id: "de", before: 1 })).rejects.toThrow(
       "The args fail their schema at /before:",
     );
-    expect(commands.preflight({ package: "blockr.core", id: "change_link" }, { id: "zz", before: null })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "change_link"), { id: "zz", before: null })).toBe(false);
     expect(store.board()).toBe(board);
   });
 
@@ -636,7 +635,7 @@ describe("stacks", () => {
   test("add_stack adds a stack, taking its blocks out of the stack they are in", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "add_stack" }, { id: "s2", name: "Joined", blocks: ["b", "c"] });
+    await commands.run(interned("blockr.core", "add_stack"), { id: "s2", name: "Joined", blocks: ["b", "c"] });
 
     expect(store.board().stacks).toEqual({
       s1: { name: "Input", blocks: ["a"], color: null },
@@ -648,8 +647,8 @@ describe("stacks", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await commands.run({ package: "blockr.core", id: "add_stack" });
-    await commands.run({ package: "blockr.core", id: "add_stack" });
+    await commands.run(interned("blockr.core", "add_stack"));
+    await commands.run(interned("blockr.core", "add_stack"));
 
     const ids = added(board.stacks, store.board().stacks);
     expect(ids).toHaveLength(2);
@@ -660,9 +659,9 @@ describe("stacks", () => {
 
   test("change_stack sets a stack's blocks, taking them out of the stack they are in", async () => {
     const { store, commands } = await setup();
-    await commands.run({ package: "blockr.core", id: "add_stack" }, { id: "s2", name: "Joined", blocks: ["c"] });
+    await commands.run(interned("blockr.core", "add_stack"), { id: "s2", name: "Joined", blocks: ["c"] });
 
-    await commands.run({ package: "blockr.core", id: "change_stack" }, { id: "s2", blocks: ["b", "c"] });
+    await commands.run(interned("blockr.core", "change_stack"), { id: "s2", blocks: ["b", "c"] });
     expect(store.board().stacks.s1?.blocks).toEqual(["a"]);
     expect(store.board().stacks.s2?.blocks).toEqual(["b", "c"]);
 
@@ -673,8 +672,8 @@ describe("stacks", () => {
   test("add_stack gives a stack the colour given, and null for none where it is given none", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "add_stack" }, { id: "s2", blocks: ["c"], color: "#66c2a5" });
-    await commands.run({ package: "blockr.core", id: "add_stack" }, { id: "s3", blocks: ["d"] });
+    await commands.run(interned("blockr.core", "add_stack"), { id: "s2", blocks: ["c"], color: "#66c2a5" });
+    await commands.run(interned("blockr.core", "add_stack"), { id: "s3", blocks: ["d"] });
 
     expect(store.board().stacks.s2).toStrictEqual({ name: "Stack 1", blocks: ["c"], color: "#66c2a5" });
     expect(store.board().stacks.s3).toStrictEqual({ name: "Stack 2", blocks: ["d"], color: null });
@@ -683,13 +682,13 @@ describe("stacks", () => {
   test("change_stack sets a stack's colour, or clears it with null, and keeps its blocks", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "change_stack" }, { id: "s1", color: "#fc8d62" });
+    await commands.run(interned("blockr.core", "change_stack"), { id: "s1", color: "#fc8d62" });
     expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a", "b"], color: "#fc8d62" });
 
-    await commands.run({ package: "blockr.core", id: "change_stack" }, { id: "s1", blocks: ["a"] });
+    await commands.run(interned("blockr.core", "change_stack"), { id: "s1", blocks: ["a"] });
     expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a"], color: "#fc8d62" });
 
-    await commands.run({ package: "blockr.core", id: "change_stack" }, { id: "s1", color: null });
+    await commands.run(interned("blockr.core", "change_stack"), { id: "s1", color: null });
     expect(store.board().stacks.s1).toStrictEqual({ name: "Input", blocks: ["a"], color: null });
 
     store.undo();
@@ -703,10 +702,10 @@ describe("stacks", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await expect(commands.run({ package: "blockr.core", id: "add_stack" }, { color: "teal" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "add_stack"), { color: "teal" })).rejects.toThrow(
       "The args fail their schema at /color:",
     );
-    await expect(commands.run({ package: "blockr.core", id: "change_stack" }, { id: "s1", color: "#66c2a" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_stack"), { id: "s1", color: "#66c2a" })).rejects.toThrow(
       "The args fail their schema at /color:",
     );
     expect(store.board()).toBe(board);
@@ -716,10 +715,10 @@ describe("stacks", () => {
     const { store, commands } = await setup();
     const stack = store.board().stacks.s1;
 
-    await commands.run({ package: "blockr.core", id: "change_stack" }, { id: "s1", name: "Sources" });
+    await commands.run(interned("blockr.core", "change_stack"), { id: "s1", name: "Sources" });
     expect(store.board().stacks.s1).toEqual({ ...stack, name: "Sources" });
 
-    await commands.run({ package: "blockr.core", id: "change_stack" }, { id: "s1", name: "Inputs", blocks: ["a"], color: "#66c2a5" });
+    await commands.run(interned("blockr.core", "change_stack"), { id: "s1", name: "Inputs", blocks: ["a"], color: "#66c2a5" });
     expect(store.board().stacks.s1).toEqual({ name: "Inputs", blocks: ["a"], color: "#66c2a5" });
     store.undo();
     expect(store.board().stacks.s1).toEqual({ ...stack, name: "Sources" });
@@ -728,7 +727,7 @@ describe("stacks", () => {
   test("remove_stack removes a stack, leaving its blocks", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "remove_stack" }, { id: "s1" });
+    await commands.run(interned("blockr.core", "remove_stack"), { id: "s1" });
     expect(store.board().stacks).toEqual({});
     expect(Object.keys(store.board().blocks)).toEqual(["a", "b", "c", "d", "e", "f"]);
   });
@@ -737,22 +736,22 @@ describe("stacks", () => {
 describe("the board", () => {
   test("change_board renames the board, and changes nothing where the args leave out the name", async () => {
     const { store, commands } = await setup();
-    await commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" });
+    await commands.run(interned("blockr.core", "change_board"), { name: "Sepals" });
     expect(store.board().name).toBe("Sepals");
 
     const board = store.board();
-    await expect(commands.run({ package: "blockr.core", id: "change_board" }, {})).resolves.toBe(false);
+    await expect(commands.run(interned("blockr.core", "change_board"), {})).resolves.toBe(false);
     expect(store.board()).toBe(board);
   });
 
   test("set_option sets a board option that a package registered, whose schema the store checks", async () => {
     const { store, commands } = await setup();
 
-    await commands.run({ package: "blockr.core", id: "set_option" }, { id: "n_rows", value: 25 });
+    await commands.run(interned("blockr.core", "set_option"), { id: "n_rows", value: 25 });
     expect(store.board().options.n_rows).toBe(25);
 
-    expect(commands.preflight({ package: "blockr.core", id: "set_option" }, { id: "zoom", value: 2 })).toBe(false);
-    const refused = commands.run({ package: "blockr.core", id: "set_option" }, { id: "n_rows", value: -1 });
+    expect(commands.preflight(interned("blockr.core", "set_option"), { id: "zoom", value: 2 })).toBe(false);
+    const refused = commands.run(interned("blockr.core", "set_option"), { id: "n_rows", value: -1 });
     await expect(refused).rejects.toMatchObject({ by: "store" });
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
   });
@@ -808,7 +807,7 @@ describe("plugins", () => {
     const { store, commands } = await pluginStore(plugin(dag, "DAG", { positions: {} }));
 
     await commands.run(
-      { package: "blockr.core", id: "set_plugin_state" },
+      interned("blockr.core", "set_plugin_state"),
       { plugin: dagId, patches: [{ op: "add", path: "/positions/a", value: { x: 40, y: 80 } }] },
       "assistant",
     );
@@ -816,7 +815,7 @@ describe("plugins", () => {
     expect(store.canUndo("assistant")).toBe(true);
 
     // A patch of the whole state replaces what the board holds for the plugin.
-    expect(await commands.plan({ package: "blockr.core", id: "set_plugin_state" }, { plugin: dagId, patches: [{ op: "replace", path: "", value: { positions: {} } }] })).toEqual([
+    expect(await commands.plan(interned("blockr.core", "set_plugin_state"), { plugin: dagId, patches: [{ op: "replace", path: "", value: { positions: {} } }] })).toEqual([
       {
         patches: [
           {
@@ -828,14 +827,14 @@ describe("plugins", () => {
         ],
       },
     ]);
-    await commands.run({ package: "blockr.core", id: "set_plugin_state" }, {
+    await commands.run(interned("blockr.core", "set_plugin_state"), {
       plugin: dagId,
       patches: [{ op: "replace", path: "", value: { positions: {} } }],
     });
     expect(store.board().plugins["blockr.dag"]?.dag_plugin).toEqual({ positions: {} });
 
     await expect(
-      commands.run({ package: "blockr.core", id: "set_plugin_state" }, {
+      commands.run(interned("blockr.core", "set_plugin_state"), {
         plugin: dagId,
         patches: [{ op: "add", path: "/positions/b", value: { x: "left", y: 0 } }],
       }),
@@ -843,25 +842,25 @@ describe("plugins", () => {
     // Removing the whole state would remove what the board holds for the
     // plugin, which the app runs all the same.
     await expect(
-      commands.run({ package: "blockr.core", id: "set_plugin_state" }, { plugin: dagId, patches: [{ op: "remove", path: "" }] }),
+      commands.run(interned("blockr.core", "set_plugin_state"), { plugin: dagId, patches: [{ op: "remove", path: "" }] }),
     ).rejects.toMatchObject({ by: "store" });
     await expect(
-      commands.run({ package: "blockr.core", id: "set_plugin_state" }, { plugin: dagId, patches: [{ op: "move", path: "/positions" }] }),
+      commands.run(interned("blockr.core", "set_plugin_state"), { plugin: dagId, patches: [{ op: "move", path: "/positions" }] }),
     ).rejects.toThrow(/The args/);
     // It fails its preflight for a plugin whose state the board does not
     // hold, as one that the app does not run, or of a class that keeps no
     // state.
-    expect(commands.preflight({ package: "blockr.core", id: "set_plugin_state" }, { plugin: { package: "blockr.dag", id: "nowhere_plugin" }, patches: [] })).toBe(false);
-    expect(commands.preflight({ package: "blockr.core", id: "set_plugin_state" }, { plugin: { package: "blockr.core", id: "basic_frontend_plugin" }, patches: [] })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "set_plugin_state"), { plugin: { package: "blockr.dag", id: "nowhere_plugin" }, patches: [] })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "set_plugin_state"), { plugin: { package: "blockr.core", id: "basic_frontend_plugin" }, patches: [] })).toBe(false);
   });
 
   test("under the board lock, set_plugin_state fails its preflight, and under the load lock alone it passes", async () => {
     const state = plugin(dag, "DAG", { positions: {} });
     const args = { plugin: dagId, patches: [] };
     const locked = await pluginStore(state, { board: true, load: false });
-    expect(locked.commands.preflight({ package: "blockr.core", id: "set_plugin_state" }, args)).toBe(false);
+    expect(locked.commands.preflight(interned("blockr.core", "set_plugin_state"), args)).toBe(false);
     const loading = await pluginStore(state, { board: false, load: true });
-    expect(loading.commands.preflight({ package: "blockr.core", id: "set_plugin_state" }, args)).toBe(true);
+    expect(loading.commands.preflight(interned("blockr.core", "set_plugin_state"), args)).toBe(true);
   });
 });
 
@@ -871,10 +870,10 @@ describe("ids", () => {
     const commands = createCommands(store, { randId: "letters_8" });
     const board = store.board();
 
-    await commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: head });
+    await commands.run(interned("blockr.core", "add_block"), { registry_id: head });
     const [block = ""] = added(board.blocks, store.board().blocks);
-    await commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: block });
-    await commands.run({ package: "blockr.core", id: "add_stack" });
+    await commands.run(interned("blockr.core", "add_link"), { from: "d", to: block });
+    await commands.run(interned("blockr.core", "add_stack"));
 
     const minted = [
       ...added(board.blocks, store.board().blocks),
@@ -898,7 +897,7 @@ describe("ids", () => {
 describe("the schemas", () => {
   test("a block's id is neither empty nor made of digits alone", async () => {
     const { commands } = await setup();
-    await expect(commands.run({ package: "blockr.core", id: "remove_block" }, { id: "12" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "remove_block"), { id: "12" })).rejects.toThrow(
       "The args fail their schema at /id:",
     );
     expect(schemas.blockId.pattern).toBe("\\D");

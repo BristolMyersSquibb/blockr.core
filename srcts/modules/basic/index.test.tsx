@@ -358,7 +358,7 @@ describe("the page", () => {
     expect(groupOpen(stack)).toBe(true);
 
     await click(titled(stack));
-    await act(() => core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     await settled();
     expect(core.store.board().name).toBe("Sepals");
     // It stays collapsed as the board changes, and its blocks' UIs stay.
@@ -934,7 +934,7 @@ describe("the storage controls", () => {
 
     // The controls read the board, as a status may show the board's name.
     storage.set(() => [{ kind: "status", id: "saved", text: `Unsaved ${page.board().name}` }]);
-    await act(() => page.core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }));
+    await act(() => page.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     expect(parts(page.el).at(-1)).toBe("Unsaved Sepals");
 
     page.stop();
@@ -956,7 +956,7 @@ describe("the storage controls", () => {
       { kind: "button", id: "odd", label: "Odd", shortcut: "Hyper+O", run: ran("odd") },
     ]);
     const { el, core, board } = await drawn(storage.options);
-    await act(() => core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
 
     const save = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true, cancelable: true });
     await step(() => {
@@ -1061,7 +1061,7 @@ describe("the storage controls", () => {
       expect(await tipOnFocus(find(warning, '[role="button"]'))).toBe("The storage controls failed: No session.");
       expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Storage failed"]);
       // It draws again with the same failure, which the page has heard of.
-      await act(() => page.core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }));
+      await act(() => page.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
       await step(() => {
         press(document.body, "s", { ctrlKey: true });
       });
@@ -1110,7 +1110,7 @@ describe("a plugin", () => {
     // A collapsed section stays collapsed as the board changes, and its
     // plugin's UI stays mounted.
     await click(titled(section(page.el, "To do")));
-    await act(() => page.core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }));
+    await act(() => page.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     await page.settled();
     expect(page.board().name).toBe("Sepals");
     expect(shown()).toEqual([
@@ -1464,7 +1464,7 @@ describe("what the user learns", () => {
     // feeds Head's one input from Wide sepals, in a step that is no undo step.
     // So the store refuses to undo the user's step, the history's last, which
     // would give that input a second link.
-    await act(() => core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }));
     act(() => {
       core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "data" } } } }, "assistant", { undo: false });
     });
@@ -1484,7 +1484,7 @@ describe("what the user learns", () => {
     expect(toasts(el)).toEqual([["error", "Board", refusal]]);
 
     // A command that the command registry refuses shows alike.
-    await act(() => expect(core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" })).rejects.toThrow());
+    await act(() => expect(core.commands.run(interned("blockr.core", "remove_block"), { id: "nowhere" })).rejects.toThrow());
     expect(toasts(el)).toEqual([
       ["error", "Board", refusal],
       ["error", "Board", expect.stringMatching(/^The command "remove_block of blockr\.core" refused to run/)],
@@ -1600,7 +1600,7 @@ describe("what the user learns", () => {
 describe("undo and redo", () => {
   test("are bound to their shortcuts, which a text field keeps for its own typing", async () => {
     const { el, core, board } = await drawn();
-    await act(() => core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
 
     await step(() => {
       press(document.body, "z", { ctrlKey: true });
@@ -1628,7 +1628,7 @@ describe("undo and redo", () => {
     const { el, core, board } = await drawn();
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([true, true]);
 
-    await act(() => core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([false, true]);
 
     await click(button(el, "Undo"));
@@ -1638,7 +1638,7 @@ describe("undo and redo", () => {
 
   test("take back and apply again the steps of every origin, the assistant's among them", async () => {
     const { el, core, board } = await drawn();
-    await act(() => core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }, "assistant"));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }, "assistant"));
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([false, true]);
 
     await click(button(el, "Undo"));
@@ -1715,7 +1715,7 @@ describe("the cleanup that render() returns", () => {
     });
     await act(() => stubbed.settled());
     expect(el.querySelectorAll("article")).toHaveLength(6);
-    await act(() => stubbed.core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }));
+    await act(() => stubbed.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
 
     act(() => {
       cleanup();

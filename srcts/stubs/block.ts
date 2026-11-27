@@ -100,6 +100,7 @@ export function stubBlockHost<S extends State = State>(
   return {
     block: options.block ?? "block",
     class: cls,
+    id: interned,
     state: () => state,
     context: () => context,
     on: on.listen,

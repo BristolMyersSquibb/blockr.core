@@ -14,8 +14,9 @@
 // A role's id is global, a string that names no package, as a board option's
 // is, and ends in `_role` by convention, as "append_block_role", so that it
 // reads as neither a board action's id nor a command's.
-// A caller names a board action by its package and its id, and a role by its
-// id alone, so that core tells the two apart by what the caller gives. Core defines a role for each of
+// A caller names a board action by its id, an object of its package and its id
+// within the package, and a role by its id alone, a string, so that core tells
+// the two apart by what the caller gives. Core defines a role for each of
 // its board actions that edits the board (CORE_ROLES, below), and a plugin
 // class lists roles of its own in `roles`, which core registers with the class
 // (./actions.ts). Core refuses the whole class where one of its roles breaks a

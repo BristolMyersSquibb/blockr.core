@@ -200,7 +200,7 @@ describe("the plugins that run", () => {
 
     // Under the board lock, the store applies a patch inside a plugin's state,
     // which the plugin's commands lock themselves.
-    await s.core.commands.run({ package: "blockr.test", id: "add_note" });
+    await s.core.commands.run(interned("blockr.test", "add_note"));
 
     expect(got).toEqual({ lock: { board: true, load: false }, limit: 3 });
     const state = nestedValue(s.core.store.board().plugins, notes.id) as Readonly<Record<string, unknown>>;
@@ -501,7 +501,7 @@ describe("what a frontend offers other plugins", () => {
     expect(refused({ ...base, about: "b" })).toThrow(`${part} "b".`);
     expect(refused("Saved.")).toThrow('A notification is an object, not "Saved.".');
     expect(refused(base, "")).toThrow(
-      'A plugin\'s notification names a plugin by the id of its class, a package and an id, as { package: "blockr.dag", id: "dag_plugin" }, not by "".',
+      'A plugin\'s notification names a plugin by the id of its class, as core.id("blockr.dag", "dag_plugin") gives it, not by "".',
     );
     s.stop();
   });
@@ -613,7 +613,7 @@ describe("what a frontend offers other plugins", () => {
       expect(() => {
         core.onScreen.set(given as never);
       }).toThrow(
-        `A frontend says what is on screen as { blocks: ["a"], plugins: [{ package: "blockr.md", id: "md_plugin" }] }, not ${JSON.stringify(given)}.`,
+        `A frontend says what is on screen as { blocks: ["a"], plugins: [core.id("blockr.md", "md_plugin")] }, not ${JSON.stringify(given)}.`,
       );
     }
 
@@ -741,7 +741,7 @@ describe("what a frontend offers other plugins", () => {
     );
     for (const given of [null, "b", { stack: "s" }, { block: "b", plugin: EDIT }, { block: 1 }]) {
       expect(() => core.show(given as never)).toThrow(
-        `Core shows a block or a plugin, as { block: "a" } or { plugin: { package: "blockr.md", id: "md_plugin" } }, not ${JSON.stringify(given)}.`,
+        `Core shows a block or a plugin, as { block: "a" } or { plugin: core.id("blockr.md", "md_plugin") }, not ${JSON.stringify(given)}.`,
       );
     }
     expect(core.focus.get()).toBeNull();

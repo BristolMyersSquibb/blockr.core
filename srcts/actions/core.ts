@@ -49,10 +49,10 @@
 
 import { CORE } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
-import type { Board } from "../types/board.ts";
+import type { Board, CommandId } from "../types/board.ts";
 import type { BlockRegistry } from "../types/core-api.ts";
 import { classInputs } from "../ui/index.ts";
-import { coreNotification, own } from "../util/index.ts";
+import { coreNotification, interned, own } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { addingBoardActions } from "./add.tsx";
@@ -91,7 +91,7 @@ export function coreBoardActions(parts: CoreParts): Omit<BoardAction, "package">
         const object = named(board, target);
         if (object === undefined) return undefined;
         return {
-          rows: [nameRow(object.name, (name) => (name === object.name ? [] : [{ ...object.command, args: { id: object.id, name } }]))],
+          rows: [nameRow(object.name, (name) => (name === object.name ? [] : [{ id: object.command, args: { id: object.id, name } }]))],
         };
       },
       role: "rename_role",
@@ -138,7 +138,7 @@ export function coreBoardActions(parts: CoreParts): Omit<BoardAction, "package">
       on: ["block"],
       category: "remove",
       offers: (board, target, lock) => !lock.board && heldBlock(board, target) !== undefined,
-      run: (_board, target) => removing({ package: CORE, id: "remove_block" }, blockOf(target)),
+      run: (_board, target) => removing(interned(CORE, "remove_block"), blockOf(target)),
       role: "remove_block_role",
     },
     {
@@ -149,7 +149,7 @@ export function coreBoardActions(parts: CoreParts): Omit<BoardAction, "package">
       category: "remove",
       offers: (board, target, lock) =>
         !lock.board && "link" in target && Object.hasOwn(board.links, target.link),
-      run: (_board, target) => removing({ package: CORE, id: "remove_link" }, "link" in target ? target.link : undefined),
+      run: (_board, target) => removing(interned(CORE, "remove_link"), "link" in target ? target.link : undefined),
       role: "remove_link_role",
     },
     {
@@ -160,7 +160,7 @@ export function coreBoardActions(parts: CoreParts): Omit<BoardAction, "package">
       category: "remove",
       offers: (board, target, lock) =>
         !lock.board && "stack" in target && Object.hasOwn(board.stacks, target.stack),
-      run: (_board, target) => removing({ package: CORE, id: "remove_stack" }, "stack" in target ? target.stack : undefined),
+      run: (_board, target) => removing(interned(CORE, "remove_stack"), "stack" in target ? target.stack : undefined),
       role: "remove_stack_role",
     },
     {
@@ -179,28 +179,22 @@ export function coreBoardActions(parts: CoreParts): Omit<BoardAction, "package">
 // The block or the stack that the target names, where the board holds it,
 // with its name and core's command that changes it, which renames it where
 // it is given the name alone.
-function named(board: Board, target: Target): { id: string; name: string; command: Command } | undefined {
+function named(board: Board, target: Target): { id: string; name: string; command: CommandId } | undefined {
   if ("block" in target) {
     const block = own(board.blocks, target.block);
-    return block === undefined ? undefined : { id: target.block, name: block.name, command: { package: CORE, id: "change_block" } };
+    return block === undefined ? undefined : { id: target.block, name: block.name, command: interned(CORE, "change_block") };
   }
   if ("stack" in target) {
     const stack = own(board.stacks, target.stack);
-    return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: { package: CORE, id: "change_stack" } };
+    return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: interned(CORE, "change_stack") };
   }
   return undefined;
 }
 
-// One of core's commands, by its package and its id.
-interface Command {
-  readonly package: string;
-  readonly id: string;
-}
-
 // The batch that removes a block, a link or a stack by its id with the command
 // given, or none without an id.
-function removing(command: Command, id: string | undefined): CommandCall[] | undefined {
-  return id === undefined ? undefined : [{ ...command, args: { id } }];
+function removing(command: CommandId, id: string | undefined): CommandCall[] | undefined {
+  return id === undefined ? undefined : [{ id: command, args: { id } }];
 }
 
 // The batch that removes the blocks, the links and the stacks of a selection
@@ -210,7 +204,7 @@ function removing(command: Command, id: string | undefined): CommandCall[] | und
 function removals(board: Board, target: Target): CommandCall[] {
   if (!("selection" in target)) return [];
   const removing = (kind: "block" | "link" | "stack"): CommandCall[] =>
-    held(board, target, kind).map((id) => ({ package: CORE, id: `remove_${kind}`, args: { id } }));
+    held(board, target, kind).map((id) => ({ id: interned(CORE, `remove_${kind}`), args: { id } }));
   return [...removing("link"), ...removing("block"), ...removing("stack")];
 }
 

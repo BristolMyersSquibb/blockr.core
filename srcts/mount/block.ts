@@ -44,7 +44,7 @@ import type { Commands } from "../commands/index.ts";
 import { unevaluated } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Option, Store } from "../store/index.ts";
-import type { Block, BlockId, OptionId } from "../types/board.ts";
+import type { Block, BlockId, ModuleId, OptionId } from "../types/board.ts";
 import type { CoreApi, SourceModule } from "../types/core-api.ts";
 import type {
   BlockContext,
@@ -160,8 +160,8 @@ export interface MountsOptions {
 const CORE = "blockr.core";
 
 // Core's commands that the mounts run.
-const SET_OPTION = { package: CORE, id: "set_option" } as const;
-const CHANGE_BLOCK = { package: CORE, id: "change_block" } as const;
+const SET_OPTION = interned(CORE, "set_option");
+const CHANGE_BLOCK = interned(CORE, "change_block");
 
 // The status of a block that the scheduler has not seen yet.
 const NO_STATUS = Object.freeze(unevaluated(0, false));
@@ -641,7 +641,8 @@ function blockHost(deps: HostDeps): MountedHost {
       if (status === undefined) throw unboundError();
       return status;
     },
-    module<T = unknown>(id: { readonly package: string; readonly id: string }): Promise<T> {
+    id: interned,
+    module<T = unknown>(id: ModuleId): Promise<T> {
       return deps.loader.module(givenModuleId(id)) as Promise<T>;
     },
     notify(notification) {

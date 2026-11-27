@@ -12,7 +12,7 @@ import { logged } from "../testing/logged.ts";
 import type { Logged } from "../testing/logged.ts";
 import { recordSpans } from "../testing/spans.ts";
 import { openedStore, withPlugins } from "../testing/store.ts";
-import type { Board } from "../types/board.ts";
+import type { Board, CommandId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import { interned } from "../util/index.ts";
 import { CommandError, createCommands, isLogged } from "./index.ts";
@@ -108,8 +108,8 @@ async function setupPlacing(
 // The commands of a batch that adds block g and then links block d to it, as
 // Append block does.
 const appendG: readonly CommandCall[] = [
-  { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
-  { package: "blockr.core", id: "add_link", args: { from: "d", to: "g", id: "dg" } },
+  { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
+  { id: interned("blockr.core", "add_link"), args: { from: "d", to: "g", id: "dg" } },
 ];
 
 // A command of another package that names block "b" after the board, which
@@ -228,7 +228,7 @@ describe("running a command", () => {
     const board = store.board();
 
     // Removing a block removes its links and its place in its stack as well.
-    await commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" }, "assistant");
+    await commands.run(interned("blockr.core", "remove_block"), { id: "b" }, "assistant");
 
     expect(Object.keys(store.board().blocks)).toHaveLength(5);
     expect(store.canUndo("user")).toBe(false);
@@ -246,7 +246,7 @@ describe("running a command", () => {
     store.apply({ name: "Petals" });
     store.undo();
 
-    await commands.run({ package: "test.pkg", id: "rename_b" }, { name: "Renamed" });
+    await commands.run(interned("test.pkg", "rename_b"), { name: "Renamed" });
 
     expect(store.board().blocks.b?.name).toBe("Renamed");
     expect([store.canUndo(), store.canRedo()]).toEqual([true, true]);
@@ -262,7 +262,7 @@ describe("running a command", () => {
   test("applies a command that does not prepare before run() returns", async () => {
     const { store, commands } = await setup();
 
-    const done = commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" });
+    const done = commands.run(interned("blockr.core", "change_board"), { name: "Sepals" });
     expect(store.board().name).toBe("Sepals");
     await done;
   });
@@ -271,7 +271,7 @@ describe("running a command", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    const refused = commands.run({ package: "blockr.core", id: "add_link" }, { from: 1, to: "12", extra: true });
+    const refused = commands.run(interned("blockr.core", "add_link"), { from: 1, to: "12", extra: true });
     await expect(refused).rejects.toThrow(CommandError);
     await expect(refused).rejects.toThrow('The command "add_link of blockr.core" refused to run');
     await expect(refused).rejects.toThrow(
@@ -284,15 +284,24 @@ describe("running a command", () => {
 
   test("takes args left out as no args", async () => {
     const { commands } = await setup();
-    await expect(commands.run({ package: "blockr.core", id: "remove_block" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "remove_block"))).rejects.toThrow(
       'Instance does not have required property "id".',
     );
-    await expect(commands.run({ package: "blockr.core", id: "add_stack" })).resolves.toBe(true);
+    await expect(commands.run(interned("blockr.core", "add_stack"))).resolves.toBe(true);
+  });
+
+  test("runs a command that a caller in plain JS names by a record of its package and its id, which is not core's object for the id", async () => {
+    const { store, commands } = await setup();
+    // The types ask for core's object, which a caller in plain JS may not give.
+    const record = { package: "blockr.core", id: "change_board" } as unknown as CommandId;
+
+    await expect(commands.run(record, { name: "Sepals" })).resolves.toBe(true);
+    expect(store.board().name).toBe("Sepals");
   });
 
   test("refuses a command that no package registered", async () => {
     const { commands } = await setup();
-    await expect(commands.run({ package: "test.pkg", id: "nothing" })).rejects.toThrow(
+    await expect(commands.run(interned("test.pkg", "nothing"))).rejects.toThrow(
       'No command "nothing of test.pkg" is registered.',
     );
   });
@@ -301,16 +310,16 @@ describe("running a command", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await expect(commands.run({ package: "blockr.core", id: "remove_block" }, { id: "zz" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "remove_block"), { id: "zz" })).rejects.toThrow(
       'It fails its preflight on the board as it is, with the args {"id":"zz"}.',
     );
     expect(store.board()).toBe(board);
 
     // Its CommandError names the command and says that its preflight stopped
     // it. It has no index, since the command ran alone.
-    const error = await rejection(commands.run({ package: "blockr.core", id: "remove_block" }, { id: "zz" }));
+    const error = await rejection(commands.run(interned("blockr.core", "remove_block"), { id: "zz" }));
     expect([error.command, error.by, error.index]).toEqual([{ package: "blockr.core", id: "remove_block" }, "preflight", undefined]);
-    const failed = await rejection(commands.run({ package: "blockr.core", id: "change_board" }, { name: 1 }));
+    const failed = await rejection(commands.run(interned("blockr.core", "change_board"), { name: 1 }));
     expect(failed.by).toBe("registry");
   });
 
@@ -318,7 +327,7 @@ describe("running a command", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    const error = await rejection(commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: { package: "blockr.core", id: "head_block" }, id: "a" }));
+    const error = await rejection(commands.run(interned("blockr.core", "add_block"), { registry_id: { package: "blockr.core", id: "head_block" }, id: "a" }));
     expect(error.message).toBe('The store refused the deltas of the command "add_block of blockr.core"\n- The board holds block "a" already.');
     expect([error.command, error.by, error.failures]).toEqual([{ package: "blockr.core", id: "add_block" }, "store", ['The board holds block "a" already.']]);
     expect(error.cause).toBeInstanceOf(StoreError);
@@ -340,7 +349,7 @@ describe("running a command", () => {
     );
     const reported = logged();
 
-    const failed = commands.run({ package: "test.pkg", id: "rename_b" }, { name: "Top" });
+    const failed = commands.run(interned("test.pkg", "rename_b"), { name: "Top" });
     await expect(failed).rejects.toThrow('The command "rename_b of test.pkg" failed\n- No layout.');
     await expect(failed).rejects.toMatchObject({ command: { package: "test.pkg", id: "rename_b" }, by: "code", cause: error });
     reported.restore();
@@ -356,23 +365,23 @@ describe("running a command", () => {
     const { commands } = await setup();
     const reported = logged();
 
-    await expect(commands.run({ package: "test.pkg", id: "nothing" })).rejects.toThrow("is registered");
-    await expect(commands.run({ package: "blockr.core", id: "change_board" }, { name: 1 })).rejects.toThrow("The args fail their schema");
-    await expect(commands.run({ package: "blockr.core", id: "remove_block" }, { id: "zz" })).rejects.toThrow("It fails its preflight");
+    await expect(commands.run(interned("test.pkg", "nothing"))).rejects.toThrow("is registered");
+    await expect(commands.run(interned("blockr.core", "change_board"), { name: 1 })).rejects.toThrow("The args fail their schema");
+    await expect(commands.run(interned("blockr.core", "remove_block"), { id: "zz" })).rejects.toThrow("It fails its preflight");
     // Core's command refuses in its own run(), with a CommandError.
-    await expect(commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: { package: "test.pkg", id: "nowhere" } })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "add_block"), { registry_id: { package: "test.pkg", id: "nowhere" } })).rejects.toThrow(
       'The block registry has no block class "nowhere of test.pkg".',
     );
     // Core's command refuses in its preflight() too, with the refusal() of its
     // context.
-    await expect(commands.run({ package: "blockr.core", id: "add_link" }, { from: "e", to: "e" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "add_link"), { from: "e", to: "e" })).rejects.toThrow(
       'The link would join block "e" to itself.',
     );
     // The store refuses a block whose id the board holds already.
-    await expect(commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: { package: "blockr.core", id: "head_block" }, id: "a" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "add_block"), { registry_id: { package: "blockr.core", id: "head_block" }, id: "a" })).rejects.toThrow(
       'The store refused the deltas of the command "add_block of blockr.core"',
     );
-    expect(commands.preflight({ package: "blockr.core", id: "remove_block" }, { id: "zz" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "remove_block"), { id: "zz" })).toBe(false);
     reported.restore();
 
     expect(reported.lines()).toEqual([]);
@@ -381,15 +390,15 @@ describe("running a command", () => {
   test("refuses to run before the store opens a board", async () => {
     const store = createStore();
     const commands = createCommands(store);
-    await expect(commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_board"), { name: "Sepals" })).rejects.toThrow(
       'The command "change_board of blockr.core" refused to run\n- The store holds no board until it opens one.',
     );
-    expect(commands.preflight({ package: "blockr.core", id: "change_board" }, { name: "Sepals" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "change_board"), { name: "Sepals" })).toBe(false);
   });
 
   test("applies no step where the command changes nothing", async () => {
     const { store, commands } = await setup();
-    await commands.run({ package: "blockr.core", id: "change_board" }, { name: "Iris review" });
+    await commands.run(interned("blockr.core", "change_board"), { name: "Iris review" });
     expect(store.canUndo()).toBe(false);
   });
 
@@ -405,12 +414,12 @@ describe("running a command", () => {
       run: () => ({ blocks: { mod: { b: { state: { n: 6 } } } }, options: { set: { n_rows: 10 } } }),
     });
 
-    await expect(commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" })).resolves.toBe(true);
-    await expect(commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" })).resolves.toBe(false);
-    await expect(commands.run({ package: "test.pkg", id: "later" })).resolves.toBe(true);
-    await expect(commands.run({ package: "test.pkg", id: "rename_b" }, { name: "Renamed" })).resolves.toBe(false);
-    await expect(commands.run({ package: "blockr.core", id: "set_option" }, { id: "n_rows", value: 30 })).resolves.toBe(false);
-    await expect(commands.run({ package: "test.pkg", id: "set_rows" }, {}, "assistant")).resolves.toBe(false);
+    await expect(commands.run(interned("blockr.core", "change_board"), { name: "Sepals" })).resolves.toBe(true);
+    await expect(commands.run(interned("blockr.core", "change_board"), { name: "Sepals" })).resolves.toBe(false);
+    await expect(commands.run(interned("test.pkg", "later"))).resolves.toBe(true);
+    await expect(commands.run(interned("test.pkg", "rename_b"), { name: "Renamed" })).resolves.toBe(false);
+    await expect(commands.run(interned("blockr.core", "set_option"), { id: "n_rows", value: 30 })).resolves.toBe(false);
+    await expect(commands.run(interned("test.pkg", "set_rows"), {}, "assistant")).resolves.toBe(false);
 
     expect(store.board().name).toBe("Sepals and petals");
     expect(store.board().options.n_rows).toBe(10);
@@ -422,10 +431,10 @@ describe("preflight()", () => {
   test("says whether the command passes its preflight on the current board with these args", async () => {
     const { commands } = await setup();
 
-    expect(commands.preflight({ package: "blockr.core", id: "remove_block" }, { id: "b" })).toBe(true);
-    expect(commands.preflight({ package: "blockr.core", id: "remove_block" }, { id: "zz" })).toBe(false);
-    expect(commands.preflight({ package: "blockr.core", id: "remove_block" }, { id: 1 })).toBe(false);
-    expect(commands.preflight({ package: "test.pkg", id: "nothing" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "remove_block"), { id: "b" })).toBe(true);
+    expect(commands.preflight(interned("blockr.core", "remove_block"), { id: "zz" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "remove_block"), { id: 1 })).toBe(false);
+    expect(commands.preflight(interned("test.pkg", "nothing"))).toBe(false);
   });
 
   test("is false where the command's preflight() throws, which the command registry logs at error", async () => {
@@ -440,7 +449,7 @@ describe("preflight()", () => {
       }),
     );
     const reported = logged();
-    expect(commands.preflight({ package: "test.pkg", id: "rename_b" }, { name: "Top" })).toBe(false);
+    expect(commands.preflight(interned("test.pkg", "rename_b"), { name: "Top" })).toBe(false);
     reported.restore();
 
     expect(loggedFailure(reported)).toEqual({ message: 'The command "rename_b of test.pkg" failed\n- No idea.', cause: error });
@@ -462,7 +471,7 @@ describe("preparing", () => {
       },
     });
 
-    const done = commands.run({ package: "test.pkg", id: "later" });
+    const done = commands.run(interned("test.pkg", "later"));
     store.apply({ name: "Sepals" });
     ready.resolve("!");
     await done;
@@ -483,7 +492,7 @@ describe("preparing", () => {
       run,
     });
 
-    const done = commands.run({ package: "test.pkg", id: "later" }, { id: "b" });
+    const done = commands.run(interned("test.pkg", "later"), { id: "b" });
     store.apply({ blocks: { rm: ["b"] } });
     ready.resolve(null);
 
@@ -504,17 +513,17 @@ describe("preparing", () => {
       run,
     });
 
-    const done = commands.run({ package: "test.pkg", id: "later" });
+    const done = commands.run(interned("test.pkg", "later"));
     controller.abort();
     ready.resolve(null);
 
     await expect(done).rejects.toThrow("A board opened while it prepared, which drops it.");
     expect(run).not.toHaveBeenCalled();
-    await expect(commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" })).rejects.toThrow(
+    await expect(commands.run(interned("blockr.core", "change_board"), { name: "Sepals" })).rejects.toThrow(
       'The command "change_board of blockr.core" refused to run\n- Another board opened in a new store, so this command registry runs no command.',
     );
-    await expect(commands.plan({ package: "blockr.core", id: "change_board" }, { name: "Sepals" })).rejects.toThrow(CommandError);
-    expect(commands.preflight({ package: "blockr.core", id: "change_board" }, { name: "Sepals" })).toBe(false);
+    await expect(commands.plan(interned("blockr.core", "change_board"), { name: "Sepals" })).rejects.toThrow(CommandError);
+    expect(commands.preflight(interned("blockr.core", "change_board"), { name: "Sepals" })).toBe(false);
     expect(store.board().name).toBe("Iris review");
   });
 
@@ -528,7 +537,7 @@ describe("preparing", () => {
       run: () => [],
     });
     const reported = logged();
-    await expect(commands.run({ package: "test.pkg", id: "later" })).rejects.toThrow(
+    await expect(commands.run(interned("test.pkg", "later"))).rejects.toThrow(
       'The command "later of test.pkg" failed\n- No layout.',
     );
     reported.restore();
@@ -568,7 +577,7 @@ describe("the context", () => {
     });
     const before = Object.keys(store.board().stacks);
 
-    await commands.run({ package: "test.pkg", id: "add_stack" });
+    await commands.run(interned("test.pkg", "add_stack"));
 
     // The registry runs preflight() before prepare() and again once it
     // resolves.
@@ -609,12 +618,12 @@ describe("the context", () => {
     const reported = logged();
 
     for (const id of ["in_preflight", "in_prepare", "in_run"]) {
-      const refused = commands.run({ package: "test.pkg", id }, { name: "Top" });
+      const refused = commands.run(interned("test.pkg", id), { name: "Top" });
       await expect(refused).rejects.toThrow(CommandError);
       await expect(refused).rejects.toThrow(`The command "${id} of test.pkg" refused to run\n- ${failures.join("")}`);
       await expect(refused).rejects.toMatchObject({ command: { package: "test.pkg", id }, by: "command", failures });
     }
-    expect(commands.preflight({ package: "test.pkg", id: "in_preflight" }, { name: "Top" })).toBe(false);
+    expect(commands.preflight(interned("test.pkg", "in_preflight"), { name: "Top" })).toBe(false);
     reported.restore();
 
     expect(reported.lines()).toEqual([]);
@@ -626,7 +635,7 @@ describe("planning", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    const planned = await commands.plan({ package: "blockr.core", id: "change_board" }, { name: "Sepals" });
+    const planned = await commands.plan(interned("blockr.core", "change_board"), { name: "Sepals" });
     expect(planned).toEqual([{ name: "Sepals" }]);
     expect(store.board()).toBe(board);
     expect(store.canUndo()).toBe(false);
@@ -639,12 +648,12 @@ describe("planning", () => {
   test("fills in the edit ids of the board it read, so that the store refuses a plan once another edit came first", async () => {
     const { store, commands } = await setup();
 
-    const planned = await commands.plan({ package: "blockr.core", id: "change_block" }, { id: "b", state: { n: 10 } });
+    const planned = await commands.plan(interned("blockr.core", "change_block"), { id: "b", state: { n: 10 } });
     expect(planned).toEqual([
       { blocks: { mod: { b: { edit: store.editId({ block: "b" }), state: { n: 10 } } } } },
     ]);
 
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", state: { n: 20 } });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", state: { n: 20 } });
     expect(() => {
       store.apply(planned, "assistant");
     }).toThrow(/The delta was built on edit \d+ of block "b", which another edit has replaced/);
@@ -658,8 +667,8 @@ describe("planning", () => {
     const commands = createCommands(store);
     commands.register("test.pkg", move);
 
-    await commands.run({ package: "test.pkg", id: "move" }, { id: "a", x: 1 });
-    const planned = await commands.plan({ package: "test.pkg", id: "move" }, { id: "a", x: 2 });
+    await commands.run(interned("test.pkg", "move"), { id: "a", x: 1 });
+    const planned = await commands.plan(interned("test.pkg", "move"), { id: "a", x: 2 });
     expect(planned).toEqual([
       {
         patches: [
@@ -673,7 +682,7 @@ describe("planning", () => {
       },
     ]);
 
-    await commands.run({ package: "test.pkg", id: "move" }, { id: "a", x: 3 });
+    await commands.run(interned("test.pkg", "move"), { id: "a", x: 3 });
     expect(() => {
       store.apply(planned, "assistant");
     }).toThrow(/The delta was built on edit \d+ of the plugin "placed_plugin of test\.pkg", which another edit has replaced/);
@@ -683,7 +692,7 @@ describe("planning", () => {
     const { commands } = await setup();
     commands.register("test.pkg", renameB({ run: (_board, { name }) => ({ blocks: { mod: { b: { edit: 99, name } } } }) }));
 
-    expect(await commands.plan({ package: "test.pkg", id: "rename_b" }, { name: "Top" })).toEqual([
+    expect(await commands.plan(interned("test.pkg", "rename_b"), { name: "Top" })).toEqual([
       { blocks: { mod: { b: { edit: 99, name: "Top" } } } },
     ]);
   });
@@ -700,7 +709,7 @@ describe("planning", () => {
       }),
     );
     const reported = logged();
-    await expect(commands.plan({ package: "test.pkg", id: "rename_b" }, { name: "Top" })).rejects.toThrow('The command "rename_b of test.pkg" failed\n- No layout.');
+    await expect(commands.plan(interned("test.pkg", "rename_b"), { name: "Top" })).rejects.toThrow('The command "rename_b of test.pkg" failed\n- No layout.');
     reported.restore();
 
     expect(loggedFailure(reported)).toEqual({ message: 'The command "rename_b of test.pkg" failed\n- No layout.', cause: error });
@@ -713,13 +722,13 @@ describe("running a batch", () => {
     const board = store.board();
     const seen = origins(store);
     // Alone, the link fails its preflight, since the board lacks block "g".
-    expect(commands.preflight({ package: "blockr.core", id: "add_link" }, { from: "d", to: "g" })).toBe(false);
+    expect(commands.preflight(interned("blockr.core", "add_link"), { from: "d", to: "g" })).toBe(false);
 
     await commands.run(
       [
-        { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
-        { package: "blockr.core", id: "add_link", args: { from: "d", to: "g", id: "dg" } },
-        { package: "blockr.core", id: "change_block", args: { id: "g", name: "Top" } },
+        { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
+        { id: interned("blockr.core", "add_link"), args: { from: "d", to: "g", id: "dg" } },
+        { id: interned("blockr.core", "change_block"), args: { id: "g", name: "Top" } },
       ],
       "assistant",
     );
@@ -749,7 +758,7 @@ describe("running a batch", () => {
   test("applies a batch whose commands do not prepare before run() returns", async () => {
     const { store, commands } = await setup();
 
-    const done = commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }]);
+    const done = commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Sepals" } }]);
     expect(store.board().name).toBe("Sepals");
     await done;
   });
@@ -759,15 +768,15 @@ describe("running a batch", () => {
     commands.register("test.pkg", renameB({ undo: false }));
 
     await commands.run([
-      { package: "test.pkg", id: "rename_b", args: { name: "One" } },
-      { package: "test.pkg", id: "rename_b", args: { name: "Two" } },
+      { id: interned("test.pkg", "rename_b"), args: { name: "One" } },
+      { id: interned("test.pkg", "rename_b"), args: { name: "Two" } },
     ]);
     expect(store.board().blocks.b?.name).toBe("Two");
     expect(store.canUndo()).toBe(false);
 
     await commands.run([
-      { package: "test.pkg", id: "rename_b", args: { name: "Three" } },
-      { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
+      { id: interned("test.pkg", "rename_b"), args: { name: "Three" } },
+      { id: interned("blockr.core", "change_board"), args: { name: "Sepals" } },
     ]);
     expect(store.canUndo()).toBe(true);
     store.undo();
@@ -785,8 +794,8 @@ describe("running a batch", () => {
     store.undo();
 
     await commands.run([
-      { package: "blockr.core", id: "set_option", args: { id: "n_rows", value: 30 } },
-      { package: "test.pkg", id: "rename_b", args: { name: "Viewed" } },
+      { id: interned("blockr.core", "set_option"), args: { id: "n_rows", value: 30 } },
+      { id: interned("test.pkg", "rename_b"), args: { name: "Viewed" } },
     ]);
     expect([store.canUndo(), store.canRedo()]).toEqual([false, true]);
 
@@ -813,8 +822,8 @@ describe("running a batch", () => {
     await expect(
       commands.run(
         [
-          { package: "test.pkg", id: "rename_b", args: { name: "Viewed" } },
-          { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
+          { id: interned("test.pkg", "rename_b"), args: { name: "Viewed" } },
+          { id: interned("blockr.core", "change_board"), args: { name: "Sepals" } },
         ],
         "assistant",
       ),
@@ -824,13 +833,13 @@ describe("running a batch", () => {
     await expect(
       commands.run(
         [
-          { package: "test.pkg", id: "rename_b", args: { name: "Looked" } },
-          { package: "blockr.core", id: "set_option", args: { id: "n_rows", value: 30 } },
+          { id: interned("test.pkg", "rename_b"), args: { name: "Looked" } },
+          { id: interned("blockr.core", "set_option"), args: { id: "n_rows", value: 30 } },
         ],
         "assistant",
       ),
     ).resolves.toBe(false);
-    await expect(commands.run([{ package: "test.pkg", id: "later" }])).resolves.toBe(true);
+    await expect(commands.run([{ id: interned("test.pkg", "later") }])).resolves.toBe(true);
     await expect(commands.run([], "assistant")).resolves.toBe(false);
 
     expect(store.board().name).toBe("Sepals and petals");
@@ -847,8 +856,8 @@ describe("refusing a batch", () => {
     const error = await rejection(
       commands.run(
         [
-          { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
-          { package: "blockr.core", id: "remove_block", args: { id: "zz" } },
+          { id: interned("blockr.core", "change_board"), args: { name: "Sepals" } },
+          { id: interned("blockr.core", "remove_block"), args: { id: "zz" } },
         ],
         "assistant",
       ),
@@ -871,13 +880,13 @@ describe("refusing a batch", () => {
     commands.register("test.pkg", later(prepare));
 
     const error = await rejection(
-      commands.run([{ package: "test.pkg", id: "later" }, { package: "blockr.core", id: "change_board", args: { name: 1 } }]),
+      commands.run([{ id: interned("test.pkg", "later") }, { id: interned("blockr.core", "change_board"), args: { name: 1 } }]),
     );
     expect([error.index, error.by]).toEqual([1, "registry"]);
     expect(error.failures).toEqual([expect.stringMatching(/^The args fail their schema at \/name:/)]);
     expect(prepare).not.toHaveBeenCalled();
 
-    const missing = await rejection(commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }, { package: "test.pkg", id: "nothing" }]));
+    const missing = await rejection(commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Sepals" } }, { id: interned("test.pkg", "nothing") }]));
     expect([missing.index, missing.command, missing.by]).toEqual([1, { package: "test.pkg", id: "nothing" }, "registry"]);
     expect(missing.failures).toEqual(['No command "nothing of test.pkg" is registered.']);
   });
@@ -888,9 +897,9 @@ describe("refusing a batch", () => {
 
     const error = await rejection(
       commands.run([
-        { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
-        { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "a" } },
-        { package: "blockr.core", id: "change_block", args: { id: "b", name: "Top" } },
+        { id: interned("blockr.core", "change_board"), args: { name: "Sepals" } },
+        { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "a" } },
+        { id: interned("blockr.core", "change_block"), args: { id: "b", name: "Top" } },
       ]),
     );
 
@@ -914,7 +923,7 @@ describe("refusing a batch", () => {
     );
     const reported = logged();
 
-    const error = await rejection(commands.run([{ package: "test.pkg", id: "rename_b", args: { name: "Top" } }]));
+    const error = await rejection(commands.run([{ id: interned("test.pkg", "rename_b"), args: { name: "Top" } }]));
     reported.restore();
     expect([error.index, error.command, error.by]).toEqual([0, { package: "test.pkg", id: "rename_b" }, "code"]);
     expect(error.failures).toEqual(["No layout."]);
@@ -924,10 +933,23 @@ describe("refusing a batch", () => {
     expect(loggedFailure(reported)).toEqual({ message: 'The command "rename_b of test.pkg" failed\n- No layout.', cause: thrown });
   });
 
+  test("refuses an item that names its command by its package and its id beside its args, rather than by its id", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+    // The shape of an item before a batch named each command by its id, which a
+    // caller in plain JS may still give.
+    const old = [{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }] as unknown as CommandCall[];
+
+    const error = await rejection(commands.run(old));
+    expect([error.index, error.by]).toEqual([0, "registry"]);
+    expect(error.failures).toEqual(['No command is named "change_board", where a command is named by its id, as core.id("blockr.core", "remove_block") gives it.']);
+    expect(store.board()).toBe(board);
+  });
+
   test("refuses a batch at its first command before the store opens a board", async () => {
     const commands = createCommands(createStore());
 
-    const error = await rejection(commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }]));
+    const error = await rejection(commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Sepals" } }]));
     expect([error.index, error.by]).toEqual([0, "registry"]);
     expect(error.failures).toEqual(["The store holds no board until it opens one."]);
   });
@@ -954,17 +976,17 @@ describe("what stopped a command", () => {
     // Each command, with what stops it, and the cause of its CommandError
     // where that is not the store's StoreError.
     const cases: readonly {
-      readonly command: { readonly package: string; readonly id: string };
+      readonly command: CommandId;
       readonly args?: Json;
       readonly by: CommandError["by"];
       readonly cause?: unknown;
     }[] = [
-      { command: { package: "test.pkg", id: "nothing" }, by: "registry" },
-      { command: { package: "blockr.core", id: "remove_block" }, args: { id: "zz" }, by: "preflight" },
-      { command: { package: "test.pkg", id: "refuses" }, by: "command" },
-      { command: { package: "test.pkg", id: "throws" }, by: "code", cause: thrown },
+      { command: interned("test.pkg", "nothing"), by: "registry" },
+      { command: interned("blockr.core", "remove_block"), args: { id: "zz" }, by: "preflight" },
+      { command: interned("test.pkg", "refuses"), by: "command" },
+      { command: interned("test.pkg", "throws"), by: "code", cause: thrown },
       {
-        command: { package: "blockr.core", id: "add_block" },
+        command: interned("blockr.core", "add_block"),
         args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "a" },
         by: "store",
       },
@@ -973,7 +995,7 @@ describe("what stopped a command", () => {
 
     for (const { command, args, by, cause } of cases) {
       const alone = await rejection(commands.run(command, args));
-      const second = await rejection(commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }, { ...command, args }]));
+      const second = await rejection(commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Sepals" } }, { id: command, args }]));
       for (const [error, index] of [
         [alone, undefined],
         [second, 1],
@@ -1009,7 +1031,7 @@ describe("what stopped a command", () => {
     expect(batch.cause).toBeInstanceOf(StoreError);
 
     // A command alone names itself all the same.
-    const alone = await rejection(commands.run({ package: "blockr.core", id: "add_block" }, { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" }));
+    const alone = await rejection(commands.run(interned("blockr.core", "add_block"), { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" }));
     reported.restore();
     expect(alone.message).toBe(`The store refused the deltas of the command "add_block of blockr.core"\n- ${failure}`);
     expect([alone.command, alone.by, alone.index]).toEqual([{ package: "blockr.core", id: "add_block" }, "store", undefined]);
@@ -1042,9 +1064,9 @@ describe("a batch with a command that prepares", () => {
     commands.register("test.pkg", nameB(run));
 
     const done = commands.run([
-      { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
-      { package: "test.pkg", id: "later" },
-      { package: "test.pkg", id: "name_b" },
+      { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
+      { id: interned("test.pkg", "later") },
+      { id: interned("test.pkg", "name_b") },
     ]);
     expect(store.board().blocks.g).toBeUndefined();
     ready.resolve("Later");
@@ -1065,7 +1087,7 @@ describe("a batch with a command that prepares", () => {
     commands.register("test.pkg", nameB());
     commands.register("test.pkg", later(prepare));
 
-    const done = commands.run([{ package: "test.pkg", id: "name_b" }, { package: "test.pkg", id: "later" }], "assistant");
+    const done = commands.run([{ id: interned("test.pkg", "name_b") }, { id: interned("test.pkg", "later") }], "assistant");
     store.apply({ name: "Sepals" });
     ready.resolve("!");
     await done;
@@ -1084,8 +1106,8 @@ describe("a batch with a command that prepares", () => {
     commands.register("test.pkg", later(() => ready.promise));
 
     const done = commands.run([
-      { package: "blockr.core", id: "change_block", args: { id: "c", name: "Joined" } },
-      { package: "test.pkg", id: "later" },
+      { id: interned("blockr.core", "change_block"), args: { id: "c", name: "Joined" } },
+      { id: interned("test.pkg", "later") },
     ]);
     store.apply({ blocks: { rm: ["c"] } });
     const board = store.board();
@@ -1103,7 +1125,7 @@ describe("a batch with a command that prepares", () => {
     const ready = Promise.withResolvers<string>();
     commands.register("test.pkg", later(() => ready.promise));
 
-    const done = commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }, { package: "test.pkg", id: "later" }]);
+    const done = commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Sepals" } }, { id: interned("test.pkg", "later") }]);
     controller.abort();
     ready.resolve("!");
 
@@ -1119,7 +1141,7 @@ describe("a batch with a command that prepares", () => {
     commands.register("test.pkg", later(() => Promise.reject(thrown)));
     const reported = logged();
 
-    const error = await rejection(commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }, { package: "test.pkg", id: "later" }]));
+    const error = await rejection(commands.run([{ id: interned("blockr.core", "change_board"), args: { name: "Sepals" } }, { id: interned("test.pkg", "later") }]));
     reported.restore();
     expect([error.index, error.command, error.by]).toEqual([1, { package: "test.pkg", id: "later" }, "code"]);
     expect(error.failures).toEqual(["No layout."]);
@@ -1135,10 +1157,10 @@ describe("planning a batch", () => {
     const b = store.editId({ block: "b" });
 
     const planned = await commands.plan([
-      { package: "blockr.core", id: "change_block", args: { id: "b", state: { n: 7 } } },
-      { package: "blockr.core", id: "change_block", args: { id: "b", name: "Top" } },
-      { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
-      { package: "blockr.core", id: "change_block", args: { id: "g", state: { n: 3 } } },
+      { id: interned("blockr.core", "change_block"), args: { id: "b", state: { n: 7 } } },
+      { id: interned("blockr.core", "change_block"), args: { id: "b", name: "Top" } },
+      { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
+      { id: interned("blockr.core", "change_block"), args: { id: "g", state: { n: 3 } } },
     ]);
 
     expect(planned).toEqual([
@@ -1174,8 +1196,8 @@ describe("planning a batch", () => {
     commands.register("test.pkg", renameB({ undo: false }));
 
     const planned = await commands.plan([
-      { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
-      { package: "test.pkg", id: "rename_b", args: { name: "Planned" } },
+      { id: interned("blockr.core", "change_board"), args: { name: "Sepals" } },
+      { id: interned("test.pkg", "rename_b"), args: { name: "Planned" } },
     ]);
     expect(planned).toEqual([
       { name: "Sepals" },
@@ -1192,10 +1214,10 @@ describe("planning a batch", () => {
     const { store, commands } = await setup();
 
     const planned = await commands.plan([
-      { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
-      { package: "blockr.core", id: "change_block", args: { id: "b", state: { n: 10 } } },
+      { id: interned("blockr.core", "change_board"), args: { name: "Sepals" } },
+      { id: interned("blockr.core", "change_block"), args: { id: "b", state: { n: 10 } } },
     ]);
-    await commands.run({ package: "blockr.core", id: "change_block" }, { id: "b", state: { n: 20 } });
+    await commands.run(interned("blockr.core", "change_block"), { id: "b", state: { n: 20 } });
 
     expect(() => {
       store.apply(planned, "assistant");
@@ -1207,8 +1229,8 @@ describe("planning a batch", () => {
 
     const error = await rejection(
       commands.plan([
-        { package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
-        { package: "blockr.core", id: "add_link", args: { from: "zz", to: "g" } },
+        { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "g" } },
+        { id: interned("blockr.core", "add_link"), args: { from: "zz", to: "g" } },
       ]),
     );
     expect([error.index, error.by]).toEqual([1, "preflight"]);
@@ -1229,7 +1251,7 @@ describe("spans", () => {
 
     const tool = tracer.startSpan("execute_tool edit");
     await context.with(trace.setSpan(context.active(), tool), () =>
-      commands.run({ package: "test.pkg", id: "rename_b" }, { name: "Bee" }, "assistant"),
+      commands.run(interned("test.pkg", "rename_b"), { name: "Bee" }, "assistant"),
     );
     tool.end();
 
@@ -1251,7 +1273,7 @@ describe("spans", () => {
     const { commands } = await setup();
     const recorded = recordSpans();
 
-    await expect(commands.run({ package: "test.pkg", id: "nothing" })).rejects.toBeInstanceOf(CommandError);
+    await expect(commands.run(interned("test.pkg", "nothing"))).rejects.toBeInstanceOf(CommandError);
 
     const span = recorded.span("command nothing");
     expect(span.status).toEqual({
@@ -1276,8 +1298,8 @@ describe("spans", () => {
     await context.with(trace.setSpan(context.active(), tool), () =>
       commands.run(
         [
-          { package: "test.pkg", id: "rename_b", args: { name: "Bee" } },
-          { package: "blockr.core", id: "change_block", args: { id: "b", name: "Bea" } },
+          { id: interned("test.pkg", "rename_b"), args: { name: "Bee" } },
+          { id: interned("blockr.core", "change_block"), args: { id: "b", name: "Bea" } },
         ],
         "assistant",
       ),
@@ -1304,7 +1326,7 @@ describe("spans", () => {
     const { commands } = await setup();
     const recorded = recordSpans();
 
-    await expect(commands.run([{ package: "blockr.core", id: "remove_block", args: { id: "zz" } }])).rejects.toBeInstanceOf(
+    await expect(commands.run([{ id: interned("blockr.core", "remove_block"), args: { id: "zz" } }])).rejects.toBeInstanceOf(
       CommandError,
     );
 

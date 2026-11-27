@@ -17,6 +17,7 @@ import { step } from "../testing/react.ts";
 import { labelled, listed, optionFromLabel, optionLabels, picked, selectButton, selectShows } from "../testing/select.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import type { ShownLevel } from "./quick.ts";
+import { interned } from "../util/index.ts";
 
 // Core's board actions of links, each by its package and its id, as a caller
 // names one.
@@ -55,7 +56,7 @@ function shown(level: Omit<ShownLevel, "id"> | undefined): string[][] {
 // Runs core's commands given, each by its id within blockr.core, as the user's
 // edits, each a step of its own.
 async function edited(s: StubCore, ...edits: [string, Record<string, string>][]): Promise<void> {
-  for (const [id, args] of edits) await act(() => s.core.commands.run({ package: "blockr.core", id }, args));
+  for (const [id, args] of edits) await act(() => s.core.commands.run(interned("blockr.core", id), args));
 }
 
 // The form that core's dialog shows, by its name.
@@ -553,7 +554,7 @@ describe("Edit link", () => {
 
     // Another edit links Merge to Bind before the user applies the form, so
     // that the link from Bind would close a cycle.
-    await act(() => s.core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "ce", from: "c", to: "e" }));
+    await act(() => s.core.commands.run(interned("blockr.core", "add_link"), { id: "ce", from: "c", to: "e" }));
     await acting(() => {
       button(form(), "Apply").click();
     });

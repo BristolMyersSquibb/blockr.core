@@ -1035,9 +1035,10 @@
   In R, `list_blocks()` gives rows of `package` and `id`, as `available_blocks()` does, `registry_id_from_block()` and `plugin_class_id()` give `list(package = , id = )`, `unregister_blocks()` takes such rows or one registry ID, `create_block()` takes the class's package in `package`, and `board_plugins()` gives a board's plugins by package and then by the ID of each one's class.
   A renderer holds its `package` and its `name`, without an ID of its own.
   In the client, core makes one object for each pair of a package and an ID, so that `===`, a `Set` and a `Map` compare IDs as they compare strings, and `core.blockRegistry()` and `core.plugins.appPlugins()` are maps by ID.
-  A package gets the object for a pair from `core.id()`, as `core.id("blockr.dock", "dock_plugin")`.
+  Every function of core's takes an ID as such an object, and a package gets the object for a pair from `core.id()`, as `core.id("blockr.dock", "dock_plugin")`, or a block's UI from its host's `id()`.
+  Only JSON holds an ID as a plain record, as a JSON board does, and so does a plugin's state, which a package turns into objects with `core.id()` as it reads it.
   A plugin class's module defines its commands and its board actions by their IDs alone, and core registers them under the package of the class.
-  A batch names each command as `{ package: "blockr.core", id: "add_block", args }`, `core.boardActions.trigger()` takes a board action as `{ package, id }` and a role by its ID, a string, and a role's `default` names a board action of its own class by its ID alone.
+  A batch names each command by its ID, as `{ id: core.id("blockr.core", "add_block"), args }`, `core.boardActions.trigger()` takes a board action's ID or a role's ID, a string, and a role's `default` names a board action of its own class by its ID alone.
   The blockr options `board_actions` and `board_action_menu` name a board action and a module as `list(package = , id = )`.
   A patch names a plugin by two segments of its path, as `/plugins/blockr.dag/dag_plugin/positions/a` (#883).
 

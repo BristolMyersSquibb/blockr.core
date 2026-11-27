@@ -13,8 +13,8 @@ import type { CoreApi } from "../types/core-api.ts";
 import { interned } from "../util/index.ts";
 import type { BoardAction, Target } from "./actions.ts";
 
-// Core's board actions, each by its package and its id, as a caller names one.
-const core = (id: string) => ({ package: "blockr.core", id }) as const;
+// Core's board actions, each by its id, as a caller names one.
+const core = (id: string) => interned("blockr.core", id);
 const ADD = core("add_block_action");
 const APPEND = core("append_block_action");
 const PREPEND = core("prepend_block_action");

@@ -9,6 +9,7 @@ import type { BlockHost, BlockModule, OptionHost } from "../types/hosts.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
 import { mount, READY, stubBlockHost, stubOptionHost, stubOutputHost } from "./index.ts";
 import type { BlockFixture } from "./index.ts";
+import { interned } from "../util/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -151,8 +152,8 @@ describe("the stub of a block's host", () => {
     await expect(host.evaluate({ save: true })).resolves.toMatchObject({ status: "ready" });
     await expect(host.evaluate({})).resolves.toMatchObject({ status: "invalid" });
     expect(host.evaluated).toEqual([{ save: true }, {}]);
-    await expect(host.module({ package: "blockr.dplyr", id: "filter" })).resolves.toBe(filter);
-    await expect(host.module({ package: "blockr.dplyr", id: "select" })).rejects.toThrow('blockr.dplyr offers no module "select".');
+    await expect(host.module(interned("blockr.dplyr", "filter"))).resolves.toBe(filter);
+    await expect(host.module(interned("blockr.dplyr", "select"))).rejects.toThrow('blockr.dplyr offers no module "select".');
   });
 });
 

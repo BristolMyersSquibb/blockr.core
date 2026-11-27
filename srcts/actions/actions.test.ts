@@ -13,7 +13,7 @@ import { logged } from "../testing/logged.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
 import { listedModules, noBoard, refusedClass } from "../testing/plugins.ts";
 import { withPlugins } from "../testing/store.ts";
-import type { Board } from "../types/board.ts";
+import type { Board, BoardActionId } from "../types/board.ts";
 import type { CoreApi, Notification } from "../types/core-api.ts";
 import { interned, nestedRecord } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
@@ -77,8 +77,8 @@ function ofCore(...given: readonly string[]): { package: string; id: string }[] 
 
 // A board action of blockr.test by its package and its id, which core gives it
 // as it registers the class that lists it.
-function ofTest(action: Pick<Definition, "id">): { package: string; id: string } {
-  return { package: "blockr.test", id: action.id };
+function ofTest(action: Pick<Definition, "id">): BoardActionId {
+  return interned("blockr.test", action.id);
 }
 
 describe("the board actions that core registers", () => {
@@ -318,7 +318,7 @@ describe("on()", () => {
     // A link feeds the input x of Merge, and none the next place of Bind.
     expect(on({ block: "c", input: "x" })).toEqual([ofTest(onInput)]);
     expect(on({ block: "e", input: "" })).toEqual([...CORE, ofTest(onInput)]);
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ac" });
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "ac" });
     expect(on({ block: "c", input: "x" })).toEqual([...CORE, ofTest(onInput)]);
     // The target names an input whatever order the caller gives its block and
     // its input in.
@@ -511,8 +511,8 @@ describe("menu()", () => {
   });
 
   test("runs the batch of a row as one step of the user, with the commands that extend returns, and hands the notifier a refusal with the board action that ran the batch", async () => {
-    const renames = action("Rename to First", ["block"], { run: () => [{ package: "blockr.core", id: "change_block", args: { id: "b", name: "First" } }] });
-    const breaks = action("Break", ["block"], { run: () => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }] });
+    const renames = action("Rename to First", ["block"], { run: () => [{ id: interned("blockr.core", "change_block"), args: { id: "b", name: "First" } }] });
+    const breaks = action("Break", ["block"], { run: () => [{ id: interned("blockr.core", "remove_link"), args: { id: "nowhere" } }] });
     const s = await stubbed([listing("test", [renames, breaks])]);
     const board = s.core.store.board();
     const seen: string[][] = [];
@@ -520,7 +520,7 @@ describe("menu()", () => {
     const opts = {
       extend(deltas: readonly Delta[]): CommandCall[] {
         seen.push(deltas.map((delta) => Object.keys(delta.blocks?.mod ?? {})).flat());
-        return [{ package: "blockr.core", id: "change_block", args: { id: "a", name: "Second" } }];
+        return [{ id: interned("blockr.core", "change_block"), args: { id: "a", name: "Second" } }];
       },
       notifier(notifications: readonly Notification[], by: BoardAction) {
         handed.push([notifications.map(notificationCode), nameOf(by)]);
@@ -582,7 +582,7 @@ describe("menu()", () => {
     const s = await stubCore();
     const menu = s.menu({ block: "f" });
 
-    await s.core.commands.run([{ package: "blockr.core", id: "remove_block", args: { id: "f" } }]);
+    await s.core.commands.run([{ id: interned("blockr.core", "remove_block"), args: { id: "f" } }]);
     const board = s.core.store.board();
     await menu.pick("Remove block");
 
@@ -593,7 +593,7 @@ describe("menu()", () => {
   });
 
   test("closes the menu that is open as another opens, as a click outside it does, which applies the ticks of a multi", async () => {
-    const ticks = asking("Ticks", multi(() => [{ package: "blockr.core", id: "change_block", args: { id: "b", name: "Ticked" } }]));
+    const ticks = asking("Ticks", multi(() => [{ id: interned("blockr.core", "change_block"), args: { id: "b", name: "Ticked" } }]));
     const s = await stubbed([listing("test", [ticks])]);
 
     const first = s.menu({ block: "b" });
@@ -610,7 +610,7 @@ describe("menu()", () => {
   });
 
   test("closes the menu that is open as the next board opens, and drops its ticks", async () => {
-    const ticks = asking("Ticks", multi(() => [{ package: "blockr.core", id: "change_block", args: { id: "b", name: "Ticked" } }]));
+    const ticks = asking("Ticks", multi(() => [{ id: interned("blockr.core", "change_block"), args: { id: "b", name: "Ticked" } }]));
     const s = await stubbed([listing("test", [ticks])]);
 
     const menu = s.menu({ block: "b" });
@@ -681,10 +681,10 @@ describe("trigger()", () => {
     return { got, cls: listing("test", [runs]), id: ofTest(runs) };
   }
 
-  const rename = (name: string): CommandCall[] => [{ package: "blockr.core", id: "change_block", args: { id: "b", name } }];
+  const rename = (name: string): CommandCall[] => [{ id: interned("blockr.core", "change_block"), args: { id: "b", name } }];
 
   test("runs the batch that run returns as one step of the user, which one undo takes back, and calls run at once with the board, the target and CoreApi", async () => {
-    const { got, cls, id } = running(() => [...rename("First"), { package: "blockr.core", id: "remove_link", args: { id: "ab" } }]);
+    const { got, cls, id } = running(() => [...rename("First"), { id: interned("blockr.core", "remove_link"), args: { id: "ab" } }]);
     const s = await stubbed([cls]);
     const board = s.core.store.board();
 
@@ -714,7 +714,7 @@ describe("trigger()", () => {
   });
 
   test("hands extend the deltas that the batch will apply, and runs the commands that it returns after the batch, in the same step", async () => {
-    const { cls, id } = running(() => [{ package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
+    const { cls, id } = running(() => [{ id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
     const s = await stubbed([cls]);
     const board = s.core.store.board();
     const seen: unknown[] = [];
@@ -723,7 +723,7 @@ describe("trigger()", () => {
       el,
       extend(deltas) {
         seen.push(...deltas.map((delta) => Object.keys(delta.blocks?.add ?? {})));
-        return [{ package: "blockr.core", id: "change_block", args: { id: "n", name: "Placed" } }];
+        return [{ id: interned("blockr.core", "change_block"), args: { id: "n", name: "Placed" } }];
       },
     });
 
@@ -769,7 +769,7 @@ describe("trigger()", () => {
   });
 
   test("tells the user why the command registry refused the batch, or hands that to the notifier, and rejects with the refusal", async () => {
-    const { cls, id } = running(() => [...rename("First"), { package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }]);
+    const { cls, id } = running(() => [...rename("First"), { id: interned("blockr.core", "remove_link"), args: { id: "nowhere" } }]);
     const s = await stubbed([cls]);
     const board = s.core.store.board();
     const refusals = () => held(s.core, (n) => notificationCode(n) === "board_edit_failed");
@@ -802,7 +802,7 @@ describe("trigger()", () => {
   });
 
   test("hands the notifier why the command registry refused to plan the batch for extend, which it does not call", async () => {
-    const { cls, id } = running(() => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }]);
+    const { cls, id } = running(() => [{ id: interned("blockr.core", "remove_link"), args: { id: "nowhere" } }]);
     const s = await stubbed([cls]);
     const handed: (readonly Notification[])[] = [];
     let extended = false;
@@ -838,7 +838,7 @@ describe("trigger()", () => {
     [
       "returns no batch",
       () => ({ package: "blockr.core", id: "remove_block" }) as unknown as CommandCall[],
-      'The run of the board action "runs_action of blockr.test" returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].',
+      'The run of the board action "runs_action of blockr.test" returned no batch of commands, as [{ id: core.id("blockr.core", "remove_block"), args: { id: "a" } }].',
     ],
   ])("rejects where run %s, as a fault of the board action's package, which core logs and raises as board_action_failed about the plugin", async (_what, run, message) => {
     const { cls, id } = running(run);
@@ -896,7 +896,7 @@ describe("trigger()", () => {
     // its id alone, a string.
     await expect(trigger({ id: "remove_block_action" }, { block: "b" }, { el })).rejects.toThrow(
       new TypeError(
-        'A board action is named by its package and its id, as { package: "blockr.core", id: "rename_action" }, and a role by its id, as "rename_role", not by {"id":"remove_block_action"}.',
+        'A board action is named by its id, as core.id("blockr.core", "rename_action") gives it, and a role by its id, as "rename_role", not by {"id":"remove_block_action"}.',
       ),
     );
     await expect(trigger(remove, { blok: "b" }, { el })).rejects.toThrow(TypeError);
@@ -916,14 +916,14 @@ describe("trigger()", () => {
       new TypeError("The `advanced` of trigger() is a function, which shows an advanced action in a place of the caller's."),
     );
     await expect(trigger(remove, { block: "b" }, { el, extend: () => "rename" })).rejects.toThrow(
-      'The `extend` of trigger() returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].',
+      'The `extend` of trigger() returned no batch of commands, as [{ id: core.id("blockr.core", "remove_block"), args: { id: "a" } }].',
     );
     expect(Object.hasOwn(s.core.store.board().blocks, "b")).toBe(true);
     s.stop();
   });
 
   test("hands the notifier the board action whose batch was refused", async () => {
-    const { cls, id } = running(() => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }]);
+    const { cls, id } = running(() => [{ id: interned("blockr.core", "remove_link"), args: { id: "nowhere" } }]);
     const s = await stubbed([cls]);
     const handed: { package: string; id: string }[] = [];
 
@@ -970,7 +970,7 @@ describe("trigger()", () => {
     const asks: Definition = {
       ...action("asks", ["block"]),
       run: undefined,
-      quick: () => ({ rows: [{ kind: "item", label: "Break", pick: () => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }] }] }),
+      quick: () => ({ rows: [{ kind: "item", label: "Break", pick: () => [{ id: interned("blockr.core", "remove_link"), args: { id: "nowhere" } }] }] }),
     };
     const s = await stubbed([listing("test", [asks])]);
     const handed: [string[], { package: string; id: string }][] = [];

@@ -8,6 +8,7 @@ import { find, type } from "../testing/inputs.ts";
 import { mountOnPage, unmount } from "../testing/modules.ts";
 import type { BlockModule } from "../types/hosts.ts";
 import * as offered from "./index.ts";
+import { interned } from "../util/index.ts";
 
 test("gives the controls to a module that builds nothing, through host.module()", async () => {
   const host = stubBlockHost(
@@ -16,7 +17,7 @@ test("gives the controls to a module that builds nothing, through host.module()"
   );
   const module: BlockModule = {
     async render({ el, host, signal }) {
-      const ui = (await host.module<typeof offered>({ package: "blockr.core", id: "controls" })).controls(host, signal);
+      const ui = (await host.module<typeof offered>(interned("blockr.core", "controls"))).controls(host, signal);
       ui.text("label", { label: "Label" });
       el.replaceChildren(ui.el);
       return ui.cleanup;

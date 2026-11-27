@@ -13,7 +13,7 @@ import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Delta, Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, BoardActionId, Id, LinkId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
+import type { BlockId, BoardActionId, Id, LinkId, ModuleId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
@@ -103,10 +103,10 @@ export interface CoreApi {
         advanced?: FrontendModule["advanced"];
       },
     ): void;
-    // Triggers the board action with the package and the id given on the
-    // target, as { package: "blockr.core", id: "rename_action" }, as a button
-    // or a gesture does, or the one that plays the role with the id given, a
-    // string, as "append_block_role", so that a caller that relies on what a
+    // Triggers the board action with the id given on the target, as
+    // core.id("blockr.core", "rename_action"), as a button or a gesture does,
+    // or the one that plays the role with the id given, a string, as
+    // "append_block_role", so that a caller that relies on what a
     // board action does meets the app's pick. It runs nothing where on() leaves the board
     // action out for the target, as under the board lock for every board
     // action of core's but Copy block ID, and nothing for the id of a board
@@ -139,7 +139,7 @@ export interface CoreApi {
     // that no board action or role has, for what is no target, and for
     // options without `el`.
     trigger(
-      id: { readonly package: string; readonly id: string } | string,
+      id: BoardActionId | string,
       target: Target,
       opts: {
         el: HTMLElement;
@@ -152,8 +152,8 @@ export interface CoreApi {
         advanced?: FrontendModule["advanced"];
       },
     ): Promise<void>;
-    // Renders the advanced action of the board action with the package and the
-    // id given on the target in the element, or of the one that plays the role
+    // Renders the advanced action of the board action with the id given on the
+    // target in the element, or of the one that plays the role
     // with the id given, which a plugin gives as room of its own, as the Edit board
     // plugin shows the advanced action of Add block, until the function that
     // it returns runs. The advanced action gets `picked` where
@@ -166,7 +166,7 @@ export interface CoreApi {
     // id that no board action or role has, for a board action without an
     // advanced action, for what is no target or no element, and once the
     // next board has opened.
-    mountAdvanced(el: HTMLElement, id: { readonly package: string; readonly id: string } | string, target: Target, picked?: Json): () => void;
+    mountAdvanced(el: HTMLElement, id: BoardActionId | string, target: Target, picked?: Json): () => void;
   };
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
@@ -319,9 +319,9 @@ export interface CoreApi {
   // A package makes its ids here, not with a copy of core's helpers in its own
   // bundle. A copy makes objects of its own, which are never === to core's.
   id<P extends string | null>(pkg: P, id: string): Id<P>;
-  // A module another package offers, by its package and its id within it, as
-  // { package: "blockr.core", id: "controls" }, which a caller writes as it is.
-  module<T = unknown>(id: { readonly package: string; readonly id: string }): Promise<T>;
+  // A module another package offers, by its id, as
+  // id("blockr.core", "controls") gives it.
+  module<T = unknown>(id: ModuleId): Promise<T>;
   // A blockr option as R sent it, asked of R once per page, or undefined where
   // nothing sets it. The caller converts and checks the value, as one that an
   // environment variable sets arrives as a string, and takes a fallback of its

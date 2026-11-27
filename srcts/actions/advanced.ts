@@ -264,7 +264,7 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
       if (batch !== undefined && !isBatch(batch)) {
         return Promise.reject(
           new TypeError(
-            `The done() of the advanced action of the board action "${idText(action)}" takes a batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }], or none.`,
+            `The done() of the advanced action of the board action "${idText(action)}" takes a batch of commands, as [{ id: core.id("blockr.core", "remove_block"), args: { id: "a" } }], or none.`,
           ),
         );
       }

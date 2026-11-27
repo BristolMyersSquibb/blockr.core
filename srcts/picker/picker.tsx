@@ -63,6 +63,7 @@ import { useMemo, useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { CORE, freeInputs } from "../commands/index.ts";
+import type { CommandCall } from "../commands/index.ts";
 import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField, useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board, Link, LinkId, RegistryId } from "../types/board.ts";
@@ -377,12 +378,11 @@ function pickedBatch(
   args: Readonly<Record<string, Json>>,
   into: Readonly<Record<string, Json>>,
   before?: LinkId,
-): { readonly package: string; readonly id: string; readonly args: Json }[] {
+): CommandCall[] {
   const block = typeof args.id === "string" ? args.id : core.mintId((id) => Object.hasOwn(core.store.board().blocks, id));
-  const add = { package: CORE, id: "add_block", args: { ...args, id: block } };
-  const linked = (from: BlockId, to: BlockId, id?: LinkId) => ({
-    package: CORE,
-    id: "add_link",
+  const add = { id: interned(CORE, "add_block"), args: { ...args, id: block } };
+  const linked = (from: BlockId, to: BlockId, id?: LinkId): CommandCall => ({
+    id: interned(CORE, "add_link"),
     args: { ...(id === undefined ? {} : { id }), from, to, ...into },
   });
   switch (mode.kind) {
@@ -393,12 +393,12 @@ function pickedBatch(
     case "before": {
       if (before === undefined) return [add, linked(block, mode.to)];
       const link = core.mintId((id) => Object.hasOwn(core.store.board().links, id));
-      return [add, linked(block, mode.to, link), { package: CORE, id: "change_link", args: { id: link, before } }];
+      return [add, linked(block, mode.to, link), { id: interned(CORE, "change_link"), args: { id: link, before } }];
     }
     case "on":
       return on === undefined
         ? []
-        : [add, linked(on.from, block), { package: CORE, id: "change_link", args: { id: mode.link, from: block } }];
+        : [add, linked(on.from, block), { id: interned(CORE, "change_link"), args: { id: mode.link, from: block } }];
   }
 }
 

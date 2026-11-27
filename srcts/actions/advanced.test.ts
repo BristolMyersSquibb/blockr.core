@@ -18,6 +18,7 @@ import type { Notification } from "../types/core-api.ts";
 import { interned, nestedRecord } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { AdvancedModule, PlaceArgs } from "./advanced.ts";
+import type { BoardActionId } from "../types/board.ts";
 
 // The element that the user triggers from, which a trigger() needs.
 const el = document.body;
@@ -73,8 +74,8 @@ const FORMS = interned("blockr.test", "forms_plugin");
 
 // A board action of blockr.test by its package and its id, as a caller names
 // it, which core gives it as it registers the class that lists it.
-function ofTest(action: Pick<Definition, "id">): { package: string; id: string } {
-  return { package: "blockr.test", id: action.id };
+function ofTest(action: Pick<Definition, "id">): BoardActionId {
+  return interned("blockr.test", action.id);
 }
 
 // The CoreApi for tests on the board of the fixture hello, whose app runs core's
@@ -90,8 +91,8 @@ function stubbed(classes: readonly PluginClass[], options: StubCoreOptions = {},
   });
 }
 
-const rename = (name: string): CommandCall[] => [{ package: "blockr.core", id: "change_block", args: { id: "b", name } }];
-const refused: CommandCall[] = [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }];
+const rename = (name: string): CommandCall[] => [{ id: interned("blockr.core", "change_block"), args: { id: "b", name } }];
+const refused: CommandCall[] = [{ id: interned("blockr.core", "remove_link"), args: { id: "nowhere" } }];
 const REFUSAL = 'The batch was refused at command 1, "remove_link of blockr.core"';
 
 // A place of the test's, which records what core hands it and each time core
@@ -159,7 +160,7 @@ describe("opening an advanced action", () => {
     const shown = form();
     const link = asking("Create link", ["block", "board"], shown.module, {
       quick: (_board, target) =>
-        "board" in target ? undefined : { rows: [{ kind: "item", label: "Iris", pick: () => [{ package: "blockr.core", id: "change_block", args: { id: "b", name: "Linked" } }] }] },
+        "board" in target ? undefined : { rows: [{ kind: "item", label: "Iris", pick: () => [{ id: interned("blockr.core", "change_block"), args: { id: "b", name: "Linked" } }] }] },
     });
     const s = await stubbed([listing([link])]);
 
@@ -282,7 +283,7 @@ describe("done()", () => {
         ended = true;
       });
     const args = shown.last();
-    await args.done([{ package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
+    await args.done([{ id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
 
     expect(seen).toEqual([["n"]]);
     expect(s.core.store.board().blocks.n?.name).toBe("Placed");
@@ -369,7 +370,7 @@ describe("done()", () => {
     const done = args.done as (...given: unknown[]) => Promise<void>;
     await expect(done("rename")).rejects.toThrow(
       new TypeError(
-        'The done() of the advanced action of the board action "edit_form_action of blockr.test" takes a batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }], or none.',
+        'The done() of the advanced action of the board action "edit_form_action of blockr.test" takes a batch of commands, as [{ id: core.id("blockr.core", "remove_block"), args: { id: "a" } }], or none.',
       ),
     );
     await expect(done(rename("First"), { notifier: "toast" })).rejects.toThrow(new TypeError("The `notifier` of done() is a function."));
@@ -435,7 +436,7 @@ describe("the place of an advanced action", () => {
       },
     });
     room.last().mount(document.createElement("div"));
-    await shown.last().done([{ package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
+    await shown.last().done([{ id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
     await triggered;
 
     expect(extended).toEqual([["n"]]);
@@ -446,7 +447,7 @@ describe("the place of an advanced action", () => {
     // gets neither the caller's extend nor what the open icon handed it. It
     // ends again with its next done().
     room.last().mount(document.createElement("div"));
-    await shown.last().done([{ package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "m" } }]);
+    await shown.last().done([{ id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "m" } }]);
     expect(extended).toHaveLength(1);
     expect(room.ended.map((deltas) => deltas.map(added))).toEqual([[["n"]], [["m"]]]);
 
@@ -523,7 +524,7 @@ describe("the place of an advanced action", () => {
     expect(caller).toEqual([]);
     expect(refusals()).toHaveLength(1);
 
-    await args.done([{ package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
+    await args.done([{ id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
     await opened;
     expect(extended).toEqual([]);
     expect(room.ended.map((deltas) => deltas.map(added))).toEqual([[["n"]]]);
@@ -596,7 +597,7 @@ describe("ending an advanced action", () => {
     const room = place();
 
     const inDialog = s.core.boardActions.trigger(ofTest(edit), { block: "b" }, { el });
-    await s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" });
+    await s.core.commands.run(interned("blockr.core", "remove_block"), { id: "b" });
     await inDialog;
     expect(s.advanced()).toBeUndefined();
     expect(shown.last().signal.aborted).toBe(true);
@@ -604,7 +605,7 @@ describe("ending an advanced action", () => {
     // In a caller's place, core calls what the place returned, with no deltas.
     const inPlace = s.core.boardActions.trigger(ofTest(edit), { selection: [{ block: "c" }, { link: "ad" }] }, { el, advanced: room.advanced });
     room.last().mount(document.createElement("div"));
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ad" });
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "ad" });
     await inPlace;
     expect(room.ended).toEqual([[]]);
     expect(shown.last().signal.aborted).toBe(true);
@@ -616,14 +617,14 @@ describe("ending an advanced action", () => {
     const edit = asking("Edit form", ["input"], shown.module);
     const s = await stubbed([listing([edit])]);
 
-    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ac" });
+    await s.core.commands.run(interned("blockr.core", "remove_link"), { id: "ac" });
     const opened = s.core.boardActions.trigger(ofTest(edit), { block: "c", input: "x" }, { el });
     expect(shown.last().target).toEqual({ block: "c", input: "x" });
     // The board still holds the block, so the advanced action stays open, as
     // a form says itself that a link feeds the input now.
-    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { from: "a", to: "c", input: "x" });
+    await s.core.commands.run(interned("blockr.core", "add_link"), { from: "a", to: "c", input: "x" });
     expect(shown.last().signal.aborted).toBe(false);
-    await s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "c" });
+    await s.core.commands.run(interned("blockr.core", "remove_block"), { id: "c" });
     await opened;
     expect(s.advanced()).toBeUndefined();
     expect(shown.last().signal.aborted).toBe(true);
@@ -638,7 +639,7 @@ describe("ending an advanced action", () => {
 
     const triggered = s.core.boardActions.trigger(ofTest(edit), { block: "f" }, { el, advanced: room.advanced });
     room.last().mount(document.createElement("div"));
-    await shown.last().done([{ package: "blockr.core", id: "remove_block", args: { id: "f" } }]);
+    await shown.last().done([{ id: interned("blockr.core", "remove_block"), args: { id: "f" } }]);
     await triggered;
 
     expect(room.ended).toHaveLength(1);
@@ -677,7 +678,7 @@ describe("mountAdvanced()", () => {
     expect(shown.last()).not.toHaveProperty("filter");
 
     const first = shown.last();
-    await first.done([{ package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
+    await first.done([{ id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
     expect(Object.hasOwn(s.core.store.board().blocks, "n")).toBe(true);
     expect(first.signal.aborted).toBe(true);
     expect(shown.renders).toHaveLength(2);
@@ -723,7 +724,7 @@ describe("mountAdvanced()", () => {
     const room = document.createElement("div");
 
     s.core.boardActions.mountAdvanced(room, ofTest(edit), { block: "b" });
-    await s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" });
+    await s.core.commands.run(interned("blockr.core", "remove_block"), { id: "b" });
     expect(shown.last().signal.aborted).toBe(true);
     expect(room.childNodes).toHaveLength(0);
     expect(shown.renders).toHaveLength(1);

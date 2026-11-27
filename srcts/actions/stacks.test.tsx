@@ -18,14 +18,15 @@ import { chipLabels, labelled, picked } from "../testing/select.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import { swatch } from "./icons.ts";
 import type { ShownLevel } from "./quick.ts";
+import { interned } from "../util/index.ts";
 
 // Core's board actions of stacks, each by its package and its id, as a caller
 // names one.
-const CREATE_STACK = { package: "blockr.core", id: "add_stack_action" } as const;
+const CREATE_STACK = interned("blockr.core", "add_stack_action");
 const EDIT_STACK = { package: "blockr.core", id: "edit_stack_action" } as const;
 const ADD_TO_STACK = { package: "blockr.core", id: "add_to_stack_action" } as const;
-const ADD_STACK = { package: "blockr.core", id: "add_stack" } as const;
-const REMOVE_STACK = { package: "blockr.core", id: "remove_stack" } as const;
+const ADD_STACK = interned("blockr.core", "add_stack");
+const REMOVE_STACK = interned("blockr.core", "remove_stack");
 
 const stops: (() => void)[] = [];
 

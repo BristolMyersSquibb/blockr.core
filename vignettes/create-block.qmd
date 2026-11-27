@@ -805,7 +805,7 @@ The package commits what it builds into `inst/js/`, since `R CMD check` and CRAN
 
 A module written in plain JS or TypeScript draws with core's controls, the same inputs that the React SDK offers, through `controls()`.
 A package that bundles its modules imports `controls()` from `@blockr/core/controls`.
-A package that builds nothing reaches the controls through its host, as the module `controls` of blockr.core, which the host names by its package and its id, and writes its modules in JS, type-checked through `// @ts-check`:
+A package that builds nothing reaches the controls through its host, as the module `controls` of blockr.core, whose ID the host's `id()` makes of the package and the module's ID, and writes its modules in JS, type-checked through `// @ts-check`:
 
 ```js
 // @ts-check
@@ -821,7 +821,7 @@ const ends = [
 export default {
   async render({ el, host, signal }) {
     const { controls } = /** @type {typeof import("@blockr/core/controls")} */ (
-      await host.module({ package: "blockr.core", id: "controls" })
+      await host.module(host.id("blockr.core", "controls"))
     );
     const ui = controls(host, signal);
     const n = ui.number("n", { label: "Number of rows", minValue: 0, step: 1 });

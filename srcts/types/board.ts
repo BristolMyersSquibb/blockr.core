@@ -26,11 +26,15 @@ declare const interned: unique symbol;
 // A package gets that object from CoreApi's id().
 // The brand, which only core gives, keeps a record written by hand, which
 // would be another object, from passing for one.
+// Every function of core's takes an id as such an object, and gives one.
+// Only JSON holds an id as a plain record: a JSON board (JsonBlock, below),
+// R's reply to `hello`, the args of a command and the state of a plugin.
+// What reads JSON makes an Id of each record, as the store does as a board
+// opens, and so does a package that reads a plugin's state.
 // The brand exists only for the type checker, so that one serializes as
 // { "package": "blockr.core", "id": "head_block" }.
 // Its tag @hidden keeps it out of the JSON Schema that a build makes from a
-// type that holds an id, such as the state of a package's plugin. So the
-// schema gives the id as JSON holds it.
+// type, so that no schema asks JSON for the brand.
 export interface Id<P extends string | null = string> {
   readonly package: P;
   readonly id: string;

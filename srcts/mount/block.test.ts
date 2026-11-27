@@ -350,7 +350,18 @@ describe("loading", () => {
     expect(() => mounts.mountBlock(document.createElement("div"), "z")).toThrow('The board holds no block "z" to mount.');
   });
 
-  test("resolves a module that another package offers, by its package and its id, through the host", async () => {
+  test("gives the module the ids that core gives, through the host's id()", async () => {
+    const ui = recorder();
+    const { mounts } = await setup({ [HEAD]: ui.exports });
+    mounts.mountBlock(document.createElement("div"), "b");
+    await tick();
+
+    expect(ui.host().id("blockr.dplyr", "filter")).toBe(interned("blockr.dplyr", "filter"));
+    expect(ui.host().id(null, "local_block")).toBe(interned(null, "local_block"));
+    expect(() => ui.host().id("not a package", "filter")).toThrow(TypeError);
+  });
+
+  test("resolves a module that another package offers, by its id, through the host", async () => {
     const ui = recorder();
     const filter = { api: 1, filter: "blockr.dplyr's" };
     const { mounts, imported, sheets } = await setup(
