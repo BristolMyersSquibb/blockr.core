@@ -59,6 +59,7 @@ var darkMode = {
   label: "Light/dark mode",
   category: "Theme options",
   schema: optionSchemas.dark_mode,
+  scope: "user",
   default: async (core) => {
     const value = await core.blockrOption("dark_mode");
     if (value === void 0) return preferredTheme();

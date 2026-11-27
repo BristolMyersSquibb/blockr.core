@@ -9,5 +9,7 @@ export type { Loader, LoaderOptions, Source } from "./load.ts";
 export { domMeasure } from "./measure.ts";
 export type { Measure } from "./measure.ts";
 export type { OnScreenOf, OutputEvent } from "./output.ts";
+export { createUserPicks, memoryStorage, pageLocalStorage, pickKey } from "./user-picks.ts";
+export type { LocalStorage, UserPicks } from "./user-picks.ts";
 export { RequestError } from "./requests.ts";
 export { announceTo, attempt, moduleExports, mountableModule, onAbort, REPLACED, showError, withoutOptions } from "./shared.ts";

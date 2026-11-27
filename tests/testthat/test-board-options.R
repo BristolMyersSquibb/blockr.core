@@ -58,12 +58,12 @@ test_that("a set of board options keeps the first for each ID", {
 
   opts <- combine_board_options(
     new_n_rows_option(25L),
-    new_board_options(new_n_rows_option(5L), new_dark_mode_option("dark"))
+    new_board_options(new_n_rows_option(5L), new_board_option("zoom", 2))
   )
 
   expect_identical(
     board_option_values(opts),
-    list(n_rows = 25L, dark_mode = "dark")
+    list(n_rows = 25L, zoom = 2)
   )
 })
 

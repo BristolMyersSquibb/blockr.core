@@ -371,7 +371,7 @@ describe("asking", () => {
     expect(table.host().loading()).toBe(false);
 
     // A board option that the renderer names, but not one it does not.
-    s.store.apply({ options: { set: { dark_mode: "dark" } } });
+    s.store.apply({ options: { set: { zoom: 2 } } });
     await tick();
     expect(outputs(s.r)).toHaveLength(2);
     s.store.apply({ options: { set: { n_rows: 10 } } });
@@ -853,7 +853,7 @@ describe("the renderer", () => {
     const text = renderer();
     const plain: HelloReply = {
       ...bare,
-      board: { ...bare.board, board: { ...bare.board.board, options: { dark_mode: { value: "dark", version: 1, package: "blockr.core" } } } },
+      board: { ...bare.board, board: { ...bare.board.board, options: { zoom: { value: 2, version: 1, package: null } } } },
       block_registry: Object.fromEntries(
         Object.entries(bare.block_registry).map(([id, entry]) => [
           id,
@@ -866,7 +866,7 @@ describe("the renderer", () => {
     // The board options that the class's output family reads, which core put
     // on the board, and no other.
     expect(lastOutput(s.r).options).toEqual({ n_rows: 50 });
-    expect(s.store.board().options).toEqual({ dark_mode: "dark", n_rows: 50 });
+    expect(s.store.board().options).toEqual({ zoom: 2, n_rows: 50 });
 
     s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" }, conditions: [] });
     await tick();

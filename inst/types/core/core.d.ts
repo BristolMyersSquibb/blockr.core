@@ -1,6 +1,6 @@
 import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index.ts";
 import type { Commands } from "../commands/index.ts";
-import type { Loader, Measure } from "../mount/index.ts";
+import type { Loader, Measure, UserPicks } from "../mount/index.ts";
 import type { Lock, OptionEntry, PluginEntry } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
@@ -29,6 +29,7 @@ export interface CoreParts {
     readonly page?: HTMLElement;
     readonly signal?: AbortSignal;
     readonly show: (object: ShownObject) => Promise<void>;
+    readonly userPicks?: UserPicks;
 }
 type ShownObject = Parameters<CoreApi["show"]>[0];
 export interface Core {

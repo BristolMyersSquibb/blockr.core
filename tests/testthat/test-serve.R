@@ -924,7 +924,7 @@ test_that("the page leaves its mode to its root, whatever `dark_mode` is", {
   # The board option `dark_mode` sets the attribute `data-bk-mode` on the
   # page's root, under which blockr.ui's stylesheet sets the browser's
   # color-scheme in each mode. So R writes `light dark` into the tag, whatever
-  # value the blockr option or the opening board gives.
+  # value the blockr option gives.
   withr::local_options(blockr.dark_mode = "dark")
 
   page <- htmltools::renderTags(serve_page())
@@ -935,6 +935,86 @@ test_that("the page leaves its mode to its root, whatever `dark_mode` is", {
     fixed = TRUE
   )
   expect_false(grepl("data-bc-theme", page$html, fixed = TRUE))
+})
+
+test_that("a line in the page's head sets the mode before the page paints", {
+
+  withr::local_options(blockr.dark_mode = "dark")
+
+  page <- htmltools::renderTags(serve_page())
+  line <- as.character(mode_script())
+
+  # It comes before the stylesheets, which key the theme variables on the
+  # mode
+  expect_match(page$head, line, fixed = TRUE)
+  expect_lt(
+    regexpr(line, page$head, fixed = TRUE),
+    regexpr("rel=\"stylesheet\"", page$head, fixed = TRUE)
+  )
+
+  # The user's pick, which the client keeps in the browser's local storage,
+  # wins over the blockr option, which wins over the system's preference
+  pick <- regexpr("blockr.board_option.dark_mode", line, fixed = TRUE)
+  given <- regexpr("mode = \"dark\";", line, fixed = TRUE)
+  system <- regexpr("prefers-color-scheme: dark", line, fixed = TRUE)
+
+  expect_gt(pick, 0L)
+  expect_gt(given, pick)
+  expect_gt(system, given)
+  expect_match(
+    line,
+    "document.documentElement.setAttribute(\"data-bk-mode\", mode)",
+    fixed = TRUE
+  )
+
+  # Without a mode of the blockr option, the line goes from the user's pick to
+  # the system's preference
+  withr::local_options(blockr.dark_mode = NULL)
+
+  expect_false(
+    grepl("mode = \"", as.character(mode_script()), fixed = TRUE)
+  )
+})
+
+test_that("the line in the page's head reads the blockr option as the client", {
+
+  modes <- list(
+    list(TRUE, "dark"),
+    list(FALSE, "light"),
+    list("dark", "dark"),
+    list("light", "light"),
+    list(" TRUE ", "dark"),
+    list("F", "light"),
+    list("blue", NULL),
+    list(c("dark", "light"), NULL),
+    list(NA, NULL)
+  )
+
+  for (mode in modes) {
+    withr::with_options(
+      list(blockr.dark_mode = mode[[1L]]),
+      expect_identical(blockr_mode(), mode[[2L]], info = deparse(mode[[1L]]))
+    )
+  }
+
+  # An environment variable sets a string, which reads as the logical that it
+  # holds
+  withr::with_envvar(
+    c(BLOCKR_DARK_MODE = "true"),
+    expect_identical(blockr_mode(), "dark")
+  )
+
+  # Where the R option and the environment variable disagree, R reads no mode,
+  # and the page follows the user's pick or the system
+  withr::with_envvar(
+    c(BLOCKR_DARK_MODE = "light"),
+    withr::with_options(
+      list(blockr.dark_mode = "dark"),
+      expect_null(blockr_mode())
+    )
+  )
+
+  expect_null(blockr_mode())
 })
 
 test_that("the page imports the modules of plugins, options and blocks", {

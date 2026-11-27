@@ -35,7 +35,7 @@ board_option_value(x)
 
 new_n_rows_option(value)
 
-new_dark_mode_option(value)
+new_dark_mode_option()
 
 new_board_options(...)
 
@@ -97,12 +97,21 @@ then holds no value for it, so that whatever needs it takes the default of
 its definition in the client.
 
 Core ships two board options: \code{n_rows}, the rows of a table output's page,
-and \code{dark_mode}, which switches between the light and the dark theme.
-Core's basic frontend requires \code{dark_mode}.
-So the client puts the default of \code{dark_mode} on every board that lacks a
-value of it, as the board opens.
+and \code{dark_mode}, which switches between the light and the dark mode.
 Their schemas ship beside their modules, and R writes the value that a
 script gives by them (see \code{\link[=blockr_ser]{blockr_ser()}}).
+
+The mode is a reader's choice rather than the board's,
+so \code{dark_mode} keeps its value with the user rather than on the board.
+The client keeps the user's pick in the browser's local storage,
+so that it holds for every board that they open in that browser.
+No board holds a value of \code{dark_mode}, so no file saves one,
+and \code{new_dark_mode_option()} takes no value.
+An app sets the default through the blockr option \code{dark_mode} instead,
+as \code{options(blockr.dark_mode = "dark")} does.
+R writes into the page's head a line that sets the mode before the page
+first paints: the user's pick, else the blockr option,
+else the mode that the user's system prefers.
 
 Each of core's board options takes its default from the blockr option of
 its name, which the client asks R for the first time that something on the

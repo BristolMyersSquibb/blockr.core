@@ -15,6 +15,7 @@ import coreMenu from "../modules/board-action-menu/index.tsx";
 // eslint-disable-next-line no-restricted-imports
 import fileStorage from "../modules/file-storage/index.ts";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
+import { memoryStorage, pickKey } from "../mount/index.ts";
 import { coreOptions } from "../options/index.ts";
 import type { Option, PluginClass, Storage } from "../store/index.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
@@ -28,6 +29,7 @@ import type { GivenPlugin } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
 import type { JsonBoard, PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Notification, PluginModule } from "../types/core-api.ts";
+import type { OptionHost } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import { own } from "../util/index.ts";
@@ -196,6 +198,9 @@ function setup(modules: Readonly<Record<string, unknown>>, given: Partial<StartO
     },
     frontEnds: pageFrontEnds(el),
     measure: { info: () => null, watch: () => () => undefined },
+    // A local storage of the test's own, so that no test reads a pick of
+    // dark_mode that another made.
+    localStorage: memoryStorage(),
     ...given,
   });
   return { r, el, imported, started };
@@ -1551,8 +1556,8 @@ describe("a board opened later", () => {
 describe("board options", () => {
   // Starts the page on the board of the fixture hello, with a package that
   // lists the board option given.
-  async function started({ id, ...option }: Option) {
-    const s = setup({ [optionUrl(id)]: optionModule(option), [BASIC]: frontEnd().exports });
+  async function started({ id, ...option }: Option, given: Partial<StartOptions> = {}) {
+    const s = setup({ [optionUrl(id)]: optionModule(option), [BASIC]: frontEnd().exports }, given);
     s.r.session(withOptions([id]));
     await tick();
     s.r.options();
@@ -1650,6 +1655,74 @@ describe("board options", () => {
     expect(reported.errors().map((line) => line.message)).toEqual(["No zoom of 1.", "No zoom of 2."]);
   });
 
+  test("that keep their value with the user have their onChange called as each board opens, with the user's pick or else the default, and go onto no board", async () => {
+    const heard: Json[] = [];
+    const hosts: OptionHost[] = [];
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: 1,
+      scope: "user",
+      ui: {
+        render({ host }) {
+          hosts.push(host);
+          return undefined;
+        },
+      },
+      onChange(value) {
+        heard.push(value);
+      },
+    };
+    const storage = memoryStorage();
+    const s = await started(zoom, { localStorage: storage });
+    // Core stores nothing for the default.
+    expect(heard).toEqual([1]);
+    expect(s.core.options.value("zoom")).toBe(1);
+    expect(Object.hasOwn(s.core.store.board().options, "zoom")).toBe(false);
+    expect(storage.getItem(pickKey("zoom"))).toBeNull();
+
+    // A submit of its UI keeps the user's pick, and core calls onChange with
+    // it.
+    s.core.mountOption(document.createElement("div"), "zoom");
+    await tick();
+    await hosts[0]?.submit(2);
+    expect(heard).toEqual([1, 2]);
+    expect(s.core.options.value("zoom")).toBe(2);
+    expect(storage.getItem(pickKey("zoom"))).toBe("2");
+    expect(s.core.store.canUndo()).toBe(false);
+
+    // A board that opens later takes the user's pick, and opens without the
+    // value that it holds, naming it.
+    const next = await reopen(s, s.core, { zoom: 3 });
+    expect(heard).toEqual([1, 2, 2]);
+    expect(next.options.value("zoom")).toBe(2);
+    expect(Object.hasOwn(next.store.board().options, "zoom")).toBe(false);
+    expect(held(next, (n) => notificationCode(n) === "board_objects_dropped")).toEqual([
+      {
+        severity: "warning",
+        message: 'The board opened without the value of the board option "zoom", since it keeps its value with the user, in the browser.',
+        source: { kind: "core", code: "board_objects_dropped" },
+      },
+    ]);
+  });
+
+  test("switch the page to the mode that the user picked for dark_mode as the board opens", async () => {
+    const s = setup({ [BASIC]: frontEnd().exports }, { localStorage: memoryStorage({ [pickKey("dark_mode")]: '"dark"' }) });
+    s.r.session(hello);
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    await tick();
+
+    expect(document.documentElement.getAttribute("data-bk-mode")).toBe("dark");
+    expect(core.options.value("dark_mode")).toBe("dark");
+    expect(Object.hasOwn(core.store.board().options, "dark_mode")).toBe(false);
+    s.started.stop();
+    document.documentElement.removeAttribute("data-bk-mode");
+  });
+
   test("give their values as the board holds them through value()", async () => {
     const zoom: Option = {
       id: "zoom",
@@ -1693,7 +1766,7 @@ describe("the frontend and the plugins", () => {
     const seen: unknown[] = [];
     const frontend: PluginModule = {
       render({ core, plugin }) {
-        seen.push([plugin, ...ids.map((id) => core.store.board().options[id])]);
+        seen.push([plugin, ...ids.map((id) => core.options.value(id))]);
         return undefined;
       },
     };
@@ -1748,9 +1821,11 @@ describe("the frontend and the plugins", () => {
     expect(s.imported).toContain(pluginUrl(GRID));
     expect(s.imported).not.toContain(BASIC);
     // The app runs no basic frontend, so the board takes none of the board
-    // options that it requires, but for dark_mode, whose onChange core calls
-    // as every board opens.
-    expect(s.core.store.board().options).toEqual({ zoom: 1, dark_mode: "light" });
+    // options that it requires. Core still takes the value of dark_mode, whose
+    // onChange it calls as every board opens, but puts nothing on the board,
+    // since dark_mode keeps its value with the user.
+    expect(s.core.store.board().options).toEqual({ zoom: 1 });
+    expect(s.core.options.value("dark_mode")).toBe("light");
     // The frontend's state stays out of the board, since its class keeps none.
     expect(s.core.store.board().plugins).toEqual({});
 
@@ -2420,9 +2495,11 @@ describe("a block that serve() serves alone", () => {
     await tick(100);
     expect(s.r.evaluations().map((request) => request.recipe.inputs)).toEqual([[{ input: "data" }]]);
 
-    // The board takes dark_mode, which switches the page's theme, as every
-    // board does.
-    expect(Object.keys(core.store.board().options).sort()).toEqual(["dark_mode", "n_rows"]);
+    // Core takes the value of dark_mode, which switches the page's mode, as
+    // for every board, and puts nothing on the board for it, since dark_mode
+    // keeps its value with the user.
+    expect(Object.keys(core.store.board().options)).toEqual(["n_rows"]);
+    expect(core.options.value("dark_mode")).toBe("light");
   });
 
   test("takes no pick of board_actions, which names board actions of plugins that do not run, so that core's own play core's roles", async () => {

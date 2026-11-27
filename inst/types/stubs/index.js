@@ -2893,7 +2893,7 @@ function mountOption(deps, el, option) {
   }
   const unboundError = () => new Error(`Another board opened, so the host of the board option "${option}" no longer changes it.`);
   function current2() {
-    return own(store.board().options, option);
+    return deps.value(option);
   }
   const host = {
     option,
@@ -2915,7 +2915,8 @@ function mountOption(deps, el, option) {
       if (!bound()) throw unboundError();
       const notifier = givenNotifier(opts, `a submit of the board option "${option}"`);
       try {
-        await deps.commands.run("blockr.core-set_option", { id: option, value: next });
+        if (def.scope === "user") deps.pick(option, next);
+        else await deps.commands.run("blockr.core-set_option", { id: option, value: next });
       } catch (error) {
         deps.refused(error, { option }, notifier);
         throw error;
@@ -2950,12 +2951,18 @@ function mountOption(deps, el, option) {
     value2 = next;
     announceTo(listeners);
   });
+  const offPick = deps.onPick((id2, picked) => {
+    if (id2 !== option || value2 === void 0 || picked === value2) return;
+    value2 = picked;
+    announceTo(listeners);
+  });
   const offEnd = onAbort(deps.replaced, end);
   function end() {
     if (ended()) return;
     controller.abort();
     offEnd();
     offStore();
+    offPick();
     stopKeeping?.();
     listeners.clear();
     for (const withdraw of [...notified]) withdraw();
@@ -2963,7 +2970,7 @@ function mountOption(deps, el, option) {
     el.replaceChildren();
   }
   void (async () => {
-    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end, true);
     stopKeeping = kept.stop;
     const failures = await kept.added;
     if (ended()) return;
@@ -3592,6 +3599,70 @@ function sorted2(x) {
   return x;
 }
 
+// srcts/mount/user-picks.ts
+function pickKey(id2) {
+  return `blockr.board_option.${id2}`;
+}
+function createUserPicks(storage) {
+  const made = /* @__PURE__ */ new Map();
+  function stored(id2) {
+    let text;
+    try {
+      text = storage?.getItem(pickKey(id2)) ?? null;
+    } catch {
+      return void 0;
+    }
+    if (text === null) return void 0;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return void 0;
+    }
+  }
+  return {
+    get(id2) {
+      return made.has(id2) ? made.get(id2) : stored(id2);
+    },
+    set(id2, value2) {
+      made.set(id2, value2);
+      try {
+        if (storage === void 0) throw new Error("The browser gives no local storage.");
+        storage.setItem(pickKey(id2), JSON.stringify(value2));
+      } catch (error) {
+        log.warn(
+          `The browser did not keep the pick of the board option "${id2}", which holds for this page alone: ${errorMessage(error)}`
+        );
+      }
+    },
+    remove(id2) {
+      made.delete(id2);
+      try {
+        storage?.removeItem(pickKey(id2));
+      } catch {
+      }
+    }
+  };
+}
+function pageLocalStorage() {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return void 0;
+  }
+}
+function memoryStorage(items = {}) {
+  const held4 = new Map(Object.entries(items));
+  return {
+    getItem: (key2) => held4.get(key2) ?? null,
+    setItem: (key2, value2) => {
+      held4.set(key2, value2);
+    },
+    removeItem: (key2) => {
+      held4.delete(key2);
+    }
+  };
+}
+
 // srcts/mount/block.ts
 var CORE = "blockr.core";
 var NO_STATUS = Object.freeze(unevaluated(0, false));
@@ -3615,6 +3686,12 @@ function createMounts(options) {
   });
   const resolving = /* @__PURE__ */ new Map();
   const reported = /* @__PURE__ */ new Set();
+  const userPicks = options.userPicks ?? createUserPicks(memoryStorage());
+  const withUser = /* @__PURE__ */ new Map();
+  const pickListeners = /* @__PURE__ */ new Set();
+  onAbort(replaced2, () => {
+    pickListeners.clear();
+  });
   function failure(option, message) {
     if (!replaced2.aborted && !reported.has(message)) {
       reported.add(message);
@@ -3636,23 +3713,30 @@ function createMounts(options) {
     started.then(settled2, settled2);
     return started;
   }
-  async function addOptions(ids2, by) {
+  async function addOptions(ids2, by, user = false) {
     const failures = await Promise.all(
       [...new Set(ids2)].map(async (id2) => {
-        if (Object.hasOwn(store.board().options, id2)) return [];
         const def = own(store.options.registered(), id2);
+        if (def?.scope === "user") {
+          if (user) return takeUserValue(id2, def, by);
+          return failure(
+            id2,
+            `The board option "${id2}", which ${by} requires, keeps its value with the user, which only its UI, its onChange and plugins read.`
+          );
+        }
+        if (Object.hasOwn(store.board().options, id2)) return [];
         if (def === void 0) {
           return failure(id2, `The board option "${id2}", which ${by} requires, is defined by no package loaded.`);
         }
-        let value2;
+        let value3;
         try {
-          value2 = await resolveDefault(id2, def);
+          value3 = await resolveDefault(id2, def);
         } catch (error) {
           return failure(id2, `The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
         }
         if (replaced2.aborted || Object.hasOwn(store.board().options, id2)) return [];
         try {
-          await commands.run("blockr.core-set_option", { id: id2, value: value2 }, CORE);
+          await commands.run("blockr.core-set_option", { id: id2, value: value3 }, CORE);
         } catch (error) {
           return failure(
             id2,
@@ -3664,7 +3748,35 @@ function createMounts(options) {
     );
     return failures.flat();
   }
-  function keepOptions(ids2, by, failed3 = () => void 0) {
+  async function takeUserValue(id2, def, by) {
+    if (withUser.has(id2)) return [];
+    const picked = userPicks.get(id2);
+    if (picked !== void 0) {
+      const refusals2 = misfits(def, picked);
+      if (refusals2.length === 0) {
+        withUser.set(id2, frozenCopy(picked));
+        return [];
+      }
+      userPicks.remove(id2);
+      log.warn(
+        `Core forgot the user's pick of the board option "${id2}", since its schema refuses it, and takes its default instead: ${refusals2.join(" ")}`
+      );
+    }
+    let value3;
+    try {
+      value3 = await resolveDefault(id2, def);
+    } catch (error) {
+      return failure(id2, `The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
+    }
+    if (replaced2.aborted || withUser.has(id2)) return [];
+    const refusals = misfits(def, value3);
+    if (refusals.length > 0) {
+      return failure(id2, `The default of the board option "${id2}", which ${by} requires, does not fit its schema: ${refusals.join(" ")}`);
+    }
+    withUser.set(id2, frozenCopy(value3));
+    return [];
+  }
+  function keepOptions(ids2, by, failed3 = () => void 0, user = false) {
     if (ids2.length === 0) return { added: Promise.resolve([]), stop: () => void 0 };
     let stopped = false;
     const off = store.subscribe((change, board) => {
@@ -3673,16 +3785,44 @@ function createMounts(options) {
         (id2) => ids2.includes(id2) && !Object.hasOwn(board.options, id2)
       );
       if (removed.length === 0) return;
-      void addOptions(removed, by).then((failures) => {
+      void addOptions(removed, by, user).then((failures) => {
         if (!stopped && failures.length > 0) failed3(failures);
       });
     });
     return {
-      added: addOptions(ids2, by),
+      added: addOptions(ids2, by, user),
       stop: () => {
         stopped = true;
         off();
       }
+    };
+  }
+  function value2(id2) {
+    if (own(store.options.registered(), id2)?.scope === "user") return withUser.get(id2);
+    return store.hasBoard() ? own(store.board().options, id2) : void 0;
+  }
+  function pick2(id2, given) {
+    if (replaced2.aborted) throw new Error(REPLACED);
+    const def = own(store.options.registered(), id2);
+    if (def === void 0) throw new Error(`No package registers the board option "${id2}" to pick a value of.`);
+    if (def.scope !== "user") {
+      throw new Error(`The board option "${id2}" keeps its value on the board, which a command sets.`);
+    }
+    const refusals = misfits(def, given);
+    if (refusals.length > 0) throw new Error(refusals.join("\n"));
+    const next = frozenCopy(given);
+    userPicks.set(id2, next);
+    if (withUser.has(id2) && jsonEqual(withUser.get(id2), next)) return;
+    withUser.set(id2, next);
+    announceTo(pickListeners, id2, next);
+  }
+  function onPick(fn) {
+    const wrapped = (id2, picked) => {
+      fn(id2, picked);
+    };
+    pickListeners.add(wrapped);
+    return () => {
+      pickListeners.delete(wrapped);
     };
   }
   function mountBlock(el, block) {
@@ -3787,13 +3927,25 @@ function createMounts(options) {
       block
     ),
     mountOption: (el, option) => mountOption(
-      { store, commands, scheduler, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
+      { store, commands, scheduler, replaced: replaced2, keepOptions, value: value2, pick: pick2, onPick, raise, replied: replied2, notify, refused: refused2, optionPackage },
       el,
       option
     ),
     addOptions,
-    keepOptions
+    keepOptions,
+    value: value2,
+    pick: pick2,
+    onPick
   };
+}
+var validators = /* @__PURE__ */ new WeakMap();
+function misfits(def, value2) {
+  let validate = validators.get(def);
+  if (validate === void 0) {
+    validate = compile(`the board option "${def.id}"`, def.schema);
+    validators.set(def, validate);
+  }
+  return validate(value2).map((failure) => `The value of the board option "${def.id}" ${failure}`);
 }
 function classOptions(entry) {
   const read = Object.values(entry.requests).flatMap((request) => request.options);
@@ -5091,12 +5243,12 @@ function randomUuid() {
 // srcts/store/check.ts
 var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
 var hexColor = new RegExp(HEX_COLOR);
-var validators = /* @__PURE__ */ new WeakMap();
+var validators2 = /* @__PURE__ */ new WeakMap();
 function stateFailures(entry, state2) {
-  let validate = validators.get(entry);
+  let validate = validators2.get(entry);
   if (validate === void 0) {
     validate = compile(`the state of the block class "${entry.id}"`, entry.schema);
-    validators.set(entry, validate);
+    validators2.set(entry, validate);
   }
   return validate(state2);
 }
@@ -5226,6 +5378,10 @@ function checkValues(board, registrations, changed, failures) {
     const option = registrations.option(id2);
     if (option === void 0) {
       failures.push(`The board holds a value of the board option "${id2}", which no package registered.`);
+      continue;
+    }
+    if (option.def.scope === "user") {
+      failures.push(`The board holds a value of the board option "${id2}", which keeps its value with the user rather than on the board.`);
       continue;
     }
     for (const failure of option.validate(value2)) {
@@ -6166,7 +6322,13 @@ function migratedValue(what, attributes, fn) {
 }
 function openJsonBoard(json, reply, registrations) {
   const registeredClass = (id2) => registrations.plugin(id2)?.def;
-  const read = unversioned(json.board);
+  const unread = unversioned(json.board);
+  const withUser = Object.keys(unread.options).filter((id2) => registrations.option(id2)?.def.scope === "user");
+  const read = { ...unread, options: without(unread.options, withUser) };
+  const userOptions = withUser.map((id2) => ({
+    about: { option: id2, scope: "user" },
+    package: own(json.board.options, id2)?.package ?? null
+  }));
   const held4 = keptPlugins(read.plugins, reply.plugins, registeredClass);
   const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
     about: { plugin: id2 },
@@ -6193,7 +6355,7 @@ function openJsonBoard(json, reply, registrations) {
     ...Object.values(json.board.options).map((option) => option.package)
   ]);
   const packages = Object.entries(json.packages).filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
-  return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
+  return { board, dropped: [...packages, ...blocks, ...plugins, ...options, ...userOptions] };
 }
 function remove(board, gone, registrations) {
   if (gone.length === 0) return board;
@@ -6315,6 +6477,10 @@ function createRegistrations(migration = () => void 0) {
         }
         if (def.migrate !== void 0 && typeof def.migrate !== "function") {
           throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
+        }
+        const { scope } = def;
+        if (scope !== void 0 && scope !== "board" && scope !== "user") {
+          throw new Error(`The board option "${def.id}" has the scope ${JSON.stringify(scope)}, where a scope is "board" or "user".`);
         }
         const validate = compile(what, def.schema);
         if (typeof def.default !== "function") {
@@ -7093,9 +7259,19 @@ function coreCommands(store) {
     command({
       id: "blockr.core-set_option",
       label: "Set board option",
-      description: "Sets the value of a board option, which the board option's schema types.",
+      description: "Sets the value of a board option, which the board option's schema types. It refuses a board option that keeps its value with the user, such as dark_mode, which only the user sets, through its UI.",
       args: object({ id: optionId, value }, ["id", "value"]),
-      preflight: (_board, { id: id2 }) => own(store.options.registered(), id2) !== void 0,
+      // A board option that keeps its value with the user goes onto no board,
+      // and a command edits the board, so the command refuses it, as Board
+      // options that stay with the user has it
+      // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#board-options-that-stay-with-the-user).
+      preflight: (_board, { id: id2 }, { refusal: refusal2 }) => {
+        const def = own(store.options.registered(), id2);
+        if (def?.scope === "user") {
+          throw refusal2([`The board option "${id2}" keeps its value with the user, so only the user sets it, through its UI.`]);
+        }
+        return def !== void 0;
+      },
       run: (_board, { id: id2, value: value2 }) => ({ options: { set: { [id2]: value2 } } })
     })
   ];
@@ -11547,7 +11723,7 @@ function runPlugins(deps) {
       deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
     }
     function lacking(ids2) {
-      const missing = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      const missing = ids2.filter((id2) => deps.value(id2) === void 0);
       cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
     }
     void (async () => {
@@ -11711,6 +11887,7 @@ function createCore(parts) {
     refused: refused2,
     optionPackage,
     onScreen: outputOnScreen,
+    ...parts.userPicks === void 0 ? {} : { userPicks: parts.userPicks },
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
     emit(event) {
@@ -11725,7 +11902,8 @@ function createCore(parts) {
   });
   const plugins = runPlugins({
     store,
-    keepOptions: (ids2, by, failed3) => mounts.keepOptions(ids2, by, failed3),
+    keepOptions: (ids2, by, failed3) => mounts.keepOptions(ids2, by, failed3, true),
+    value: (id2) => mounts.value(id2),
     core: () => api,
     plugins: parts.plugins,
     raise,
@@ -11762,7 +11940,7 @@ function createCore(parts) {
     options: {
       register: (def) => store.options.register(def),
       registered: () => store.options.registered(),
-      value: (id2) => store.hasBoard() ? own(store.board().options, id2) : void 0
+      value: (id2) => mounts.value(id2)
     },
     plugins: {
       appPlugins: () => plugins.appPlugins(),
@@ -11805,6 +11983,7 @@ function createCore(parts) {
     mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin)
   };
   let heard = {};
+  const heardUser = /* @__PURE__ */ new Map();
   store.subscribe((change, board) => {
     const opened = "opened" in change;
     if (board.options !== heard || opened) {
@@ -11814,11 +11993,28 @@ function createCore(parts) {
         if (!jsonEqual(own(before, id2), value2)) changed(id2, value2);
       }
     }
+    if (opened) {
+      for (const def of Object.values(store.options.registered())) {
+        if (def.onChange !== void 0 && def.scope === "user") takeUser(def.id);
+      }
+    }
     if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
-      const lacking = Object.values(store.options.registered()).filter((def) => def.onChange !== void 0 && !Object.hasOwn(board.options, def.id)).map((def) => def.id);
+      const lacking = Object.values(store.options.registered()).filter((def) => def.onChange !== void 0 && def.scope !== "user" && !Object.hasOwn(board.options, def.id)).map((def) => def.id);
       if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
     }
   });
+  mounts.onPick((id2, value2) => {
+    heardUser.set(id2, value2);
+    changed(id2, value2);
+  });
+  function takeUser(id2) {
+    void mounts.addOptions([id2], "its onChange", true).then((failures) => {
+      const value2 = mounts.value(id2);
+      if (failures.length > 0 || value2 === void 0 || parts.signal?.aborted === true || heardUser.has(id2)) return;
+      heardUser.set(id2, value2);
+      changed(id2, value2);
+    });
+  }
   const failing = /* @__PURE__ */ new Map();
   const raisedBy = /* @__PURE__ */ new Map();
   function changed(id2, value2) {
@@ -12577,6 +12773,7 @@ var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start2(options) {
   const page = new AbortController();
   const alone = options.alone === true;
+  const userPicks = createUserPicks(options.localStorage ?? pageLocalStorage());
   const starting = steps("start");
   let helloSent;
   let helloAnswered;
@@ -12799,6 +12996,7 @@ function start2(options) {
       notifications,
       signal: signal5,
       show: (object2) => options.frontEnds?.show(object2, signal5) ?? Promise.resolve(),
+      userPicks,
       ...options.measure === void 0 ? {} : { measure: options.measure },
       ...options.frontEnds?.el === void 0 ? {} : { page: options.frontEnds.el }
     });
@@ -13084,8 +13282,11 @@ function droppedNotification(dropped, how) {
   const others = packages.filter((item2) => !forBlocks.includes(item2) && !forOptions.includes(item2));
   const classes2 = blocks.filter((block) => !forBlocks.some((item2) => item2.package === block.package)).map((block) => block.registry_id);
   const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes2)], "class", "classes")]);
-  const lackedOptions = options.filter((option) => forOptions.some((item2) => item2.package === option.package));
-  const otherOptions = options.filter((option) => !lackedOptions.includes(option));
+  const userOptions = options.filter((option) => option.scope === "user");
+  const lackedOptions = options.filter(
+    (option) => !userOptions.includes(option) && forOptions.some((item2) => item2.package === option.package)
+  );
+  const otherOptions = options.filter((option) => !userOptions.includes(option) && !lackedOptions.includes(option));
   const went = (names, one2, several, why) => {
     if (names.length === 0) return [];
     const many = names.length > 1;
@@ -13106,6 +13307,12 @@ function droppedNotification(dropped, how) {
       "value of the board option",
       "values of the board options",
       (many) => `no package of this app defines ${many ? "them" : "it"}`
+    ),
+    ...went(
+      userOptions.map((option) => option.option),
+      "value of the board option",
+      "values of the board options",
+      (many) => `${many ? "they keep their" : "it keeps its"} value with the user, in the browser`
     ),
     ...withNoun(versions(others), "package", "packages").map((what) => `This app lacks ${what}.`)
   ];
@@ -13337,8 +13544,9 @@ function OptionsDialog({ onClose }) {
   const { core } = useFrontEnd();
   const board = useBoard(core);
   const registered = core.options.registered();
+  const withUser = Object.values(registered).filter((def) => def.scope === "user").map((def) => def.id);
   const categories = /* @__PURE__ */ new Map();
-  for (const id2 of Object.keys(board.options)) {
+  for (const id2 of [...Object.keys(board.options), ...withUser]) {
     const def = Object.hasOwn(registered, id2) ? registered[id2] : void 0;
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id2]);
@@ -14699,6 +14907,7 @@ var darkMode = {
   label: "Light/dark mode",
   category: "Theme options",
   schema: optionSchemas.dark_mode,
+  scope: "user",
   default: async (core) => {
     const value2 = await core.blockrOption("dark_mode");
     if (value2 === void 0) return preferredTheme();
@@ -15762,7 +15971,8 @@ async function stubCore(options = {}) {
     ...options.el === void 0 ? {} : { frontEnds: pageFrontEnds(options.el) },
     measure: options.measure ?? { info: () => INFO, watch: () => () => void 0 },
     showMenu: menus.show,
-    showDialog: dialogs.show
+    showDialog: dialogs.show,
+    localStorage: memoryStorage()
   });
   let first;
   try {

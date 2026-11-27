@@ -204,6 +204,10 @@ function checkStacks(
   }
 }
 
+// Checks the value of each board option that a delta changed, or of every one
+// as the board opens. A package has to register the board option, and the
+// board option has to keep its value on the board rather than with the user.
+// The value has to fit the board option's schema.
 function checkValues(
   board: Board,
   registrations: Registrations,
@@ -215,6 +219,10 @@ function checkValues(
     const option = registrations.option(id);
     if (option === undefined) {
       failures.push(`The board holds a value of the board option "${id}", which no package registered.`);
+      continue;
+    }
+    if (option.def.scope === "user") {
+      failures.push(`The board holds a value of the board option "${id}", which keeps its value with the user rather than on the board.`);
       continue;
     }
     for (const failure of option.validate(value)) {

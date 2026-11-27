@@ -15,8 +15,13 @@
 //    states of the blocks and the values of the board options.
 //    What a migration throws refuses the board, and the store logs it at
 //    error (migratedValue(), below).
-// 3. It drops and names each block whose class the block registry lacks, and
-//    each board option value that no package registers.
+// 3. It drops and names each block whose class the block registry lacks, each
+//    board option value that no package registers, and each value of a board
+//    option that keeps its value with the user, which no board holds, as
+//    Board options that stay with the user has it
+//    (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#board-options-that-stay-with-the-user).
+//    It drops such a value before it migrates the board, so that no migration
+//    runs for it.
 // 4. It gives each other plugin of the app whose class has `state` its class's
 //    default state.
 // 5. It refuses the board where it fails a check, naming every failure, as
@@ -72,6 +77,8 @@ const PROPERTIES: readonly string[] = ["id", "name", ...COLLECTIONS];
 //   registers the class.
 // - The value of a board option that no package registers, as `{ option }`,
 //   by the board option's id.
+// - The value of a board option that keeps its value with the user, as
+//   `{ option, scope: "user" }`, by the board option's id.
 // The member `package` names the package that what the store dropped comes
 // from: the package itself, the package that the id of a block's class or of a
 // plugin's class names, or the package that the JSON board records beside a
@@ -84,7 +91,7 @@ export interface Dropped {
     | { readonly package: string; readonly version: string }
     | { readonly block: BlockId; readonly name: string; readonly registry_id: RegistryId }
     | { readonly plugin: PluginClassId }
-    | { readonly option: OptionId };
+    | { readonly option: OptionId; readonly scope?: "user" };
   readonly package: string | null;
 }
 
@@ -330,7 +337,16 @@ export function openJsonBoard(
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[] } {
   const registeredClass = (id: string) => registrations.plugin(id)?.def;
-  const read = unversioned(json.board);
+  const unread = unversioned(json.board);
+
+  // The values of the board options that keep their value with the user,
+  // which the store drops before anything else reads the board.
+  const withUser = Object.keys(unread.options).filter((id) => registrations.option(id)?.def.scope === "user");
+  const read = { ...unread, options: without(unread.options, withUser) };
+  const userOptions: Dropped[] = withUser.map((id) => ({
+    about: { option: id, scope: "user" },
+    package: own(json.board.options, id)?.package ?? null,
+  }));
 
   const held = keptPlugins(read.plugins, reply.plugins, registeredClass);
   const plugins: Dropped[] = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id) => ({
@@ -370,7 +386,7 @@ export function openJsonBoard(
     .filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === undefined)
     .map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
 
-  return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
+  return { board, dropped: [...packages, ...blocks, ...plugins, ...options, ...userOptions] };
 }
 
 // The board without the blocks, removed as a delta removes them, so that what

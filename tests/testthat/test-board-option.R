@@ -100,17 +100,19 @@ test_that("core's board options take their value alone and compute nothing", {
 
   for (id in names(ctors)) {
 
-    expect_identical(names(formals(ctors[[id]])), "value", info = id)
-
     opt <- ctors[[id]]()
 
     expect_identical(board_option_id(opt), id)
     expect_false(has_board_option_value(opt), info = id)
   }
 
+  # The board option `dark_mode` keeps its value with the user, in the
+  # browser, so its constructor takes none
+  expect_identical(names(formals(new_n_rows_option)), "value")
+  expect_null(formals(new_dark_mode_option))
+
   # The definitions in the client check a value, and R does not
   expect_identical(board_option_value(new_n_rows_option(-1L)), -1L)
-  expect_identical(board_option_value(new_dark_mode_option(TRUE)), TRUE)
 })
 
 test_that("a board option has a compact str_value()", {

@@ -751,6 +751,18 @@ describe("the board", () => {
     await expect(refused).rejects.toMatchObject({ by: "store" });
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
   });
+
+  test("set_option refuses a board option that keeps its value with the user, since a command edits the board", async () => {
+    const { store, commands } = await setup();
+
+    expect(commands.preflight("blockr.core-set_option", { id: "dark_mode", value: "dark" })).toBe(false);
+    const refused = commands.run("blockr.core-set_option", { id: "dark_mode", value: "dark" });
+    await expect(refused).rejects.toMatchObject({
+      by: "command",
+      failures: ['The board option "dark_mode" keeps its value with the user, so only the user sets it, through its UI.'],
+    });
+    expect(Object.hasOwn(store.board().options, "dark_mode")).toBe(false);
+  });
 });
 
 // The DAG's plugin class, which keeps a position for each block.

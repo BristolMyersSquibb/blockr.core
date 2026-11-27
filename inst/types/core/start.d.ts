@@ -1,5 +1,5 @@
 import type { Place, ShowDialog, ShowMenu } from "../actions/index.ts";
-import type { LoaderOptions, Measure } from "../mount/index.ts";
+import type { LoaderOptions, LocalStorage, Measure } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule } from "../types/core-api.ts";
@@ -35,6 +35,7 @@ export interface StartOptions {
     readonly showDialog?: ShowDialog;
     readonly fail?: (error: Error) => void;
     readonly otel?: () => Promise<OtelModule>;
+    readonly localStorage?: LocalStorage;
 }
 export interface Started {
     readonly ready: Promise<CoreApi>;

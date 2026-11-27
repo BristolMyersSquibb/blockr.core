@@ -250,10 +250,15 @@ new_board(options = new_n_rows_option(value = 25, label = "Rows"))
 new_board(options = new_n_rows_option(25))
 ```
 
-Several values go in a list, as `new_board(options = list(new_n_rows_option(25), new_dark_mode_option("dark")))` gives them.
+Several values go in a list, as `new_board(options = list(new_n_rows_option(25), blockr.dock::new_compact_option(TRUE)))` gives them.
 Each value takes the shape that the board option's schema in the browser gives, since R converts nothing.
-So `new_dark_mode_option()` takes `"dark"` or `"light"`, where version 0.1 also took `TRUE` and `FALSE`.
 The browser refuses a board that holds a value that its schema refuses, naming the board option.
+
+The board option `dark_mode` keeps its value with the user rather than on the board, since the mode is a reader's choice.
+The browser keeps the mode that the user picks, for every board that they open in that browser, and no board holds a value of `dark_mode`.
+So `new_dark_mode_option()` takes no value, where version 0.1 took one.
+A script sets the default through the blockr option `dark_mode` instead, as `options(blockr.dark_mode = "dark")` does.
+A board saved with a value of `dark_mode` opens without it, and the browser says so.
 
 Six board options of version 0.1 are gone, with their constructors:
 

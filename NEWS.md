@@ -1038,6 +1038,15 @@
   The board option `dark_mode` sets the attribute `data-bk-mode` on the page's root, in place of `data-bc-theme`, and the page's `color-scheme` tag takes `light dark` (#866).
 * The new generic `frontend_theme()` returns a frontend's theme, as `blockr.ui::new_blockr_theme()` makes it, with the values of the theme variables that the frontend wants its own.
   Its method for `frontend_plugin` returns a theme with no values, so a frontend that keeps every default of blockr.ui, as core's basic frontend does, needs no method of its own (#866).
+* A board option whose definition has `scope: "user"` keeps its value with the user rather than on the board.
+  The client keeps the user's pick in the browser's local storage, so that it holds for every board that they open in that browser, and no board or file holds it.
+  Where the browser holds no pick, the board option's default applies, and the client stores nothing for it.
+  The board option's UI sets the value through its host's `submit()`, and core then calls its `onChange`, which it also calls as each board opens.
+  Its UI, its `onChange` and the plugins read the value, a plugin through `core.options.value()`, while a block class or an output family that names such a board option draws nothing, and core says why.
+  The command `blockr.core-set_option` refuses such a board option, and the store drops a value of it that an opening board holds, naming it.
+  Core's `dark_mode` keeps its value with the user, so `new_dark_mode_option()` takes no value, and an app sets the default through the blockr option `dark_mode`.
+  Core's basic frontend shows such board options in its Options dialog beside those that the board holds.
+  R writes into the page's head a line that sets `data-bk-mode` before the page first paints, from the user's pick, else the blockr option `dark_mode`, else the mode that the user's system prefers, so that core's loading note draws in the page's mode too (#867).
 
 # blockr.core 0.1.4
 

@@ -53,10 +53,21 @@ export const nRows: Omit<Option, "id"> = {
 // prefers, so the default is that theme where no blockr option sets one. As
 // today, TRUE stands for dark and FALSE for light, and so does a string that
 // R's as.logical() reads as one, as an environment variable gives it.
+// The mode is a reader's choice rather than the board's, so dark_mode keeps
+// its value with the user, in the browser, and no board holds it, as Board
+// options that stay with the user has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#board-options-that-stay-with-the-user).
+// Core stores nothing for the default, so that a page follows the system's
+// preference until the user picks a mode. The line that R writes into the
+// page's head sets the mode before the page first paints from the same three:
+// the user's pick, else the blockr option, else the system's preference
+// (R/utils-serve.R). So the board option and the page agree once the board
+// opens.
 export const darkMode: Omit<Option, "id"> = {
   label: "Light/dark mode",
   category: "Theme options",
   schema: optionSchemas.dark_mode,
+  scope: "user",
   default: async (core: BlockrOptions) => {
     const value = await core.blockrOption("dark_mode");
     if (value === undefined) return preferredTheme();

@@ -305,6 +305,8 @@ The module then submits that path into the block's state, as `file_path`.
 A request reads a __board option__, an option that a user changes while the app runs, only where `new_block_request()` names it by its constructor, in `options`.
 The client then sends the board option's value with each request, and keeps the answers by it.
 A class names the board options that its UI module reads itself in the `options` of `new_block_class()`, by their constructors as well.
+A board option that keeps its value with the user, such as `dark_mode`, reaches neither a block class nor its outputs, so the client draws nothing of a class that names one, and says why.
+The page's mode shows in the attribute `data-bk-mode` of the page's root instead, which a stylesheet keys on.
 
 ## Outputs
 

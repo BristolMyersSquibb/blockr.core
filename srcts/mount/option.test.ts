@@ -17,8 +17,8 @@ import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { Replied } from "../util/index.ts";
-import { createLoader, createMounts, RequestError } from "./index.ts";
-import type { Mounts } from "./index.ts";
+import { createLoader, createMounts, createUserPicks, memoryStorage, pickKey, RequestError } from "./index.ts";
+import type { Mounts, UserPicks } from "./index.ts";
 
 // A UI that keeps each host it is mounted with, and each value its host held
 // as it announced one.
@@ -71,7 +71,7 @@ interface Setup {
 
 async function setup(
   options: readonly Option[],
-  { reply = hello }: { reply?: HelloReply } = {},
+  { reply = hello, userPicks }: { reply?: HelloReply; userPicks?: UserPicks } = {},
 ): Promise<Setup> {
   const r = playR();
   r.connect();
@@ -116,6 +116,7 @@ async function setup(
       };
     },
     optionPackage: (option) => (option === "n_rows" ? "blockr.core" : undefined),
+    ...(userPicks === undefined ? {} : { userPicks }),
   });
   return {
     r,
@@ -435,3 +436,140 @@ describe("a mount", () => {
     );
   });
 });
+
+describe("a board option that keeps its value with the user", () => {
+  // Core's board options, with the UI given for dark_mode, whose value stays
+  // with the user, and the local storage given, which keeps the user's picks.
+  async function picking(dark: OptionModule, storage = memoryStorage()) {
+    const s = await setup(options(ui().mod, { count: 0 }, ui().mod).map((def) => (def.id === "dark_mode" ? { ...def, ui: dark } : def)), {
+      userPicks: createUserPicks(storage),
+    });
+    return { ...s, storage };
+  }
+
+  test("gives its default where the user picked none, storing nothing for it and putting nothing on the board", async () => {
+    const dark = ui();
+    const s = await picking(dark.mod);
+    const el = document.createElement("div");
+    s.mounts.mountOption(el, "dark_mode");
+    await tick();
+
+    expect(dark.host().value()).toBe("light");
+    expect(el.textContent).toBe('"light"');
+    expect(s.mounts.value("dark_mode")).toBe("light");
+    expect(Object.hasOwn(s.store.board().options, "dark_mode")).toBe(false);
+    expect(s.storage.getItem(pickKey("dark_mode"))).toBeNull();
+  });
+
+  test("gives the user's pick, and keeps a submit in the browser rather than on the board, announcing it to every mount", async () => {
+    const dark = ui();
+    const s = await picking(dark.mod, memoryStorage({ [pickKey("dark_mode")]: '"dark"' }));
+    s.mounts.mountOption(document.createElement("div"), "dark_mode");
+    s.mounts.mountOption(document.createElement("div"), "dark_mode");
+    await tick();
+    expect(dark.mounts.map(({ host }) => host.value())).toEqual(["dark", "dark"]);
+
+    const seen = changes(s.store);
+    const picked: [string, Json][] = [];
+    s.mounts.onPick((id, value) => picked.push([id, value]));
+    await dark.host().submit("light");
+
+    expect(dark.mounts.map((mount) => mount.seen)).toEqual([
+      ["dark", "light"],
+      ["dark", "light"],
+    ]);
+    expect(picked).toEqual([["dark_mode", "light"]]);
+    expect(s.storage.getItem(pickKey("dark_mode"))).toBe('"light"');
+    expect(Object.hasOwn(s.store.board().options, "dark_mode")).toBe(false);
+    expect(seen).toEqual([]);
+
+    // A pick of the value that the host holds keeps the pick, and announces
+    // nothing.
+    await dark.host(1).submit("light");
+    expect(dark.mounts[1]?.seen).toEqual(["dark", "light"]);
+    expect(picked).toHaveLength(1);
+  });
+
+  test("holds the user's pick for a board that opens later on the page", async () => {
+    const storage = memoryStorage();
+    const first = ui();
+    const s = await picking(first.mod, storage);
+    s.mounts.mountOption(document.createElement("div"), "dark_mode");
+    await tick();
+    await first.host().submit("dark");
+    s.end();
+
+    const later = ui();
+    const next = await picking(later.mod, storage);
+    next.mounts.mountOption(document.createElement("div"), "dark_mode");
+    await tick();
+    expect(later.host().value()).toBe("dark");
+  });
+
+  test("rejects a submit that the board option's schema refuses, and keeps the pick it had", async () => {
+    const dark = ui();
+    const s = await picking(dark.mod, memoryStorage({ [pickKey("dark_mode")]: '"dark"' }));
+    s.mounts.mountOption(document.createElement("div"), "dark_mode");
+    await tick();
+
+    await expect(dark.host().submit("blue")).rejects.toThrow('The value of the board option "dark_mode" fails its schema');
+    expect(dark.host().value()).toBe("dark");
+    expect(s.storage.getItem(pickKey("dark_mode"))).toBe('"dark"');
+  });
+
+  test("forgets a pick that the board option's schema refuses, as an older package may have stored, and takes the default, which it logs", async () => {
+    const reported = logged();
+    const dark = ui();
+    const s = await picking(dark.mod, memoryStorage({ [pickKey("dark_mode")]: '"blue"' }));
+    s.mounts.mountOption(document.createElement("div"), "dark_mode");
+    await tick();
+    reported.restore();
+
+    expect(dark.host().value()).toBe("light");
+    expect(s.storage.getItem(pickKey("dark_mode"))).toBeNull();
+    expect(reported.lines().filter((line) => line.level === "warn").map((line) => line.message)).toEqual([
+      expect.stringMatching(/^Core forgot the user's pick of the board option "dark_mode", since its schema refuses it, and takes its default instead: /),
+    ]);
+  });
+
+  test("draws nothing where the default does not fit the schema, which the board option's notification says", async () => {
+    const odd = ui();
+    const s = await setup(
+      [
+        ...options(ui().mod),
+        {
+          id: "contrast",
+          label: "Contrast",
+          category: "Theme options",
+          schema: { enum: ["normal", "high"] },
+          default: () => Promise.resolve("loud"),
+          ui: odd.mod,
+          scope: "user",
+        },
+      ],
+      { userPicks: createUserPicks(memoryStorage()) },
+    );
+    const reported = logged();
+    const el = document.createElement("div");
+    s.mounts.mountOption(el, "contrast");
+    await tick();
+    reported.restore();
+
+    expect(odd.mounts).toHaveLength(0);
+    expect(el.textContent).toBe("");
+    expect(s.raised.map((notification) => notification.message)).toEqual([
+      expect.stringMatching(
+        /^The default of the board option "contrast", which the UI of the board option "contrast" requires, does not fit its schema: The value of the board option "contrast" fails its schema/,
+      ),
+    ]);
+  });
+});
+
+// The changes that the store announces from now on.
+function changes(store: Store): unknown[] {
+  const seen: unknown[] = [];
+  store.subscribe((change) => {
+    seen.push(change);
+  });
+  return seen;
+}

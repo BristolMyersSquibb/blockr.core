@@ -12,6 +12,10 @@
 //    every board option that a plugin requires, as it holds those of a
 //    mounted module (../mount/block.ts). For a block that serve() serves
 //    alone, the app runs no plugin, so core adds none of them.
+//    A board option that keeps its value with the user, such as dark_mode,
+//    which core's basic frontend names, goes onto no board. Core takes its
+//    value for the board instead, the user's pick or else its default, which
+//    the plugin reads through CoreApi's options.value().
 // 2. Core draws the board with the app's frontend, the plugin that runs whose
 //    class has `frontend`, once the board options that its class names are on
 //    the board (./start.ts).
@@ -82,6 +86,8 @@ export interface RunningPlugins {
 export interface RunningDeps {
   readonly store: Store;
   readonly keepOptions: Mounts["keepOptions"];
+  // The value of a board option that its readers get (../mount/block.ts).
+  readonly value: Mounts["value"];
   // The CoreApi that the plugins get, which core makes with what runPlugins()
   // returns.
   readonly core: () => CoreApi;
@@ -260,7 +266,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     // names and that the board lacks, beside the notification about each board
     // option, which core has reported.
     function lacking(ids: readonly OptionId[]): void {
-      const missing = ids.filter((id) => !Object.hasOwn(store.board().options, id));
+      const missing = ids.filter((id) => deps.value(id) === undefined);
       cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
     }
 

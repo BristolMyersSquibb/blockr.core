@@ -21,6 +21,10 @@
 // hello, as R does. It evaluates every block as ok, makes a block's output
 // from the sample outputs of its class's renderer, and answers a request with
 // what the test gives.
+// Core keeps the user's picks of the board options that keep their value with
+// the user, such as dark_mode, in a local storage of the stub's own, which
+// holds none as the stub starts. So each such board option starts at its
+// default, whatever another test picked.
 // Core runs each menu of board actions as on the page, and draws none: the
 // test opens the menu of a target, or takes the menu that is open, and picks
 // its rows by their labels (./menu.ts). Core shows each advanced action in its
@@ -39,6 +43,7 @@ import basicFrontend from "../modules/basic/index.tsx";
 import editBoard from "../modules/edit-board/index.tsx";
 // eslint-disable-next-line no-restricted-imports
 import fileStorage from "../modules/file-storage/index.ts";
+import { memoryStorage } from "../mount/index.ts";
 import type { Measure } from "../mount/index.ts";
 import { coreOptions } from "../options/index.ts";
 import type {
@@ -255,6 +260,7 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     measure: options.measure ?? { info: () => INFO, watch: () => () => undefined },
     showMenu: menus.show,
     showDialog: dialogs.show,
+    localStorage: memoryStorage(),
   });
 
   let first: CoreApi;
