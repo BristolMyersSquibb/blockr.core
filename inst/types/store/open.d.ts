@@ -14,6 +14,7 @@ export interface Dropped {
         readonly plugin: PluginClassId;
     } | {
         readonly option: OptionId;
+        readonly scope?: "user";
     };
     readonly package: string | null;
 }

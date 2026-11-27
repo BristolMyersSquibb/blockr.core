@@ -443,9 +443,20 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     command<{ readonly id: string; readonly value: Json }>({
       id: "blockr.core-set_option",
       label: "Set board option",
-      description: "Sets the value of a board option, which the board option's schema types.",
+      description:
+        "Sets the value of a board option, which the board option's schema types. It refuses a board option that keeps its value with the user, such as dark_mode, which only the user sets, through its UI.",
       args: object({ id: schemas.optionId, value: schemas.value }, ["id", "value"]),
-      preflight: (_board, { id }) => own(store.options.registered(), id) !== undefined,
+      // A board option that keeps its value with the user goes onto no board,
+      // and a command edits the board, so the command refuses it, as Board
+      // options that stay with the user has it
+      // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#board-options-that-stay-with-the-user).
+      preflight: (_board, { id }, { refusal }) => {
+        const def = own(store.options.registered(), id);
+        if (def?.scope === "user") {
+          throw refusal([`The board option "${id}" keeps its value with the user, so only the user sets it, through its UI.`]);
+        }
+        return def !== undefined;
+      },
       run: (_board, { id, value }) => ({ options: { set: { [id]: value } } }),
     }),
   ];

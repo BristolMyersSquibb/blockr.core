@@ -211,8 +211,10 @@ new_n_rows_option <- function(value) {
   new_board_option("n_rows", value)
 }
 
+# The board option `dark_mode` keeps its value with the user, in the browser,
+# and no board holds a value of it, so its constructor takes none.
 #' @rdname new_board_options
 #' @export
-new_dark_mode_option <- function(value) {
-  new_board_option("dark_mode", value)
+new_dark_mode_option <- function() {
+  new_board_option("dark_mode")
 }

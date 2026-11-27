@@ -522,6 +522,27 @@ describe("board options", () => {
     expect(ui.mounts).toHaveLength(0);
   });
 
+  test("that keep their value with the user leave the block's element empty, in place of the module, and raise why, since no block class reads one", async () => {
+    const reported = logged();
+    const ui = recorder();
+    const { store, mounts, raised } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["dark_mode"]) });
+    const el = document.createElement("div");
+    mounts.mountBlock(el, "b");
+    await tick();
+    reported.restore();
+
+    const why =
+      'The board option "dark_mode", which the UI module of block class "blockr.core-head_block" requires, keeps its value with the user, which only its UI, its onChange and plugins read.';
+    expect(el.textContent).toBe("");
+    expect(raised).toEqual([
+      { severity: "error", message: why, source: { kind: "core", code: "board_option_failed", module: { object: { option: "dark_mode" } } }, about: { option: "dark_mode" } },
+      cannotDraw('Without the board option "dark_mode", the UI module of block class "blockr.core-head_block" cannot draw.'),
+    ]);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
+    expect(ui.mounts).toHaveLength(0);
+    expect(Object.hasOwn(store.board().options, "dark_mode")).toBe(false);
+  });
+
   test("end a module that has drawn once one that its class names does not go onto the board again", async () => {
     const reported = logged();
     const ui = recorder();
@@ -642,7 +663,7 @@ describe("the host", () => {
 
   test("announces a new status from R, a new revision of an input, a new name and a new value of a board option that the class reads", async () => {
     const ui = recorder();
-    const { r, store, scheduler, mounts } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["n_rows"]) });
+    const { r, store, scheduler, mounts } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["n_rows"]), options: [zoom] });
     mounts.mountBlock(document.createElement("div"), "b");
     await tick();
     const host = ui.host();
@@ -667,7 +688,7 @@ describe("the host", () => {
 
     // A board option that the class does not read is no news to the module.
     const heard = contexts.length;
-    store.apply({ options: { set: { dark_mode: "dark" } } });
+    store.apply({ options: { set: { zoom: 2 } } });
     expect(contexts).toHaveLength(heard);
   });
 

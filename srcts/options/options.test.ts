@@ -169,6 +169,11 @@ describe("dark_mode", () => {
   test("leaves n_rows without anything to do on the page", () => {
     expect("onChange" in nRows).toBe(false);
   });
+
+  test("keeps its value with the user, while n_rows keeps its value on the board", () => {
+    expect(darkMode.scope).toBe("user");
+    expect(nRows.scope).toBeUndefined();
+  });
 });
 
 describe("the UIs of core's board options", () => {

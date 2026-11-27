@@ -643,14 +643,15 @@ describe("the toolbar", () => {
     expect(bodyOf(section(el, "Edit board")).textContent).toBe("Edit board");
   });
 
-  test("sets the board options that the board holds through their UIs, by category", async () => {
-    const { el, board, settled } = await drawn();
+  test("sets the board options that the board holds through their UIs, by category, and those that keep their value with the user", async () => {
+    const { el, board, settled, core } = await drawn();
 
     await click(button(el, "Options"));
     await settled();
-    // The board holds n_rows, which the table renderer names, and dark_mode,
-    // which core's basic frontend requires.
-    expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows"]);
+    // The board holds n_rows, which the table renderer names, while
+    // dark_mode, which core's basic frontend requires, keeps its value with
+    // the user, and the dialog shows it all the same.
+    expect(Object.keys(board().options)).toEqual(["n_rows"]);
     expect(texts(dialog(), "h3")).toEqual(["Table options", "Theme options"]);
     // The categories sit in one box, which draws a line between each two.
     const boxes = new Set([...dialog().querySelectorAll("section")].map((section) => section.parentElement));
@@ -658,7 +659,8 @@ describe("the toolbar", () => {
     expect(dialog().textContent).toContain("Preview rows");
 
     await click(toggleButton(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode", "Dark"));
-    expect(board().options.dark_mode).toBe("dark");
+    expect(core.options.value("dark_mode")).toBe("dark");
+    expect(Object.hasOwn(board().options, "dark_mode")).toBe(false);
     expect(document.documentElement.getAttribute("data-bk-mode")).toBe("dark");
   });
 
@@ -1669,13 +1671,13 @@ describe("a locked board", () => {
   });
 
   test("under the board lock alone, keeps opening another board, and sets the board options", async () => {
-    const { el, board, settled } = await drawn({ hello: lockedHello({ board: true, load: false }) });
+    const { el, core, settled } = await drawn({ hello: lockedHello({ board: true, load: false }) });
     expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save", "Open"]);
 
     await click(button(el, "Options"));
     await settled();
     await click(toggleButton(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode", "Dark"));
-    expect(board().options.dark_mode).toBe("dark");
+    expect(core.options.value("dark_mode")).toBe("dark");
   });
 
   test("under the load lock alone, draws every control but the one for opening a board", async () => {

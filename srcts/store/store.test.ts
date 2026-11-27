@@ -869,6 +869,15 @@ describe("opening a board", () => {
     expect(Object.keys(store.jsonBoard().board.options)).toEqual(["n_rows"]);
   });
 
+  test("drops the value of a board option that keeps its value with the user, naming the board option, and saves the board without it", async () => {
+    const store = unopened();
+    const dropped = await store.open(file({ options: { dark_mode: "dark", n_rows: 20 } }));
+
+    expect(dropped).toEqual([{ about: { option: "dark_mode", scope: "user" }, package: "blockr.core" }]);
+    expect(store.board().options).toEqual({ n_rows: 20 });
+    expect(Object.keys(store.jsonBoard().board.options)).toEqual(["n_rows"]);
+  });
+
   test("checks a JSON board's text as it would open it, holding nothing", async () => {
     const store = createStore();
     for (const option of coreOptions) store.options.register(option);
@@ -1431,6 +1440,16 @@ describe("migrating board option values", () => {
     });
   });
 
+  test("drops a value of a board option that keeps its value with the user before it migrates the board, so that no migration runs for it", async () => {
+    const migrate = vi.fn(fromString);
+    const opening = store({ ...seed, scope: "user", migrate });
+    const dropped = await opening.open(file({ options: { seed: "42", n_rows: 50 } }, undefined, { seed: 1 }));
+
+    expect(migrate).not.toHaveBeenCalled();
+    expect(dropped).toEqual([{ about: { option: "seed", scope: "user" }, package: null }]);
+    expect(opening.board().options).toEqual({ n_rows: 50 });
+  });
+
   test("keeps a value without a migration, and refuses a board whose value then fails its schema, as one that a migration returns", async () => {
     const opening = store({ ...seed, migrate: undefined });
     await opening.open(file({ options: { seed: 7 } }, undefined, { seed: 1 }));
@@ -1751,6 +1770,7 @@ describe("applying a delta", () => {
     ["unsetting a state arg that its class's schema requires", { blocks: { mod: { b: { unset: ["direction"] } } } }, /state of the block "b" fails its schema: Instance does not have required property "direction"\./],
     ["a block whose state its class's schema refuses", { blocks: { add: { g: { ...head(), state: { n: 1, size: 2 } } } } }, /state of the block "g" fails its schema/],
     ["a value of a board option no package registered", { options: { set: { nope: 1 } } }, /board option "nope", which no package registered/],
+    ["a value of a board option that keeps its value with the user", { options: { set: { dark_mode: "dark" } } }, /board option "dark_mode", which keeps its value with the user rather than on the board/],
     ["a block of a class the block registry lacks", { blocks: { add: { g: { ...head(), registry_id: "blockr.foo-bar" } } } }, /class "blockr.foo-bar", which the block registry lacks/],
     ["an id made of digits alone", { blocks: { add: { 7: head() } } }, /block id "7" is empty or made of digits alone/],
     ["removing a block the board lacks", { blocks: { rm: ["z"] } }, /board holds no block "z" to remove/],
@@ -2697,20 +2717,22 @@ describe("undo", () => {
 
   test("leaves the board option values that its step set or removed, and so does redo, while both take back and apply again the rest of the step", async () => {
     const store = await opened((store) => {
-      store.options.register({
-        id: "seed",
-        label: "Seed",
-        category: "Board options",
-        schema: { type: "integer" },
-        default: 0,
-        ui: noUi,
-      });
+      for (const id of ["seed", "zoom"]) {
+        store.options.register({
+          id,
+          label: id,
+          category: "Board options",
+          schema: { type: "integer" },
+          default: 0,
+          ui: noUi,
+        });
+      }
     });
     const seen = changes(store);
 
     store.apply([
-      { options: { set: { n_rows: 20, seed: 42, dark_mode: "dark" } } },
-      { blocks: { mod: { b: { state: { n: 7 } } } }, options: { unset: ["dark_mode"] }, name: "Renamed" },
+      { options: { set: { n_rows: 20, seed: 42, zoom: 2 } } },
+      { blocks: { mod: { b: { state: { n: 7 } } } }, options: { unset: ["zoom"] }, name: "Renamed" },
     ]);
     const { options } = store.board();
     expect(options).toEqual({ n_rows: 20, seed: 42 });
@@ -2731,14 +2753,16 @@ describe("undo", () => {
   });
 
   test("a step that sets or removes only board option values is no undo step, and leaves the undo and redo lists as they are, whoever takes it", async () => {
-    const store = await opened();
+    const store = await opened((store) => {
+      store.options.register({ id: "seed", label: "Seed", category: "Board options", schema: { type: "integer" }, default: 0, ui: noUi });
+    });
     store.apply({ name: "Renamed" });
     store.apply({ name: "Again" });
     store.undo();
     const seen = changes(store);
 
     // Core adds the board options that a module requires as such a step.
-    const delta: Delta = { options: { set: { dark_mode: "dark" }, unset: ["n_rows"] } };
+    const delta: Delta = { options: { set: { seed: 42 }, unset: ["n_rows"] } };
     store.apply(delta, "blockr.core");
     expect(seen).toEqual([{ delta, origin: "blockr.core" }]);
     expect([store.canUndo(), store.canRedo(), store.canUndo("blockr.core")]).toEqual([true, true, false]);
@@ -2749,7 +2773,7 @@ describe("undo", () => {
     store.undo();
     expect(store.board().name).toBe("Iris review");
     expect(store.canUndo()).toBe(false);
-    expect(store.board().options).toEqual({ dark_mode: "dark" });
+    expect(store.board().options).toEqual({ seed: 42 });
   });
 
   test("a step applied with undo: false is no undo step: it is applied, announced and numbered as any other, with undo: false on each delta, and leaves the undo and redo lists as they are, whoever takes it", async () => {
@@ -3307,6 +3331,18 @@ describe("registering", () => {
     ).toThrow(
       'The default of the state of the plugin class "blockr.dock-dock_plugin" fails its schema: Instance type "array" is invalid. Expected "object".',
     );
+  });
+
+  test("a board option whose scope is neither board nor user fails", () => {
+    const store = createStoreWithCoreOptions();
+    const seed = { id: "seed", label: "Seed", category: "Board options", schema: {}, default: 1, ui: noUi };
+    // As a package that writes its JS without types may register it.
+    const register = (def: unknown) => store.options.register(def as Option);
+
+    expect(() => register({ ...seed, scope: "browser" })).toThrow(
+      'The board option "seed" has the scope "browser", where a scope is "board" or "user".',
+    );
+    expect(() => register({ ...seed, scope: "board" })).not.toThrow();
   });
 
   test("a board option's migrate that is no function fails", () => {

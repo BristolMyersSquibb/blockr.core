@@ -601,8 +601,9 @@ function OptionsDialog({ onClose }) {
   const { core } = useFrontEnd();
   const board = useBoard(core);
   const registered = core.options.registered();
+  const withUser = Object.values(registered).filter((def) => def.scope === "user").map((def) => def.id);
   const categories = /* @__PURE__ */ new Map();
-  for (const id of Object.keys(board.options)) {
+  for (const id of [...Object.keys(board.options), ...withUser]) {
     const def = Object.hasOwn(registered, id) ? registered[id] : void 0;
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id]);

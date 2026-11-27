@@ -65,9 +65,9 @@
 //   names no plugin whose board action a pick could name.
 // - In step 6, it calls no load(), since R names no plugin for a block that
 //   serve() serves alone, and opens the board that R sent.
-// - In step 9, it adds no board options for plugins. The board still takes
-//   dark_mode, as every board does, since its onChange() switches the page's
-//   theme (./core.ts).
+// - In step 9, it adds no board options for plugins. Core still takes the
+//   value of dark_mode, as for every board, since its onChange() switches the
+//   page's mode (./core.ts).
 // - In step 10, it draws no frontend, but the block in its card, which demands
 //   the block, and starts the scheduler once the card has mounted the block.
 //
@@ -141,8 +141,8 @@ import { createBoardActions, MENU_OPTION, menuModule, showDialog } from "../acti
 import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index.ts";
 import { createCommands } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
-import { createLoader, ModuleError, moduleExports } from "../mount/index.ts";
-import type { LoaderOptions, Measure, Source } from "../mount/index.ts";
+import { createLoader, createUserPicks, ModuleError, moduleExports, pageLocalStorage } from "../mount/index.ts";
+import type { LoaderOptions, LocalStorage, Measure, Source } from "../mount/index.ts";
 import { createClient, PROTOCOL_VERSION, sameMajor } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
@@ -259,6 +259,11 @@ export interface StartOptions {
   // writes to the console, records no spans, and logs that it has no such
   // module.
   readonly otel?: () => Promise<OtelModule>;
+  // The browser's local storage, in which core keeps the user's pick of each
+  // board option that keeps its value with the user (../mount/user-picks.ts). It
+  // is the page's own unless given, as the CoreApi for tests gives each test
+  // one of its own.
+  readonly localStorage?: LocalStorage;
 }
 
 export interface Started {
@@ -300,6 +305,9 @@ type Listed = { readonly id: string; readonly source: Source; readonly pkg: stri
 export function start(options: StartOptions): Started {
   const page = new AbortController();
   const alone = options.alone === true;
+  // The user's picks of the board options that keep their value with the
+  // user, which hold for every board that opens on the page.
+  const userPicks = createUserPicks(options.localStorage ?? pageLocalStorage());
   // The steps of the page's start, whose span runs from now on.
   const starting = steps("start");
   // When the protocol's client last sent a hello, and when R last answered
@@ -619,6 +627,7 @@ export function start(options: StartOptions): Started {
       notifications,
       signal,
       show: (object) => options.frontEnds?.show(object, signal) ?? Promise.resolve(),
+      userPicks,
       ...(options.measure === undefined ? {} : { measure: options.measure }),
       ...(options.frontEnds?.el === undefined ? {} : { page: options.frontEnds.el }),
     });
@@ -998,9 +1007,10 @@ function reloadNotification(changed: readonly Changed[]): Omit<Notification, "id
 // them by, and the packages that the app lacks for them, or else their
 // classes. One sentence names the plugins' states that went, and why.
 // The board options' values that went take one sentence for those whose
-// package the app lacks, which names the package, and one for the rest, which
-// no package of the app defines. A last sentence names the other packages that
-// the app lacks, such as that of a plugin whose state went.
+// package the app lacks, which names the package, one for those that no
+// package of the app defines, and one for those that keep their value with the
+// user, which no board holds. A last sentence names the other packages that the
+// app lacks, such as that of a plugin whose state went.
 // One notification covers the whole opening, or the whole read, and
 // concerns the board.
 function droppedNotification(dropped: readonly Dropped[], how: "opened" | "read"): Omit<Notification, "id"> {
@@ -1014,9 +1024,13 @@ function droppedNotification(dropped: readonly Dropped[], how: "opened" | "read"
   const others = packages.filter((item) => !forBlocks.includes(item) && !forOptions.includes(item));
   const classes = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => block.registry_id);
   const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes)], "class", "classes")]);
-  // The board options whose package the app lacks, and the rest.
-  const lackedOptions = options.filter((option) => forOptions.some((item) => item.package === option.package));
-  const otherOptions = options.filter((option) => !lackedOptions.includes(option));
+  // The board options that keep their value with the user, those whose
+  // package the app lacks, and the rest.
+  const userOptions = options.filter((option) => option.scope === "user");
+  const lackedOptions = options.filter(
+    (option) => !userOptions.includes(option) && forOptions.some((item) => item.package === option.package),
+  );
+  const otherOptions = options.filter((option) => !userOptions.includes(option) && !lackedOptions.includes(option));
   // The sentence that says that the objects named went, and why.
   const went = (names: readonly string[], one: string, several: string, why: (many: boolean) => string): string[] => {
     if (names.length === 0) return [];
@@ -1038,6 +1052,12 @@ function droppedNotification(dropped: readonly Dropped[], how: "opened" | "read"
       "value of the board option",
       "values of the board options",
       (many) => `no package of this app defines ${many ? "them" : "it"}`,
+    ),
+    ...went(
+      userOptions.map((option) => option.option),
+      "value of the board option",
+      "values of the board options",
+      (many) => `${many ? "they keep their" : "it keeps its"} value with the user, in the browser`,
     ),
     ...withNoun(versions(others), "package", "packages").map((what) => `This app lacks ${what}.`),
   ];

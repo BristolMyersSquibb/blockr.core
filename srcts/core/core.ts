@@ -7,12 +7,19 @@
 // (./start.ts, ./plugins.ts). It ends with them, as the next board opens.
 //
 // Beside what it hands out, it calls the onChange() of each board option whose
-// value changes, as the board opens or a delta sets it, so that a new value of
-// dark_mode switches the page's theme. Where the board lacks the value of a
-// board option that has an onChange(), as the board opens or once a delta
-// removed it, core adds the board option to the board with its default, which
-// calls onChange() in turn, so that what it does on the page follows the board
-// that is open.
+// value changes, as the board opens or a delta sets it. Where the board lacks
+// the value of a board option that has an onChange(), as the board opens or
+// once a delta removed it, core adds the board option to the board with its
+// default, which calls onChange() in turn, so that what it does on the page
+// follows the board that is open.
+// A board option that keeps its value with the user, such as dark_mode, goes
+// onto no board, as Board options that stay with the user has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#board-options-that-stay-with-the-user).
+// As each board opens, core takes its value for the board, the user's pick or
+// else its default, and calls its onChange() with that value, so that the
+// page switches to the mode that the user picked. It calls onChange() again
+// as the board option's UI submits another value. CoreApi's options.value()
+// gives the value that core took.
 //
 // It also holds what the frontend offers other plugins, as Plugins has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#what-a-frontend-offers-other-plugins):
@@ -52,7 +59,7 @@ import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index
 import { isLogged } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
-import type { Loader, Measure, OnScreenOf, OutputEvent } from "../mount/index.ts";
+import type { Loader, Measure, OnScreenOf, OutputEvent, UserPicks } from "../mount/index.ts";
 import type { Lock, OptionEntry, PluginEntry } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { asRandId, mintId } from "../store/index.ts";
@@ -133,6 +140,11 @@ export interface CoreParts {
   // the show() of its module where it has one, as the page's frontends do
   // (./frontends.ts), and resolves once that has.
   readonly show: (object: ShownObject) => Promise<void>;
+  // The user's picks of the board options that keep their value with the
+  // user, which the page keeps for every board that opens on it (./start.ts).
+  // A CoreApi for tests may leave them out, and core then keeps each pick for
+  // the board alone.
+  readonly userPicks?: UserPicks;
 }
 
 // What CoreApi's show() takes: a block or a plugin, by its id.
@@ -222,6 +234,7 @@ export function createCore(parts: CoreParts): Core {
     refused,
     optionPackage,
     onScreen: outputOnScreen,
+    ...(parts.userPicks === undefined ? {} : { userPicks: parts.userPicks }),
     ...(parts.measure === undefined ? {} : { measure: parts.measure }),
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
     emit(event) {
@@ -240,7 +253,8 @@ export function createCore(parts: CoreParts): Core {
   // order as it opens, before the board options that have an onChange().
   const plugins = runPlugins({
     store,
-    keepOptions: (ids, by, failed) => mounts.keepOptions(ids, by, failed),
+    keepOptions: (ids, by, failed) => mounts.keepOptions(ids, by, failed, true),
+    value: (id) => mounts.value(id),
     core: () => api,
     plugins: parts.plugins,
     raise,
@@ -279,7 +293,7 @@ export function createCore(parts: CoreParts): Core {
     options: {
       register: (def) => store.options.register(def),
       registered: () => store.options.registered(),
-      value: (id) => (store.hasBoard() ? own(store.board().options, id) : undefined),
+      value: (id) => mounts.value(id),
     },
     plugins: {
       appPlugins: () => plugins.appPlugins(),
@@ -324,8 +338,10 @@ export function createCore(parts: CoreParts): Core {
     mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin),
   };
 
-  // The values of the board options as each onChange() last heard them.
+  // The values of the board options as each onChange() last heard them, and
+  // of those that keep their value with the user.
   let heard: Board["options"] = {};
+  const heardUser = new Map<OptionId, Json>();
   store.subscribe((change, board) => {
     const opened = "opened" in change;
     if (board.options !== heard || opened) {
@@ -335,13 +351,35 @@ export function createCore(parts: CoreParts): Core {
         if (!jsonEqual(own(before, id), value)) changed(id, value);
       }
     }
+    if (opened) {
+      for (const def of Object.values(store.options.registered())) {
+        if (def.onChange !== undefined && def.scope === "user") takeUser(def.id);
+      }
+    }
     if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
       const lacking = Object.values(store.options.registered())
-        .filter((def) => def.onChange !== undefined && !Object.hasOwn(board.options, def.id))
+        .filter((def) => def.onChange !== undefined && def.scope !== "user" && !Object.hasOwn(board.options, def.id))
         .map((def) => def.id);
       if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
     }
   });
+  mounts.onPick((id, value) => {
+    heardUser.set(id, value);
+    changed(id, value);
+  });
+
+  // Takes the value of a board option that keeps its value with the user for
+  // the board, and calls its onChange() with it.
+  // Where the user picked a value meanwhile, core has called onChange() with
+  // that pick already, so it calls nothing more.
+  function takeUser(id: OptionId): void {
+    void mounts.addOptions([id], "its onChange", true).then((failures) => {
+      const value = mounts.value(id);
+      if (failures.length > 0 || value === undefined || parts.signal?.aborted === true || heardUser.has(id)) return;
+      heardUser.set(id, value);
+      changed(id, value);
+    });
+  }
 
   // The notification of each onChange() that threw, by its board option's id,
   // which holds until its next call returns.

@@ -705,6 +705,8 @@ latest_results <- function(ev, alone = FALSE) {
 # of each mode, which the board option `dark_mode` sets on the page's root,
 # as Light mode and dark mode has it
 # (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2).
+# A line in the head sets that attribute before the page first paints, so that
+# the loading note draws in the page's mode too (see `mode_script()`).
 # Its head names the files that the page imports as it starts, the `modules`
 # given among them, for the browser to fetch at once (see `preload_links()`).
 # R makes the page for each request, so that its URLs name the files that R
@@ -732,6 +734,7 @@ serve_page <- function(alone = FALSE,
     import_map_dependency(),
     shiny::tags$head(
       shiny::tags$meta(name = "color-scheme", content = "light dark"),
+      mode_script(),
       shiny::tags$link(rel = "stylesheet", href = ui_css),
       shiny::tags$link(rel = "stylesheet", href = runtime[["css"]]),
       preload_links(runtime[["module"]], modules)
@@ -739,6 +742,80 @@ serve_page <- function(alone = FALSE,
     shiny::tags$div(id = "blockr-page", loading_note()),
     shiny::tags$script(type = "module", shiny::HTML(script))
   )
+}
+
+# The line in the page's head that sets the page's mode, light or dark, in the
+# attribute `data-bk-mode` of the page's root, before the page first paints,
+# as Light mode and dark mode has it
+# (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2).
+# It runs as the browser reads the head, and takes the first of three:
+# 1. The user's pick of the board option `dark_mode`, which the client keeps
+#    in the browser's local storage, as JSON, under the key
+#    `blockr.board_option.dark_mode` (srcts/mount/user-picks.ts).
+#    A pick that is no mode reads as none, as the client forgets it.
+# 2. The mode that the blockr option `dark_mode` sets, which R writes into
+#    the line (see `blockr_mode()`).
+# 3. The mode that the user's system prefers.
+# The default of the board option reads the same, so that the board option and
+# the page agree once the board opens (srcts/options/options.ts).
+mode_script <- function(mode = blockr_mode()) {
+
+  shiny::tags$script(
+    shiny::HTML(
+      paste0(
+        "(function () {\n",
+        "  var mode = null;\n",
+        "  try {\n",
+        "    var pick = JSON.parse(",
+        "localStorage.getItem(\"blockr.board_option.dark_mode\"));\n",
+        "    if (pick === \"light\" || pick === \"dark\") mode = pick;\n",
+        "  } catch (e) {}\n",
+        if (!is.null(mode)) {
+          paste0("  if (mode === null) mode = \"", mode, "\";\n")
+        },
+        "  if (mode === null) mode = matchMedia(",
+        "\"(prefers-color-scheme: dark)\").matches ? \"dark\" : \"light\";\n",
+        "  document.documentElement.setAttribute(\"data-bk-mode\", mode);\n",
+        "})();"
+      )
+    )
+  )
+}
+
+# The mode that the blockr option `dark_mode` sets, `"light"` or `"dark"`,
+# which R reads as the default of the board option `dark_mode` reads it in the
+# client:
+# - `TRUE` sets dark and `FALSE` sets light, and so does a string that
+#   `as.logical()` reads as one, as an environment variable gives it.
+# - `"light"` and `"dark"` set themselves.
+# It is `NULL` where the blockr option sets nothing, or where R cannot read it,
+# as where its R option and its environment variable disagree.
+# It is `NULL` for any other value too. The board option's default then fails
+# in the client and names the value, and the page follows the system.
+blockr_mode <- function() {
+
+  x <- tryCatch(blockr_option("dark_mode", NULL), error = function(e) NULL)
+
+  if (is_string(x) && !is.na(x)) {
+    flag <- as.logical(trimws(x))
+    if (!is.na(flag)) {
+      x <- flag
+    }
+  }
+
+  if (isTRUE(x)) {
+    return("dark")
+  }
+
+  if (isFALSE(x)) {
+    return("light")
+  }
+
+  if (is_string(x) && x %in% c("light", "dark")) {
+    return(x)
+  }
+
+  NULL
 }
 
 # The stylesheet of blockr.ui, which its build writes beside its JS, with the

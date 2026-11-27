@@ -69,6 +69,7 @@ export interface Option {
     readonly schema: JsonSchema;
     readonly default: Json | ((core: CoreApi) => Promise<Json>);
     readonly ui: OptionModule;
+    readonly scope?: "board" | "user";
     onChange?(value: Json, core: CoreApi, notify: (notification: Raised) => () => void): void;
     migrate?(value: Json, version: number): Json;
 }

@@ -9,7 +9,7 @@ test_that("a board is written as a JSON board", {
     ),
     links = links(ab = new_link("a", "b", "data")),
     stacks = stacks(s1 = new_stack("a", "Input")),
-    options = c(new_n_rows_option(25L), new_dark_mode_option("dark")),
+    options = c(new_n_rows_option(25L), new_board_option("zoom", 2)),
     id = "sales_review",
     name = "Q3 numbers"
   )
@@ -54,11 +54,7 @@ test_that("a board is written as a JSON board", {
         },
         "options": {
           "n_rows": { "value": 25, "version": 1, "package": "blockr.core" },
-          "dark_mode": {
-            "value": "dark",
-            "version": 1,
-            "package": "blockr.core"
-          }
+          "zoom": { "value": 2, "version": 1, "package": null }
         },
         "plugins": {}
       }'
@@ -70,7 +66,7 @@ test_that("a board is written as a JSON board", {
   res <- blockr_ser(board)$board
 
   expect_s3_class(res$stacks$s1$blocks, "AsIs")
-  expect_named(res$options, c("n_rows", "dark_mode"))
+  expect_named(res$options, c("n_rows", "zoom"))
   expect_identical(res$plugins, set_names(list(), character()))
 })
 

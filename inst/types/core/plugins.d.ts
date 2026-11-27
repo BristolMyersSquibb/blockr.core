@@ -21,6 +21,7 @@ export interface RunningPlugins {
 export interface RunningDeps {
     readonly store: Store;
     readonly keepOptions: Mounts["keepOptions"];
+    readonly value: Mounts["value"];
     readonly core: () => CoreApi;
     readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
     readonly raise: Raise;

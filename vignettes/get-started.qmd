@@ -121,6 +121,7 @@ knitr::include_graphics("screenshots/append-block.png")
 
 Options opens the board options: the light or the dark theme, and the rows on a page of a table.
 The board holds the value of a board option only once the user sets one, and every other board option takes its default.
+The theme is the user's own: the browser keeps the one that the user picks, for every board that they open in that browser, and no board holds it.
 
 ```{r, echo = FALSE, out.width = "66%", fig.alt = "The dialog of the board options, with Light/dark mode, set to Light, and Preview rows, set to 10."}
 knitr::include_graphics("screenshots/options.png")

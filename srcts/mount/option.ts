@@ -18,6 +18,15 @@
 // registry refuses a submit, core tells the user why through a notification
 // of the code `board_edit_failed` about the board option, unless the submit's
 // notifier takes it, and submit() rejects with the reason.
+// A board option that keeps its value with the user goes onto no board, as
+// Board options that stay with the user has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#board-options-that-stay-with-the-user).
+// Its host gives the value that core took for the board, the user's pick or
+// else the default, and its submit keeps the user's pick in the browser rather
+// than running a command, once the board option's schema takes the value.
+// Core then calls the board option's onChange (../core/core.ts), and the host
+// announces the value. Where the schema refuses the value, core tells the user
+// why as for a refused command.
 // Where the UI fails in render(), the error names the board option, since only
 // one package can register its id. Core leaves the element empty, so that the
 // frontend alone says where the failure shows, and raises a notification that
@@ -50,12 +59,21 @@ export interface OptionDeps {
   readonly replaced: AbortSignal;
   // Keeps the board options on the board until stop() runs, resolves `added`
   // with why any did not go onto the board, and calls `failed` where one that
-  // a delta removed does not go onto the board again (./block.ts).
+  // a delta removed does not go onto the board again, taking the value of one
+  // that keeps its value with the user for the board where `user` is given
+  // (./block.ts).
   readonly keepOptions: (
     ids: readonly OptionId[],
     by: string,
     failed: (failures: readonly string[]) => void,
+    user: boolean,
   ) => { readonly added: Promise<readonly string[]>; readonly stop: () => void };
+  // The value of a board option that its readers get (./block.ts).
+  readonly value: (option: OptionId) => Json | undefined;
+  // Keeps the user's pick of a board option that keeps its value with the
+  // user, and calls the functions that onPick() takes with it (./block.ts).
+  readonly pick: (option: OptionId, value: Json) => void;
+  readonly onPick: (fn: (option: OptionId, value: Json) => void) => () => void;
   // Raises a notification of the board (../core/notifications.ts).
   readonly raise: Raise;
   // Holds a notification for each condition of R's latest reply to each of
@@ -99,9 +117,10 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   const unboundError = (): Error =>
     new Error(`Another board opened, so the host of the board option "${option}" no longer changes it.`);
 
-  // The value as the board holds it.
+  // The value as the board holds it, or the value that core took for the
+  // board of a board option that keeps its value with the user.
   function current(): Json | undefined {
-    return own(store.board().options, option);
+    return deps.value(option);
   }
 
   const host: OptionHost = {
@@ -125,7 +144,8 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       if (!bound()) throw unboundError();
       const notifier = givenNotifier(opts, `a submit of the board option "${option}"`);
       try {
-        await deps.commands.run("blockr.core-set_option", { id: option, value: next });
+        if (def.scope === "user") deps.pick(option, next);
+        else await deps.commands.run("blockr.core-set_option", { id: option, value: next });
       } catch (error) {
         deps.refused(error, { option }, notifier);
         throw error;
@@ -167,6 +187,13 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     value = next;
     announceTo(listeners);
   });
+  // The user's picks of a board option that keeps its value with the user,
+  // which no delta carries.
+  const offPick = deps.onPick((id, picked) => {
+    if (id !== option || value === undefined || picked === value) return;
+    value = picked;
+    announceTo(listeners);
+  });
 
   const offEnd = onAbort(deps.replaced, end);
 
@@ -175,6 +202,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     controller.abort();
     offEnd();
     offStore();
+    offPick();
     stopKeeping?.();
     listeners.clear();
     for (const withdraw of [...notified]) withdraw();
@@ -184,7 +212,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
 
   void (async () => {
     // Core has reported why the board holds no value, and raised it.
-    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end, true);
     stopKeeping = kept.stop;
     const failures = await kept.added;
     if (ended()) return;

@@ -1,10 +1,13 @@
-// The dialog that sets the board options that the board holds.
+// The dialog that sets the board options that the board holds, and those that
+// keep their value with the user, such as dark_mode, which no board holds.
 // Core mounts the UI of each with mountOption(). The dialog groups them by the
 // category that each definition gives, and draws a line between each two
 // categories, so that the heading of a category reads as the start of its
 // group rather than the end of the one above.
 // The board holds a board option once something sets one, as where core's
-// basic frontend requires it or a mounted module names it.
+// basic frontend requires it or a mounted module names it. A board option that
+// keeps its value with the user shows wherever a loaded package defines it,
+// since the user's pick of it holds for every board.
 
 import { useCallback } from "react";
 import type { ReactElement } from "react";
@@ -20,8 +23,11 @@ export function OptionsDialog({ onClose }: { onClose: () => void }): ReactElemen
   const board = useBoard(core);
   const registered = core.options.registered();
 
+  const withUser = Object.values(registered)
+    .filter((def) => def.scope === "user")
+    .map((def) => def.id);
   const categories = new Map<string, OptionId[]>();
-  for (const id of Object.keys(board.options)) {
+  for (const id of [...Object.keys(board.options), ...withUser]) {
     const def = Object.hasOwn(registered, id) ? registered[id] : undefined;
     if (def === undefined) continue;
     categories.set(def.category, [...(categories.get(def.category) ?? []), id]);

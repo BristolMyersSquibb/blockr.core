@@ -58,8 +58,10 @@ import type { RegistryEntry } from "../types/registry.ts";
 import { createLog, log } from "../log/index.ts";
 import {
   asError,
+  compile,
   coreNotification,
   errorMessage,
+  frozenCopy,
   isObject,
   jsonEqual,
   own,
@@ -72,7 +74,7 @@ import {
   repliedNothing,
   sourceModule,
 } from "../util/index.ts";
-import type { Notify, Raise, Refused, Replied } from "../util/index.ts";
+import type { Notify, Raise, Refused, Replied, Validate } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { Answers } from "./answers.ts";
 import { ModuleError } from "./load.ts";
@@ -83,7 +85,9 @@ import { mountOption } from "./option.ts";
 import { createShelves, mountOutput } from "./output.ts";
 import type { OnScreenOf, OutputEvent } from "./output.ts";
 import { blockRequest } from "./requests.ts";
-import { attempt, mountableModule, onAbort, optionReader, REPLACED, withoutOptions } from "./shared.ts";
+import { createUserPicks, memoryStorage } from "./user-picks.ts";
+import type { UserPicks } from "./user-picks.ts";
+import { announceTo, attempt, mountableModule, onAbort, optionReader, REPLACED, withoutOptions } from "./shared.ts";
 
 export interface Mounts {
   // Mounts the UI module of the block's class in the element until the
@@ -103,7 +107,15 @@ export interface Mounts {
   // Mounts that add a board option at once share one call of a default that
   // is a function, and core keeps nothing of a default once the board holds
   // it. The origin of what it adds is "blockr.core".
-  addOptions(ids: readonly OptionId[], by: string): Promise<readonly string[]>;
+  // A board option that keeps its value with the user goes onto no board.
+  // Core takes its value for the board instead, once for the board: the
+  // user's pick where the browser holds one that its schema takes, or else
+  // its default, for which core stores nothing (./user-picks.ts).
+  // Only a caller that gives `user` reads such a value: the board option's
+  // own UI, its onChange and a plugin class. For any other caller, as a block
+  // class or the outputs of one, core reports the board option as one that
+  // did not go onto the board.
+  addOptions(ids: readonly OptionId[], by: string, user?: boolean): Promise<readonly string[]>;
   // Keeps the board options on the board while the caller needs them: it adds
   // those that the board lacks now, as addOptions() does, resolving `added`
   // with why any did not go onto the board, and adds again each that a delta
@@ -113,7 +125,21 @@ export interface Mounts {
     ids: readonly OptionId[],
     by: string,
     failed?: (failures: readonly string[]) => void,
+    user?: boolean,
   ): { readonly added: Promise<readonly string[]>; readonly stop: () => void };
+  // The value of a board option that its readers get: the board's, or for a
+  // board option that keeps its value with the user, the value that core took
+  // for the board once addOptions() has taken it. It is undefined where there
+  // is none yet.
+  value(id: OptionId): Json | undefined;
+  // Keeps the user's pick of a board option that keeps its value with the
+  // user, as its UI's host submits it: in the browser, and as the board
+  // option's value for the board. It throws where the board option's schema
+  // refuses the value, or where no package registers such a board option.
+  pick(id: OptionId, value: Json): void;
+  // Calls `fn` with each value that pick() takes, until the returned function
+  // runs or the next board opens.
+  onPick(fn: (id: OptionId, value: Json) => void): () => void;
 }
 
 export interface MountsOptions {
@@ -151,6 +177,10 @@ export interface MountsOptions {
   // The package that lists a board option, from R's reply to `hello`, which
   // the notifications of the board option's module name.
   readonly optionPackage?: (option: OptionId) => string | undefined;
+  // The user's picks of the board options that keep their value with the
+  // user, which outlive the board (./user-picks.ts). Unless given, the mounts
+  // keep each pick for the board alone.
+  readonly userPicks?: UserPicks;
 }
 
 // The origin of what core changes on the board itself, such as the board
@@ -194,6 +224,17 @@ export function createMounts(options: MountsOptions): Mounts {
   // What core has logged for the board, each once.
   const reported = new Set<string>();
 
+  // The user's picks, and the value that core took for the board of each
+  // board option that keeps its value with the user, by id: the user's pick,
+  // or else the default.
+  const userPicks = options.userPicks ?? createUserPicks(memoryStorage());
+  const withUser = new Map<OptionId, Json>();
+  // What hears each value that pick() takes, until the next board opens.
+  const pickListeners = new Set<(id: OptionId, value: Json) => void>();
+  onAbort(replaced, () => {
+    pickListeners.clear();
+  });
+
   // Logs why a board option did not go onto the board, and raises a
   // notification of it that concerns the board option, once for the board.
   // Where a loaded package defines the board option, its default failed or
@@ -225,11 +266,18 @@ export function createMounts(options: MountsOptions): Mounts {
     return started;
   }
 
-  async function addOptions(ids: readonly OptionId[], by: string): Promise<readonly string[]> {
+  async function addOptions(ids: readonly OptionId[], by: string, user = false): Promise<readonly string[]> {
     const failures = await Promise.all(
       [...new Set(ids)].map(async (id): Promise<readonly string[]> => {
-        if (Object.hasOwn(store.board().options, id)) return [];
         const def = own(store.options.registered(), id);
+        if (def?.scope === "user") {
+          if (user) return takeUserValue(id, def, by);
+          return failure(
+            id,
+            `The board option "${id}", which ${by} requires, keeps its value with the user, which only its UI, its onChange and plugins read.`,
+          );
+        }
+        if (Object.hasOwn(store.board().options, id)) return [];
         if (def === undefined) {
           return failure(id, `The board option "${id}", which ${by} requires, is defined by no package loaded.`);
         }
@@ -257,6 +305,42 @@ export function createMounts(options: MountsOptions): Mounts {
     return failures.flat();
   }
 
+  // Takes the value of a board option that keeps its value with the user for
+  // the board, where core has taken none yet: the user's pick, where the
+  // browser holds one that the schema takes, or else the default. Core forgets
+  // a pick that the schema refuses, as one that an older version of the
+  // board option's package stored, and logs it.
+  async function takeUserValue(id: OptionId, def: Option, by: string): Promise<readonly string[]> {
+    if (withUser.has(id)) return [];
+    const picked = userPicks.get(id);
+    if (picked !== undefined) {
+      const refusals = misfits(def, picked);
+      if (refusals.length === 0) {
+        withUser.set(id, frozenCopy(picked));
+        return [];
+      }
+      userPicks.remove(id);
+      log.warn(
+        `Core forgot the user's pick of the board option "${id}", since its schema refuses it, and takes its default instead: ${refusals.join(" ")}`,
+      );
+    }
+    let value: Json;
+    try {
+      value = await resolveDefault(id, def);
+    } catch (error) {
+      return failure(id, `The default of the board option "${id}", which ${by} requires, failed: ${errorMessage(error)}`);
+    }
+    // The user may have picked a value while the default resolved, and
+    // another board may have opened.
+    if (replaced.aborted || withUser.has(id)) return [];
+    const refusals = misfits(def, value);
+    if (refusals.length > 0) {
+      return failure(id, `The default of the board option "${id}", which ${by} requires, does not fit its schema: ${refusals.join(" ")}`);
+    }
+    withUser.set(id, frozenCopy(value));
+    return [];
+  }
+
   // Keeps the board options on the board while the caller needs them: it adds
   // those that the board lacks now, and adds again each that a delta removes,
   // until stop() runs. It calls `failed` with why one that a delta removed did
@@ -265,6 +349,7 @@ export function createMounts(options: MountsOptions): Mounts {
     ids: readonly OptionId[],
     by: string,
     failed: (failures: readonly string[]) => void = () => undefined,
+    user = false,
   ): { readonly added: Promise<readonly string[]>; readonly stop: () => void } {
     if (ids.length === 0) return { added: Promise.resolve([]), stop: () => undefined };
     let stopped = false;
@@ -274,16 +359,47 @@ export function createMounts(options: MountsOptions): Mounts {
         (id) => ids.includes(id) && !Object.hasOwn(board.options, id),
       );
       if (removed.length === 0) return;
-      void addOptions(removed, by).then((failures) => {
+      void addOptions(removed, by, user).then((failures) => {
         if (!stopped && failures.length > 0) failed(failures);
       });
     });
     return {
-      added: addOptions(ids, by),
+      added: addOptions(ids, by, user),
       stop: () => {
         stopped = true;
         off();
       },
+    };
+  }
+
+  function value(id: OptionId): Json | undefined {
+    if (own(store.options.registered(), id)?.scope === "user") return withUser.get(id);
+    return store.hasBoard() ? own(store.board().options, id) : undefined;
+  }
+
+  function pick(id: OptionId, given: Json): void {
+    if (replaced.aborted) throw new Error(REPLACED);
+    const def = own(store.options.registered(), id);
+    if (def === undefined) throw new Error(`No package registers the board option "${id}" to pick a value of.`);
+    if (def.scope !== "user") {
+      throw new Error(`The board option "${id}" keeps its value on the board, which a command sets.`);
+    }
+    const refusals = misfits(def, given);
+    if (refusals.length > 0) throw new Error(refusals.join("\n"));
+    const next = frozenCopy(given);
+    userPicks.set(id, next);
+    if (withUser.has(id) && jsonEqual(withUser.get(id), next)) return;
+    withUser.set(id, next);
+    announceTo(pickListeners, id, next);
+  }
+
+  function onPick(fn: (id: OptionId, value: Json) => void): () => void {
+    const wrapped = (id: OptionId, picked: Json): void => {
+      fn(id, picked);
+    };
+    pickListeners.add(wrapped);
+    return () => {
+      pickListeners.delete(wrapped);
     };
   }
 
@@ -416,13 +532,32 @@ export function createMounts(options: MountsOptions): Mounts {
       ),
     mountOption: (el, option) =>
       mountOption(
-        { store, commands, scheduler, replaced, keepOptions, raise, replied, notify, refused, optionPackage },
+        { store, commands, scheduler, replaced, keepOptions, value, pick, onPick, raise, replied, notify, refused, optionPackage },
         el,
         option,
       ),
     addOptions,
     keepOptions,
+    value,
+    pick,
+    onPick,
   };
+}
+
+// The validator of each board option's schema, made once for each definition,
+// which checks the value of a board option that keeps its value with the user,
+// since the store checks only the values that the board holds.
+const validators = new WeakMap<Option, Validate>();
+
+// Each way a value fails the schema of the board option, in a sentence, as the
+// store says it of a value on the board (../store/check.ts).
+function misfits(def: Option, value: Json): readonly string[] {
+  let validate = validators.get(def);
+  if (validate === undefined) {
+    validate = compile(`the board option "${def.id}"`, def.schema);
+    validators.set(def, validate);
+  }
+  return validate(value).map((failure) => `The value of the board option "${def.id}" ${failure}`);
 }
 
 // The board options that a block class reads, by id, each once, as its

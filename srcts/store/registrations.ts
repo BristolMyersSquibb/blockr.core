@@ -196,6 +196,8 @@ export interface Plugins {
 // that ships it defines the rest. Where something needs the board option and
 // the board lacks its value, core adds it to the board with its `default`: a
 // value, or what the function that is its default resolves with.
+// A board option whose `scope` is "user" keeps its value with the user
+// instead, in the browser, and no board holds it (../mount/user-picks.ts).
 export interface Option {
   readonly id: OptionId;
   readonly label: string;
@@ -207,10 +209,22 @@ export interface Option {
   readonly default: Json | ((core: CoreApi) => Promise<Json>);
   // Its UI module, which core mounts with an OptionHost.
   readonly ui: OptionModule;
+  // Where its value lives: on the board, as "board" or where it is left out,
+  // or with the user, as "user", as Board options that stay with the user has
+  // it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#board-options-that-stay-with-the-user).
+  // Core keeps the value of such a board option in the browser's local
+  // storage, so that the user's pick holds for every board that they open in
+  // that browser, and the default applies where the browser holds none. Its
+  // UI sets the value through its host's submit(), and no command sets it.
+  // Its UI, its onChange and the plugins read it, but no block class, output
+  // family or renderer.
+  readonly scope?: "board" | "user";
   // What a new value does on the page, such as switching the theme. Core
   // calls it as each board opens, with the board's value, and again as a delta
   // sets the value. Where the board lacks the value, core adds the board
-  // option with its default first.
+  // option with its default first. For a board option that keeps its value
+  // with the user, core calls it as each board opens with the user's pick or
+  // else the default, and again as the board option's UI submits a value.
   // Its `notify` raises a notification of the board option's, which concerns
   // the board option unless it names another board object, and holds until
   // the function that it returns runs or the next call returns.
@@ -392,6 +406,10 @@ export function createRegistrations(
         }
         if (def.migrate !== undefined && typeof def.migrate !== "function") {
           throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
+        }
+        const { scope } = def as { readonly scope?: unknown };
+        if (scope !== undefined && scope !== "board" && scope !== "user") {
+          throw new Error(`The board option "${def.id}" has the scope ${JSON.stringify(scope)}, where a scope is "board" or "user".`);
         }
         const validate = compile(what, def.schema);
         if (typeof def.default !== "function") {
