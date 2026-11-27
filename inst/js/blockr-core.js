@@ -7430,9 +7430,9 @@ function targetGiven(given) {
     if (given.board === true) return Object.freeze({ board: true });
     const { selection } = given;
     if (Array.isArray(selection) && selection.every(isBoardObject)) {
-      return Object.freeze({ selection: Object.freeze(selection.map((object2) => Object.freeze({ ...object2 }))) });
+      return Object.freeze({ selection: Object.freeze(selection.map((object2) => Object.freeze(internedObject({ ...object2 })))) });
     }
-    if (isBoardObject(given)) return Object.freeze({ ...given });
+    if (isBoardObject(given)) return Object.freeze(internedObject({ ...given }));
   }
   if (isObject(given) && Object.keys(given).length === 2 && Object.hasOwn(given, "block") && Object.hasOwn(given, "input")) {
     const { block, input: input2 } = given;
@@ -12106,7 +12106,7 @@ function objectCopy(object2) {
 function moduleObjectCopy(object2) {
   if ("block" in object2) return { block: object2.block };
   if ("option" in object2) return { option: object2.option };
-  return { plugin: object2.plugin };
+  return { plugin: internedRecord(object2.plugin) };
 }
 function deepFrozen(value2) {
   if (typeof value2 === "object" && value2 !== null) {

@@ -22,7 +22,7 @@ import { listedModules, pluginUi } from "../testing/plugins.ts";
 import { logged } from "../testing/logged.ts";
 import { hello, withOptions, withPlugins } from "../testing/store.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { Notification } from "../types/core-api.ts";
+import type { BoardObject, Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost } from "../types/hosts.ts";
 import { coreNotification, interned } from "../util/index.ts";
 import { createNotifications } from "./notifications.ts";
@@ -433,6 +433,36 @@ describe("the notifications of the modules of packages", () => {
     await s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" });
     await s.settled();
     expect(held(s.core, fromModules)).toEqual([]);
+    s.stop();
+  });
+
+  test("that a block's module raises about a plugin hold the id of the plugin's class as core does, whatever record the module gives", async () => {
+    const hosts: BlockHost[] = [];
+    const s = await stubCore({
+      modules: {
+        [HEAD]: {
+          api: 1,
+          default: {
+            render: ({ host }: { host: BlockHost }) => {
+              hosts.push(host);
+            },
+          },
+        },
+      },
+    });
+    s.core.mountBlock(document.createElement("div"), "b");
+    await s.settled();
+    // The module's record lists the package after the id, where core's ids
+    // list it first. A module in plain JS may give such a record, which the
+    // types refuse.
+    const about = { plugin: { id: FILE.id, package: FILE.package } };
+    hosts[0]?.notify({ severity: "message", code: "saved", message: "Saved the board.", about: about as BoardObject });
+
+    const [notification] = held(s.core, fromModules);
+    expect(notification?.about).toEqual({ plugin: FILE });
+    expect(notification?.about !== undefined && "plugin" in notification.about ? notification.about.plugin : undefined).toBe(FILE);
+    // The module's record stays as the module gave it.
+    expect(Object.isFrozen(about.plugin)).toBe(false);
     s.stop();
   });
 

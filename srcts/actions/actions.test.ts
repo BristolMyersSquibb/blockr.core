@@ -338,6 +338,33 @@ describe("on()", () => {
     s.stop();
   });
 
+  test("hands a board action a plugin's target with the id of the plugin's class as core holds it, whatever record the caller gives", async () => {
+    const got: Target[] = [];
+    const offers = (_board: Board, target: Target): boolean => {
+      got.push(target);
+      return true;
+    };
+    const onPlugin = action("on plugin", ["plugin"], { offers });
+    const onSelection = action("on selection", ["selection"], { offers });
+    const s = await stubbed([listing("notes", [onPlugin, onSelection])]);
+    const notes = interned("blockr.test", "notes_plugin");
+    // The caller's record lists the package after the id, where core's ids
+    // list it first.
+    const given = { plugin: { id: "notes_plugin", package: "blockr.test" } };
+
+    expect(ids(s.core.boardActions.on(given as Target))).toEqual([ofTest(onPlugin)]);
+    expect(ids(s.core.boardActions.on({ selection: [{ block: "b" }, given] } as Target))).toContainEqual(ofTest(onSelection));
+
+    expect(got).toHaveLength(2);
+    expect(got[0]).toEqual({ plugin: notes });
+    expect(got[0] !== undefined && "plugin" in got[0] ? got[0].plugin : undefined).toBe(notes);
+    const selected = got[1] !== undefined && "selection" in got[1] ? got[1].selection : [];
+    expect(selected[1] !== undefined && "plugin" in selected[1] ? selected[1].plugin : undefined).toBe(notes);
+    // The caller's record stays as the caller gave it.
+    expect(Object.isFrozen(given.plugin)).toBe(false);
+    s.stop();
+  });
+
   test("throws for what is no target, as a plugin in plain JS may give", async () => {
     const s = await stubCore();
     const on = (given: unknown) => () => s.core.boardActions.on(given as Target);

@@ -2,22 +2,25 @@
 // of CoreApi would check it: a target, and the element that the user triggered
 // from or in which core renders an advanced action.
 
-import { isBoardObject, isObject } from "../util/index.ts";
+import { internedObject, isBoardObject, isObject } from "../util/index.ts";
 import type { Target } from "./actions.ts";
 
 // The target that a caller gives, copied, so that no board action changes what
 // the next one gets. An input's target takes its block first and its input
 // second, whatever order the caller gives them in, so that two targets of the
-// same input have the same JSON, by which core compares targets. It throws for
-// anything else, as a plugin in plain JS may give.
+// same input have the same JSON, by which core compares targets.
+// A plugin's board object holds the id of the plugin's class as core's table
+// holds it, whatever record the caller gives. So two targets of one plugin
+// have the same JSON too, and === compares the id with core's.
+// It throws for anything else, as a plugin in plain JS may give.
 export function targetGiven(given: unknown): Target {
   if (isObject(given) && Object.keys(given).length === 1) {
     if (given.board === true) return Object.freeze({ board: true });
     const { selection } = given;
     if (Array.isArray(selection) && selection.every(isBoardObject)) {
-      return Object.freeze({ selection: Object.freeze(selection.map((object) => Object.freeze({ ...object }))) });
+      return Object.freeze({ selection: Object.freeze(selection.map((object) => Object.freeze(internedObject({ ...object })))) });
     }
-    if (isBoardObject(given)) return Object.freeze({ ...given });
+    if (isBoardObject(given)) return Object.freeze(internedObject({ ...given }));
   }
   if (isObject(given) && Object.keys(given).length === 2 && Object.hasOwn(given, "block") && Object.hasOwn(given, "input")) {
     const { block, input } = given;

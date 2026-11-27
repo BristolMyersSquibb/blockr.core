@@ -484,10 +484,13 @@ function objectCopy(object: BoardObject): BoardObject {
   return moduleObjectCopy(object);
 }
 
+// A plugin's board object holds the id of the plugin's class as core's table
+// holds it, whatever record the module gave, so that === compares it with
+// core's ids.
 function moduleObjectCopy(object: SourceModule["object"]): SourceModule["object"] {
   if ("block" in object) return { block: object.block };
   if ("option" in object) return { option: object.option };
-  return { plugin: object.plugin };
+  return { plugin: internedRecord(object.plugin) };
 }
 
 function deepFrozen<T>(value: T): T {
