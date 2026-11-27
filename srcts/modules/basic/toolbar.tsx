@@ -56,7 +56,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@blockr/ui";
-import { ChevronDown } from "@blockr/ui/icons";
+import { ChevronDown } from "../../icons/index.ts";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";

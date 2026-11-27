@@ -11,9 +11,9 @@
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { Button, Icon, Text, Toast, ToastContent, ToastRegion } from "@blockr/ui";
-import { X } from "@blockr/ui/icons";
 import type { QueuedToast } from "@blockr/ui";
 import { MARKS, SeverityIcon } from "../../card/index.ts";
+import { X } from "../../icons/index.ts";
 import { useBoard } from "../../react/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Notification } from "../../types/core-api.ts";

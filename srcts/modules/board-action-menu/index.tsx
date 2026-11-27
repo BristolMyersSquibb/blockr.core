@@ -77,9 +77,9 @@ import type { ReactElement, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Autocomplete, Icon, Menu, MenuItem, MenuSection, Popover, Text, TextField } from "@blockr/ui";
-import { SquareArrowUpRightExit } from "@blockr/ui/icons";
 import { Input, Separator, TextField as AriaTextField } from "react-aria-components";
 import type { MenuModule, OpenMenu, ShownLevel, ShownRow } from "../../actions/index.ts";
+import { SquareArrowUpRightExit } from "../../icons/index.ts";
 import { ariaShortcuts, matchesShortcut, onMac, shortcutLabel } from "../../util/index.ts";
 
 export const api = 1;

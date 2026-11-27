@@ -144,14 +144,12 @@ test("bundles the packages that core's code imports into the vendor file, minifi
   expect(await read("import-map.json")).not.toContain(file);
 });
 
-test("bundles into the vendor file the icons that core's code imports from @blockr/ui/icons, and no others, which the files that draw them import by its name", async () => {
+test("bundles the icons that srcts/icons/index.ts lists into the vendor file, and no others, which the files that draw them import by its name", async () => {
   await write({
-    "srcts/runtime/index.ts": 'import { Pin } from "@blockr/ui/icons";\nimport type { IconNode } from "@blockr/ui/icons";\nexport const shape: IconNode = Pin;\n',
-    // An icon under another name of Lucide's, imported under a name of the
-    // module's own.
-    "srcts/modules/note/index.ts": 'import { TriangleAlert as Alert } from "@blockr/ui/icons";\nexport const shape = Alert;\n',
-    // A test is no code that the build bundles.
-    "srcts/modules/note/index.test.ts": 'import { X } from "@blockr/ui/icons";\nexport const shape = X;\n',
+    // An icon under another name of Lucide's, TriangleAlert, among them.
+    "srcts/icons/index.ts": 'export { Pin, TriangleAlert } from "@blockr/ui/icons";\nexport type { IconNode } from "@blockr/ui/icons";\n',
+    "srcts/runtime/index.ts": 'import { Pin } from "../icons/index.ts";\nimport type { IconNode } from "../icons/index.ts";\nexport const shape: IconNode = Pin;\n',
+    "srcts/modules/note/index.ts": 'import { TriangleAlert as Alert } from "../../icons/index.ts";\nexport const shape = Alert;\n',
   });
 
   await build(root);
@@ -170,21 +168,12 @@ test("bundles into the vendor file the icons that core's code imports from @bloc
   expect(runtime.shape).toEqual(Pin);
 });
 
-test("fails where core's code imports @blockr/ui/icons without naming the icons that it takes, since the vendor file holds those that it names alone", async () => {
+test("fails where one of core's files imports @blockr/ui/icons itself, rather than from srcts/icons/index.ts, through the vendor check", async () => {
   await write({
-    "srcts/runtime/index.ts": 'import * as icons from "@blockr/ui/icons";\nexport const shape = icons.Pin;\n',
+    "srcts/icons/index.ts": 'export { Pin } from "@blockr/ui/icons";\n',
+    "srcts/runtime/index.ts": 'import { X } from "@blockr/ui/icons";\nexport const shape = X;\n',
   });
-
-  await expect(build(root)).rejects.toThrow(
-    'srcts/runtime/index.ts imports @blockr/ui/icons without naming the icons that it takes. Import each icon by its name, as in import { Pin } from "@blockr/ui/icons".',
-  );
-});
-
-test("fails where core's code imports @blockr/ui/icons with import(), through the vendor check, since the build cannot tell which icons such an import takes", async () => {
-  await write({
-    "srcts/runtime/index.ts": 'import { Pin } from "@blockr/ui/icons";\nexport const shape = Pin;\nexport const later = async () => (await import("@blockr/ui/icons")).X;\n',
-  });
-  // The preset resolves such an import from the code's own directory, as in
+  // The preset resolves the import from the file's own directory, as in
   // core's repo, whose node_modules holds blockr.ui's entries and Lucide.
   await mkdir(join(root, "node_modules/@blockr"), { recursive: true });
   await symlink(join(repo, "node_modules/@blockr/ui"), join(root, "node_modules/@blockr/ui"));

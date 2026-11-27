@@ -5,7 +5,6 @@ import { createRoot as createRoot2 } from "react-dom/client";
 // srcts/modules/basic/board.tsx
 import { useCallback as useCallback6, useMemo as useMemo2, useState as useState8 } from "react";
 import { Button as Button4, Icon as Icon4, Text as Text3, Toast, ToastContent, ToastRegion } from "@blockr/ui";
-import { X } from "./vendor-64fbb1b0.js";
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
@@ -194,6 +193,7 @@ function useSized(status) {
 }
 
 // srcts/modules/basic/board.tsx
+import { X } from "./vendor-64fbb1b0.js";
 import { useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/ui/blocks.tsx

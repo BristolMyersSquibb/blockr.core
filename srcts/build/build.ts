@@ -20,8 +20,9 @@
 //   @preact/signals-core and the JSON Schema validator of @cfworker/json-schema,
 //   are bundled, minified, into one file, vendor-<hash>.js, since the page
 //   loads all of them up front.
-//   The icons of Lucide that core's code imports from `@blockr/ui/icons` go
-//   into that file as well, and no others of the entry's icons.
+//   The icons of Lucide that core's UIs draw, which srcts/icons/index.ts
+//   lists from `@blockr/ui/icons`, go into that file as well, and no others
+//   of the entry's icons.
 //   The runtime, the modules and the SDK, the binding, the controls and the
 //   OpenTelemetry module import them from that file by its name.
 //   So blockr-core.js holds core's own code alone, and the page runs one copy
@@ -261,74 +262,29 @@ function licensedSources(metafile: esbuild.Metafile, dir: string): Map<string, s
 // fails the build.
 const VENDOR_IMPORTS = ["@preact/signals-core", "@cfworker/json-schema"] as const;
 
-// The entry of blockr.ui that offers each icon of Lucide's, from which core's
-// code imports the icons that it draws
+// The module of core's code that lists the icons of Lucide that core's UIs
+// draw, from @blockr/ui/icons, which offers some 2,100 of them, and the one
+// module that imports them
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.3#the-icons).
-// The entry offers some 2,100 icons, so the build bundles into
-// vendor-<hash>.js only those that core's code imports, which iconImports()
-// finds by their names.
-const ICONS = "@blockr/ui/icons";
-
-// The icons that core's code imports from ICONS, by their names there, in the
-// order of their names. The code is that of each source in srcts but the
-// tests.
-// A source names each icon that it imports, so that the build knows which
-// icons to bundle. The build fails for a source that imports ICONS without
-// naming them, as with `import * as icons`.
-async function iconImports(src: string): Promise<string[]> {
-  const names = new Set<string>();
-  const files = (await readdir(src, { recursive: true })).filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file));
-  for (const file of files) {
-    const text = await readFile(join(src, file), "utf8");
-    if (!text.includes(ICONS)) continue;
-    for (const statement of ts.createSourceFile(file, text, ts.ScriptTarget.Latest).statements) {
-      const taken = iconsTaken(statement);
-      if (taken === undefined) {
-        throw new Error(
-          `srcts/${file} imports ${ICONS} without naming the icons that it takes. Import each icon by its name, as in import { Pin } from "${ICONS}".`,
-        );
-      }
-      for (const name of taken) names.add(name);
-    }
-  }
-  return [...names].sort();
+// The build bundles what it exports into vendor-<hash>.js, so that the vendor
+// file holds those icons alone, and core's own files import them from there.
+function iconsEntry(src: string): string {
+  return join(src, "icons", "index.ts");
 }
 
-// The icons that a statement of a source takes from ICONS, by their names
-// there: those that an import or an export from ICONS names. A statement of
-// another kind, or one that takes types alone, takes none. Undefined stands
-// for an import or an export from ICONS that names no icons, as
-// `import * as icons`, a default import or `export *`.
-function iconsTaken(statement: ts.Statement): string[] | undefined {
-  if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) return [];
-  const from = statement.moduleSpecifier;
-  if (from === undefined || !ts.isStringLiteral(from) || from.text !== ICONS) return [];
-  let named: ts.NamedImports | ts.NamedExports | undefined;
-  if (ts.isImportDeclaration(statement)) {
-    const clause = statement.importClause;
-    if (clause?.phaseModifier === ts.SyntaxKind.TypeKeyword) return [];
-    const bindings = clause?.name === undefined ? clause?.namedBindings : undefined;
-    named = bindings !== undefined && ts.isNamedImports(bindings) ? bindings : undefined;
-  } else {
-    if (statement.isTypeOnly) return [];
-    const clause = statement.exportClause;
-    named = clause !== undefined && ts.isNamedExports(clause) ? clause : undefined;
-  }
-  return named?.elements.flatMap((element) => (element.isTypeOnly ? [] : [(element.propertyName ?? element.name).text]));
-}
-
-// Bundles the packages that VENDOR_IMPORTS names, and the icons of ICONS that
-// `icons` names, into one minified file in `out`, as vendor-3f2a9c1d.js, and
-// returns its name and what it holds from other projects.
-// The file exports the names of the packages as they are, and the icons by
-// their names, which core's code imports.
-async function vendorBundle(out: string, icons: readonly string[]): Promise<{ file: string; sources: string[] }> {
+// Bundles the packages that VENDOR_IMPORTS names, and the icons that
+// srcts/icons/index.ts exports, where srcts holds that file, into one minified
+// file in `out`, as vendor-3f2a9c1d.js, and returns its name and what it holds
+// from other projects.
+// The file exports the names of the packages and of the icons as they are,
+// which core's code imports.
+async function vendorBundle(src: string, out: string): Promise<{ file: string; sources: string[] }> {
+  const icons = iconsEntry(src);
   return vendored(out, "vendor", {
     stdin: {
-      contents: [
-        ...VENDOR_IMPORTS.map((name) => `export * from ${JSON.stringify(name)};`),
-        ...(icons.length === 0 ? [] : [`export { ${icons.join(", ")} } from ${JSON.stringify(ICONS)};`]),
-      ].join("\n"),
+      contents: [...VENDOR_IMPORTS, ...(existsSync(icons) ? [icons] : [])]
+        .map((name) => `export * from ${JSON.stringify(name)};`)
+        .join("\n"),
       resolveDir: repo,
       loader: "js",
     },
@@ -336,25 +292,22 @@ async function vendorBundle(out: string, icons: readonly string[]): Promise<{ fi
   });
 }
 
-// Leaves each import of a package that VENDOR_IMPORTS names an import of the
-// vendor file, `file`, by its name beside the file that imports it, and each
-// import of ICONS too, where the file holds icons.
+// Leaves each import of a package that VENDOR_IMPORTS names, and each import
+// of srcts/icons/index.ts, an import of the vendor file, `file`, by its name
+// beside the file that imports it.
 // The packages have no side effects, as their package.json files say, and
 // neither have the icons.
 // So a file that imports none of their names, as from code of core's that it
 // bundles, keeps no import of the vendor file.
-// A dynamic import of ICONS is left to the preset, which bundles the icons
-// into the file that imports them, so that the vendor check fails the build,
-// since the build cannot tell which icons such an import takes.
-function vendorImports(file: string, icons: readonly string[]): esbuild.Plugin {
-  const names: readonly string[] = [...VENDOR_IMPORTS, ...(icons.length === 0 ? [] : [ICONS])];
+function vendorImports(src: string, file: string): esbuild.Plugin {
+  const names: readonly string[] = VENDOR_IMPORTS;
+  const icons = iconsEntry(src);
   const vendor = { path: `./${file}`, external: true, sideEffects: false };
   return {
     name: "blockr.core-vendor-imports",
     setup(build) {
-      build.onResolve({ filter: /^[^./]/ }, (args) =>
-        names.includes(args.path) && !(args.path === ICONS && args.kind === "dynamic-import") ? vendor : undefined,
-      );
+      build.onResolve({ filter: /^[^./]/ }, (args) => (names.includes(args.path) ? vendor : undefined));
+      build.onResolve({ filter: /^\.\.?\// }, (args) => (resolve(args.resolveDir, args.path) === icons ? vendor : undefined));
     },
   };
 }
@@ -454,9 +407,8 @@ export async function build(root: string): Promise<string[]> {
     logLevel: "warning",
     metafile: true,
   } satisfies esbuild.BuildOptions;
-  const icons = await iconImports(src);
-  const vendor = await vendorBundle(out, icons);
-  const plugins = (own?: Import) => [vendorImports(vendor.file, icons), sourceImports(src, own), ...preset.plugins, vendorCheck];
+  const vendor = await vendorBundle(src, out);
+  const plugins = (own?: Import) => [vendorImports(src, vendor.file), sourceImports(src, own), ...preset.plugins, vendorCheck];
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
   const otel = await otelSdk(src, out);
   const sdk = otel?.file;

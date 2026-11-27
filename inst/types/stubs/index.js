@@ -8411,12 +8411,30 @@ import { useRef as useRef2, useState as useState6 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Button as Button2, Icon as Icon2, TextField } from "@blockr/ui";
-import { Ellipsis } from "@blockr/ui/icons";
 
 // srcts/card/footer.tsx
 import { useCallback as useCallback2, useId, useState as useState4 } from "react";
 import { Icon } from "@blockr/ui";
-import { CircleX, Info, TriangleExclamationPoint } from "@blockr/ui/icons";
+
+// srcts/icons/index.ts
+import {
+  ArrowUp,
+  Box,
+  ChevronDown,
+  CircleX,
+  Ellipsis,
+  File as File2,
+  Folder,
+  Info,
+  Layers,
+  Link,
+  SquareArrowUpRightExit,
+  Trash,
+  TriangleExclamationPoint,
+  X
+} from "@blockr/ui/icons";
+
+// srcts/card/footer.tsx
 import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
 function useFooter(status, notifications) {
@@ -9286,7 +9304,6 @@ function without3(errors, key2) {
 
 // srcts/actions/icons.ts
 import { iconMarkup } from "@blockr/ui";
-import { Box, Layers, Link, Trash } from "@blockr/ui/icons";
 var BLOCK = iconMarkup(Box);
 var LINK = iconMarkup(Link);
 var STACK = iconMarkup(Layers);
@@ -9515,7 +9532,6 @@ function copyCommand(doc, text) {
 import { useState as useState9 } from "react";
 import { flushSync as flushSync4 } from "react-dom";
 import { Button as Button4, ComboBox as ComboBox2, Form as Form2, GridList, GridListItem, Icon as Icon3, TextField as TextField3, useDragAndDrop } from "@blockr/ui";
-import { X } from "@blockr/ui/icons";
 import { jsx as jsx10, jsxs as jsxs6 } from "react/jsx-runtime";
 var ADD_LINK = "blockr.core-add_link";
 var CHANGE_LINK = "blockr.core-change_link";
@@ -13114,7 +13130,6 @@ import { createRoot as createRoot4 } from "react-dom/client";
 // srcts/modules/basic/board.tsx
 import { useCallback as useCallback7, useMemo as useMemo4, useState as useState13 } from "react";
 import { Button as Button9, Icon as Icon5, Text as Text4, Toast, ToastContent, ToastRegion } from "@blockr/ui";
-import { X as X2 } from "@blockr/ui/icons";
 
 // srcts/modules/basic/card.tsx
 import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect3, useRef as useRef4, useSyncExternalStore as useSyncExternalStore3 } from "react";
@@ -13502,7 +13517,6 @@ import {
   Tooltip,
   TooltipTrigger
 } from "@blockr/ui";
-import { ChevronDown } from "@blockr/ui/icons";
 
 // srcts/modules/basic/storage.ts
 var KINDS3 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -13817,7 +13831,7 @@ function ToastItem({ toast, title }) {
         }
       ) }) : null
     ] }),
-    /* @__PURE__ */ jsx19(Button9, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx19(Icon5, { icon: X2 }) })
+    /* @__PURE__ */ jsx19(Button9, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx19(Icon5, { icon: X }) })
   ] });
 }
 var LEFT = {

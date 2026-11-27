@@ -14,8 +14,8 @@ import type { ReactElement, ReactNode, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Button, Icon, TextField } from "@blockr/ui";
-import { Ellipsis } from "@blockr/ui/icons";
 import { MARKS, SeverityIcon } from "../card/index.ts";
+import { Ellipsis } from "../icons/index.ts";
 import type { Refused } from "./edits.ts";
 
 export const classes = {

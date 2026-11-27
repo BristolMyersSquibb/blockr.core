@@ -43,8 +43,8 @@
 import { useCallback, useId, useState } from "react";
 import type { ReactElement } from "react";
 import { Icon } from "@blockr/ui";
-import { CircleX, Info, TriangleExclamationPoint } from "@blockr/ui/icons";
-import type { IconNode } from "@blockr/ui/icons";
+import { CircleX, Info, TriangleExclamationPoint } from "../icons/index.ts";
+import type { IconNode } from "../icons/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { Notification, Severity } from "../types/core-api.ts";
 

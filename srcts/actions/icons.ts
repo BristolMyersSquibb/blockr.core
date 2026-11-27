@@ -1,8 +1,8 @@
 // The icons of core's board actions and of the rows of their quick actions,
 // SVG markup in the colour of the text around it, as a menu shows a row's icon
 // and a toolbar's button shows a board action's.
-// Each icon is Lucide's, from @blockr/ui/icons, and blockr.ui's iconMarkup()
-// writes it as markup
+// Each icon is Lucide's, from the icons that core draws (../icons/index.ts),
+// and blockr.ui's iconMarkup() writes it as markup
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.3#the-icons).
 // The swatch of a stack's colour draws no icon, and stays core's own.
 // A board action that adds something shows what it adds, so that a menu of a
@@ -11,7 +11,7 @@
 // layers as well. The board actions that remove show a bin.
 
 import { iconMarkup } from "@blockr/ui";
-import { Box, Layers, Link, Trash } from "@blockr/ui/icons";
+import { Box, Layers, Link, Trash } from "../icons/index.ts";
 
 // The icon of the board actions that add a block.
 export const BLOCK = iconMarkup(Box);

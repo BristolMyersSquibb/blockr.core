@@ -23,8 +23,8 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Icon, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
-import { ArrowUp, File, Folder } from "@blockr/ui/icons";
-import type { IconNode } from "@blockr/ui/icons";
+import { ArrowUp, File, Folder } from "../../icons/index.ts";
+import type { IconNode } from "../../icons/index.ts";
 import { reactModule, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";

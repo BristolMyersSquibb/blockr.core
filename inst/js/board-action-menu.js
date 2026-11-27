@@ -3,8 +3,8 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Autocomplete, Icon, Menu, MenuItem, MenuSection, Popover, Text, TextField } from "@blockr/ui";
-import { SquareArrowUpRightExit } from "./vendor-64fbb1b0.js";
 import { Input, Separator, TextField as AriaTextField } from "react-aria-components";
+import { SquareArrowUpRightExit } from "./vendor-64fbb1b0.js";
 
 // srcts/util/shortcuts.ts
 function matchesShortcut(text, event) {

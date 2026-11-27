@@ -1,7 +1,7 @@
 // The icon that an element shows, for the tests of UIs that draw Lucide's
 // icons with blockr.ui's Icon.
 
-import type { IconNode } from "@blockr/ui/icons";
+import type { IconNode } from "../icons/index.ts";
 
 // The shape of the first svg in the element given, or of the element itself
 // where it is one: each element of the svg as its tag with its attributes,
