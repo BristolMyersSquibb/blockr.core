@@ -1038,6 +1038,7 @@
   Every function of core's takes an ID as such an object, and a package gets the object for a pair from `core.id()`, as `core.id("blockr.dock", "dock_plugin")`, or a block's UI from its host's `id()`.
   Only JSON holds an ID as a plain record, as a JSON board does, and so does a plugin's state, which a package turns into objects with `core.id()` as it reads it.
   A plugin names its own steps by the ID of its class, which an origin may be beside a string, so that `store.undo()` and a reader of the store's changes find the plugin by `===`.
+  For a package's tests, `@blockr/core/stubs` exports `id()`, which gives the objects that its stubs give.
   A plugin class's module defines its commands and its board actions by their IDs alone, and core registers them under the package of the class.
   A batch names each command by its ID, as `{ id: core.id("blockr.core", "add_block"), args }`, `core.boardActions.trigger()` takes a board action's ID or a role's ID, a string, and a role's `default` names a board action of its own class by its ID alone.
   The blockr options `board_actions` and `board_action_menu` name a board action and a module as `list(package = , id = )`.

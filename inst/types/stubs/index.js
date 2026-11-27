@@ -5855,6 +5855,12 @@ function modifyFields(old, mod) {
 }
 
 // srcts/store/delta.ts
+function isOrigin(x) {
+  return typeof x === "string" || isIdRecord(x);
+}
+function originOf(given) {
+  return typeof given === "object" && isIdRecord(given) ? internedRecord(given) : given;
+}
 function isDeltas(delta) {
   return Array.isArray(delta);
 }
@@ -6639,8 +6645,9 @@ function createStore(options = {}) {
     if (failures.length > 0) throw new StoreError(refused2, failures);
     return { start: start3, ...run(start3, deltas, how, refused2) };
   }
-  function apply(delta, origin = "user", opts = {}) {
+  function apply(delta, by = "user", opts = {}) {
     guard2();
+    const origin = originOf(by);
     const given = isDeltas(delta) ? delta : [delta];
     if (given.length === 0) return false;
     const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
@@ -6673,8 +6680,9 @@ function createStore(options = {}) {
       busy = was;
     }
   }
-  function revert(back, origin) {
+  function revert(back, by) {
     guard2();
+    const origin = originOf(by);
     const { undo, redo } = history.value;
     const at = back ? lastStepIndex(undo, origin) : redo.length - 1;
     const step2 = (back ? undo : redo)[at];
@@ -6863,7 +6871,7 @@ function createStore(options = {}) {
     redo: () => {
       revert(false);
     },
-    canUndo: (origin) => lastStepIndex(history.value.undo, origin) >= 0,
+    canUndo: (origin) => lastStepIndex(history.value.undo, originOf(origin)) >= 0,
     canRedo: () => history.value.redo.length > 0,
     plugins: registrations.plugins,
     options: registrations.options,
@@ -7596,7 +7604,7 @@ function createCommands(store, options = {}) {
     const attributes = {
       "blockr.command.packages": names.map((name2) => name2?.package),
       "blockr.command.ids": names.map((name2) => name2?.id),
-      "blockr.delta.origin": origin
+      ...originAttributes(origin)
     };
     return traced("command batch", attributes, () => planned(batch2, (built) => byStore(void 0, () => store.apply(built, origin))));
   }
@@ -7652,11 +7660,12 @@ function createCommands(store, options = {}) {
     // A batch comes with its origin second, in place of the args, and its
     // options third, in place of the origin. The command registry ignores the
     // notifier in the options, which CoreApi acts on (../core/core.ts).
-    async run(target2, given, third) {
-      if (isBatch(target2)) return runBatch(target2, typeof given === "string" ? given : "user");
-      const origin = typeof third === "string" ? third : "user";
+    async run(target2, second, third) {
+      if (isBatch(target2)) return runBatch(target2, isOrigin(second) ? second : "user");
+      const given = second;
+      const origin = isOrigin(third) ? third : "user";
       const named5 = nameOf(target2);
-      const attributes = { ...named5 === void 0 ? {} : idAttributes("blockr.command.id", named5), "blockr.delta.origin": origin };
+      const attributes = { ...named5 === void 0 ? {} : idAttributes("blockr.command.id", named5), ...originAttributes(origin) };
       return traced(`command ${named5 === void 0 ? "unnamed" : named5.id}`, attributes, async () => {
         const within = keepContext();
         const { item: item2, args } = lookup(target2, given);
@@ -7678,6 +7687,9 @@ function createCommands(store, options = {}) {
 }
 function nameOf(name2) {
   return isIdRecord(name2) ? interned(name2.package, name2.id) : void 0;
+}
+function originAttributes(origin) {
+  return typeof origin === "string" ? { "blockr.delta.origin": origin } : idAttributes("blockr.delta.origin", origin);
 }
 function isBatch(target2) {
   return Array.isArray(target2);
@@ -12133,13 +12145,13 @@ function refusing(store, commands, refused2) {
       ...commands,
       // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
-      run(target2, given, third, fourth) {
+      run(target2, second, third, fourth) {
         if (!Array.isArray(target2)) {
-          const origin = typeof third === "string" ? third : void 0;
-          return ran(fourth, () => commands.run(target2, given, origin));
+          const origin = isOrigin(third) ? third : void 0;
+          return ran(fourth, () => commands.run(target2, second, origin));
         }
-        const batchOrigin = typeof given === "string" ? given : void 0;
-        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, batchOrigin));
+        const batchOrigin = isOrigin(second) ? second : void 0;
+        return ran(isOrigin(third) ? void 0 : third, () => commands.run(target2, batchOrigin));
       }
     }
   };
@@ -16701,6 +16713,7 @@ export {
   HELLO,
   INFO,
   READY,
+  interned as id,
   menuModuleTests,
   mount,
   stubBlockHost,

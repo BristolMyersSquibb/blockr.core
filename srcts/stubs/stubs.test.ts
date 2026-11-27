@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import type { BlockHost, BlockModule, OptionHost } from "../types/hosts.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
-import { mount, READY, stubBlockHost, stubOptionHost, stubOutputHost } from "./index.ts";
+import { id, mount, READY, stubBlockHost, stubCore, stubOptionHost, stubOutputHost } from "./index.ts";
 import type { BlockFixture } from "./index.ts";
 import { interned } from "../util/index.ts";
 
@@ -154,6 +154,21 @@ describe("the stub of a block's host", () => {
     expect(host.evaluated).toEqual([{ save: true }, {}]);
     await expect(host.module(interned("blockr.dplyr", "filter"))).resolves.toBe(filter);
     await expect(host.module(interned("blockr.dplyr", "select"))).rejects.toThrow('blockr.dplyr offers no module "select".');
+  });
+});
+
+describe("id()", () => {
+  test("gives the ids that the stubs give, which === compares, for what a test builds without a stub of core", async () => {
+    const head = id("blockr.core", "head_block");
+    expect(head).toBe(id("blockr.core", "head_block"));
+    expect(head).toStrictEqual({ package: "blockr.core", id: "head_block" });
+    // A block's host gives the same objects through its own id(), and so does
+    // a stub of core, whose block registry finds the id.
+    expect(stubBlockHost(datasets).id("blockr.core", "head_block")).toBe(head);
+    const { core, stop } = await stubCore();
+    expect(core.id("blockr.core", "head_block")).toBe(head);
+    expect(core.blockRegistry().has(head)).toBe(true);
+    stop();
   });
 });
 
