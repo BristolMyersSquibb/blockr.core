@@ -1,15 +1,17 @@
 // The module that draws every menu of board actions, as Board actions has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#what-a-frontend-gives).
-// The blockr option board_action_menu names it by its id, as a module that a
-// package offers others.
-// Core's own menu is such a module, blockr.core-board_action_menu, which draws
+// The blockr option board_action_menu names it by its package and its id, as
+// a module that a package offers others, as an R option gives them, or as
+// their JSON, as an environment variable gives it.
+// Core's own menu is such a module, board_action_menu of blockr.core, which draws
 // with the components of core's React SDK, and the blockr option names it
 // unless the app names another (../modules/board-action-menu).
 // So an app that draws with a UI kit other than blockr.ui's draws the menus of
 // board actions with that kit too.
 // Core asks R for the blockr option as soon as R has answered hello, and loads
 // the module as each board opens, once per page (../core/start.ts).
-// Core opens no board where the blockr option names no module by its id, or
+// Core opens no board where the blockr option names no module by its package
+// and id, or
 // names one that no package offers, that fails to load, that declares another
 // major of core's JS API, or whose default export has no render().
 // It shows in place of the board an error that names the blockr option and the
@@ -37,7 +39,8 @@ import type { Loader } from "../mount/index.ts";
 import { mountableModule } from "../mount/index.ts";
 import type { Json } from "../types/json.ts";
 import { log } from "../log/index.ts";
-import { errorMessage, packageFromId } from "../util/index.ts";
+import type { ModuleId } from "../types/board.ts";
+import { errorMessage, idText, interned, isIdRecord, isObject } from "../util/index.ts";
 import type { MenuPlace, ShowMenu } from "./actions.ts";
 import type { DrivenMenu, OpenMenu } from "./quick.ts";
 
@@ -53,29 +56,45 @@ export interface MenuModule {
 // The blockr option that names the module, and the id of core's own menu,
 // which it names unless the app names another.
 export const MENU_OPTION = "board_action_menu";
-export const CORE_MENU = "blockr.core-board_action_menu";
+export const CORE_MENU: ModuleId = interned("blockr.core", "board_action_menu");
 
 // Loads the module that the blockr option names, from its value as R sent it,
 // and resolves with what draws each menu with that module.
 // It rejects with why core opens no board, as for a module that no package
 // offers.
 export async function menuModule(loader: Pick<Loader, "module">, value: Json | undefined): Promise<ShowMenu> {
-  if (value !== undefined && (typeof value !== "string" || value === "")) {
+  const named = value === undefined ? CORE_MENU : menuOf(value);
+  if (named === undefined) {
     throw new Error(
-      `Core opens no board, since the blockr option ${MENU_OPTION} names no module by its id, as "${CORE_MENU}", but holds ${JSON.stringify(value)}.`,
+      `Core opens no board, since the blockr option ${MENU_OPTION} names no module by its package and id, as ${JSON.stringify(CORE_MENU)}, but holds ${JSON.stringify(value)}.`,
     );
   }
-  const id = value ?? CORE_MENU;
+  const id = interned(named.package, named.id);
   let module: MenuModule;
   try {
-    module = mountableModule<Parameters<MenuModule["render"]>[0]>(await loader.module(id), id, packageFromId(id)) as unknown as MenuModule;
+    module = mountableModule<Parameters<MenuModule["render"]>[0]>(await loader.module(id), id.id, id.package) as unknown as MenuModule;
   } catch (error) {
     throw new Error(
-      `Core opens no board, since it cannot draw the menus of board actions with the module "${id}" that the blockr option ${MENU_OPTION} names. ${errorMessage(error)}`,
+      `Core opens no board, since it cannot draw the menus of board actions with the module "${idText(id)}" that the blockr option ${MENU_OPTION} names. ${errorMessage(error)}`,
       { cause: error },
     );
   }
-  return drawWith(module, id);
+  return drawWith(module, idText(id));
+}
+
+// The package and the id that the value of the blockr option names: an object
+// of the two, as an R option gives it, or the text of its JSON, as an
+// environment variable gives it, or undefined for anything else.
+function menuOf(value: Json): { readonly package: string; readonly id: string } | undefined {
+  let given: unknown = value;
+  if (typeof value === "string") {
+    try {
+      given = JSON.parse(value);
+    } catch {
+      return undefined;
+    }
+  }
+  return isObject(given) && isIdRecord(given) ? { package: given.package, id: given.id } : undefined;
 }
 
 // What draws each menu with the module given, whose id, where given, names it

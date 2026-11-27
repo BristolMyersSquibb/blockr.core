@@ -5,6 +5,7 @@ import type {
   Reply,
   TransportListener,
 } from "../protocol/index.ts";
+import { interned } from "../util/index.ts";
 import { shinyTransport } from "./shiny.ts";
 import type { ShinyApi } from "./shiny.ts";
 
@@ -95,7 +96,7 @@ const evaluate: EvaluateRequest = {
   block: "a",
   revision: 2,
   locked: null,
-  recipe: { registry_id: "blockr.core-dataset_block", state: {}, inputs: [] },
+  recipe: { registry_id: interned("blockr.core", "dataset_block"), state: {}, inputs: [] },
 };
 
 describe("the Shiny transport", () => {

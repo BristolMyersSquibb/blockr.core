@@ -186,7 +186,7 @@ output_sample <- function(description, coercion, result, options = list(),
     `js/basic-text.js` = "blockr.core/basic-text.js?v=3c8f61d0",
     `js/basic-plot.js` = "blockr.core/basic-plot.js?v=f19d4a73"
   )
-  renderer <- list(id = drawn$id, module = urls[[drawn$module$path]])
+  renderer <- c(renderer_ref(drawn), list(module = urls[[drawn$module$path]]))
 
   res <- list(
     description = description,

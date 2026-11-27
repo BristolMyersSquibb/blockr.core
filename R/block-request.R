@@ -159,7 +159,8 @@ new_block_request <- function(fun, options = NULL, volatile = FALSE,
   )
 }
 
-#' @param x A registry id or a block class
+#' @param x A block class, or the registry id of one that the block registry
+#'   holds, as [registry_id_from_block()] gives it
 #' @param name The name of the request
 #' @param inputs Upstream results by data input
 #' @param args Values of the state args and parameters by name
@@ -189,7 +190,7 @@ block_request_call <- function(x, name, inputs, args, options, file = NULL,
 
   req <- cls[["requests"]][[name]]
 
-  bound <- if (is_string(x)) {
+  bound <- if (is_pkg_ref(x)) {
     get_registry_entry(x, registry)[["requests"]][[name]][["options"]]
   } else {
     request_option_ids(req)

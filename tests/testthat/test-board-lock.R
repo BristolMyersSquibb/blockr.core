@@ -116,7 +116,7 @@ test_that("with both locks, R evaluates an open block by its opening links", {
 
   # So does the class, whatever registry id the request names.
   recipe <- locked_recipe_b(n = 2L)
-  recipe$registry_id <- "blockr.core-subset_block"
+  recipe$registry_id <- pkg_ref("blockr.core", "subset_block")
   reply <- evaluated(session, "5", "b", 4L, recipe)
   expect_identical(reply$summary, "<data.frame> [2 × 5]")
 })
@@ -160,7 +160,11 @@ test_that("with both locks, R builds a locked block's expression once", {
       id = "counted",
       name = "Counted",
       blocks = obj(
-        a = proto_block("blockr.test-counted_block", obj(n = 3L), "Counted")
+        a = proto_block(
+          pkg_ref("blockr.test", "counted_block"),
+          obj(n = 3L),
+          "Counted"
+        )
       ),
       links = obj(),
       stacks = obj(),
@@ -170,7 +174,7 @@ test_that("with both locks, R builds a locked block's expression once", {
   )
 
   recipe <- list(
-    registry_id = "blockr.test-counted_block",
+    registry_id = pkg_ref("blockr.test", "counted_block"),
     state = list(n = 3L),
     inputs = list()
   )
@@ -200,7 +204,7 @@ test_that("with both locks, R keeps what building a locked block signalled", {
       name = "Unset",
       blocks = obj(
         a = proto_block(
-          "blockr.core-dataset_block",
+          pkg_ref("blockr.core", "dataset_block"),
           obj(package = "datasets"),
           "Data"
         )
@@ -238,18 +242,18 @@ test_that("with both locks, a broken locked block stops the app", {
         name = "Broken",
         blocks = obj(
           a = proto_block(
-            "blockr.core-dataset_block",
+            pkg_ref("blockr.core", "dataset_block"),
             obj(dataset = "iris", package = "datasets"),
             "Iris"
           ),
           d = proto_block(
-            "blockr.core-subset_block",
+            pkg_ref("blockr.core", "subset_block"),
             obj(subset = "Sepal.Length >", select = ""),
             "Filter",
             locked = locked
           ),
           e = proto_block(
-            "blockr.core-subset_block",
+            pkg_ref("blockr.core", "subset_block"),
             obj(subset = "Sepal.Width >", select = ""),
             "Other filter",
             locked = locked
@@ -293,11 +297,11 @@ test_that("with both locks, R takes the parameters from the request", {
       name = "Writes",
       blocks = obj(
         a = proto_block(
-          "blockr.core-dataset_block",
+          pkg_ref("blockr.core", "dataset_block"),
           obj(dataset = "iris", package = "datasets"),
           "Iris"
         ),
-        w = proto_block("blockr.io-write_block", obj(), "Write")
+        w = proto_block(pkg_ref("blockr.io", "write_block"), obj(), "Write")
       ),
       links = obj(aw = proto_link("a", "w", "")),
       stacks = obj(),
@@ -314,7 +318,7 @@ test_that("with both locks, R takes the parameters from the request", {
   )
 
   recipe <- list(
-    registry_id = "blockr.io-write_block",
+    registry_id = pkg_ref("blockr.io", "write_block"),
     state = set_names(list(), character()),
     inputs = list(recipe_input("a", 1L, ""))
   )
@@ -364,9 +368,9 @@ test_that("with both locks, R refuses a JSON board it cannot read", {
       id = "older",
       name = "Older",
       blocks = obj(
-        a = proto_block("blockr.foo-bar_block", obj(), "Bar"),
+        a = proto_block(pkg_ref("blockr.foo", "bar_block"), obj(), "Bar"),
         b = proto_block(
-          "blockr.core-head_block",
+          pkg_ref("blockr.core", "head_block"),
           obj(n = 6L, direction = "head"),
           "Head"
         )
@@ -385,9 +389,9 @@ test_that("with both locks, R refuses a JSON board it cannot read", {
   expect_error(
     lock_board(text),
     paste0(
-      "It cannot read block \"a\", whose class blockr.foo-bar_block the block ",
-      "registry lacks and block \"b\", whose state is at version 2, where its ",
-      "class is at version 1."
+      "It cannot read block \"a\", whose class bar_block of blockr.foo the ",
+      "block registry lacks and block \"b\", whose state is at version 2, ",
+      "where its class is at version 1."
     ),
     fixed = TRUE,
     class = "locked_board_unreadable"

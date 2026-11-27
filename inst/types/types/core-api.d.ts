@@ -3,7 +3,7 @@ import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Delta, Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
+import type { BlockId, BoardActionId, LinkId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
@@ -20,14 +20,20 @@ export interface CoreApi {
             notifier?(notifications: readonly Notification[], action: BoardAction): void;
             advanced?: FrontendModule["advanced"];
         }): void;
-        trigger(id: string, target: Target, opts: {
+        trigger(id: {
+            readonly package: string;
+            readonly id: string;
+        } | string, target: Target, opts: {
             el: HTMLElement;
             anchor?: DOMRect;
             extend?(deltas: readonly Delta[]): readonly CommandCall[];
             notifier?(notifications: readonly Notification[], action: BoardAction): void;
             advanced?: FrontendModule["advanced"];
         }): Promise<void>;
-        mountAdvanced(el: HTMLElement, id: string, target: Target, picked?: Json): () => void;
+        mountAdvanced(el: HTMLElement, id: {
+            readonly package: string;
+            readonly id: string;
+        } | string, target: Target, picked?: Json): () => void;
     };
     readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
     blockRegistry(): BlockRegistry;
@@ -35,7 +41,7 @@ export interface CoreApi {
         value(option: OptionId): Json | undefined;
     };
     readonly plugins: {
-        appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
+        appPlugins(): ReadonlyMap<PluginClassId, Plugin>;
         pluginClass(plugin: PluginClassId): PluginClass;
         storage(): Storage | undefined;
     };
@@ -64,7 +70,10 @@ export interface CoreApi {
         readonly plugin: PluginClassId;
     }): Promise<void>;
     request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
-    module<T = unknown>(id: string): Promise<T>;
+    module<T = unknown>(id: {
+        readonly package: string;
+        readonly id: string;
+    }): Promise<T>;
     blockrOption(name: string): Promise<Json | undefined>;
     mintId(taken: (id: string) => boolean): string;
     mountBlock(el: HTMLElement, block: BlockId): () => void;
@@ -103,7 +112,7 @@ export interface SourceModule {
     } | {
         readonly option: OptionId;
     };
-    readonly renderer?: string;
+    readonly renderer?: RendererId;
     readonly package?: string;
 }
 export interface RSource {
@@ -170,7 +179,7 @@ export interface FrontendModule {
         core: CoreApi;
     }): void | Promise<void>;
     advanced?(args: {
-        readonly id: string;
+        readonly id: BoardActionId;
         readonly title: string;
         readonly target: Target;
         readonly mount: (el: HTMLElement, target?: Target) => () => void;
@@ -191,7 +200,7 @@ export interface OnScreen {
         readonly plugins: readonly PluginClassId[];
     } | null) => void): () => void;
 }
-export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;
+export type BlockRegistry = ReadonlyMap<RegistryId, RegistryEntry>;
 export interface RequestOpts {
     reads?: BlockId[];
     signal?: AbortSignal;

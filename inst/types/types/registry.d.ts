@@ -1,8 +1,9 @@
-import type { OptionId, RegistryId } from "./board.ts";
+import type { OptionId } from "./board.ts";
 import type { Json, JsonSchema } from "./json.ts";
 import type { OutputRenderer } from "./outputs.ts";
 export interface RegistryEntry {
-    readonly id: RegistryId;
+    readonly package: string | null;
+    readonly id: string;
     readonly name: string;
     readonly description: string;
     readonly url?: string;

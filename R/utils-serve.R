@@ -72,15 +72,15 @@
 #' block and the class.
 #' So a script registers a class that it defines itself with
 #' [register_block()] before it serves a board with a block of the class.
-#' A class from a package keeps its package's ID, so that a board saved from
-#' the app opens in an app that offers the package.
-#' A class from outside a package, whose registry ID is its id alone,
-#' replaces another class that the script registered under that ID, and keeps
-#' the metadata that the script registered.
+#' A class from a package keeps its package in its registry id, so that a
+#' board saved from the app opens in an app that offers the package.
+#' A class from outside a package, whose registry id has no package,
+#' replaces another class that the script registered under that registry id,
+#' and keeps the metadata that the script registered.
 #' So a script that redefines a class after it registered it runs the new
 #' definition.
 #' A board with blocks of two such classes of one id fails, since the client
-#' and the evaluator know a block's class by its registry ID alone.
+#' and the evaluator know a block's class by its registry id alone.
 #' For the path of a JSON board, R reads only the file's format, and sends the
 #' file's text as it is, for the client to open.
 #' It loads no package for the file.
@@ -147,8 +147,9 @@
 #' `app$get_js("blockrTest.statuses()")`.
 #' Its function `focus()` gives the ID of the block that has focus, or `null`
 #' where none has.
-#' Its function `onScreen()` gives the IDs of the blocks and the plugins on
-#' screen, in `blocks` and `plugins`, or `null` until the frontend sets them.
+#' Its function `onScreen()` gives the IDs of the blocks on screen, in
+#' `blocks`, and the plugins on screen, each by the package and the id of its
+#' class, in `plugins`, or `null` until the frontend sets them.
 #' Its function `notifications()` gives the notifications that hold, in the
 #' order they came.
 #' Its function `show()` has the frontend show a block or a plugin, as a
@@ -254,7 +255,7 @@ serve.block <- function(x, ..., data = list()) {
 
   board <- new_board(x)
 
-  registry <- new.env(parent = emptyenv())
+  registry <- new_block_registry()
   register_board_classes(board, registry)
 
   serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
@@ -263,10 +264,13 @@ serve.block <- function(x, ..., data = list()) {
 # Refuses a board that the script builds with a plugin of a class
 # that the app does not run, since the board would open without that plugin,
 # naming the class of each such plugin.
-# The app's plugins are given by the IDs of their classes.
+# The app's plugins are given as `app_plugins()` gives them, each with the
+# package and the id of its class.
 check_board_plugins <- function(board, plugins) {
 
-  unknown <- setdiff(names(board_plugins(board)), names(plugins))
+  held <- lapply(flat_by_package(board_plugins(board)), plugin_class_id)
+  run <- lgl_ply(held, function(ref) not_null(find_pkg_ref(plugins, ref)))
+  unknown <- chr_ply(held[!run], pkg_ref_label)
 
   if (length(unknown)) {
     blockr_abort(
@@ -293,7 +297,10 @@ check_board_plugins <- function(board, plugins) {
 frontend_reply <- function(..., plugins) {
 
   available <- available_plugin_classes()
-  plugins <- lapply(set_names(nm = names(plugins)), plugin_of_class, available)
+  plugins <- lapply(
+    plugins,
+    function(x) plugin_of_class(pkg_ref(x[["package"]], x[["id"]]), available)
+  )
 
   front <- plugins[lgl_ply(plugins, is_frontend_plugin)][[1L]]
   args <- frontend_args(front, ...)
@@ -301,8 +308,8 @@ frontend_reply <- function(..., plugins) {
   if (!is.list(args) || is.object(args) || !has_unique_names(args)) {
     blockr_abort(
       "The method of `frontend_args()` for the frontend ",
-      "{plugin_class_id(front)} returns no list by name, which R writes as ",
-      "a JSON object.",
+      "{pkg_ref_label(plugin_class_id(front))} returns no list by name, ",
+      "which R writes as a JSON object.",
       class = "frontend_args_invalid"
     )
   }
@@ -312,8 +319,8 @@ frontend_reply <- function(..., plugins) {
     error = function(e) {
       blockr_abort(
         "The method of `frontend_args()` for the frontend ",
-        "{plugin_class_id(front)} returns a list that R cannot write as ",
-        "JSON: {conditionMessage(e)}",
+        "{pkg_ref_label(plugin_class_id(front))} returns a list that R cannot ",
+        "write as JSON: {conditionMessage(e)}",
         class = "frontend_args_invalid"
       )
     }
@@ -323,7 +330,8 @@ frontend_reply <- function(..., plugins) {
 # Registers the class of each block on a board that an app's block registry,
 # `registry`, lacks, from the class's registration (see `register_class()`), so
 # that every block on the served board runs, with the metadata that the
-# registration gives. A class from a package keeps its package's id.
+# registration gives. A class from a package keeps its package in its registry
+# id.
 # A board with a block of a class that has no registration stops the app,
 # naming each such block and its class, as for a class that the app script
 # defined and did not register.
@@ -343,20 +351,23 @@ register_board_classes <- function(board, registry) {
   for (blk in names(classes)) {
 
     cls <- classes[[blk]]
-    id <- class_registry_id(cls)
+    ref <- registry_id_from_block(cls)
 
-    held <- exists(id, envir = registry, inherits = FALSE) ||
+    held <- not_null(registry_entry(ref, registry)) ||
       register_class(cls, registry)
 
     if (!held) {
-      unregistered <- c(unregistered, paste0(blk, " (", id, ")"))
+      unregistered <- c(
+        unregistered,
+        paste0(blk, " (", pkg_ref_label(ref), ")")
+      )
       next
     }
 
-    old <- get_registry_entry(id, registry)
+    old <- get_registry_entry(ref, registry)
 
     if (is.null(cls[["package"]]) && !identical(old[["block_class"]], cls)) {
-      assign(id, class_entry(cls, entry_metadata(old)), envir = registry)
+      put_registry_entry(class_entry(cls, entry_metadata(old)), registry)
     }
   }
 
@@ -374,12 +385,12 @@ register_board_classes <- function(board, registry) {
 }
 
 # Two classes from outside a package with one id give one registry id, the
-# class id, under which the client and the evaluator know only one class. The
-# classes are given by block id.
+# class id without a package, under which the client and the evaluator know
+# only one class. The classes are given by block id.
 check_outside_classes <- function(classes) {
 
   outside <- lgl_ply(classes, function(cls) is.null(cls[["package"]]))
-  ids <- chr_ply(classes, class_registry_id)
+  ids <- chr_xtr(classes, "id")
 
   for (id in unique(ids[outside])) {
 
@@ -528,9 +539,11 @@ component_options <- function(registry, plugins, families) {
 
   entries <- registry_entries(registry)
 
-  classes <- Map(
-    function(x, id) {
+  classes <- lapply(
+    entries,
+    function(x) {
       reqs <- x[["requests"]]
+      id <- pkg_ref_label(x)
       c(
         set_names(
           list(option_ctor_ids(x[["block_class"]][["options"]])),
@@ -541,9 +554,7 @@ component_options <- function(registry, plugins, families) {
           sprintf("The request %s of block class %s", names(reqs), id)
         )
       )
-    },
-    entries,
-    names(entries)
+    }
   )
 
   reached <- registry_families(registry, families)
@@ -556,7 +567,7 @@ component_options <- function(registry, plugins, families) {
     ),
     set_names(
       lst_xtr(unname(plugins), "options"),
-      sprintf("The plugin of class %s", names(plugins))
+      sprintf("The plugin of class %s", chr_ply(plugins, pkg_ref_label))
     )
   )
 }
@@ -628,10 +639,8 @@ page_modules <- function(board, registry, plugins = list(),
   json <- if (inherits(board, "json")) board else encode_message(board)
   blocks <- decode_message(json)[["board"]][["blocks"]]
 
-  ids <- unique(as.character(unlst(lst_xtr(blocks, "registry_id"))))
-  ids <- intersect(ids, ls(envir = registry))
-
-  entries <- lapply(ids, get_registry_entry, registry)
+  refs <- unique(unname(lst_xtr(blocks, "registry_id")))
+  entries <- Filter(not_null, lapply(refs, registry_entry, registry))
   renderers <- unlist(
     lapply(entries, entry_renderers, families),
     recursive = FALSE
@@ -649,25 +658,47 @@ page_modules <- function(board, registry, plugins = list(),
 }
 
 # The module that draws the menus of board actions, which the blockr option
-# `board_action_menu` names by its ID, among the modules that the available
-# packages offer, `offered`.
-# The option names core's own menu, `blockr.core-board_action_menu`, unless an
-# app names another, as the client reads it.
+# `board_action_menu` names by its package and its name, among the modules
+# that the available packages offer, `offered`, by package and then by name.
+# The option names core's own menu, `board_action_menu` of blockr.core, unless
+# an app names another, as the client reads it.
 # It is `NULL` where the option names no module that a package offers, or
-# holds no ID, as where it is set twice, since the client then opens no board
-# and says why.
+# holds no module's package and name, as where it is set twice, since the
+# client then opens no board and says why.
 menu_module <- function(offered = offered_modules()) {
 
-  id <- tryCatch(
-    blockr_option("board_action_menu", "blockr.core-board_action_menu"),
+  ref <- tryCatch(
+    option_pkg_ref(
+      blockr_option(
+        "board_action_menu",
+        pkg_ref("blockr.core", "board_action_menu")
+      )
+    ),
     error = function(e) NULL
   )
 
-  if (!is_nonempty_string(id)) {
+  if (is.null(ref) || is.null(ref[["package"]])) {
     return(NULL)
   }
 
-  offered[[id]]
+  offered[[ref[["package"]]]][[ref[["id"]]]]
+}
+
+# The package and the id that a blockr option names, as a reference: a list of
+# them, as an R option gives it, or their JSON, as an environment variable
+# gives it, as `{"package": "mykit", "id": "menu"}`.
+# It is `NULL` for anything else.
+option_pkg_ref <- function(x) {
+
+  if (is_string(x)) {
+    x <- tryCatch(decode_message(x), error = function(e) NULL)
+  }
+
+  if (!is_pkg_ref(x)) {
+    return(NULL)
+  }
+
+  pkg_ref(x[["package"]], x[["id"]])
 }
 
 # The value of the board option `dark_mode` that the opening board given as

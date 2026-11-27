@@ -155,21 +155,24 @@ sample_recipe <- function(block, inputs = list()) {
 
   recipes <- list(
     a = list(
-      "blockr.core-dataset_block",
+      pkg_ref("blockr.core", "dataset_block"),
       list(dataset = "iris", package = "datasets")
     ),
-    b = list("blockr.core-head_block", list(n = 6L, direction = "head")),
+    b = list(
+      pkg_ref("blockr.core", "head_block"),
+      list(n = 6L, direction = "head")
+    ),
     c = list(
-      "blockr.core-merge_block",
+      pkg_ref("blockr.core", "merge_block"),
       list(by = "Species", all_x = FALSE, all_y = FALSE)
     ),
     d = list(
-      "blockr.core-subset_block",
+      pkg_ref("blockr.core", "subset_block"),
       list(subset = "log(Sepal.Width - 3) > 0", select = "")
     ),
-    e = list("blockr.core-rbind_block", as_json_object(list())),
+    e = list(pkg_ref("blockr.core", "rbind_block"), as_json_object(list())),
     f = list(
-      "blockr.core-scatter_block",
+      pkg_ref("blockr.core", "scatter_block"),
       list(x = "Sepal.Length", y = "Sepal.Width")
     )
   )
@@ -306,7 +309,10 @@ local_block_class <- function(cls, frame = parent.frame()) {
   id <- cls[["id"]]
   entry <- register_block(block_constructor(cls), id, paste("A", id))
 
-  withr::defer(unregister_blocks(entry[["id"]]), envir = frame)
+  withr::defer(
+    unregister_blocks(pkg_ref(entry[["package"]], entry[["id"]])),
+    envir = frame
+  )
 
   invisible(entry)
 }
@@ -599,7 +605,7 @@ condition_class <- function(reply) {
 # with the data set given.
 locked_recipe_a <- function(dataset = "iris") {
   list(
-    registry_id = "blockr.core-dataset_block",
+    registry_id = pkg_ref("blockr.core", "dataset_block"),
     state = list(dataset = dataset, package = "datasets"),
     inputs = list()
   )
@@ -610,7 +616,7 @@ locked_recipe_a <- function(dataset = "iris") {
 locked_recipe_b <- function(n = 6L,
                             inputs = list(recipe_input("a", 1L, "data"))) {
   list(
-    registry_id = "blockr.core-head_block",
+    registry_id = pkg_ref("blockr.core", "head_block"),
     state = list(n = n, direction = "head"),
     inputs = inputs
   )

@@ -22,7 +22,8 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { CommandCall } from "./actions.ts";
 import { editInputs } from "./inputs.tsx";
 
-const EDIT_INPUTS = "blockr.core-edit_inputs_action";
+// Edit inputs, by its package and its id, as a caller names it.
+const EDIT_INPUTS = { package: "blockr.core", id: "edit_inputs_action" } as const;
 
 const stops: (() => void)[] = [];
 
@@ -274,15 +275,15 @@ describe("on a block that is not variadic", () => {
 
     expect(batches).toEqual([
       [
-        { id: "blockr.core-remove_link", args: { id: "ac" } },
-        { id: "blockr.core-change_link", args: { id: "bc", from: "d" } },
+        { package: "blockr.core", id: "remove_link", args: { id: "ac" } },
+        { package: "blockr.core", id: "change_link", args: { id: "bc", from: "d" } },
       ],
     ]);
   });
 
   test("adds a link from the block that the user picks into an input that no link feeds, with an ID that CoreApi mints, and runs nothing for an input whose source the user picked back", async () => {
     const s = await stubbed();
-    await act(() => s.core.commands.run("blockr.core-remove_link", { id: "bc" }));
+    await act(() => s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "bc" }));
     const { el, batches } = await rendered(s, "c");
     expect([labelled(el, "y").value, removes(el)]).toEqual(["", ["Remove the source of x"]]);
 
@@ -305,7 +306,7 @@ describe("on a block that is not variadic", () => {
     // The batch names the ID that the advanced action minted for the link.
     const added = links[1]?.[0];
     expect(added).toBeTypeOf("string");
-    expect(batches).toEqual([[{ id: "blockr.core-add_link", args: { id: added, from: "d", to: "c", input: "y" } }]]);
+    expect(batches).toEqual([[{ package: "blockr.core", id: "add_link", args: { id: added, from: "d", to: "c", input: "y" } }]]);
   });
 
   test("keeps the source of an input whose field the user empties, which removes nothing", async () => {
@@ -335,8 +336,8 @@ describe("on a block that is not variadic", () => {
     });
     await act(() =>
       core.commands.run([
-        { id: "blockr.core-change_link", args: { id: "ac", from: "f" } },
-        { id: "blockr.core-change_link", args: { id: "bc", from: "a" } },
+        { package: "blockr.core", id: "change_link", args: { id: "ac", from: "f" } },
+        { package: "blockr.core", id: "change_link", args: { id: "bc", from: "a" } },
       ]),
     );
     expect([labelled(el, "x").value, labelled(el, "y").value]).toEqual(["Scatter", "Wide sepals"]);
@@ -354,7 +355,7 @@ describe("on a block that is not variadic", () => {
     await acting(() => {
       void picked(labelled(el, "y"), step, "Scatter");
     });
-    await act(() => core.commands.run("blockr.core-remove_block", { id: "f" }));
+    await act(() => core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "f" }));
     expect(labelled(el, "y").value).toBe("Head");
     const before = board();
     await apply(el);
@@ -457,7 +458,7 @@ describe("on a variadic block", () => {
 
   test("refuses a name that another input gives already, which its field says in place once the user leaves it, and applies nothing while one does", async () => {
     const { s, el, core, board } = await opened("e");
-    await act(() => core.commands.run("blockr.core-change_link", { id: "de", input: "low" }));
+    await act(() => core.commands.run({ package: "blockr.core", id: "change_link" }, { id: "de", input: "low" }));
     const before = board();
 
     await named(el, "Name of input 1", "low");
@@ -562,13 +563,13 @@ describe("on a variadic block", () => {
     // order shown.
     expect(batches).toEqual([
       [
-        { id: "blockr.core-remove_link", args: { id: "be" } },
-        { id: "blockr.core-change_link", args: { id: "de", from: "f", input: "low" } },
-        { id: "blockr.core-add_link", args: { id: iris, from: "a", to: "e" } },
-        { id: "blockr.core-add_link", args: { id: merge, from: "c", to: "e", input: "m" } },
-        { id: "blockr.core-change_link", args: { id: iris, before: null } },
-        { id: "blockr.core-change_link", args: { id: "de", before: null } },
-        { id: "blockr.core-change_link", args: { id: merge, before: null } },
+        { package: "blockr.core", id: "remove_link", args: { id: "be" } },
+        { package: "blockr.core", id: "change_link", args: { id: "de", from: "f", input: "low" } },
+        { package: "blockr.core", id: "add_link", args: { id: iris, from: "a", to: "e" } },
+        { package: "blockr.core", id: "add_link", args: { id: merge, from: "c", to: "e", input: "m" } },
+        { package: "blockr.core", id: "change_link", args: { id: iris, before: null } },
+        { package: "blockr.core", id: "change_link", args: { id: "de", before: null } },
+        { package: "blockr.core", id: "change_link", args: { id: merge, before: null } },
       ],
     ]);
     s.core.store.undo();
@@ -609,7 +610,7 @@ describe("on a variadic block", () => {
     const { el, core, board } = await opened("e");
 
     await named(el, "Name of input 1", "top");
-    await act(() => core.commands.run("blockr.core-add_link", { id: "ae", from: "a", to: "e" }));
+    await act(() => core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "ae", from: "a", to: "e" }));
     expect(inputs(el)).toEqual(["Input 1, top, from Head", "Input 2, from Wide sepals", "Input 3, from Iris"]);
     await apply(el);
 
@@ -624,8 +625,8 @@ describe("on a variadic block", () => {
     const { el, core } = await opened("e");
     await act(() =>
       core.commands.run([
-        { id: "blockr.core-remove_link", args: { id: "be" } },
-        { id: "blockr.core-remove_link", args: { id: "de" } },
+        { package: "blockr.core", id: "remove_link", args: { id: "be" } },
+        { package: "blockr.core", id: "remove_link", args: { id: "de" } },
       ]),
     );
 
@@ -643,7 +644,7 @@ describe("a batch that the store refuses", () => {
     });
     // Another edit links Merge to Bind before the user applies the edits, so
     // that the link from Bind would close a cycle.
-    await act(() => core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
+    await act(() => core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "ce", from: "c", to: "e" }));
     const before = board();
     await apply(el);
 
@@ -655,7 +656,7 @@ describe("a batch that the store refuses", () => {
 
     // It keeps the source that the user gave, which applies once the board
     // takes it.
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "ce" }));
+    await act(() => core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ce" }));
     await apply(el);
     expect(s.advanced()).toBeUndefined();
     expect(into(board(), "c")).toEqual([

@@ -72,10 +72,12 @@ message_span_name <- function(req, read) {
 message_attributes <- function(req, read) {
   switch(
     req[["kind"]],
-    evaluate = list(
-      blockr.block.id = read[["fields"]][["block"]],
-      blockr.block.revision = read[["fields"]][["revision"]],
-      blockr.block.registry_id = read[["recipe"]][["registry_id"]]
+    evaluate = c(
+      list(
+        blockr.block.id = read[["fields"]][["block"]],
+        blockr.block.revision = read[["fields"]][["revision"]]
+      ),
+      registry_id_attributes(read[["recipe"]][["registry_id"]])
     ),
     output = list(
       blockr.block.id = read[["output"]][["block"]],
@@ -102,14 +104,17 @@ request_attributes <- function(req, read) {
     if (inherits(read, "block_class_request")) {
       c(
         if (is_string(req[["block"]])) list(blockr.block.id = req[["block"]]),
-        list(blockr.block.registry_id = read[["registry_id"]])
+        registry_id_attributes(read[["registry_id"]])
       )
     },
     if (inherits(read, "option_request")) {
       list(blockr.option.id = read[["option"]])
     },
     if (inherits(read, "plugin_request")) {
-      list(blockr.plugin.class_id = read[["plugin"]])
+      list(
+        blockr.plugin.package = read[["plugin"]][["package"]],
+        blockr.plugin.class_id = read[["plugin"]][["id"]]
+      )
     },
     if (not_null(output)) {
       list(
@@ -118,8 +123,24 @@ request_attributes <- function(req, read) {
       )
     },
     if (not_null(read[["renderer"]])) {
-      list(blockr.renderer.id = read[["renderer"]])
+      c(
+        if (not_null(read[["renderer"]][["package"]])) {
+          list(blockr.renderer.package = read[["renderer"]][["package"]])
+        },
+        list(blockr.renderer.id = read[["renderer"]][["id"]])
+      )
     }
+  )
+}
+
+# The attributes of a span that name a block's class by its registry id,
+# `ref`: the class's package, where it records one, and its id.
+registry_id_attributes <- function(ref) {
+  c(
+    if (not_null(ref[["package"]])) {
+      list(blockr.block.package = ref[["package"]])
+    },
+    list(blockr.block.registry_id = ref[["id"]])
   )
 }
 
@@ -187,7 +208,10 @@ end_message_span <- function(ev, job, reply) {
     held <- held_result(ev, output[["block"]], output[["revision"]])
 
     if (not_null(held)) {
-      span$set_attribute("blockr.block.registry_id", held[["registry_id"]])
+      attrs <- registry_id_attributes(held[["registry_id"]])
+      for (name in names(attrs)) {
+        span$set_attribute(name, attrs[[name]])
+      }
     }
   }
 

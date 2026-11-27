@@ -123,26 +123,26 @@ check_locked_expressions <- function(lock) {
 # each.
 check_lockable_blocks <- function(blocks, registry) {
 
-  known <- ls(envir = registry)
   failures <- character()
 
   for (id in names(blocks)) {
 
     blk <- blocks[[id]]
-    registry_id <- blk[["registry_id"]]
+    ref <- blk[["registry_id"]]
+    entry <- registry_entry(ref, registry)
 
-    if (!is_string(registry_id) || !registry_id %in% known) {
+    if (is.null(entry)) {
+      label <- if (is_pkg_ref(ref)) pkg_ref_label(ref) else "given"
       failures <- c(
         failures,
         paste0(
-          "block \"", id, "\", whose class ", registry_id,
+          "block \"", id, "\", whose class ", label,
           " the block registry lacks"
         )
       )
       next
     }
 
-    entry <- get_registry_entry(registry_id, registry)
     version <- entry[["block_class"]][["version"]]
 
     if (!is_number(blk[["version"]]) || blk[["version"]] != version) {

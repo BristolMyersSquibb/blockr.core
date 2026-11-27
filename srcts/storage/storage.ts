@@ -4,7 +4,7 @@
 // Save has the browser download the board's file. Open opens the board in a
 // file that the user picks, and the storage leaves it out under the load lock,
 // which fixes the app to its opening board.
-// The plugin's class, blockr.core-file_storage_plugin, keeps no state and has
+// The plugin's class, file_storage_plugin of blockr.core, keeps no state and has
 // no `ui`, since a frontend draws its controls, and an app runs it unless
 // another of its plugins is a storage plugin.
 // The store writes the text of the board's file and opens such a text, so core

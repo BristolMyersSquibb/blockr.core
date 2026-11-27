@@ -1,6 +1,6 @@
 import type { Lock } from "../protocol/index.ts";
 import type { Delta, Origin, Store } from "../store/index.ts";
-import type { Board } from "../types/board.ts";
+import type { Board, CommandId } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 export interface CommandContext {
@@ -21,26 +21,34 @@ export interface Command<A extends Json = Json, P = A> {
     run(board: Board, args: P, context: CommandContext): Delta | readonly Delta[];
 }
 export interface Commands {
-    register<A extends Json, P = A>(command: Command<A, P>): () => void;
-    registered(): Readonly<Record<string, Command<Json, unknown>>>;
-    preflight(id: string, args?: Json): boolean;
-    run(id: string, args?: Json, origin?: Origin, opts?: {
+    register<A extends Json, P = A>(pkg: string, command: Command<A, P>): () => void;
+    registered(): ReadonlyMap<CommandId, Command<Json, unknown>>;
+    preflight(id: {
+        readonly package: string;
+        readonly id: string;
+    }, args?: Json): boolean;
+    run(id: {
+        readonly package: string;
+        readonly id: string;
+    }, args?: Json, origin?: Origin, opts?: {
         notifier?(notifications: readonly Notification[]): void;
     }): Promise<boolean>;
-    run(batch: readonly {
-        readonly id: string;
-        readonly args?: Json;
-    }[], origin?: Origin, opts?: {
+    run(batch: readonly CommandCall[], origin?: Origin, opts?: {
         notifier?(notifications: readonly Notification[]): void;
     }): Promise<boolean>;
-    plan(id: string, args?: Json): Promise<Delta[]>;
-    plan(batch: readonly {
+    plan(id: {
+        readonly package: string;
         readonly id: string;
-        readonly args?: Json;
-    }[]): Promise<Delta[]>;
+    }, args?: Json): Promise<Delta[]>;
+    plan(batch: readonly CommandCall[]): Promise<Delta[]>;
+}
+export interface CommandCall {
+    readonly package: string;
+    readonly id: string;
+    readonly args?: Json;
 }
 export declare class CommandError extends Error {
-    readonly command?: string;
+    readonly command?: CommandId;
     readonly by: "registry" | "preflight" | "command" | "code" | "store";
     readonly failures: readonly string[];
     readonly index?: number;
@@ -48,7 +56,7 @@ export declare class CommandError extends Error {
         readonly cause?: unknown;
     });
 }
-export declare function refusal(id: string, failures: readonly string[], by?: "registry" | "preflight" | "command"): CommandError;
+export declare function refusal(id: CommandId, failures: readonly string[], by?: "registry" | "preflight" | "command"): CommandError;
 export interface CommandsOptions {
     readonly signal?: AbortSignal;
     readonly lock?: Lock;
@@ -56,5 +64,4 @@ export interface CommandsOptions {
     readonly blockrOption?: (name: string) => Promise<Json | undefined>;
 }
 export declare function createCommands(store: Store, options?: CommandsOptions): Commands;
-export declare function isCommandId(id: string): boolean;
 export declare function isLogged(error: unknown): boolean;

@@ -5,7 +5,7 @@
       "id": "28",
       "kind": "request",
       "type": "plugin",
-      "plugin": "blockr.md-md_plugin",
+      "plugin": { "package": "blockr.md", "id": "md_plugin" },
       "name": "export",
       "args": { "format": "pptx" },
       "reads": [{ "block": "c", "revision": 4 }]

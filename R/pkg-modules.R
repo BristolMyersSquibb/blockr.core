@@ -29,14 +29,17 @@
 #' * Its board options, in `options`: each board option by its ID, with its
 #'   `module` (see [new_board_option()]).
 #' * The modules that it offers other packages' UIs, in `modules`: each by a
-#'   name that gives it the ID `{pkg}-{name}`, as a registry id is, by which
-#'   `host.module()` and `CoreApi.module()` reach it in the client.
+#'   name, which identifies it within the package, as a block class's id does.
+#'   The client reaches it by the package and that name, through
+#'   `host.module()` and `CoreApi.module()`.
 #'   Such a module may draw the menus of board actions, as core's own menu,
-#'   `blockr.core-board_action_menu`, does.
+#'   `board_action_menu` of blockr.core, does.
 #'   The client draws them with the module that the blockr option
-#'   `board_action_menu` names by its ID, which is core's menu unless an app
-#'   names another, as in
-#'   `options(blockr.board_action_menu = "mykit-board_action_menu")`.
+#'   `board_action_menu` names by its package and its name, which is core's
+#'   menu unless an app names another, as in
+#'   `options(blockr.board_action_menu = list(package = "mykit", id = "menu"))`.
+#'   An environment variable gives the option as JSON, as
+#'   `BLOCKR_BOARD_ACTION_MENU='{"package": "mykit", "id": "menu"}'`.
 #'   Its default export has the type `MenuModule` of `@blockr/core`, and
 #'   `menuModuleTests()` of `@blockr/core/stubs` tests it.
 #' * Its output families, in `families`: the name of each output family that
@@ -52,7 +55,8 @@
 #' default export, and a board option's module the board option's `Option`
 #' without its ID, each beside the major of core's JS API that it was built
 #' against.
-#' The client registers each under its ID, a plugin class's as `{pkg}-{id}`.
+#' The client registers a plugin class's module under the package and the id
+#' of the class, and a board option's under the board option's ID.
 #' The JSON Schema of the state of the plugins of a plugin class, or of the
 #' value of a board option, sits beside its module, as `dag.schema.json` beside
 #' `dag.js`, as a block class's UI module ships the schema of the block's state
@@ -227,8 +231,8 @@ listing_object <- function(pkg) {
   if (exports_listing(pkg)) getExportedValue(pkg, listing_name)
 }
 
-# The modules that package `pkg` offers other packages' UIs, by ID,
-# `{pkg}-{name}`, each as `js_module()` makes it.
+# The modules that package `pkg` offers other packages' UIs, by name, each as
+# `js_module()` makes it.
 listed_modules <- function(pkg, listing = package_listing(pkg)) {
 
   entries <- listing[["modules"]]
@@ -260,17 +264,15 @@ listed_modules <- function(pkg, listing = package_listing(pkg)) {
     return(list())
   }
 
-  set_names(
-    lapply(entries, js_module, package = pkg),
-    paste0(pkg, "-", names(entries))
-  )
+  lapply(entries, js_module, package = pkg)
 }
 
-# The modules that the available packages offer other packages' UIs, by ID,
-# which an app holds as `serve()` reads them, and R names in its reply to
-# `hello`.
+# The modules that the available packages offer other packages' UIs, by
+# package and then by name, which an app holds as `serve()` reads them, and R
+# names in its reply to `hello`.
+# A package that offers none has no entry.
 offered_modules <- function(pkgs = available_packages()) {
-  joined_by_id(lapply(pkgs, listed_modules))
+  Filter(length, lapply(set_names(nm = pkgs), listed_modules))
 }
 
 # The board options that package `pkg` lists, by ID, each with its package and
@@ -491,11 +493,11 @@ core_runtime <- function() {
   js_module("js/blockr-core.js", package = "blockr.core")
 }
 
-# The JSON Schema of the state of the plugins of the class with the ID `id`,
-# `{pkg}-{id}`, beside the module that the class's package lists for it, or
+# The JSON Schema of the state of the plugins of the class that the reference
+# `ref` names, beside the module that the class's package lists for it, or
 # `NULL` where none lists the class or its module ships none.
-plugin_class_schema <- function(id, classes = available_plugin_classes()) {
-  module_schema(classes[[id]][["module"]])
+plugin_class_schema <- function(ref, classes = available_plugin_classes()) {
+  module_schema(plugin_class_entry(ref, classes)[["module"]])
 }
 
 # The JSON Schema of the value of the board option with the ID `id`, beside the

@@ -1,3 +1,4 @@
+import type { ModuleId } from "../types/board.ts";
 export declare const API = 1;
 export interface Source {
     readonly module: string;
@@ -5,10 +6,10 @@ export interface Source {
 }
 export interface Loader {
     load(source: Source, pkg: string | null): Promise<unknown>;
-    module(id: string): Promise<unknown>;
+    module(id: ModuleId): Promise<unknown>;
 }
 export interface LoaderOptions {
-    readonly modules?: () => Readonly<Record<string, Source>>;
+    readonly modules?: () => Readonly<Record<string, Readonly<Record<string, Source>>>>;
     readonly changed?: (pkg: string) => {
         readonly loaded: string;
         readonly now: string;

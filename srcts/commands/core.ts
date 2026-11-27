@@ -41,19 +41,35 @@ import type {
   BlockId,
   Board,
   LinkId,
-  PluginClassId,
   RegistryId,
   Stack,
   StackId,
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { own, quoted, without } from "../util/index.ts";
+import { idText, interned, internedRecord, nestedValue, own, quoted, without } from "../util/index.ts";
 import { refusal } from "./commands.ts";
-import type { Command, CommandContext } from "./commands.ts";
+import type { Command, CommandContext, CommandError } from "./commands.ts";
 import * as schemas from "./schemas.ts";
 
 type State = Readonly<Record<string, Json>>;
+
+// The package of core's own commands, board actions and roles.
+export const CORE = "blockr.core";
+
+// A refusal of core's command `command`, named by its id within core.
+function refuse(command: string, failures: readonly string[]): CommandError {
+  return refusal(interned(CORE, command), failures);
+}
+
+// An id as args hold it: the package, or null for a block class that an app
+// script defines, and the id within the package, declared with `type`, as args
+// are Json.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- an interface would not be assignable to Json
+type IdArg = {
+  readonly package: string | null;
+  readonly id: string;
+};
 
 // A change of a plugin's state, at a path within the state, as core's command
 // for a plugin's state takes it, declared with `type`, as args are Json.
@@ -67,7 +83,7 @@ type StatePatch = {
 // A block that a command adds, of a class from the block registry, with the
 // state its class starts a block with, changed by the state args given.
 type NewBlock = Readonly<{
-  registry_id: RegistryId;
+  registry_id: IdArg;
   id?: BlockId;
   name?: string;
   state?: State;
@@ -92,9 +108,9 @@ const newBlock = {
 
 export function coreCommands(store: Store): Command<Json, unknown>[] {
   function registryEntry(command: string, registryId: RegistryId): RegistryEntry {
-    const entry = own(store.blockRegistry(), registryId);
+    const entry = store.blockRegistry().get(registryId);
     if (entry === undefined) {
-      throw refusal(command, [`The block registry has no block class "${registryId}".`]);
+      throw refuse(command, [`The block registry has no block class "${idText(registryId)}".`]);
     }
     return entry;
   }
@@ -107,14 +123,17 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     args: NewBlock,
     mintId: CommandContext["mintId"],
   ): [BlockId, Block] {
-    const entry = registryEntry(command, args.registry_id);
+    // The registry id as core's table holds it, which the args, as JSON, hold
+    // a record of.
+    const registryId = internedRecord(args.registry_id);
+    const entry = registryEntry(command, registryId);
     const state = { ...entry.state, ...args.state };
     const failures = stateFailures(entry, state);
     if (failures.length > 0) {
-      throw refusal(command, failures.map((failure) => `The state of the new block ${failure}`));
+      throw refuse(command, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id = args.id ?? mintId((id) => Object.hasOwn(board.blocks, id));
-    return [id, { registry_id: entry.id, state, name: args.name ?? entry.block_name, locked: null }];
+    return [id, { registry_id: registryId, state, name: args.name ?? entry.block_name, locked: null }];
   }
 
   // Why block `to` cannot take one more link, into the input given or else a
@@ -138,10 +157,10 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
   function noFreeInput(board: Board, to: BlockId): string {
     const block = own(board.blocks, to);
     if (block === undefined) return `The board holds no block "${to}".`;
-    const entry = own(store.blockRegistry(), block.registry_id);
-    if (entry === undefined) return `The block registry has no block class "${block.registry_id}".`;
+    const entry = store.blockRegistry().get(block.registry_id);
+    if (entry === undefined) return `The block registry has no block class "${idText(block.registry_id)}".`;
     if (entry.inputs.length === 0) {
-      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+      return `The block "${to}" takes no input, since its class "${idText(entry)}" has none.`;
     }
     return `Every input of the block "${to}" takes a link already.`;
   }
@@ -170,10 +189,10 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
 
   const blocks = [
     command<NewBlock>({
-      id: "blockr.core-add_block",
+      id: "add_block",
       label: "Add block",
       description:
-        "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
+        "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with add_link of blockr.core in the same batch, after this command.",
       args: object(newBlock, ["registry_id"]),
       run(board, args, { mintId }) {
         const [id, block] = added(this.id, board, args, mintId);
@@ -181,7 +200,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       },
     }),
     command<{ readonly id: BlockId }>({
-      id: "blockr.core-remove_block",
+      id: "remove_block",
       label: "Remove block",
       description: "Removes a block, with its links and its place in its stack.",
       args: object({ id: schemas.blockId }, ["id"]),
@@ -189,7 +208,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       run: (_board, { id }) => ({ blocks: { rm: [id] } }),
     }),
     command<{ readonly id: BlockId } & Omit<BlockMod, "edit">>({
-      id: "blockr.core-change_block",
+      id: "change_block",
       label: "Change block",
       description:
         "Changes a block's name, its lock or its state. It sets the state args given, which the schema of the block's class types, and unsets those named, as a block's UI submits an edit. The block keeps what the args leave out.",
@@ -218,7 +237,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
           const entry = registryEntry(this.id, block.registry_id);
           const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state });
           if (failures.length > 0) {
-            throw refusal(this.id, failures.map((failure) => `The state of block "${id}" ${failure}`));
+            throw refuse(this.id, failures.map((failure) => `The state of block "${id}" ${failure}`));
           }
         }
         return { blocks: { mod: { [id]: change } } };
@@ -233,7 +252,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       readonly input?: string;
       readonly id?: LinkId;
     }>({
-      id: "blockr.core-add_link",
+      id: "add_link",
       label: "Add link",
       description:
         "Adds a link, through which a block takes the result of another as one of its inputs.",
@@ -270,7 +289,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       readonly input?: string;
       readonly before?: LinkId | null;
     }>({
-      id: "blockr.core-change_link",
+      id: "change_link",
       label: "Change link",
       description:
         "Changes the block a link comes from, the block it goes to, the input it feeds or its place among the links into its block, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from.",
@@ -323,17 +342,17 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         if (before === undefined) return { links: { mod } };
         const block = own(board.blocks, to);
         if (block !== undefined && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
-          throw refusal(this.id, [
+          throw refuse(this.id, [
             `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`,
           ]);
         }
         if (before !== null) {
           if (before === args.id) {
-            throw refusal(this.id, [`The link "${args.id}" cannot go before itself.`]);
+            throw refuse(this.id, [`The link "${args.id}" cannot go before itself.`]);
           }
           const next = own(board.links, before);
           if (next !== undefined && next.to !== to) {
-            throw refusal(this.id, [
+            throw refuse(this.id, [
               `The link "${args.id}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`,
             ]);
           }
@@ -346,7 +365,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       },
     }),
     command<{ readonly id: LinkId }>({
-      id: "blockr.core-remove_link",
+      id: "remove_link",
       label: "Remove link",
       description: "Removes a link.",
       args: object({ id: schemas.linkId }, ["id"]),
@@ -362,7 +381,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       readonly blocks?: readonly BlockId[];
       readonly color?: string | null;
     }>({
-      id: "blockr.core-add_stack",
+      id: "add_stack",
       label: "Add stack",
       description:
         "Adds a stack of blocks, taking each out of the stack it is in, since a block sits in one stack at most.",
@@ -396,7 +415,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       },
     }),
     command<{ readonly id: StackId } & Partial<Stack>>({
-      id: "blockr.core-change_stack",
+      id: "change_stack",
       label: "Change stack",
       description:
         "Changes the name of a stack, its blocks or its colour, taking each block out of the stack it is in, since a block sits in one stack at most.",
@@ -423,7 +442,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       }),
     }),
     command<{ readonly id: StackId }>({
-      id: "blockr.core-remove_stack",
+      id: "remove_stack",
       label: "Remove stack",
       description: "Removes a stack, leaving its blocks on the board.",
       args: object({ id: schemas.stackId }, ["id"]),
@@ -434,14 +453,14 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
 
   const board = [
     command<{ readonly name?: string }>({
-      id: "blockr.core-change_board",
+      id: "change_board",
       label: "Change board",
       description: "Changes the board's name. The board keeps what the args leave out.",
       args: object({ name: { ...schemas.name, description: "The board's name, which it keeps where this is left out." } }),
       run: (_board, change) => change,
     }),
     command<{ readonly id: string; readonly value: Json }>({
-      id: "blockr.core-set_option",
+      id: "set_option",
       label: "Set board option",
       description: "Sets the value of a board option, which the board option's schema types.",
       args: object({ id: schemas.optionId, value: schemas.value }, ["id", "value"]),
@@ -451,8 +470,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
   ];
 
   const plugins = [
-    command<{ readonly plugin: PluginClassId; readonly patches: readonly StatePatch[] }>({
-      id: "blockr.core-set_plugin_state",
+    command<{ readonly plugin: IdArg; readonly patches: readonly StatePatch[] }>({
+      id: "set_plugin_state",
       label: "Set plugin state",
       description:
         "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It fails its preflight on a locked board, where only the commands of a plugin's class know what the plugin locks.",
@@ -466,9 +485,13 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["plugin", "patches"],
       ),
-      preflight: (board, { plugin }, { lock }) => !lock.board && Object.hasOwn(board.plugins, plugin),
+      preflight: (board, { plugin }, { lock }) =>
+        !lock.board && plugin.package !== null && nestedValue(board.plugins, interned(plugin.package, plugin.id)) !== undefined,
       run: (_board, { plugin, patches }) => ({
-        patches: patches.map((patch) => ({ ...patch, path: `${pathFromSegments(["plugins", plugin])}${patch.path}` })),
+        patches: patches.map((patch) => ({
+          ...patch,
+          path: `${pathFromSegments(["plugins", plugin.package ?? "", plugin.id])}${patch.path}`,
+        })),
       }),
     }),
   ];
@@ -483,13 +506,13 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
 // order. The link `except`, which is about to change, feeds nothing.
 export function freeInputs(
   board: Pick<Board, "blocks" | "links">,
-  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  registry: ReadonlyMap<RegistryId, RegistryEntry>,
   to: BlockId,
   except?: LinkId,
 ): readonly string[] | undefined {
   const block = own(board.blocks, to);
   if (block === undefined) return undefined;
-  const inputs = own(registry, block.registry_id)?.inputs;
+  const inputs = registry.get(block.registry_id)?.inputs;
   if (inputs === undefined) return undefined;
   if (inputs.includes("...")) return [""];
   const fed = new Set(
@@ -505,7 +528,7 @@ export function freeInputs(
 // and neither does one that the board or the block registry lacks.
 export function takesLink(
   board: Pick<Board, "blocks" | "links">,
-  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  registry: ReadonlyMap<RegistryId, RegistryEntry>,
   to: BlockId,
 ): boolean {
   return (freeInputs(board, registry, to)?.length ?? 0) > 0;
@@ -519,13 +542,13 @@ export function takesLink(
 // inputs of its class.
 export function linkFeeding(
   board: Pick<Board, "blocks" | "links">,
-  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  registry: ReadonlyMap<RegistryId, RegistryEntry>,
   to: BlockId,
   input: string,
   except?: LinkId,
 ): LinkId | undefined {
   const block = own(board.blocks, to);
-  const inputs = block === undefined ? undefined : own(registry, block.registry_id)?.inputs;
+  const inputs = block === undefined ? undefined : registry.get(block.registry_id)?.inputs;
   if (inputs === undefined || inputs.includes("...")) return undefined;
   return Object.entries(board.links).find(([id, link]) => id !== except && link.to === to && link.input === input)?.[0];
 }
@@ -599,8 +622,8 @@ function named(input: string | undefined): input is string {
 // The one input of several, or a refusal where there is none or more than one.
 function one(command: string, inputs: readonly string[], none: string, several: string): string {
   const [input, ...rest] = inputs;
-  if (input === undefined) throw refusal(command, [none]);
-  if (rest.length > 0) throw refusal(command, [several]);
+  if (input === undefined) throw refuse(command, [none]);
+  if (rest.length > 0) throw refuse(command, [several]);
   return input;
 }
 

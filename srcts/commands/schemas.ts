@@ -31,10 +31,22 @@ export const stackId: JsonSchema = {
   description: "The id of a stack, unique among the board's stacks.",
 };
 
+// The name of an R package, as R names one: letters, digits and dots, starting
+// with a letter and ending with no dot.
+const packageName = { type: "string", pattern: "^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$" };
+
 export const registryId: JsonSchema = {
-  type: "string",
-  minLength: 1,
-  description: 'A block class\'s id in the block registry, such as "blockr.core-head_block".',
+  type: "object",
+  properties: {
+    package: {
+      anyOf: [packageName, { type: "null" }],
+      description: "The package that defines the class, or null for a class that the app script defines.",
+    },
+    id: { type: "string", minLength: 1, description: "The class's id within its package." },
+  },
+  required: ["package", "id"],
+  additionalProperties: false,
+  description: 'A block class\'s id in the block registry, its package and its id within the package, such as { "package": "blockr.core", "id": "head_block" }.',
 };
 
 export const name: JsonSchema = {
@@ -91,10 +103,15 @@ export const value: JsonSchema = {
 };
 
 export const pluginClassId: JsonSchema = {
-  type: "string",
-  minLength: 1,
+  type: "object",
+  properties: {
+    package: { ...packageName, description: "The package that lists the class." },
+    id: { type: "string", minLength: 1, description: "The class's id within its package." },
+  },
+  required: ["package", "id"],
+  additionalProperties: false,
   description:
-    'The id of a plugin\'s class, such as "blockr.dag-dag_plugin", which identifies the plugin, since an app runs at most one plugin of each class.',
+    'The id of a plugin\'s class, its package and its id within the package, such as { "package": "blockr.dag", "id": "dag_plugin" }, which identifies the plugin, since an app runs at most one plugin of each class.',
 };
 
 // The patches of a plugin's state, each in the shape of a JSON Patch

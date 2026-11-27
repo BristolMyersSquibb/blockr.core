@@ -42,7 +42,8 @@ Core's types are these:
 \itemize{
 \item The type \code{block_class}, a request of a block class,
 which the block's UI sends (see \code{\link[=new_block_request]{new_block_request()}}).
-R finds it among the requests of the class that \code{registry_id} names.
+R finds it among the requests of the class that \code{registry_id} names, by
+the class's package and its id.
 \item The type \code{output_class}, a request of an output class,
 which a renderer sends (see \code{\link[=output_requests]{output_requests()}}).
 R finds it among the requests that the classes' methods of
@@ -50,7 +51,8 @@ R finds it among the requests that the classes' methods of
 result that \code{output} names.
 \item The type \code{renderer}, a renderer's own request (see \code{\link[=new_renderer]{new_renderer()}}).
 R finds it among the requests of the renderer that draws that output,
-which has to be the one that \code{renderer} names.
+which has to be the one that \code{renderer} names, by the package of its
+module and its name.
 \item The type \code{option}, a board option's request,
 which the board option's UI sends.
 R finds it among the requests of the board option that \code{option} names,
@@ -58,9 +60,10 @@ which \code{\link[=serve]{serve()}} gets from the method of \code{board_option_r
 board option's class, \verb{\{id\}_option}, as it builds the app.
 \item The type \code{plugin}, a plugin's request,
 which a plugin sends through \code{CoreApi.request()} in the client.
-R finds it among the requests of the app's plugin whose class's ID
-\code{plugin} names, as \code{blockr.md-md_plugin}, which \code{\link[=serve]{serve()}} gets from the
-method of \code{plugin_requests()} for the class as it builds the app.
+R finds it among the requests of the app's plugin whose class \code{plugin}
+names by its package and its id, as the package \code{blockr.md} and the id
+\code{md_plugin}, which \code{\link[=serve]{serve()}} gets from the method of \code{plugin_requests()}
+for the class as it builds the app.
 R calls the method on the plugin that the class's constructor makes,
 called without args, and refuses a request of a plugin class that the app
 does not run.
@@ -101,8 +104,8 @@ board_option_requests.data_dir_option <- function(x, ...) {
 
 names(board_option_requests(new_board_option("data_dir")))
 
-# blockr.code, whose plugin class is blockr.code-code_plugin, gives the
-# request script, for the code of the blocks that the request reads.
+# blockr.code, whose plugin class is code_plugin, gives the request
+# script, for the code of the blocks that the request reads.
 plugin_requests.code_plugin <- function(x, ...) {
   list(
     script = function(reads) {

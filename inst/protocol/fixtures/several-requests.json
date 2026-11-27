@@ -8,7 +8,7 @@
       "revision": 2,
       "locked": null,
       "recipe": {
-        "registry_id": "blockr.core-dataset_block",
+        "registry_id": { "package": "blockr.core", "id": "dataset_block" },
         "state": { "dataset": "iris", "package": "datasets" },
         "inputs": []
       }
@@ -20,7 +20,7 @@
       "revision": 3,
       "locked": null,
       "recipe": {
-        "registry_id": "blockr.core-head_block",
+        "registry_id": { "package": "blockr.core", "id": "head_block" },
         "state": { "n": 6, "direction": "head" },
         "inputs": [{ "input": "data", "block": "a", "revision": 2 }]
       }
@@ -76,7 +76,8 @@
         "status": "ok",
         "output": {
           "renderer": {
-            "id": "blockr.core-table_output",
+            "package": "blockr.core",
+            "id": "table_output",
             "module": "blockr.core/basic-table.js?v=b7e2a915"
           },
           "columns": [

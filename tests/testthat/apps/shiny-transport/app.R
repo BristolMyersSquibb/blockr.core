@@ -124,7 +124,7 @@ async function ask(name, args = {}, body = undefined) {
     const request = {
       kind: 'request',
       type: 'plugin',
-      plugin: 'blockr.test-transport_plugin',
+      plugin: { package: 'blockr.test', id: 'transport_plugin' },
       name,
       args,
       reads: [],

@@ -37,7 +37,7 @@ import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { ActionsButton, blockName, notifiedReasons } from "../../ui/index.ts";
 import type { Refused } from "../../ui/index.ts";
-import { own } from "../../util/index.ts";
+import { idText, own } from "../../util/index.ts";
 
 // The menus that one table or the bar opens, the places of the advanced
 // actions that they open, and why the store or the command registry refused
@@ -269,29 +269,29 @@ function TakesKeys(): null {
 // `Could not remove the stack "Input".`, and by its label for another
 // package's, as `Add to document failed for the block "Filter".` A board
 // action of core's for which the plugin has no words takes its label too.
-export function editTitle(board: Board, action: Pick<BoardAction, "id" | "label">, target: Target): string {
+export function editTitle(board: Board, action: Pick<BoardAction, "package" | "id" | "label">, target: Target): string {
   const object = named(board, target);
-  const edit = own(CORE_EDITS, action.id);
+  const edit = action.package === "blockr.core" ? own(CORE_EDITS, action.id) : undefined;
   return edit === undefined ? `${action.label} failed for ${object}.` : `Could not ${edit(object)}.`;
 }
 
 // What core's board actions do to their targets, in the plugin's words, by the
-// board action's id, for those whose batch a menu of a row or of the
-// selection runs.
+// board action's id within blockr.core, for those whose batch a menu of a row
+// or of the selection runs.
 const CORE_EDITS: Readonly<Record<string, (object: string) => string>> = {
-  "blockr.core-append_block_action": (object) => `append a block to ${object}`,
-  "blockr.core-prepend_block_action": (object) => `prepend a block to ${object}`,
-  "blockr.core-insert_block_action": (object) => `insert a block into ${object}`,
-  "blockr.core-add_link_action": (object) => `add a link for ${object}`,
-  "blockr.core-add_stack_action": (object) => `put ${object} in a new stack`,
-  "blockr.core-rename_action": (object) => `rename ${object}`,
-  "blockr.core-edit_link_action": (object) => `change ${object}`,
-  "blockr.core-edit_stack_action": (object) => `change ${object}`,
-  "blockr.core-add_to_stack_action": (object) => `add ${object} to a stack`,
-  "blockr.core-remove_block_action": (object) => `remove ${object}`,
-  "blockr.core-remove_link_action": (object) => `remove ${object}`,
-  "blockr.core-remove_stack_action": (object) => `remove ${object}`,
-  "blockr.core-remove_selected_action": (object) => `remove ${object}`,
+  append_block_action: (object) => `append a block to ${object}`,
+  prepend_block_action: (object) => `prepend a block to ${object}`,
+  insert_block_action: (object) => `insert a block into ${object}`,
+  add_link_action: (object) => `add a link for ${object}`,
+  add_stack_action: (object) => `put ${object} in a new stack`,
+  rename_action: (object) => `rename ${object}`,
+  edit_link_action: (object) => `change ${object}`,
+  edit_stack_action: (object) => `change ${object}`,
+  add_to_stack_action: (object) => `add ${object} to a stack`,
+  remove_block_action: (object) => `remove ${object}`,
+  remove_link_action: (object) => `remove ${object}`,
+  remove_stack_action: (object) => `remove ${object}`,
+  remove_selected_action: (object) => `remove ${object}`,
 };
 
 // The target as a reason names it: a block and a stack by their names, and a
@@ -307,7 +307,7 @@ function named(board: Board, target: Target): string {
   }
   if ("stack" in target) return `the stack "${own(board.stacks, target.stack)?.name ?? target.stack}"`;
   if ("option" in target) return `the board option "${target.option}"`;
-  return `the plugin "${target.plugin}"`;
+  return `the plugin "${idText(target.plugin)}"`;
 }
 
 function without<V>(map: ReadonlyMap<string, V>, key: string): ReadonlyMap<string, V> {

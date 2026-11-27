@@ -13,6 +13,6 @@ export interface Holder {
 }
 export interface HolderOptions {
     readonly signal?: AbortSignal;
-    readonly plugins?: Readonly<Record<PluginClassId, unknown>>;
+    readonly plugins?: ReadonlyMap<PluginClassId, unknown>;
 }
 export declare function createNotifications(store: Pick<Store, "board" | "hasBoard" | "options" | "subscribe">, options?: HolderOptions): Holder;

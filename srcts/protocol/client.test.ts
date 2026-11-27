@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { context, ROOT_CONTEXT, SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import { describe, expect, test, vi } from "vitest";
 import { recordSpans } from "../testing/spans.ts";
+import { interned } from "../util/index.ts";
 import type {
   ClientMessage,
   Fixture,
@@ -148,7 +149,7 @@ const evaluate: Parameters<Client["request"]>[0] = {
   revision: 2,
   locked: null,
   recipe: {
-    registry_id: "blockr.core-dataset_block",
+    registry_id: interned("blockr.core", "dataset_block"),
     state: { dataset: "iris", package: "datasets" },
     inputs: [],
   },
@@ -157,7 +158,7 @@ const evaluate: Parameters<Client["request"]>[0] = {
 const echo: Parameters<Client["request"]>[0] = {
   kind: "request",
   type: "plugin",
-  plugin: "blockr.test-echo_plugin",
+  plugin: interned("blockr.test", "echo_plugin"),
   name: "echo",
   args: {},
   reads: [],
@@ -840,7 +841,8 @@ describe("spans", () => {
     expect(span.attributes).toEqual({
       "blockr.block.id": "a",
       "blockr.block.revision": 2,
-      "blockr.block.registry_id": "blockr.core-dataset_block",
+      "blockr.block.package": "blockr.core",
+      "blockr.block.registry_id": "dataset_block",
       "blockr.reply.status": "ok",
     });
     expect(span.status.code).toBe(SpanStatusCode.UNSET);
@@ -884,7 +886,8 @@ describe("spans", () => {
     expect(request.attributes).toEqual({
       "blockr.request.type": "plugin",
       "blockr.request.name": "echo",
-      "blockr.plugin.class_id": "blockr.test-echo_plugin",
+      "blockr.plugin.package": "blockr.test",
+      "blockr.plugin.class_id": "echo_plugin",
       "blockr.reply.status": "ok",
     });
 

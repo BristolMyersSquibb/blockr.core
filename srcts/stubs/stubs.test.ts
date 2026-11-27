@@ -13,9 +13,9 @@ import type { BlockFixture } from "./index.ts";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 // The renderer that R puts in an output, as it would serve the module of the
-// renderer with the id given.
-function drawnBy(id: string): { id: string; module: string } {
-  return { id, module: `${id.replace("-", "/")}.js` };
+// renderer with the package and the id given.
+function drawnBy(pkg: string, id: string): { package: string; id: string; module: string } {
+  return { package: pkg, id, module: `${pkg}/${id}.js` };
 }
 
 function json(...path: string[]): unknown {
@@ -129,7 +129,7 @@ describe("the stub of a block's host", () => {
   });
 
   test("holds what the module logs, at every level, naming the package of its class", () => {
-    const host = stubBlockHost(datasets, { class: "blockr.io-dataset_block" });
+    const host = stubBlockHost(datasets, { class: { package: "blockr.io", id: "dataset_block" } });
     const failure = new Error("No dataset.");
     host.log.trace("Called.", { n: 1 });
     host.log.error(failure);
@@ -144,15 +144,15 @@ describe("the stub of a block's host", () => {
   test("records each one-time evaluation and gives the modules that other packages offer", async () => {
     const filter = { api: 1 };
     const host = stubBlockHost(datasets, {
-      modules: { "blockr.dplyr-filter": filter },
+      modules: { "blockr.dplyr": { filter } },
       evaluate: (params) => ({ ...READY, status: params.save === true ? "ready" : "invalid" }),
     });
 
     await expect(host.evaluate({ save: true })).resolves.toMatchObject({ status: "ready" });
     await expect(host.evaluate({})).resolves.toMatchObject({ status: "invalid" });
     expect(host.evaluated).toEqual([{ save: true }, {}]);
-    await expect(host.module("blockr.dplyr-filter")).resolves.toBe(filter);
-    await expect(host.module("blockr.dplyr-select")).rejects.toThrow('No package offers a module "blockr.dplyr-select".');
+    await expect(host.module({ package: "blockr.dplyr", id: "filter" })).resolves.toBe(filter);
+    await expect(host.module({ package: "blockr.dplyr", id: "select" })).rejects.toThrow('blockr.dplyr offers no module "select".');
   });
 });
 
@@ -256,13 +256,13 @@ describe("the stub of an output's host", () => {
     const host = stubOutputHost({ fixtures: tables });
     host.setParams({ page: 2 });
     expect(host.error()).toBeNull();
-    expect(() => stubOutputHost({ output: { renderer: "blockr.core-text_output", text: "1" } }).option("n_rows")).toThrow(
+    expect(() => stubOutputHost({ output: { renderer: drawnBy("blockr.core", "text_output"), text: "1" } }).option("n_rows")).toThrow(
       "The stub's output host holds no board option \"n_rows\", whose value a test gives in its `options`.",
     );
   });
 
   test("holds what the renderer logs, naming no package", () => {
-    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core-table_output"), columns: [], rows: [], total: 0 } });
+    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core", "table_output"), columns: [], rows: [], total: 0 } });
     host.log.info("Drawn.");
     expect(host.logged.map(({ level, package: pkg, message }) => ({ level, package: pkg, message }))).toEqual([
       { level: "info", package: null, message: "Drawn." },
@@ -270,19 +270,19 @@ describe("the stub of an output's host", () => {
   });
 
   test("records what the renderer emits", () => {
-    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core-table_output"), columns: [], rows: [], total: 0 } });
+    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core", "table_output"), columns: [], rows: [], total: 0 } });
     host.emit("select", { rows: [1] });
     expect(host.emitted).toEqual([{ name: "select", payload: { rows: [1] } }]);
   });
 
   test("says what core would while it asks R for a newer output, or once that failed", () => {
-    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core-text_output"), text: "1" } });
+    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core", "text_output"), text: "1" } });
     host.setLoading(true);
     expect(host.loading()).toBe(true);
-    host.setOutput({ renderer: drawnBy("blockr.core-text_output"), text: "2" });
+    host.setOutput({ renderer: drawnBy("blockr.core", "text_output"), text: "2" });
     expect([host.loading(), host.output()]).toEqual([
       false,
-      { renderer: drawnBy("blockr.core-text_output"), text: "2" },
+      { renderer: drawnBy("blockr.core", "text_output"), text: "2" },
     ]);
     host.setError({ severity: "error", class: ["simpleError", "error", "condition"], message: "boom" });
     expect(host.error()?.message).toBe("boom");

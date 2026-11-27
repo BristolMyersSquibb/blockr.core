@@ -4,7 +4,10 @@ test_that("csv block constructor", {
 
   expect_s3_class(blk, "csv_block")
   expect_identical(block_state(blk), list(sep = ",", quote = "\""))
-  expect_identical(registry_id_from_block(blk), "blockr.core-csv_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "csv_block")
+  )
 })
 
 test_that("a csv block reads the file its input names", {

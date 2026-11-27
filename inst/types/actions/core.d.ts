@@ -7,4 +7,4 @@ export interface CoreParts {
     readonly preflight: Commands["preflight"];
     readonly blockRegistry: () => BlockRegistry;
 }
-export declare function coreBoardActions(parts: CoreParts): BoardAction[];
+export declare function coreBoardActions(parts: CoreParts): Omit<BoardAction, "package">[];

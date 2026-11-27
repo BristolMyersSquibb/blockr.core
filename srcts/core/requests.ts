@@ -27,7 +27,7 @@ import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { RequestOpts } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { keepContext } from "../trace/index.ts";
-import { givenNotifier, isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
+import { givenNotifier, givenPluginClassId, idText, isObject, own, quoted, sourceModule } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
 import type { RunningPlugins } from "./plugins.ts";
@@ -51,31 +51,29 @@ export interface PluginRequestDeps {
 // download.
 export async function pluginRequest(
   deps: PluginRequestDeps,
-  plugin: PluginClassId,
+  named: PluginClassId,
   name: string,
   args: Readonly<Record<string, Json>>,
   opts: RequestOpts,
 ): Promise<Json | Blob> {
-  if (typeof plugin !== "string" || plugin === "") {
-    throw new TypeError("A plugin's request names the plugin by the id of its class, a non-empty string.");
-  }
-  if (!Object.hasOwn(deps.plugins.appPlugins(), plugin)) {
-    throw new Error(`The app runs no plugin "${plugin}" on the open board, so its request did not go to R.`);
+  const plugin = givenPluginClassId(named, "A plugin's request");
+  if (!deps.plugins.appPlugins().has(plugin)) {
+    throw new Error(`The app runs no plugin "${idText(plugin)}" on the open board, so its request did not go to R.`);
   }
   if (typeof name !== "string" || name === "") {
-    throw new TypeError(`A request of the plugin "${plugin}" is named by a non-empty string.`);
+    throw new TypeError(`A request of the plugin "${idText(plugin)}" is named by a non-empty string.`);
   }
   if (!isObject(args)) {
-    throw new TypeError(`The args of the request "${name}" of the plugin "${plugin}" are an object.`);
+    throw new TypeError(`The args of the request "${name}" of the plugin "${idText(plugin)}" are an object.`);
   }
   const reads = opts.reads ?? [];
   if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
-    throw new TypeError(`The blocks that the request "${name}" of the plugin "${plugin}" reads are an array of their ids.`);
+    throw new TypeError(`The blocks that the request "${name}" of the plugin "${idText(plugin)}" reads are an array of their ids.`);
   }
-  const notifier = givenNotifier(opts, `the request "${name}" of the plugin "${plugin}"`);
-  const what = `The request "${name}" of the plugin "${plugin}"`;
+  const notifier = givenNotifier(opts, `the request "${name}" of the plugin "${idText(plugin)}"`);
+  const what = `The request "${name}" of the plugin "${idText(plugin)}"`;
   // The plugin class's module, which made the request.
-  const module = sourceModule({ plugin }, packageFromId(plugin));
+  const module = sourceModule({ plugin }, plugin.package);
   const inCaller = keepContext();
   // Holds a notification for each condition of R's reply, or hands them to
   // the caller's notifier.
@@ -106,10 +104,10 @@ export async function pluginRequest(
         if (attempt < ATTEMPTS) continue;
         throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
       case "cancelled":
-        throw new RequestError(`R cancelled the request "${name}" of the plugin "${plugin}".`, { status: "cancelled" });
+        throw new RequestError(`R cancelled the request "${name}" of the plugin "${idText(plugin)}".`, { status: "cancelled" });
       default:
         handOn(conditions);
-        throw new RequestError(`R replied ${reply.status} to the request "${name}" of the plugin "${plugin}".`, {
+        throw new RequestError(`R replied ${reply.status} to the request "${name}" of the plugin "${idText(plugin)}".`, {
           status: reply.status,
           conditions,
         });

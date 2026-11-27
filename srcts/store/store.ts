@@ -10,15 +10,16 @@
 // `useSyncExternalStore` needs.
 
 import { signal } from "@preact/signals-core";
-import type { HelloReply } from "../protocol/index.ts";
+import { appPlugins, blockRegistry } from "../protocol/index.ts";
+import type { HelloReply, PluginEntry } from "../protocol/index.ts";
 import type { BlockId, Board, JsonBoard, PluginClassId, RegistryId } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { log } from "../log/index.ts";
-import { asError, own, packageFromId } from "../util/index.ts";
+import { asError, idText, nestedEntries, nestedRecord, nestedValue, own } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
-import type { Changed, Inverse, Target } from "./commit.ts";
+import type { Changed, Inverse, Target, TargetKey } from "./commit.ts";
 import { isDeltas } from "./delta.ts";
 import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
@@ -146,7 +147,7 @@ export interface Store {
   // the reply gives it in `options`, each 1 where none is given.
   // Beside each board option's value, it also records the package that lists
   // the board option, as the reply names it in `options`, or null where the
-  // reply names none, since a board option's id names no package.
+  // reply names none, since a board option's id holds no package.
   jsonBoard(): JsonBoard;
   // The text of the board's file: its JSON board, written with
   // JSON.stringify(), indented by two spaces and ending in a newline, as R
@@ -200,7 +201,7 @@ export interface Store {
   readonly options: Options;
   // The block registry's entries that the store opened the board with, and
   // the versions of the packages R loaded, from the reply to `hello`.
-  blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
+  blockRegistry(): ReadonlyMap<RegistryId, RegistryEntry>;
   packages(): Readonly<Record<string, string>>;
 
   // The edit id of a block or of a plugin, by the id of its class, which only
@@ -263,7 +264,9 @@ export function createStore(options: StoreOptions = {}): Store {
   // refuses: its load lock every JSON board's text, and its board lock every
   // delta but those it leaves open.
   let hello: HelloReply | undefined = options.hello;
-  const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>(options.hello?.block_registry ?? {});
+  const registry = signal<ReadonlyMap<RegistryId, RegistryEntry>>(
+    options.hello === undefined ? new Map() : blockRegistry(options.hello),
+  );
   const packages = signal<Readonly<Record<string, string>>>(options.hello?.packages ?? {});
   const history = signal<History>({ undo: [], redo: [] });
   const subscribers = new Set<(change: Change, board: Board) => void>();
@@ -285,7 +288,7 @@ export function createStore(options: StoreOptions = {}): Store {
   // the number of the step that last changed it.
   // No number is given out twice, so an id names one version of what it
   // belongs to.
-  const edits = new Map<string, number>();
+  const edits = new Map<TargetKey, number>();
   let lastStep = 0;
 
   // Whether the store is applying or announcing a change,
@@ -398,21 +401,19 @@ export function createStore(options: StoreOptions = {}): Store {
   }
 
   // Whether the board holds what an edit id belongs to, a block or a plugin.
-  function exists(next: Board, key: string): boolean {
-    const [kind, id] = JSON.parse(key) as [string, string];
-    return Object.hasOwn(kind === "block" ? next.blocks : next.plugins, id);
+  function exists(next: Board, key: TargetKey): boolean {
+    return typeof key === "string" ? Object.hasOwn(next.blocks, key) : nestedValue(next.plugins, key) !== undefined;
   }
 
-  function describe(key: string): string {
-    const [kind, id] = JSON.parse(key) as [string, string];
-    return kind === "block" ? `block "${id}"` : `the plugin "${id}"`;
+  function describe(key: TargetKey): string {
+    return typeof key === "string" ? `block "${key}"` : `the plugin "${idText(key)}"`;
   }
 
   // The edit ids that the deltas name and that differ from those the board had
   // as the step started, since every delta of a step is built on that board.
   function named(deltas: readonly Delta[]): string[] {
     const failures: string[] = [];
-    const compare = (key: string, edit: number | undefined) => {
+    const compare = (key: TargetKey, edit: number | undefined) => {
       if (edit === undefined) return;
       const id = edits.get(key);
       if (id !== edit) {
@@ -556,7 +557,7 @@ export function createStore(options: StoreOptions = {}): Store {
   function prepareOpen(given: string | HelloReply): { json: JsonBoard; reply: HelloReply } {
     if (typeof given !== "string") {
       hello = given;
-      registry.value = given.block_registry;
+      registry.value = blockRegistry(given);
       packages.value = given.packages;
       return { json: checkJsonBoard(given.board), reply: given };
     }
@@ -654,10 +655,10 @@ export function createStore(options: StoreOptions = {}): Store {
         return [id, { value, version: entry?.version ?? 1, package: entry?.package ?? null }];
       }),
     );
-    const classes = Object.keys(next.plugins);
+    const held = nestedEntries(next.plugins);
     const owned = new Set([
-      ...classes.flatMap((cls) => packageFromId(cls) ?? []),
-      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
+      ...held.map(([cls]) => cls.package),
+      ...Object.values(next.blocks).flatMap(({ registry_id }) => registry_id.package ?? []),
       ...Object.values(options).flatMap((option) => option.package ?? []),
     ]);
     const recorded = Object.fromEntries(
@@ -671,19 +672,15 @@ export function createStore(options: StoreOptions = {}): Store {
         id,
         {
           registry_id: block.registry_id,
-          version: own(registry.value, block.registry_id)?.version ?? 1,
+          version: registry.value.get(block.registry_id)?.version ?? 1,
           state: block.state,
           name: block.name,
           locked: block.locked,
         },
       ]),
     );
-    const plugins = Object.fromEntries(
-      Object.entries(next.plugins).map(([cls, state]) => [
-        cls,
-        { state, version: own(hello?.plugins ?? {}, cls)?.version ?? 1 },
-      ]),
-    );
+    const app: ReadonlyMap<PluginClassId, PluginEntry> = hello === undefined ? new Map() : appPlugins(hello);
+    const plugins = nestedRecord(held.map(([cls, state]) => [cls, { state, version: app.get(cls)?.version ?? 1 }]));
     const { id, name, links, stacks } = next;
     return {
       format: FORMAT,
@@ -696,10 +693,10 @@ export function createStore(options: StoreOptions = {}): Store {
     return `${JSON.stringify(jsonBoard(), null, 2)}\n`;
   }
 
-  function everyTarget(next: Board): string[] {
+  function everyTarget(next: Board): TargetKey[] {
     const targets: Target[] = [
       ...Object.keys(next.blocks).map((id) => ({ block: id })),
-      ...Object.keys(next.plugins).map((id) => ({ plugin: id })),
+      ...nestedEntries(next.plugins).map(([id]) => ({ plugin: id })),
     ];
     return targets.map(target);
   }

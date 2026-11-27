@@ -131,8 +131,8 @@ protocol_r_values <- function() {
       list(
         proto_hello_reply(
           block_registry = proto_registry(
-            "dataset_block", "head_block", "merge_block", "subset_block",
-            "rbind_block", "scatter_block", "upload_block"
+            "dataset_block", "head_block", "merge_block", "rbind_block",
+            "scatter_block", "subset_block", "upload_block"
           ),
           lock = proto_lock(),
           board = proto_board()
@@ -159,7 +159,7 @@ protocol_r_values <- function() {
               name = "Quick wren",
               blocks = obj(
                 tidy_crab = proto_block(
-                  "blockr.core-head_block",
+                  pkg_ref("blockr.core", "head_block"),
                   obj(n = 6L, direction = "head"),
                   "Head"
                 )
@@ -171,7 +171,7 @@ protocol_r_values <- function() {
             )
           ),
           bound = I("data"),
-          plugins = obj()
+          plugins = list()
         )
       )
     ),
@@ -558,11 +558,13 @@ proto_hello_reply <- function(block_registry, lock, ...,
 proto_served <- function() {
   obj(
     modules = obj(
-      `blockr.core-controls` = obj(
-        module = proto_js("blockr-core-controls.js", "4d2a6c91")
-      ),
-      `blockr.core-board_action_menu` = obj(
-        module = proto_js("board-action-menu.js", "e3a7c05b")
+      blockr.core = obj(
+        controls = obj(
+          module = proto_js("blockr-core-controls.js", "4d2a6c91")
+        ),
+        board_action_menu = obj(
+          module = proto_js("board-action-menu.js", "e3a7c05b")
+        )
       )
     ),
     plugins = proto_core_plugins(),
@@ -573,25 +575,31 @@ proto_served <- function() {
 
 # The app's plugins of a core app whose script names none, as the reply to
 # `hello` gives them: core's basic frontend, its storage plugin and its Edit
-# board plugin, each under the id of its class, with its class's name and
-# version, the board options that it reads and where R serves the module of
-# its class.
+# board plugin, in that order, each with the package and the id of its class,
+# its class's name and version, the board options that it reads and where R
+# serves the module of its class.
 proto_core_plugins <- function() {
-  obj(
-    `blockr.core-basic_frontend_plugin` = obj(
+  list(
+    obj(
+      package = "blockr.core",
+      id = "basic_frontend_plugin",
       name = "Basic frontend",
       version = 1L,
       options = I("dark_mode"),
       module = proto_js("basic.js", "0f3d8e21"),
       css = proto_js("basic.css", "6a9b2c4e")
     ),
-    `blockr.core-file_storage_plugin` = obj(
+    obj(
+      package = "blockr.core",
+      id = "file_storage_plugin",
       name = "File storage",
       version = 1L,
       options = I(character()),
       module = proto_js("file-storage.js", "8e1f0b2d")
     ),
-    `blockr.core-edit_board_plugin` = obj(
+    obj(
+      package = "blockr.core",
+      id = "edit_board_plugin",
       name = "Edit board",
       version = 1L,
       options = I(character()),
@@ -652,7 +660,8 @@ local_fixture_renderer_urls <- function(frame = parent.frame()) {
 # at the URL that the fixtures give its module.
 proto_renderer <- function(kind) {
   obj(
-    id = paste0("blockr.core-", kind, "_output"),
+    package = "blockr.core",
+    id = paste0(kind, "_output"),
     module = proto_renderer_urls()[[paste0("js/basic-", kind, ".js")]]
   )
 }
@@ -684,12 +693,13 @@ proto_request <- function(inputs = character(), state_args = character(),
 }
 
 # The entries of the block classes named, of core's, as R sends them in the
-# block registry, by registry id.
+# block registry, an array in the order named.
 proto_registry <- function(...) {
 
   entries <- list(
     dataset_block = obj(
-      id = "blockr.core-dataset_block",
+      package = "blockr.core",
+      id = "dataset_block",
       name = "dataset block",
       description = "Choose a dataset from a package",
       keywords = I(c("dataset", "data", "import", "package", "source")),
@@ -719,7 +729,8 @@ proto_registry <- function(...) {
       renderers = I(list(proto_renderer("table")))
     ),
     head_block = obj(
-      id = "blockr.core-head_block",
+      package = "blockr.core",
+      id = "head_block",
       name = "head/tail block",
       description = "Data head/tail",
       url = paste0(
@@ -762,7 +773,8 @@ proto_registry <- function(...) {
       renderers = I(list(proto_renderer("table")))
     ),
     merge_block = obj(
-      id = "blockr.core-merge_block",
+      package = "blockr.core",
+      id = "merge_block",
       name = "merge block",
       description = "Joining or merging datasets",
       keywords = I(
@@ -802,7 +814,8 @@ proto_registry <- function(...) {
       renderers = I(list(proto_renderer("table")))
     ),
     subset_block = obj(
-      id = "blockr.core-subset_block",
+      package = "blockr.core",
+      id = "subset_block",
       name = "subset block",
       description = "Row and column subsetting",
       keywords = I(
@@ -834,7 +847,8 @@ proto_registry <- function(...) {
       renderers = I(list(proto_renderer("table")))
     ),
     rbind_block = obj(
-      id = "blockr.core-rbind_block",
+      package = "blockr.core",
+      id = "rbind_block",
       name = "rbind block",
       description = "Row-binding of datasets",
       keywords = I(
@@ -858,7 +872,8 @@ proto_registry <- function(...) {
       renderers = I(list(proto_renderer("table")))
     ),
     scatter_block = obj(
-      id = "blockr.core-scatter_block",
+      package = "blockr.core",
+      id = "scatter_block",
       name = "scatter plot block",
       description = "Scatter plotting",
       keywords = I(
@@ -885,7 +900,8 @@ proto_registry <- function(...) {
       renderers = I(list(proto_renderer("plot")))
     ),
     upload_block = obj(
-      id = "blockr.core-upload_block",
+      package = "blockr.core",
+      id = "upload_block",
       name = "data upload block",
       description = "Upload data",
       keywords = I(c("upload", "file", "import", "data", "session")),
@@ -910,7 +926,7 @@ proto_registry <- function(...) {
 
   entries <- entries[c(...)]
 
-  set_names(unname(entries), chr_xtr(entries, "id"))
+  unname(entries)
 }
 
 # The objects of a board, which its collections hold by id, a block with the
@@ -944,7 +960,7 @@ proto_declared_board <- function() {
       stacks = obj(),
       options = obj(),
       plugins = obj(
-        `blockr.test-grid_plugin` = proto_plugin(obj(columns = 2L), 2L)
+        blockr.test = obj(grid_plugin = proto_plugin(obj(columns = 2L), 2L))
       )
     ),
     packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0")
@@ -989,28 +1005,28 @@ proto_board <- function() {
       name = "Iris review",
       blocks = obj(
         a = proto_block(
-          "blockr.core-dataset_block",
+          pkg_ref("blockr.core", "dataset_block"),
           obj(dataset = "iris", package = "datasets"),
           "Iris"
         ),
         b = proto_block(
-          "blockr.core-head_block",
+          pkg_ref("blockr.core", "head_block"),
           obj(n = 6L, direction = "head"),
           "Head"
         ),
         c = proto_block(
-          "blockr.core-merge_block",
+          pkg_ref("blockr.core", "merge_block"),
           obj(by = I("Species"), all_x = FALSE, all_y = FALSE),
           "Merge"
         ),
         d = proto_block(
-          "blockr.core-subset_block",
+          pkg_ref("blockr.core", "subset_block"),
           obj(subset = "log(Sepal.Width - 3) > 0", select = ""),
           "Wide sepals"
         ),
-        e = proto_block("blockr.core-rbind_block", obj(), "Bind"),
+        e = proto_block(pkg_ref("blockr.core", "rbind_block"), obj(), "Bind"),
         f = proto_block(
-          "blockr.core-scatter_block",
+          pkg_ref("blockr.core", "scatter_block"),
           obj(x = "Sepal.Length", y = "Sepal.Width"),
           "Scatter"
         )
@@ -1040,12 +1056,12 @@ proto_locked_board <- function() {
       name = "Iris report",
       blocks = obj(
         a = proto_block(
-          "blockr.core-dataset_block",
+          pkg_ref("blockr.core", "dataset_block"),
           obj(dataset = "iris", package = "datasets"),
           "Iris"
         ),
         b = proto_block(
-          "blockr.core-head_block",
+          pkg_ref("blockr.core", "head_block"),
           obj(n = 6L, direction = "head"),
           "Head",
           locked = FALSE
@@ -1068,12 +1084,12 @@ proto_served_file <- function() {
       name = "Cars",
       blocks = obj(
         a = proto_block(
-          "blockr.core-dataset_block",
+          pkg_ref("blockr.core", "dataset_block"),
           obj(dataset = "mtcars", package = "datasets"),
           "Cars"
         ),
         b = proto_block(
-          "blockr.core-subset_block",
+          pkg_ref("blockr.core", "subset_block"),
           obj(subset = "cyl == 6", select = "mpg"),
           "Six cylinders"
         )
@@ -1139,7 +1155,8 @@ proto_output <- function(x) {
   parts <- shape_output(x)
   drawn <- core_renderer(x) # nolint: object_usage_linter.
   renderer <- obj(
-    id = drawn$id,
+    package = drawn$package,
+    id = drawn$name,
     module = proto_renderer_urls()[[drawn$module$path]]
   )
 
@@ -1207,10 +1224,12 @@ write_declared_files <- function(dir) {
 # R copies the files that it serves into a directory of its own until then.
 local_empty_declarations <- function(frame = parent.frame()) {
 
-  saved <- as.list(block_registry, all.names = TRUE)
   paths <- names(shiny::resourcePaths())
 
-  rm(list = ls(block_registry, all.names = TRUE), envir = block_registry)
+  # Linting skips the calls of local_block_registry() and
+  # empty_block_registry(), helpers of another file, which lintr does not see.
+  local_block_registry(frame) # nolint: object_usage_linter.
+  empty_block_registry() # nolint: object_usage_linter.
 
   local_served_dir(frame)
 
@@ -1220,9 +1239,6 @@ local_empty_declarations <- function(frame = parent.frame()) {
 
   withr::defer(
     {
-      rm(list = ls(block_registry, all.names = TRUE), envir = block_registry)
-      list2env(saved, envir = block_registry)
-
       for (prefix in setdiff(names(shiny::resourcePaths()), paths)) {
         shiny::removeResourcePath(prefix)
       }
@@ -1400,10 +1416,10 @@ register_script_blocks <- function(dir) {
 
   register_block(block_constructor(count_block), "count block", "Count up")
 
-  for (id in list_blocks()) {
-    entry <- get_registry_entry(id)
-    entry[["icon"]] <- proto_icon(if (id == "letters_block") "eye" else "hash")
-    assign(id, entry, envir = block_registry)
+  for (entry in registry_entries()) {
+    icon <- if (entry[["id"]] == "letters_block") "eye" else "hash"
+    entry[["icon"]] <- proto_icon(icon)
+    put_registry_entry(entry, block_registry)
   }
 
   invisible()

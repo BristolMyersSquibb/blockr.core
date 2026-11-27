@@ -15,47 +15,70 @@ import { listedModules, noBoard, refusedClass } from "../testing/plugins.ts";
 import { withPlugins } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { CoreApi, Notification } from "../types/core-api.ts";
+import { interned, nestedRecord } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { QuickLevel } from "./quick.ts";
 
 // Core's board actions on the block b, which come first in every menu of it,
 // and on the board. Links feed every input of b, and the stack s1 holds it.
-const ON_BLOCK = [
-  "blockr.core-append_block_action",
-  "blockr.core-add_link_action",
-  "blockr.core-add_stack_action",
-  "blockr.core-rename_action",
-  "blockr.core-edit_inputs_action",
-  "blockr.core-copy_block_id_action",
-  "blockr.core-remove_block_action",
-];
-const ON_BOARD = ["blockr.core-add_block_action", "blockr.core-add_link_action", "blockr.core-add_stack_action"];
+const ON_BLOCK = ofCore(
+  "append_block_action",
+  "add_link_action",
+  "add_stack_action",
+  "rename_action",
+  "edit_inputs_action",
+  "copy_block_id_action",
+  "remove_block_action",
+);
+const ON_BOARD = ofCore("add_block_action", "add_link_action", "add_stack_action");
 
 // The element that the user triggers from, which a trigger() needs.
 const el = document.body;
 
+// A board action as a plugin class defines it, without the package, which core
+// sets to that of the class as it registers the class.
+type Definition = Omit<BoardAction, "package">;
+
 // A board action of blockr.test on the kinds of target given, labelled by its
 // name, which runs no batch unless `more` gives a run of its own.
-function action(name: string, on: BoardAction["on"], more: Partial<BoardAction> = {}): BoardAction {
-  return { id: `blockr.test-${name}_action`, label: name, on, category: "test", run: () => undefined, ...more };
+function action(name: string, on: BoardAction["on"], more: Partial<Definition> = {}): Definition {
+  return { id: `${name}_action`, label: name, on, category: "test", run: () => undefined, ...more };
 }
 
 // A plugin class of blockr.test, which lists the board actions given.
 function listing(name: string, boardActions: readonly unknown[], more: Partial<PluginClass> = {}): PluginClass {
-  return { id: `blockr.test-${name}_plugin`, boardActions: boardActions as readonly BoardAction[], ...more };
+  return { id: interned("blockr.test", `${name}_plugin`), boardActions: boardActions as readonly Omit<BoardAction, "package">[], ...more };
 }
 
 // The CoreApi for tests on the board of the fixture hello, whose app runs core's
-// plugins and one of each class given, after core's, in the order given.
+// plugins and one of each class given, after core's.
+// The app runs the classes of each package together, in the order given, and
+// the packages in the order of their first classes.
 function stubbed(classes: readonly PluginClass[], replied: HelloReply = HELLO) {
   return stubCore({
-    hello: withPlugins(Object.fromEntries(classes.map(({ id }) => [id, { name: id }])), replied),
-    modules: listedModules(classes),
+    hello: withPlugins(nestedRecord(classes.map(({ id }) => [id, { name: id.id }] as const)), replied),
+    ...listedModules(classes),
   });
 }
 
-function ids(actions: readonly BoardAction[]): string[] {
-  return actions.map(({ id }) => id);
+// A board action by its package and its id, as a caller names it.
+function nameOf(action: Pick<BoardAction, "package" | "id">): { package: string; id: string } {
+  return { package: action.package, id: action.id };
+}
+
+function ids(actions: readonly BoardAction[]): { package: string; id: string }[] {
+  return actions.map(nameOf);
+}
+
+// Core's board actions with the ids given, by their package and their ids.
+function ofCore(...given: readonly string[]): { package: string; id: string }[] {
+  return given.map((id) => ({ package: "blockr.core", id }));
+}
+
+// A board action of blockr.test by its package and its id, which core gives it
+// as it registers the class that lists it.
+function ofTest(action: Pick<Definition, "id">): { package: string; id: string } {
+  return { package: "blockr.test", id: action.id };
 }
 
 describe("the board actions that core registers", () => {
@@ -65,53 +88,50 @@ describe("the board actions that core registers", () => {
     const three = action("three", ["block"]);
     const s = await stubbed([listing("first", [one, two]), listing("second", [three])]);
 
-    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, one.id, two.id, three.id]);
-    expect(ids(s.core.boardActions.on({ board: true }))).toEqual([...ON_BOARD, two.id]);
-    expect(s.core.boardActions.on({ board: true }).at(-1)).toBe(two);
+    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, ofTest(one), ofTest(two), ofTest(three)]);
+    expect(ids(s.core.boardActions.on({ board: true }))).toEqual([...ON_BOARD, ofTest(two)]);
+    // Core holds the board action as the class gives it, with the package of
+    // the class, which it sets.
+    expect(s.core.boardActions.on({ board: true }).at(-1)).toEqual({ ...two, package: "blockr.test" });
 
     // Opening a board ends the board actions of the board before, and core
     // registers them again for the next.
     await s.core.store.open(JSON.stringify(HELLO.board));
     await s.settled();
-    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, one.id, two.id, three.id]);
+    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, ofTest(one), ofTest(two), ofTest(three)]);
     s.stop();
   });
 
-  test.each<[string, Partial<BoardAction> & Readonly<Record<string, unknown>>, string]>([
-    [
-      "has the id of one of core's",
-      { id: "blockr.core-remove_block_action" },
-      'gives the board action "blockr.core-remove_block_action", which has the id of another board action.',
-    ],
-    ["has an empty on", { on: [] }, 'gives the board action "blockr.test-faulty_action", whose on is empty, so that no menu would offer it.'],
+  test.each<[string, Partial<Definition> & Readonly<Record<string, unknown>>, string]>([
+    ["has an empty on", { on: [] }, 'gives the board action "faulty_action", whose on is empty, so that no menu would offer it.'],
     [
       "has run beside quick",
       { quick: () => ({ rows: [] }) },
-      'gives the board action "blockr.test-faulty_action", which has run beside quick, while run is for a board action that asks the user nothing.',
+      'gives the board action "faulty_action", which has run beside quick, while run is for a board action that asks the user nothing.',
     ],
     [
       "has run beside advanced",
       { advanced: { render: () => () => undefined } },
-      'gives the board action "blockr.test-faulty_action", which has run beside advanced, while run is for a board action that asks the user nothing.',
+      'gives the board action "faulty_action", which has run beside advanced, while run is for a board action that asks the user nothing.',
     ],
     [
       "has none of run, quick and advanced",
       { run: undefined },
-      'gives the board action "blockr.test-faulty_action", which has none of run, quick and advanced.',
+      'gives the board action "faulty_action", which has none of run, quick and advanced.',
     ],
     [
       "has an advanced without render()",
       { run: undefined, advanced: { draw: () => undefined } as unknown as BoardAction["advanced"] },
-      'gives the board action "blockr.test-faulty_action", whose advanced has no render() function.',
+      'gives the board action "faulty_action", whose advanced has no render() function.',
     ],
     [
       "has a role that is no string",
       { role: 3 as unknown as string },
-      'gives the board action "blockr.test-faulty_action", whose role 3 is no role\'s id, as "append_block_role".',
+      'gives the board action "faulty_action", whose role 3 is no role\'s id, as "append_block_role".',
     ],
   ])("open no board where a class's board action %s, and say why, naming the class's module with its package", async (_rule, given, message) => {
     const cls = listing("faulty", [action("fine", ["board"]), { ...action("faulty", ["block"]), ...given }]);
-    const why = noBoard(refusedClass(cls.id, `The plugin class "blockr.test-faulty_plugin" ${message}`));
+    const why = noBoard(refusedClass(cls.id, `The plugin class "faulty_plugin of blockr.test" ${message}`));
     const reported = logged();
     await expect(stubbed([cls])).rejects.toThrow(why);
     reported.restore();
@@ -119,7 +139,7 @@ describe("the board actions that core registers", () => {
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
   });
 
-  test("open no board where a class's board action has the id of one that the class lists before it, or that a class before it lists, naming the module of each such class", async () => {
+  test("open no board where a class's board action has the id of one that the class lists before it, or that a class of its package lists before it, naming the module of each such class", async () => {
     const twice = listing("twice", [action("same", ["board"]), action("same", ["block"])]);
     const first = listing("first", [action("taken", ["board"])]);
     const second = listing("second", [action("taken", ["block"]), action("free", ["board"])]);
@@ -128,61 +148,91 @@ describe("the board actions that core registers", () => {
       noBoard(
         refusedClass(
           twice.id,
-          'The plugin class "blockr.test-twice_plugin" gives the board action "blockr.test-same_action", which has the id of another board action.',
+          'The plugin class "twice_plugin of blockr.test" gives the board action "same_action", which has the id of another board action of blockr.test.',
         ),
         refusedClass(
           second.id,
-          'The plugin class "blockr.test-second_plugin" gives the board action "blockr.test-taken_action", which has the id of another board action.',
+          'The plugin class "second_plugin of blockr.test" gives the board action "taken_action", which has the id of another board action of blockr.test.',
         ),
       ),
     );
     reported.restore();
   });
 
+  test("open no board where a class of blockr.core gives a board action with the id of one of core's, while a class of another package may give that id", async () => {
+    const removes = action("remove_block", ["block"]);
+    const s = await stubbed([listing("test", [removes])]);
+    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, ofTest(removes)]);
+    s.stop();
+
+    const cls: PluginClass = { ...listing("faulty", [removes]), id: interned("blockr.core", "faulty_plugin") };
+    const why = noBoard(
+      refusedClass(
+        cls.id,
+        'The plugin class "faulty_plugin of blockr.core" gives the board action "remove_block_action", which has the id of another board action of blockr.core.',
+      ),
+    );
+    const reported = logged();
+    await expect(stubbed([cls])).rejects.toThrow(why);
+    reported.restore();
+
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
+  });
+
   test.each<[string, unknown, string]>([
     ["board actions that are no array", { not: "an array" }, "gives board actions that are no array."],
     ["a board action that is no object", ["remove"], "gives a board action that is no object."],
     [
-      "a board action whose id names no package",
-      [{ ...action("x", ["block"]), id: "remove_action" }],
-      'gives a board action whose id "remove_action" is not named as a command\'s id is, "{pkg}-{name}".',
+      "a board action whose id is empty",
+      [{ ...action("x", ["block"]), id: "" }],
+      'gives a board action whose id "" is no non-empty string, as "remove_block_action".',
     ],
-    ["a board action without a label", [{ ...action("x", ["block"]), label: "" }], 'gives the board action "blockr.test-x_action" without a label.'],
+    [
+      "a board action whose id is its package and its id, as a caller names it, rather than its id alone",
+      [{ ...action("x", ["block"]), id: { package: "blockr.test", id: "x_action" } }],
+      'gives a board action whose id {"package":"blockr.test","id":"x_action"} is no non-empty string, as "remove_block_action".',
+    ],
+    [
+      "a board action whose package is not its class's",
+      [{ ...action("x", ["block"]), package: "blockr.other" }],
+      'gives the board action "x_action" with the package "blockr.other", where core sets the package of its class, blockr.test.',
+    ],
+    ["a board action without a label", [{ ...action("x", ["block"]), label: "" }], 'gives the board action "x_action" without a label.'],
     [
       "a board action whose icon is no string",
       [{ ...action("x", ["block"]), icon: 1 }],
-      'gives the board action "blockr.test-x_action", whose icon is no string of SVG markup.',
+      'gives the board action "x_action", whose icon is no string of SVG markup.',
     ],
     [
       "a board action whose on is no array",
       [{ ...action("x", ["block"]), on: "block" }],
-      'gives the board action "blockr.test-x_action", whose on is no array of the kinds of target that it applies to.',
+      'gives the board action "x_action", whose on is no array of the kinds of target that it applies to.',
     ],
     [
       "a board action whose on names no kind of target",
       [{ ...action("x", ["block"]), on: ["block", "node"] }],
-      'gives the board action "blockr.test-x_action", whose on names "node", which is none of the kinds of target, "board", "block", "input", "link", "stack", "option", "plugin" and "selection".',
+      'gives the board action "x_action", whose on names "node", which is none of the kinds of target, "board", "block", "input", "link", "stack", "option", "plugin" and "selection".',
     ],
-    ["a board action without a category", [{ ...action("x", ["block"]), category: undefined }], 'gives the board action "blockr.test-x_action" without a category.'],
+    ["a board action without a category", [{ ...action("x", ["block"]), category: undefined }], 'gives the board action "x_action" without a category.'],
     [
       "a board action whose run is no function",
       [{ ...action("x", ["block"]), run: [] }],
-      'gives the board action "blockr.test-x_action", whose run is no function.',
+      'gives the board action "x_action", whose run is no function.',
     ],
     [
       "a board action whose offers is no function",
       [{ ...action("x", ["block"]), offers: true }],
-      'gives the board action "blockr.test-x_action", whose offers is no function.',
+      'gives the board action "x_action", whose offers is no function.',
     ],
     [
       "a board action whose quick is no function",
       [{ ...action("x", ["block"]), run: undefined, quick: { rows: [] } }],
-      'gives the board action "blockr.test-x_action", whose quick is no function.',
+      'gives the board action "x_action", whose quick is no function.',
     ],
   ])("open no board where a class gives %s, as a package that writes its JS without types may", async (_what, given, message) => {
-    const cls: PluginClass = { id: "blockr.test-untyped_plugin", boardActions: given as readonly BoardAction[] };
+    const cls: PluginClass = { id: interned("blockr.test", "untyped_plugin"), boardActions: given as readonly Omit<BoardAction, "package">[] };
     const reported = logged();
-    await expect(stubbed([cls])).rejects.toThrow(noBoard(refusedClass(cls.id, `The plugin class "blockr.test-untyped_plugin" ${message}`)));
+    await expect(stubbed([cls])).rejects.toThrow(noBoard(refusedClass(cls.id, `The plugin class "untyped_plugin of blockr.test" ${message}`)));
     reported.restore();
   });
 });
@@ -199,31 +249,30 @@ describe("on()", () => {
     const open = action("open", ["link"]);
     const s = await stubbed([listing("test", [picky, open])]);
 
-    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, picky.id]);
+    expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual([...ON_BLOCK, ofTest(picky)]);
     // No stack holds the block c, so that Add to stack applies to it as well.
-    expect(ids(s.core.boardActions.on({ block: "c" }))).toEqual([
-      "blockr.core-append_block_action",
-      "blockr.core-add_link_action",
-      "blockr.core-add_stack_action",
-      "blockr.core-rename_action",
-      "blockr.core-edit_inputs_action",
-      "blockr.core-add_to_stack_action",
-      "blockr.core-copy_block_id_action",
-      "blockr.core-remove_block_action",
-    ]);
+    expect(ids(s.core.boardActions.on({ block: "c" }))).toEqual(
+      ofCore(
+        "append_block_action",
+        "add_link_action",
+        "add_stack_action",
+        "rename_action",
+        "edit_inputs_action",
+        "add_to_stack_action",
+        "copy_block_id_action",
+        "remove_block_action",
+      ),
+    );
     expect(ids(s.core.boardActions.on({ link: "ab" }))).toEqual([
-      "blockr.core-insert_block_action",
-      "blockr.core-edit_link_action",
-      "blockr.core-remove_link_action",
-      open.id,
+      ...ofCore("insert_block_action", "edit_link_action", "remove_link_action"),
+      ofTest(open),
     ]);
     expect(ids(s.core.boardActions.on({ selection: [{ block: "b" }] }))).toEqual([
-      "blockr.core-add_stack_action",
-      "blockr.core-remove_selected_action",
-      picky.id,
+      ...ofCore("add_stack_action", "remove_selected_action"),
+      ofTest(picky),
     ]);
     expect(ids(s.core.boardActions.on({ board: true }))).toEqual(ON_BOARD);
-    expect(s.core.boardActions.on({ plugin: "blockr.core-edit_board_plugin" })).toEqual([]);
+    expect(s.core.boardActions.on({ plugin: interned("blockr.core", "edit_board_plugin") })).toEqual([]);
 
     // The board, a copy of the target and the app's locks.
     expect(got.map(([, target]) => target)).toEqual([{ block: "b" }, { block: "c" }, { selection: [{ block: "b" }] }]);
@@ -244,7 +293,7 @@ describe("on()", () => {
     const reported = logged();
     expect(ids(s.core.boardActions.on({ block: "b" }))).toEqual(ON_BLOCK);
     reported.restore();
-    expect(reported.errors().map((line) => line.message)).toEqual(['The offers of the board action "blockr.test-broken_action" failed: boom']);
+    expect(reported.errors().map((line) => line.message)).toEqual(['The offers of the board action "broken_action of blockr.test" failed: boom']);
     s.stop();
   });
 
@@ -263,22 +312,22 @@ describe("on()", () => {
       },
     });
     const s = await stubbed([listing("test", [onInput, onBlock])]);
-    const on = (target: Target): string[] => ids(s.core.boardActions.on(target));
-    const CORE = ["blockr.core-prepend_block_action", "blockr.core-add_link_action"];
+    const on = (target: Target) => ids(s.core.boardActions.on(target));
+    const CORE = ofCore("prepend_block_action", "add_link_action");
 
     // A link feeds the input x of Merge, and none the next place of Bind.
-    expect(on({ block: "c", input: "x" })).toEqual([onInput.id]);
-    expect(on({ block: "e", input: "" })).toEqual([...CORE, onInput.id]);
-    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
-    expect(on({ block: "c", input: "x" })).toEqual([...CORE, onInput.id]);
+    expect(on({ block: "c", input: "x" })).toEqual([ofTest(onInput)]);
+    expect(on({ block: "e", input: "" })).toEqual([...CORE, ofTest(onInput)]);
+    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ac" });
+    expect(on({ block: "c", input: "x" })).toEqual([...CORE, ofTest(onInput)]);
     // The target names an input whatever order the caller gives its block and
     // its input in.
-    expect(on({ input: "x", block: "c" })).toEqual([...CORE, onInput.id]);
+    expect(on({ input: "x", block: "c" })).toEqual([...CORE, ofTest(onInput)]);
 
     // Merge takes its inputs by name, so it has no next place, and Bind is
     // variadic, so it has none but its next place. Neither has an input z.
     for (const target of [{ block: "c", input: "" }, { block: "c", input: "z" }, { block: "e", input: "x" }]) {
-      expect(on(target)).toEqual([onInput.id]);
+      expect(on(target)).toEqual([ofTest(onInput)]);
     }
 
     // Core handed the board action on blocks none of them.
@@ -318,7 +367,7 @@ describe("on()", () => {
 describe("menu()", () => {
   // A board action of blockr.test on blocks whose quick action is the level
   // given.
-  function asking(name: string, level: QuickLevel, more: Partial<BoardAction> = {}): BoardAction {
+  function asking(name: string, level: QuickLevel, more: Partial<Definition> = {}): Definition {
     return { ...action(name, ["block"]), run: undefined, quick: () => level, ...more };
   }
 
@@ -435,19 +484,19 @@ describe("menu()", () => {
   });
 
   test("runs the batch of a row as one step of the user, with the commands that extend returns, and hands the notifier a refusal with the board action that ran the batch", async () => {
-    const renames = action("Rename to First", ["block"], { run: () => [{ id: "blockr.core-change_block", args: { id: "b", name: "First" } }] });
-    const breaks = action("Break", ["block"], { run: () => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }] });
+    const renames = action("Rename to First", ["block"], { run: () => [{ package: "blockr.core", id: "change_block", args: { id: "b", name: "First" } }] });
+    const breaks = action("Break", ["block"], { run: () => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }] });
     const s = await stubbed([listing("test", [renames, breaks])]);
     const board = s.core.store.board();
     const seen: string[][] = [];
-    const handed: [string[], string][] = [];
+    const handed: [string[], { package: string; id: string }][] = [];
     const opts = {
       extend(deltas: readonly Delta[]): CommandCall[] {
         seen.push(deltas.map((delta) => Object.keys(delta.blocks?.mod ?? {})).flat());
-        return [{ id: "blockr.core-change_block", args: { id: "a", name: "Second" } }];
+        return [{ package: "blockr.core", id: "change_block", args: { id: "a", name: "Second" } }];
       },
       notifier(notifications: readonly Notification[], by: BoardAction) {
-        handed.push([notifications.map(notificationCode), by.id]);
+        handed.push([notifications.map(notificationCode), nameOf(by)]);
       },
     };
 
@@ -461,8 +510,8 @@ describe("menu()", () => {
     s.core.store.undo();
     expect(s.core.store.board()).toEqual(board);
 
-    await expect(s.menu({ block: "b" }, opts).pick("Break")).rejects.toThrow('The batch was refused at command 1, "blockr.core-remove_link"');
-    expect(handed).toEqual([[["board_edit_failed"], breaks.id]]);
+    await expect(s.menu({ block: "b" }, opts).pick("Break")).rejects.toThrow('The batch was refused at command 1, "remove_link of blockr.core"');
+    expect(handed).toEqual([[["board_edit_failed"], ofTest(breaks)]]);
     expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
     s.stop();
   });
@@ -471,7 +520,7 @@ describe("menu()", () => {
     const refused = action("Paste", ["block"], { run: () => Promise.reject(new Error("The clipboard is refused.")) });
     const cls = listing("test", [refused]);
     const s = await stubbed([cls]);
-    const message = 'The board action "blockr.test-Paste_action" failed: The clipboard is refused.';
+    const message = 'The board action "Paste_action of blockr.test" failed: The clipboard is refused.';
 
     const reported = logged();
     const menu = s.menu({ block: "b" });
@@ -479,11 +528,11 @@ describe("menu()", () => {
     // The menu closes before run settles.
     expect(menu.closed()).toBe(true);
     await expect(picked).rejects.toThrow(message);
-    const handed: [string[], string][] = [];
+    const handed: [string[], { package: string; id: string }][] = [];
     await expect(
       s.menu({ block: "b" }, {
         notifier(notifications, by) {
-          handed.push([notifications.map(notificationCode), by.id]);
+          handed.push([notifications.map(notificationCode), nameOf(by)]);
         },
       }).pick("Paste"),
     ).rejects.toThrow(message);
@@ -498,7 +547,7 @@ describe("menu()", () => {
         about: { plugin: cls.id },
       },
     ]);
-    expect(handed).toEqual([[["board_action_failed"], refused.id]]);
+    expect(handed).toEqual([[["board_action_failed"], ofTest(refused)]]);
     s.stop();
   });
 
@@ -506,7 +555,7 @@ describe("menu()", () => {
     const s = await stubCore();
     const menu = s.menu({ block: "f" });
 
-    await s.core.commands.run([{ id: "blockr.core-remove_block", args: { id: "f" } }]);
+    await s.core.commands.run([{ package: "blockr.core", id: "remove_block", args: { id: "f" } }]);
     const board = s.core.store.board();
     await menu.pick("Remove block");
 
@@ -517,7 +566,7 @@ describe("menu()", () => {
   });
 
   test("closes the menu that is open as another opens, as a click outside it does, which applies the ticks of a multi", async () => {
-    const ticks = asking("Ticks", multi(() => [{ id: "blockr.core-change_block", args: { id: "b", name: "Ticked" } }]));
+    const ticks = asking("Ticks", multi(() => [{ package: "blockr.core", id: "change_block", args: { id: "b", name: "Ticked" } }]));
     const s = await stubbed([listing("test", [ticks])]);
 
     const first = s.menu({ block: "b" });
@@ -534,7 +583,7 @@ describe("menu()", () => {
   });
 
   test("closes the menu that is open as the next board opens, and drops its ticks", async () => {
-    const ticks = asking("Ticks", multi(() => [{ id: "blockr.core-change_block", args: { id: "b", name: "Ticked" } }]));
+    const ticks = asking("Ticks", multi(() => [{ package: "blockr.core", id: "change_block", args: { id: "b", name: "Ticked" } }]));
     const s = await stubbed([listing("test", [ticks])]);
 
     const menu = s.menu({ block: "b" });
@@ -558,17 +607,17 @@ describe("menu()", () => {
     );
     const cls = listing("test", [ticks]);
     const s = await stubbed([cls]);
-    const message = 'A row of the quick action of the board action "blockr.test-Ticks_action" failed: boom';
+    const message = 'A row of the quick action of the board action "Ticks_action of blockr.test" failed: boom';
 
     const reported = logged();
     const menu = s.menu({ block: "b" });
     await menu.pick("Ticks");
     menu.tick("Blocks", "Iris");
     await menu.close();
-    const handed: [string[], string][] = [];
+    const handed: [string[], { package: string; id: string }][] = [];
     const notified = s.menu({ block: "b" }, {
       notifier(notifications, by) {
-        handed.push([notifications.map(notificationCode), by.id]);
+        handed.push([notifications.map(notificationCode), nameOf(by)]);
       },
     });
     await notified.pick("Ticks");
@@ -585,7 +634,7 @@ describe("menu()", () => {
         about: { plugin: cls.id },
       },
     ]);
-    expect(handed).toEqual([[["board_action_failed"], ticks.id]]);
+    expect(handed).toEqual([[["board_action_failed"], ofTest(ticks)]]);
     s.stop();
   });
 });
@@ -593,7 +642,7 @@ describe("menu()", () => {
 describe("trigger()", () => {
   // A plugin class whose board action on blocks runs the batch that `run`
   // returns, and records what it got.
-  function running(run: NonNullable<BoardAction["run"]>, more: Partial<BoardAction> = {}) {
+  function running(run: NonNullable<BoardAction["run"]>, more: Partial<Definition> = {}) {
     const got: { board: Board; target: Target; core: CoreApi }[] = [];
     const runs = action("runs", ["block"], {
       run(board, target, core) {
@@ -602,13 +651,13 @@ describe("trigger()", () => {
       },
       ...more,
     });
-    return { got, cls: listing("test", [runs]), id: runs.id };
+    return { got, cls: listing("test", [runs]), id: ofTest(runs) };
   }
 
-  const rename = (name: string): CommandCall[] => [{ id: "blockr.core-change_block", args: { id: "b", name } }];
+  const rename = (name: string): CommandCall[] => [{ package: "blockr.core", id: "change_block", args: { id: "b", name } }];
 
   test("runs the batch that run returns as one step of the user, which one undo takes back, and calls run at once with the board, the target and CoreApi", async () => {
-    const { got, cls, id } = running(() => [...rename("First"), { id: "blockr.core-remove_link", args: { id: "ab" } }]);
+    const { got, cls, id } = running(() => [...rename("First"), { package: "blockr.core", id: "remove_link", args: { id: "ab" } }]);
     const s = await stubbed([cls]);
     const board = s.core.store.board();
 
@@ -638,7 +687,7 @@ describe("trigger()", () => {
   });
 
   test("hands extend the deltas that the batch will apply, and runs the commands that it returns after the batch, in the same step", async () => {
-    const { cls, id } = running(() => [{ id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "n" } }]);
+    const { cls, id } = running(() => [{ package: "blockr.core", id: "add_block", args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } }]);
     const s = await stubbed([cls]);
     const board = s.core.store.board();
     const seen: unknown[] = [];
@@ -647,7 +696,7 @@ describe("trigger()", () => {
       el,
       extend(deltas) {
         seen.push(...deltas.map((delta) => Object.keys(delta.blocks?.add ?? {})));
-        return [{ id: "blockr.core-change_block", args: { id: "n", name: "Placed" } }];
+        return [{ package: "blockr.core", id: "change_block", args: { id: "n", name: "Placed" } }];
       },
     });
 
@@ -683,8 +732,8 @@ describe("trigger()", () => {
       return rename("Never");
     };
 
-    await s.core.boardActions.trigger(none.id, { block: "b" }, { el, extend });
-    await s.core.boardActions.trigger(empty.id, { block: "b" }, { el, extend });
+    await s.core.boardActions.trigger(ofTest(none), { block: "b" }, { el, extend });
+    await s.core.boardActions.trigger(ofTest(empty), { block: "b" }, { el, extend });
 
     expect(extended).toBe(0);
     expect(s.core.store.board()).toBe(board);
@@ -693,18 +742,18 @@ describe("trigger()", () => {
   });
 
   test("tells the user why the command registry refused the batch, or hands that to the notifier, and rejects with the refusal", async () => {
-    const { cls, id } = running(() => [...rename("First"), { id: "blockr.core-remove_link", args: { id: "nowhere" } }]);
+    const { cls, id } = running(() => [...rename("First"), { package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }]);
     const s = await stubbed([cls]);
     const board = s.core.store.board();
     const refusals = () => held(s.core, (n) => notificationCode(n) === "board_edit_failed");
 
     await expect(s.core.boardActions.trigger(id, { block: "b" }, { el })).rejects.toThrow(
-      'The batch was refused at command 2, "blockr.core-remove_link"',
+      'The batch was refused at command 2, "remove_link of blockr.core"',
     );
     expect(refusals()).toEqual([
       {
         severity: "error",
-        message: expect.stringContaining('The batch was refused at command 2, "blockr.core-remove_link"') as string,
+        message: expect.stringContaining('The batch was refused at command 2, "remove_link of blockr.core"') as string,
         source: { kind: "core", code: "board_edit_failed" },
       },
     ]);
@@ -718,7 +767,7 @@ describe("trigger()", () => {
           handed.push(notifications);
         },
       }),
-    ).rejects.toThrow('The batch was refused at command 2, "blockr.core-remove_link"');
+    ).rejects.toThrow('The batch was refused at command 2, "remove_link of blockr.core"');
     expect(handed.map((notifications) => notifications.map(notificationCode))).toEqual([["board_edit_failed"]]);
     // The refusal before still holds, and the notifier took the second.
     expect(refusals()).toHaveLength(1);
@@ -726,7 +775,7 @@ describe("trigger()", () => {
   });
 
   test("hands the notifier why the command registry refused to plan the batch for extend, which it does not call", async () => {
-    const { cls, id } = running(() => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }]);
+    const { cls, id } = running(() => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }]);
     const s = await stubbed([cls]);
     const handed: (readonly Notification[])[] = [];
     let extended = false;
@@ -742,7 +791,7 @@ describe("trigger()", () => {
           handed.push(notifications);
         },
       }),
-    ).rejects.toThrow('The batch was refused at command 1, "blockr.core-remove_link"');
+    ).rejects.toThrow('The batch was refused at command 1, "remove_link of blockr.core"');
 
     expect(extended).toBe(false);
     expect(handed.map((notifications) => notifications.map(notificationCode))).toEqual([["board_edit_failed"]]);
@@ -756,13 +805,13 @@ describe("trigger()", () => {
       () => {
         throw new Error("boom");
       },
-      'The board action "blockr.test-runs_action" failed: boom',
+      'The board action "runs_action of blockr.test" failed: boom',
     ],
-    ["rejects", () => Promise.reject(new Error("boom")), 'The board action "blockr.test-runs_action" failed: boom'],
+    ["rejects", () => Promise.reject(new Error("boom")), 'The board action "runs_action of blockr.test" failed: boom'],
     [
       "returns no batch",
-      () => ({ id: "blockr.core-remove_block" }) as unknown as CommandCall[],
-      'The run of the board action "blockr.test-runs_action" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].',
+      () => ({ package: "blockr.core", id: "remove_block" }) as unknown as CommandCall[],
+      'The run of the board action "runs_action of blockr.test" returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].',
     ],
   ])("rejects where run %s, as a fault of the board action's package, which core logs and raises as board_action_failed about the plugin", async (_what, run, message) => {
     const { cls, id } = running(run);
@@ -799,7 +848,7 @@ describe("trigger()", () => {
           handed.push(notifications);
         },
       }),
-    ).rejects.toThrow('The board action "blockr.test-runs_action" failed: boom');
+    ).rejects.toThrow('The board action "runs_action of blockr.test" failed: boom');
     reported.restore();
 
     expect(handed.map((notifications) => notifications.map(notificationCode))).toEqual([["board_action_failed"]]);
@@ -808,13 +857,20 @@ describe("trigger()", () => {
     s.stop();
   });
 
-  test("rejects for an id that no board action has, and for what is no target, no element, no anchor, no notifier, no extend or no place for advanced actions", async () => {
+  test("rejects for an id that no board action has, for what names neither a board action nor a role, and for what is no target, no element, no anchor, no notifier, no extend or no place for advanced actions", async () => {
     const s = await stubCore();
     const trigger = (...args: unknown[]) => (s.core.boardActions.trigger as (...given: unknown[]) => Promise<void>)(...args);
-    const remove = "blockr.core-remove_block_action";
+    const remove = { package: "blockr.core", id: "remove_block_action" };
 
-    await expect(trigger("blockr.test-nowhere_action", { block: "b" }, { el })).rejects.toThrow(
-      'No board action "blockr.test-nowhere_action" is registered.',
+    await expect(trigger({ package: "blockr.test", id: "nowhere_action" }, { block: "b" }, { el })).rejects.toThrow(
+      'No board action "nowhere_action of blockr.test" is registered.',
+    );
+    // A caller names a board action by its package and its id, and a role by
+    // its id alone, a string.
+    await expect(trigger({ id: "remove_block_action" }, { block: "b" }, { el })).rejects.toThrow(
+      new TypeError(
+        'A board action is named by its package and its id, as { package: "blockr.core", id: "rename_action" }, and a role by its id, as "rename_role", not by {"id":"remove_block_action"}.',
+      ),
     );
     await expect(trigger(remove, { blok: "b" }, { el })).rejects.toThrow(TypeError);
     for (const opts of [undefined, {}, { el: "body" }]) {
@@ -833,22 +889,22 @@ describe("trigger()", () => {
       new TypeError("The `advanced` of trigger() is a function, which shows an advanced action in a place of the caller's."),
     );
     await expect(trigger(remove, { block: "b" }, { el, extend: () => "rename" })).rejects.toThrow(
-      'The `extend` of trigger() returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].',
+      'The `extend` of trigger() returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].',
     );
     expect(Object.hasOwn(s.core.store.board().blocks, "b")).toBe(true);
     s.stop();
   });
 
   test("hands the notifier the board action whose batch was refused", async () => {
-    const { cls, id } = running(() => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }]);
+    const { cls, id } = running(() => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }]);
     const s = await stubbed([cls]);
-    const handed: string[] = [];
+    const handed: { package: string; id: string }[] = [];
 
     await expect(
       s.core.boardActions.trigger(id, { block: "b" }, {
         el,
         notifier(_notifications, by) {
-          handed.push(by.id);
+          handed.push(nameOf(by));
         },
       }),
     ).rejects.toThrow("refused");
@@ -859,7 +915,7 @@ describe("trigger()", () => {
 
   test("opens the quick action of a board action as a menu, and resolves once the menu closes without a batch, or once its batch has run", async () => {
     const got: unknown[] = [];
-    const asks: BoardAction = {
+    const asks: Definition = {
       ...action("asks", ["block"]),
       run: undefined,
       quick(board, target, core) {
@@ -869,14 +925,14 @@ describe("trigger()", () => {
     };
     const s = await stubbed([listing("test", [asks])]);
 
-    const closed = s.core.boardActions.trigger(asks.id, { block: "b" }, { el });
+    const closed = s.core.boardActions.trigger(ofTest(asks), { block: "b" }, { el });
     expect(got).toEqual([[s.core.store.board(), { block: "b" }, s.core]]);
     expect(s.menu()?.level()).toMatchObject({ label: "asks", back: false, rows: [{ kind: "item", label: "First" }] });
     s.menu()?.escape();
     await expect(closed).resolves.toBeUndefined();
     expect(s.core.store.canUndo()).toBe(false);
 
-    const ran = s.core.boardActions.trigger(asks.id, { block: "b" }, { el, anchor: new DOMRect(1, 2, 0, 0) });
+    const ran = s.core.boardActions.trigger(ofTest(asks), { block: "b" }, { el, anchor: new DOMRect(1, 2, 0, 0) });
     await s.menu()?.pick("First");
     await expect(ran).resolves.toBeUndefined();
     expect(s.core.store.board().blocks.b?.name).toBe("First");
@@ -884,29 +940,29 @@ describe("trigger()", () => {
   });
 
   test("rejects with the refusal of the batch that its quick action ran, which the notifier takes with the board action", async () => {
-    const asks: BoardAction = {
+    const asks: Definition = {
       ...action("asks", ["block"]),
       run: undefined,
-      quick: () => ({ rows: [{ kind: "item", label: "Break", pick: () => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }] }] }),
+      quick: () => ({ rows: [{ kind: "item", label: "Break", pick: () => [{ package: "blockr.core", id: "remove_link", args: { id: "nowhere" } }] }] }),
     };
     const s = await stubbed([listing("test", [asks])]);
-    const handed: [string[], string][] = [];
+    const handed: [string[], { package: string; id: string }][] = [];
 
-    const triggered = s.core.boardActions.trigger(asks.id, { block: "b" }, {
+    const triggered = s.core.boardActions.trigger(ofTest(asks), { block: "b" }, {
       el,
       notifier(notifications, by) {
-        handed.push([notifications.map(notificationCode), by.id]);
+        handed.push([notifications.map(notificationCode), nameOf(by)]);
       },
     });
     await expect(s.menu()?.pick("Break")).rejects.toThrow("refused");
-    await expect(triggered).rejects.toThrow('The batch was refused at command 1, "blockr.core-remove_link"');
+    await expect(triggered).rejects.toThrow('The batch was refused at command 1, "remove_link of blockr.core"');
 
-    expect(handed).toEqual([[["board_edit_failed"], asks.id]]);
+    expect(handed).toEqual([[["board_edit_failed"], ofTest(asks)]]);
     s.stop();
   });
 
   test("opens no quick action where on() leaves its board action out for the target, and resolves", async () => {
-    const asks: BoardAction = {
+    const asks: Definition = {
       ...action("asks", ["block"]),
       run: undefined,
       quick: () => ({ rows: [] }),
@@ -914,7 +970,7 @@ describe("trigger()", () => {
     };
     const s = await stubbed([listing("test", [asks])]);
 
-    await expect(s.core.boardActions.trigger(asks.id, { block: "b" }, { el })).resolves.toBeUndefined();
+    await expect(s.core.boardActions.trigger(ofTest(asks), { block: "b" }, { el })).resolves.toBeUndefined();
     expect(s.menu()).toBeUndefined();
     s.stop();
   });

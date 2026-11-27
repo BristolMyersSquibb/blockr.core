@@ -3,8 +3,8 @@
 // in its order: Add block, Append block, Prepend block and Insert block,
 // Create link, Create stack, Rename, Edit link, Edit inputs, Edit stack, Add
 // to stack, Copy block ID, Remove block, Remove link, Remove stack, and Remove
-// on a selection. Their ids are under blockr.core and keep the names of the
-// dock's actions, as blockr.core-remove_block_action, but for Rename, Copy
+// on a selection. Their package is blockr.core and their ids keep the names of
+// the dock's actions, as remove_block_action, but for Rename, Copy
 // block ID and Add to stack, which are new.
 // - Add block, Append block, Prepend block and Insert block add a block
 //   through a pick in their quick actions, or through the block picker, their
@@ -32,7 +32,7 @@
 // - Remove on a selection removes every block, link and stack of the
 //   selection in one step, and leaves out what else the selection holds.
 // Each but Copy block ID plays the role named after its id, as Create link,
-// blockr.core-add_link_action, plays add_link_role (./roles.ts). Copy block ID
+// add_link_action, plays add_link_role (./roles.ts). Copy block ID
 // plays none, since it runs no command.
 // Copy block ID and those that remove act at once, through their run(). Those
 // that add carry a plus as their icon, in the shape of blockr.ui's `plus`
@@ -47,6 +47,7 @@
 // as where the block has left the board since the menu opened, so that no
 // menu offers a board action that leads nowhere.
 
+import { CORE } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import type { Board } from "../types/board.ts";
 import type { BlockRegistry } from "../types/core-api.ts";
@@ -74,14 +75,14 @@ export interface CoreParts {
 }
 
 // Core's board actions.
-export function coreBoardActions(parts: CoreParts): BoardAction[] {
+export function coreBoardActions(parts: CoreParts): Omit<BoardAction, "package">[] {
   const { raise } = parts;
   return [
     ...addingBoardActions(parts.blockRegistry),
     createLinkAction(parts),
     createStackAction(),
     {
-      id: "blockr.core-rename_action",
+      id: "rename_action",
       label: "Rename",
       on: ["block", "stack"],
       category: "edit",
@@ -90,14 +91,14 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
         const object = named(board, target);
         if (object === undefined) return undefined;
         return {
-          rows: [nameRow(object.name, (name) => (name === object.name ? [] : [{ id: object.command, args: { id: object.id, name } }]))],
+          rows: [nameRow(object.name, (name) => (name === object.name ? [] : [{ ...object.command, args: { id: object.id, name } }]))],
         };
       },
       role: "rename_role",
     },
     editLinkAction(parts),
     {
-      id: "blockr.core-edit_inputs_action",
+      id: "edit_inputs_action",
       label: "Edit inputs",
       on: ["block"],
       category: "edit",
@@ -111,7 +112,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
     editStackAction(),
     addToStackAction(),
     {
-      id: "blockr.core-copy_block_id_action",
+      id: "copy_block_id_action",
       label: "Copy block ID",
       detail: (_board, target) => blockOf(target),
       on: ["block"],
@@ -131,39 +132,39 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
       },
     },
     {
-      id: "blockr.core-remove_block_action",
+      id: "remove_block_action",
       label: "Remove block",
       icon: TRASH,
       on: ["block"],
       category: "remove",
       offers: (board, target, lock) => !lock.board && heldBlock(board, target) !== undefined,
-      run: (_board, target) => removing("blockr.core-remove_block", blockOf(target)),
+      run: (_board, target) => removing({ package: CORE, id: "remove_block" }, blockOf(target)),
       role: "remove_block_role",
     },
     {
-      id: "blockr.core-remove_link_action",
+      id: "remove_link_action",
       label: "Remove link",
       icon: TRASH,
       on: ["link"],
       category: "remove",
       offers: (board, target, lock) =>
         !lock.board && "link" in target && Object.hasOwn(board.links, target.link),
-      run: (_board, target) => removing("blockr.core-remove_link", "link" in target ? target.link : undefined),
+      run: (_board, target) => removing({ package: CORE, id: "remove_link" }, "link" in target ? target.link : undefined),
       role: "remove_link_role",
     },
     {
-      id: "blockr.core-remove_stack_action",
+      id: "remove_stack_action",
       label: "Remove stack",
       icon: TRASH,
       on: ["stack"],
       category: "remove",
       offers: (board, target, lock) =>
         !lock.board && "stack" in target && Object.hasOwn(board.stacks, target.stack),
-      run: (_board, target) => removing("blockr.core-remove_stack", "stack" in target ? target.stack : undefined),
+      run: (_board, target) => removing({ package: CORE, id: "remove_stack" }, "stack" in target ? target.stack : undefined),
       role: "remove_stack_role",
     },
     {
-      id: "blockr.core-remove_selected_action",
+      id: "remove_selected_action",
       label: "Remove",
       icon: TRASH,
       on: ["selection"],
@@ -178,22 +179,28 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
 // The block or the stack that the target names, where the board holds it,
 // with its name and core's command that changes it, which renames it where
 // it is given the name alone.
-function named(board: Board, target: Target): { id: string; name: string; command: string } | undefined {
+function named(board: Board, target: Target): { id: string; name: string; command: Command } | undefined {
   if ("block" in target) {
     const block = own(board.blocks, target.block);
-    return block === undefined ? undefined : { id: target.block, name: block.name, command: "blockr.core-change_block" };
+    return block === undefined ? undefined : { id: target.block, name: block.name, command: { package: CORE, id: "change_block" } };
   }
   if ("stack" in target) {
     const stack = own(board.stacks, target.stack);
-    return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: "blockr.core-change_stack" };
+    return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: { package: CORE, id: "change_stack" } };
   }
   return undefined;
 }
 
+// One of core's commands, by its package and its id.
+interface Command {
+  readonly package: string;
+  readonly id: string;
+}
+
 // The batch that removes a block, a link or a stack by its id with the command
 // given, or none without an id.
-function removing(command: string, id: string | undefined): CommandCall[] | undefined {
-  return id === undefined ? undefined : [{ id: command, args: { id } }];
+function removing(command: Command, id: string | undefined): CommandCall[] | undefined {
+  return id === undefined ? undefined : [{ ...command, args: { id } }];
 }
 
 // The batch that removes the blocks, the links and the stacks of a selection
@@ -203,7 +210,7 @@ function removing(command: string, id: string | undefined): CommandCall[] | unde
 function removals(board: Board, target: Target): CommandCall[] {
   if (!("selection" in target)) return [];
   const removing = (kind: "block" | "link" | "stack"): CommandCall[] =>
-    held(board, target, kind).map((id) => ({ id: `blockr.core-remove_${kind}`, args: { id } }));
+    held(board, target, kind).map((id) => ({ package: CORE, id: `remove_${kind}`, args: { id } }));
   return [...removing("link"), ...removing("block"), ...removing("stack")];
 }
 

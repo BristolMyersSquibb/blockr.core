@@ -64,9 +64,11 @@ import {
   jsonEqual,
   own,
   checkRaised,
+  givenModuleId,
   givenNotifier,
+  idText,
+  interned,
   notifyNothing,
-  packageFromId,
   raiseNothing,
   refusedNothing,
   repliedNothing,
@@ -157,6 +159,10 @@ export interface MountsOptions {
 // options that a module requires.
 const CORE = "blockr.core";
 
+// Core's commands that the mounts run.
+const SET_OPTION = { package: CORE, id: "set_option" } as const;
+const CHANGE_BLOCK = { package: CORE, id: "change_block" } as const;
+
 // The status of a block that the scheduler has not seen yet.
 const NO_STATUS = Object.freeze(unevaluated(0, false));
 
@@ -244,7 +250,7 @@ export function createMounts(options: MountsOptions): Mounts {
         // require.
         if (replaced.aborted || Object.hasOwn(store.board().options, id)) return [];
         try {
-          await commands.run("blockr.core-set_option", { id, value }, CORE);
+          await commands.run(SET_OPTION, { id, value }, CORE);
         } catch (error) {
           return failure(
             id,
@@ -293,14 +299,14 @@ export function createMounts(options: MountsOptions): Mounts {
     if (found === undefined) {
       throw new Error(`The board holds no block "${block}" to mount.`);
     }
-    const entry = own(store.blockRegistry(), found.registry_id);
+    const entry = store.blockRegistry().get(found.registry_id);
     if (entry === undefined) {
-      throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
+      throw new Error(`The block registry has no class "${idText(found.registry_id)}" for block "${block}".`);
     }
-    const pkg = packageFromId(entry.id);
+    const pkg = entry.package;
     // The block's UI module, with the package of its class.
     const module = sourceModule({ block }, pkg);
-    const by = `the UI module of block class "${entry.id}"`;
+    const by = `the UI module of block class "${idText(entry)}"`;
 
     // The mount ends as its signal aborts, which may happen whenever the
     // loading below awaits.
@@ -510,7 +516,7 @@ function blockHost(deps: HostDeps): MountedHost {
       option: optionReader(
         values,
         named,
-        (id) => `The block class "${entry.id}" names no board option "${id}" in R, so its UI module cannot read it.`,
+        (id) => `The block class "${idText(entry)}" names no board option "${id}" in R, so its UI module cannot read it.`,
       ),
     });
     contextValues.set(context, values);
@@ -585,7 +591,7 @@ function blockHost(deps: HostDeps): MountedHost {
 
   return {
     block,
-    class: entry.id,
+    class: interned(entry.package, entry.id),
     state: () => state,
     context: () => context,
     on(event, fn) {
@@ -611,7 +617,7 @@ function blockHost(deps: HostDeps): MountedHost {
       const set = Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined));
       const unset = Object.entries(change).flatMap(([arg, value]) => (value === undefined ? [arg] : []));
       try {
-        await commands.run("blockr.core-change_block", { id: block, state: set as State, ...(unset.length === 0 ? {} : { unset }) });
+        await commands.run(CHANGE_BLOCK, { id: block, state: set as State, ...(unset.length === 0 ? {} : { unset }) });
       } catch (error) {
         deps.refused(error, { block }, notifier);
         throw error;
@@ -635,8 +641,8 @@ function blockHost(deps: HostDeps): MountedHost {
       if (status === undefined) throw unboundError();
       return status;
     },
-    module<T = unknown>(id: string): Promise<T> {
-      return deps.loader.module(id) as Promise<T>;
+    module<T = unknown>(id: { readonly package: string; readonly id: string }): Promise<T> {
+      return deps.loader.module(givenModuleId(id)) as Promise<T>;
     },
     notify(notification) {
       const given = checkRaised(notification);

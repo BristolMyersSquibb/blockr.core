@@ -44,7 +44,7 @@ export function drawnControls(core: CoreApi): Drawn | undefined {
   const plugin =
     storage === undefined
       ? undefined
-      : Object.keys(core.plugins.appPlugins()).find((id) => core.plugins.pluginClass(id).storage === storage);
+      : [...core.plugins.appPlugins().keys()].find((id) => core.plugins.pluginClass(id).storage === storage);
   if (storage === undefined || plugin === undefined) return undefined;
   try {
     const twice = new Set<string>();

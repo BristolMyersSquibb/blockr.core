@@ -1,5 +1,5 @@
 import type { BlockStatus } from "../scheduler/index.ts";
-import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
+import type { BlockId, OptionId } from "../types/board.ts";
 import type { Raised } from "../types/core-api.ts";
 import type { BlockHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
@@ -18,10 +18,13 @@ export interface BlockFixture {
 export interface StubBlockHostOptions<S extends State = State> {
     readonly state?: S;
     readonly block?: BlockId;
-    readonly class?: RegistryId;
+    readonly class?: {
+        readonly package: string | null;
+        readonly id: string;
+    };
     readonly context?: StubContext;
     readonly evaluate?: (params: Record<string, Json>) => BlockStatus | Promise<BlockStatus>;
-    readonly modules?: Readonly<Record<string, unknown>>;
+    readonly modules?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 export interface StubBlockHost<S extends State = State> extends BlockHost<S> {
     readonly submitted: readonly S[];

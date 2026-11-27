@@ -5,8 +5,8 @@
 // way it came in, with the app's plugins, which the reply to `hello` names and
 // which run on every board that the app opens, the opening board among them:
 // 1. The store keeps the state that the board holds for each of the app's
-//    plugins whose class a package registers and has `state`, under the id of
-//    the plugin's class. It drops every other state, and names each plugin
+//    plugins whose class a package registers and has `state`, under the
+//    package and the id of the plugin's class. It drops every other state, and names each plugin
 //    whose state it drops, since the app runs no plugin of its class or no
 //    package registers the class, but for the state that the board holds for
 //    a plugin of the app whose class keeps none, which goes unnamed.
@@ -26,16 +26,24 @@
 // something on the page requires as the board opens, the classes of its
 // plugins among them (../core/plugins.ts).
 
+import { appPlugins, blockRegistry } from "../protocol/index.ts";
 import type { HelloReply } from "../protocol/index.ts";
 import type { BlockId, Board, JsonBoard, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import {
   errorMessage,
   frozenCopy,
+  idAttributes,
+  idText,
+  internedRecord,
+  isIdRecord,
   isObject,
+  isPackageName,
   listing,
+  nestedEntries,
+  nestedRecord,
+  nestedValue,
   own,
-  packageFromId,
   without,
 } from "../util/index.ts";
 import { check } from "./check.ts";
@@ -67,17 +75,17 @@ const PROPERTIES: readonly string[] = ["id", "name", ...COLLECTIONS];
 // - A block whose class the block registry lacks, as
 //   `{ block, name, registry_id }`, with the block's name, by which the user
 //   knows it, and the registry id of its class.
-// - The state of a plugin, as `{ plugin }`, by the id of its class, which the
-//   store drops since the app runs no plugin of the class or no package
-//   registers the class.
+// - The state of a plugin, as `{ plugin }`, by the id of its class, its package
+//   and its id within the package, which the store drops since the app runs no
+//   plugin of the class or no package registers the class.
 // - The value of a board option that no package registers, as `{ option }`,
 //   by the board option's id.
 // The member `package` names the package that what the store dropped comes
-// from: the package itself, the package that the id of a block's class or of a
-// plugin's class names, or the package that the JSON board records beside a
-// board option's value.
+// from: the package itself, the package of a block's class or of a plugin's
+// class, which their ids hold, or the package that the JSON board records
+// beside a board option's value.
 // It is null where nothing names one, as for a block class that an app script
-// defines, whose id names no package, or for a board option that no package
+// defines, whose id holds no package, or for a board option that no package
 // listed where the board was written.
 export interface Dropped {
   readonly about:
@@ -137,18 +145,30 @@ function isVersion(value: unknown): value is number {
 
 // What a JSON board records beside what the board holds: the versions that its
 // migrations key on, one for each plugin's state, one for each block's state and
-// one for each board option's value, and the package that lists each board
-// option, or null for none.
+// one for each board option's value, the package that lists each board option,
+// or null for none, the package and the id of each block's class, and the
+// plugins by the packages and the ids of their classes.
 function checkRecorded(board: Readonly<Record<string, unknown>>): void {
   const failures: string[] = [];
-  for (const [cls, plugin] of Object.entries(board.plugins as Readonly<Record<string, unknown>>)) {
-    if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
-      failures.push(`The plugin "${cls}" is recorded as no state with the version of its class's state.`);
+  for (const [pkg, byId] of Object.entries(board.plugins as Readonly<Record<string, unknown>>)) {
+    if (!isPackageName(pkg) || !isObject(byId)) {
+      failures.push(`The board holds plugins under "${pkg}", where it holds the plugins of a package by the ids of their classes.`);
+      continue;
+    }
+    for (const [cls, plugin] of Object.entries(byId)) {
+      if (cls === "" || !isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
+        failures.push(`The plugin "${cls}" of ${pkg} is recorded as no state with the version of its class's state.`);
+      }
     }
   }
   for (const [id, block] of Object.entries(board.blocks as Readonly<Record<string, unknown>>)) {
     if (isObject(block) && !isVersion(block.version)) {
       failures.push(`The block "${id}" records no version of its class's state.`);
+    }
+    if (isObject(block) && !isIdRecord(block.registry_id, true)) {
+      failures.push(
+        `The block "${id}" names its class by ${JSON.stringify(block.registry_id)}, where it names a package, or null, and an id, as { "package": "blockr.core", "id": "head_block" }.`,
+      );
     }
   }
   for (const [id, option] of Object.entries(board.options as Readonly<Record<string, unknown>>)) {
@@ -171,6 +191,8 @@ function checkRecorded(board: Readonly<Record<string, unknown>>): void {
 // option, which only names what the store drops, so that each board option
 // holds its value and each plugin its state, and without what core's board
 // does not hold.
+// Each block names its class by the registry id as core's table holds it, so
+// that === compares it with the ids of the block registry.
 function unversioned(board: JsonBoard["board"]): Board {
   const record = board as unknown as Readonly<Record<string, unknown>>;
   return {
@@ -178,11 +200,14 @@ function unversioned(board: JsonBoard["board"]): Board {
     blocks: Object.fromEntries(
       Object.entries(board.blocks).map(([id, block]) => [
         id,
-        without(block as unknown as Readonly<Record<string, unknown>>, ["version"]),
+        {
+          ...without(block as unknown as Readonly<Record<string, unknown>>, ["version"]),
+          registry_id: internedRecord(block.registry_id),
+        },
       ]),
     ),
     options: Object.fromEntries(Object.entries(board.options).map(([id, option]) => [id, option.value])),
-    plugins: Object.fromEntries(Object.entries(board.plugins).map(([cls, plugin]) => [cls, plugin.state])),
+    plugins: nestedRecord(nestedEntries(board.plugins).map(([cls, plugin]) => [cls, plugin.state])),
   } as unknown as Board;
 }
 
@@ -213,16 +238,17 @@ function migrate(
   // that they set reads as never set where it is read.
   const changed = new Set<string>();
 
-  const plugins = Object.fromEntries(
-    Object.entries(board.plugins).map(([cls, state]) => {
+  const app = appPlugins(reply);
+  const plugins = nestedRecord(
+    nestedEntries(board.plugins).map(([cls, state]): [PluginClassId, Json] => {
       const def = registrations.plugin(cls)?.def;
       if (def === undefined) return [cls, state];
-      const from = own(json.plugins, cls)?.version;
-      const to = own(reply.plugins, cls)?.version ?? 1;
+      const from = nestedValue(json.plugins, cls)?.version;
+      const to = app.get(cls)?.version ?? 1;
       if (from === undefined || from === to) return [cls, state];
       if (from > to) {
         failures.add(
-          `The board records version ${String(from)} of the plugin class "${cls}", while R gives version ${String(to)}.`,
+          `The board records version ${String(from)} of the plugin class "${idText(cls)}", while R gives version ${String(to)}.`,
         );
         return [cls, state];
       }
@@ -230,21 +256,22 @@ function migrate(
       changed.add("plugins");
       return [
         cls,
-        migratedValue(`The migration of the plugin class "${cls}"`, { "blockr.plugin.class_id": cls }, () =>
+        migratedValue(`The migration of the plugin class "${idText(cls)}"`, idAttributes("blockr.plugin.class_id", cls), () =>
           def.state?.migrate?.(frozenCopy(state), from),
         ),
       ];
     }),
   );
 
+  const registry = blockRegistry(reply);
   const blocks = Object.fromEntries(
     Object.entries(board.blocks).map(([id, block]) => {
       const from = own(json.blocks, id)?.version;
-      const to = own(reply.block_registry, block.registry_id)?.version;
+      const to = registry.get(block.registry_id)?.version;
       if (from === undefined || to === undefined || from === to) return [id, block];
       if (from > to) {
         failures.add(
-          `The block "${id}" records version ${String(from)} of the state of "${block.registry_id}", while its class is at version ${String(to)}.`,
+          `The block "${id}" records version ${String(from)} of the state of "${idText(block.registry_id)}", while its class is at version ${String(to)}.`,
         );
         return [id, block];
       }
@@ -252,8 +279,8 @@ function migrate(
       if (fn === undefined) return [id, block];
       changed.add("blocks");
       const state = migrated(
-        `The migration of the block class "${block.registry_id}"`,
-        { "blockr.block.registry_id": block.registry_id },
+        `The migration of the block class "${idText(block.registry_id)}"`,
+        idAttributes("blockr.block.registry_id", block.registry_id),
         () => fn(frozenCopy(block.state), from),
       );
       return [id, { ...block, state }];
@@ -329,21 +356,23 @@ export function openJsonBoard(
   reply: Pick<HelloReply, "packages" | "block_registry" | "plugins" | "options">,
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[] } {
-  const registeredClass = (id: string) => registrations.plugin(id)?.def;
+  const registeredClass = (id: PluginClassId) => registrations.plugin(id)?.def;
   const read = unversioned(json.board);
+  const app = appPlugins(reply);
+  const registry = blockRegistry(reply);
 
-  const held = keptPlugins(read.plugins, reply.plugins, registeredClass);
-  const plugins: Dropped[] = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id) => ({
+  const held = keptPlugins(read.plugins, app, registeredClass);
+  const plugins: Dropped[] = droppedPlugins(read.plugins, app, registeredClass).map((id) => ({
     about: { plugin: id },
-    package: packageFromId(id),
+    package: id.package,
   }));
 
   const migrated = migrate({ ...read, plugins: held }, json.board, reply, registrations);
 
-  const lacking = Object.entries(migrated.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === undefined);
+  const lacking = Object.entries(migrated.blocks).filter(([, block]) => !registry.has(block.registry_id));
   const blocks: Dropped[] = lacking.map(([id, block]) => ({
     about: { block: id, name: block.name, registry_id: block.registry_id },
-    package: packageFromId(block.registry_id),
+    package: block.registry_id.package,
   }));
   const gone = lacking.map(([id]) => id);
 
@@ -354,16 +383,17 @@ export function openJsonBoard(
   }));
 
   const kept = remove({ ...migrated, options: without(migrated.options, unclaimed) }, gone, registrations);
-  const board: Board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
+  const board: Board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, app, registeredClass) };
 
-  const failures = check(board, reply.block_registry, registrations);
+  const failures = check(board, registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
 
   // The packages that something on the board comes from: a block's class, a
   // plugin's class, or a board option, which the JSON board records beside the
   // board option's value.
   const used = new Set([
-    ...[...Object.values(read.blocks).map((block) => block.registry_id), ...Object.keys(read.plugins)].map(packageFromId),
+    ...Object.values(read.blocks).map((block) => block.registry_id.package),
+    ...nestedEntries(read.plugins).map(([cls]) => cls.package),
     ...Object.values(json.board.options).map((option) => option.package),
   ]);
   const packages: Dropped[] = Object.entries(json.packages)

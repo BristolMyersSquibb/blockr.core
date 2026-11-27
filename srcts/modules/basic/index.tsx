@@ -1,5 +1,5 @@
 // Core's basic frontend, the module of the plugin class
-// blockr.core-basic_frontend_plugin, whose default export is the class without
+// basic_frontend_plugin of blockr.core, whose default export is the class without
 // its id, with the `frontend` that draws the page, as Drawing the board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
 // An app runs it unless another of its plugins is a frontend, and it draws

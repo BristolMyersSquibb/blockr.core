@@ -642,11 +642,11 @@ request_subject <- function(job) {
   req <- job[["req"]]
 
   of <- if (inherits(req, "block_class_request")) {
-    paste("block class", req[["registry_id"]])
+    paste("block class", pkg_ref_label(req[["registry_id"]]))
   } else if (inherits(req, "option_request")) {
     paste("board option", req[["option"]])
   } else if (inherits(req, "plugin_request")) {
-    paste("plugin class", req[["plugin"]])
+    paste("plugin class", pkg_ref_label(req[["plugin"]]))
   }
 
   if (is.null(of)) {

@@ -21,7 +21,7 @@ import type {
   StackId,
 } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import { jsonEqual, own, without } from "../util/index.ts";
+import { idText, interned, internedRecord, isIdRecord, isObject, isPackageName, jsonEqual, own, without } from "../util/index.ts";
 import type { BlockMod, Delta, Patch, Values } from "./delta.ts";
 import { applyPatch, malformed, segmentsFromPath } from "./patch.ts";
 
@@ -51,7 +51,7 @@ export interface Changed {
   readonly plugins: ReadonlySet<PluginClassId>;
   // What has an edit id that the delta added, changed or removed, as target()
   // names it.
-  readonly targets: ReadonlySet<string>;
+  readonly targets: ReadonlySet<TargetKey>;
 }
 
 export interface Committed {
@@ -63,10 +63,13 @@ export interface Committed {
 // What has an edit id: a block, or a plugin by the id of its class.
 export type Target = { readonly block: BlockId } | { readonly plugin: PluginClassId };
 
-export function target(of: Target): string {
-  return "block" in of
-    ? JSON.stringify(["block", of.block])
-    : JSON.stringify(["plugin", of.plugin]);
+// What has an edit id as the store's edit ids key it: a block by its id, and a
+// plugin by the id of its class, as core's table holds it, which is an object
+// and so never equals a block's id.
+export type TargetKey = BlockId | PluginClassId;
+
+export function target(of: Target): TargetKey {
+  return "block" in of ? of.block : interned(of.plugin.package, of.plugin.id);
 }
 
 export function commit(
@@ -75,12 +78,12 @@ export function commit(
   places: Places = {},
 ): Committed | { readonly failures: readonly string[] } {
   const failures: string[] = [];
-  const targets = new Set<string>();
+  const targets = new Set<TargetKey>();
 
   const blocks = collection<Block, BlockMod>(
     (id) => `block "${id}"`,
     board.blocks,
-    delta.blocks,
+    internedBlocks(delta.blocks),
     (old, mod, id) => modifyBlock(old, mod, id, failures),
     places.blocks,
     undefined,
@@ -208,24 +211,45 @@ function patch(
     if (applied.inverse === undefined) continue;
     inverse.unshift(applied.inverse);
     if (applied.place !== undefined) places[applied.inverse.path] = applied.place;
-    plugins.add(segments[1] ?? "");
+    plugins.add(interned(segments[1] ?? "", segments[2] ?? ""));
   }
 
   return { board: next as unknown as Board, inverse, places, plugins };
 }
 
+// The blocks of a delta, each block that it adds with its registry id as core's
+// table holds it, so that the board holds no other object for a registry id,
+// whoever built the delta: a command, an undo, or a package in plain JS.
+// A block whose registry id holds no package and id stays as it is, for the
+// checks to name (./check.ts).
+function internedBlocks(part: Delta["blocks"]): Delta["blocks"] {
+  if (part?.add === undefined) return part;
+  const given = Object.entries(part.add);
+  const entries = given.map(([id, block]): [string, Block] => {
+    const held: unknown = block;
+    if (!isObject(held) || !isIdRecord(held.registry_id, true)) return [id, block];
+    const registryId = internedRecord(held.registry_id);
+    return registryId === block.registry_id ? [id, block] : [id, { ...block, registry_id: registryId }];
+  });
+  const same = entries.every(([, block], i) => block === given[i]?.[1]);
+  return same ? part : { ...part, add: Object.fromEntries(entries) };
+}
+
 // Why a patch at the path `segments` changes what no patch may, in a clause,
 // or undefined where it changes a plugin's state, at or below
-// `/plugins/{id}`, the id of the plugin's class.
+// `/plugins/{package}/{id}`, the package and the id of the plugin's class.
 // No patch adds or removes what the board holds for a plugin, as an `add` or a
-// `remove` at `/plugins/{id}` would, since the app sets the plugins that run,
-// while a `replace` there replaces the plugin's state as a whole.
+// `remove` at `/plugins/{package}/{id}` would, since the app sets the plugins
+// that run, while a `replace` there replaces the plugin's state as a whole.
 function outside(segments: readonly string[], op: Patch["op"]): string | undefined {
-  const [boardProperty, plugin] = segments;
+  const [boardProperty, pkg, cls] = segments;
   if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the state of the board's plugins alone`;
-  if (plugin === undefined) return "changes the board's plugins as a whole, where a patch changes the state of one plugin";
-  if (segments.length === 2 && op !== "replace") {
-    return `${op === "add" ? "adds" : "removes"} what the board holds for the plugin "${plugin}", where a patch changes a plugin's state alone, since the app sets the plugins that run`;
+  if (pkg === undefined) return "changes the board's plugins as a whole, where a patch changes the state of one plugin";
+  if (!isPackageName(pkg)) return `names the package "${segments[1] ?? ""}", which is not named as R names a package`;
+  if (cls === undefined) return `changes the plugins of ${pkg} as a whole, where a patch changes the state of one plugin`;
+  if (cls === "") return `names a plugin of ${pkg} by an empty id`;
+  if (segments.length === 3 && op !== "replace") {
+    return `${op === "add" ? "adds" : "removes"} what the board holds for the plugin "${idText(interned(pkg, cls))}", where a patch changes a plugin's state alone, since the app sets the plugins that run`;
   }
   return undefined;
 }

@@ -18,7 +18,7 @@ import type { BlockId, Board } from "../types/board.ts";
 import type { BoardObject, CoreApi, CoreFailure, Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { errorMessage, jsonEqual, own } from "../util/index.ts";
+import { errorMessage, internedObject, jsonEqual, own } from "../util/index.ts";
 
 // What an output host holds at one moment. A renderer reads the board options
 // of its output family through the host's option(), whose values change only
@@ -334,13 +334,16 @@ export function useNotified(
   );
   const all = useSyncExternalStore(subscribe, () => core.notifications.get());
   // The kind and the id of the board object, as "plugin" and the id of its
-  // class, or neither given null.
-  const [kind, id] = about === null ? [] : (Object.entries(about)[0] ?? []);
+  // class, as core's table holds it, or neither given null.
+  const [kind, id] = about === null ? [] : (Object.entries(internedObject(about))[0] ?? []);
   return useMemo(
     () =>
       kind === undefined
         ? all
-        : all.filter((notification) => notification.about !== undefined && own(notification.about, kind) === id),
+        : all.filter(
+            (notification) =>
+              notification.about !== undefined && (notification.about as Readonly<Record<string, unknown>>)[kind] === id,
+          ),
     [all, kind, id],
   );
 }

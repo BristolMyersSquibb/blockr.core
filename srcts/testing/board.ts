@@ -3,6 +3,7 @@
 // between them.
 
 import type { Board } from "../types/board.ts";
+import { interned } from "../util/index.ts";
 
 // A board of the blocks given, each by id with its class's name, and of the
 // links given, each by id as [from, to, input].
@@ -16,7 +17,7 @@ export function createBoard(
     blocks: Object.fromEntries(
       Object.entries(blocks).map(([id, name]) => [
         id,
-        { registry_id: `blockr.core-${name}`, state: {}, name: id, locked: null },
+        { registry_id: interned("blockr.core", name), state: {}, name: id, locked: null },
       ]),
     ),
     links: Object.fromEntries(

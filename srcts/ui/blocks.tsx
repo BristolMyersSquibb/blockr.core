@@ -6,7 +6,7 @@ import type { ReactElement } from "react";
 import { ComboBoxItem, Text } from "../react/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
 import type { BlockRegistry } from "../types/core-api.ts";
-import { own } from "../util/index.ts";
+import { idText, own } from "../util/index.ts";
 
 // A block as a select offers it: by its name, with its ID and its class
 // after it, by which the select finds it too.
@@ -18,7 +18,7 @@ export interface BlockItem {
 
 export function blockItem(board: Pick<Board, "blocks">, registry: BlockRegistry, id: BlockId): BlockItem {
   const block = own(board.blocks, id);
-  const cls = block === undefined ? undefined : (own(registry, block.registry_id)?.name ?? block.registry_id);
+  const cls = block === undefined ? undefined : (registry.get(block.registry_id)?.name ?? idText(block.registry_id));
   return { id, name: block?.name ?? id, detail: cls === undefined ? id : `${id} · ${cls}` };
 }
 
@@ -48,7 +48,7 @@ export function blockName(board: Pick<Board, "blocks">, block: BlockId): string 
 // the block registry lacks it.
 export function classInputs(board: Pick<Board, "blocks">, registry: BlockRegistry, block: BlockId): readonly string[] {
   const held = own(board.blocks, block);
-  return (held === undefined ? undefined : own(registry, held.registry_id)?.inputs) ?? [];
+  return (held === undefined ? undefined : registry.get(held.registry_id)?.inputs) ?? [];
 }
 
 // Whether the block is variadic, taking any number of links in their order.

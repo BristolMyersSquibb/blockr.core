@@ -7,15 +7,16 @@
 // body, which the test reads and drives as a user would. The test closes the
 // dialog as the user does.
 
+import type { BoardActionId } from "../types/board.ts";
 import type { ShowDialog, Target } from "../actions/index.ts";
 import { onAbort } from "../mount/index.ts";
 
 // An advanced action that core shows in its dialog. Each member does nothing
 // once the dialog has closed.
 export interface StubAdvanced {
-  // The board action's id, the dialog's title and the target, as core hands
-  // a frontend's place them.
-  readonly id: string;
+  // The board action's id, its package and its id within the package, the
+  // dialog's title and the target, as core hands a frontend's place them.
+  readonly id: BoardActionId;
   readonly title: string;
   readonly target: Target;
   // The element in which core renders the advanced action, at the end of the

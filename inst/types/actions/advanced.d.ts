@@ -36,7 +36,7 @@ export interface AdvancedParts {
     readonly frontend: () => Place | undefined;
     readonly dialog: ShowDialog;
     readonly raise: (notification: Omit<Notification, "id">) => void;
-    readonly classOf: (id: string) => PluginClassId | undefined;
+    readonly classOf: (action: BoardAction) => PluginClassId | undefined;
     readonly signal?: AbortSignal;
 }
 export interface Opening {

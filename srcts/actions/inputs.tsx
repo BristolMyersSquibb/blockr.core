@@ -54,7 +54,7 @@
 import { useState } from "react";
 import type { PointerEvent, ReactElement, ReactNode, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
-import { linkFeeding } from "../commands/index.ts";
+import { CORE, linkFeeding } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { focusFirstInvalid, inputNameError } from "../picker/index.ts";
 import { Button, ComboBox, Form, GridList, GridListItem, TextField, useBoard, useDragAndDrop } from "../react/index.ts";
@@ -80,9 +80,9 @@ import { own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
 
-const ADD_LINK = "blockr.core-add_link";
-const CHANGE_LINK = "blockr.core-change_link";
-const REMOVE_LINK = "blockr.core-remove_link";
+const ADD_LINK = { package: CORE, id: "add_link" } as const;
+const CHANGE_LINK = { package: CORE, id: "change_link" } as const;
+const REMOVE_LINK = { package: CORE, id: "remove_link" } as const;
 
 // Renders the advanced action for the block that the target names, the one
 // kind of target that core hands Edit inputs, and draws it before it returns.
@@ -242,11 +242,11 @@ function fixedBatch(core: CoreApi, board: Board, registry: BlockRegistry, block:
     const id = linkFeeding(board, registry, block, input);
     const from = id === undefined ? undefined : own(board.links, id)?.from;
     if (id === undefined) {
-      if (source !== null) adds.push({ id: ADD_LINK, args: { id: mint(core, minted), from: source, to: block, input } });
+      if (source !== null) adds.push({ ...ADD_LINK, args: { id: mint(core, minted), from: source, to: block, input } });
     } else if (source === null) {
-      removes.push({ id: REMOVE_LINK, args: { id } });
+      removes.push({ ...REMOVE_LINK, args: { id } });
     } else if (source !== from) {
-      changes.push({ id: CHANGE_LINK, args: { id, from: source } });
+      changes.push({ ...CHANGE_LINK, args: { id, from: source } });
     }
   }
   return [...removes, ...changes, ...adds];
@@ -501,16 +501,16 @@ function variadicBatch(core: CoreApi, board: Board, block: BlockId, shown: reado
     if (link === undefined) {
       const id = mint(core, minted);
       order.push(id);
-      adds.push({ id: ADD_LINK, args: { id, from, to: block, ...(name === "" ? {} : { input: name }) } });
+      adds.push({ ...ADD_LINK, args: { id, from, to: block, ...(name === "" ? {} : { input: name }) } });
       continue;
     }
     order.push(key);
     const args = { ...(from === link.from ? {} : { from }), ...(name === link.input ? {} : { input: name }) };
-    if (Object.keys(args).length > 0) changes.push({ id: CHANGE_LINK, args: { id: key, ...args } });
+    if (Object.keys(args).length > 0) changes.push({ ...CHANGE_LINK, args: { id: key, ...args } });
   }
   const kept = into.filter((id) => order.includes(id));
   return [
-    ...into.filter((id) => !order.includes(id)).map((id): CommandCall => ({ id: REMOVE_LINK, args: { id } })),
+    ...into.filter((id) => !order.includes(id)).map((id): CommandCall => ({ ...REMOVE_LINK, args: { id } })),
     ...changes,
     ...adds,
     ...moves([...kept, ...minted], order),
@@ -523,7 +523,7 @@ function variadicBatch(core: CoreApi, board: Board, block: BlockId, shown: reado
 // among the block's links in turn, in the order `to`, and moves once.
 function moves(from: readonly LinkId[], to: readonly LinkId[]): CommandCall[] {
   if (from.length === to.length && from.every((id, i) => id === to[i])) return [];
-  return to.map((id): CommandCall => ({ id: CHANGE_LINK, args: { id, before: null } }));
+  return to.map((id): CommandCall => ({ ...CHANGE_LINK, args: { id, before: null } }));
 }
 
 // What an item of the list says to assistive technology, which React Aria

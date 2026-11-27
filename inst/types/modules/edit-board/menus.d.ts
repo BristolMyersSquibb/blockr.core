@@ -21,4 +21,4 @@ export declare function PlaceForm({ args, onClose }: {
     args: PlaceArgs;
     onClose: () => void;
 }): ReactElement;
-export declare function editTitle(board: Board, action: Pick<BoardAction, "id" | "label">, target: Target): string;
+export declare function editTitle(board: Board, action: Pick<BoardAction, "package" | "id" | "label">, target: Target): string;

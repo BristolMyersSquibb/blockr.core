@@ -1,4 +1,4 @@
-import type { BlockId, JsonBoard, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
+import type { BlockId, JsonBoard, OptionId, PluginClassId, RegistryId, RendererId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -32,12 +32,12 @@ export interface HelloReply {
     protocol: string;
     capabilities: Capability[];
     packages: Record<string, string>;
-    block_registry: Record<RegistryId, RegistryEntry>;
-    modules: Record<string, {
+    block_registry: RegistryEntry[];
+    modules: Record<string, Record<string, {
         module: string;
         css?: string;
-    }>;
-    plugins: Record<PluginClassId, PluginEntry>;
+    }>>;
+    plugins: PluginEntry[];
     frontend: Record<string, Json>;
     options: Record<OptionId, OptionEntry>;
     lock: Lock;
@@ -45,6 +45,8 @@ export interface HelloReply {
     bound?: string[];
 }
 export interface PluginEntry {
+    package: string;
+    id: string;
     name: string;
     version: number;
     options?: OptionId[];
@@ -173,7 +175,7 @@ export interface RendererRequest extends Traced {
     id: string;
     kind: "request";
     type: "renderer";
-    renderer: string;
+    renderer: RendererId;
     output: BlockRevision;
     name: string;
     args: Record<string, Json>;

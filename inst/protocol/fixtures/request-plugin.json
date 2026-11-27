@@ -1,11 +1,11 @@
 {
-  "description": "A plugin's request, as blockr.code's plugin could ask for the script of a and b. R finds the request among those that the method of plugin_requests() for the plugin's class, blockr.code-code_plugin, gives, and calls it with the results that the request reads, by block id, each with the block expression that R built for it.",
+  "description": "A plugin's request, as blockr.code's plugin could ask for the script of a and b. The request names the plugin's class by its package and its id. R finds the request among those that the method of plugin_requests() for that class, code_plugin of blockr.code, gives, and calls it with the results that the request reads, by block id, each with the block expression that R built for it.",
   "client": [
     {
       "id": "27",
       "kind": "request",
       "type": "plugin",
-      "plugin": "blockr.code-code_plugin",
+      "plugin": { "package": "blockr.code", "id": "code_plugin" },
       "name": "script",
       "args": {},
       "reads": [

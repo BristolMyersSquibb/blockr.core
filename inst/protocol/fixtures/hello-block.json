@@ -16,9 +16,10 @@
         "protocol": "1.0",
         "capabilities": ["cancel", "progress"],
         "packages": { "blockr.core": "0.2.0" },
-        "block_registry": {
-          "blockr.core-head_block": {
-            "id": "blockr.core-head_block",
+        "block_registry": [
+          {
+            "package": "blockr.core",
+            "id": "head_block",
             "name": "head/tail block",
             "description": "Data head/tail",
             "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",
@@ -55,21 +56,24 @@
             "output_options": ["n_rows"],
             "renderers": [
               {
-                "id": "blockr.core-table_output",
+                "package": "blockr.core",
+                "id": "table_output",
                 "module": "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           }
-        },
+        ],
         "modules": {
-          "blockr.core-controls": {
-            "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
-          },
-          "blockr.core-board_action_menu": {
-            "module": "blockr.core/board-action-menu.js?v=e3a7c05b"
+          "blockr.core": {
+            "controls": {
+              "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
+            },
+            "board_action_menu": {
+              "module": "blockr.core/board-action-menu.js?v=e3a7c05b"
+            }
           }
         },
-        "plugins": {},
+        "plugins": [],
         "frontend": {},
         "options": {
           "n_rows": {
@@ -92,7 +96,7 @@
             "name": "Quick wren",
             "blocks": {
               "tidy_crab": {
-                "registry_id": "blockr.core-head_block",
+                "registry_id": { "package": "blockr.core", "id": "head_block" },
                 "version": 1,
                 "state": { "n": 6, "direction": "head" },
                 "name": "Head",

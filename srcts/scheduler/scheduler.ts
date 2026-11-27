@@ -50,7 +50,7 @@ import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { log } from "../log/index.ts";
 import { activeSpanContext, keepContext } from "../trace/index.ts";
-import { asError, asLogical, asNumber, errorMessage, own } from "../util/index.ts";
+import { asError, asLogical, asNumber, errorMessage, idAttributes, own } from "../util/index.ts";
 import * as evaluations from "./evaluations.ts";
 import type { OneTime, Settled } from "./evaluations.ts";
 import { neededBlocks } from "./needs.ts";
@@ -217,7 +217,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // - The demands and the one-time evaluations.
   // - Whether it holds evaluations back.
   const board = signal<Board | undefined>(undefined);
-  const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>({});
+  const registry = signal<ReadonlyMap<RegistryId, RegistryEntry>>(new Map());
   const bound = signal<ReadonlySet<string>>(new Set(options.bound ?? []));
   const revisions = signal<ReadonlyMap<BlockId, number>>(new Map());
   const outcomes = signal<ReadonlyMap<BlockId, Outcome>>(new Map());
@@ -611,7 +611,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   function resendable(request: Asking): boolean {
     if (request.kind === "output" || request.output !== undefined) return true;
     if (request.registry_id === undefined) return false;
-    const entry = own(store.blockRegistry(), request.registry_id);
+    const entry = store.blockRegistry().get(request.registry_id);
     return entry === undefined || own(entry.requests, request.name)?.action !== true;
   }
 
@@ -789,7 +789,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       const span = {
         ...requestOptions.span,
         attributes: {
-          ...(block === undefined ? {} : { "blockr.block.registry_id": block.registry_id }),
+          ...(block === undefined ? {} : idAttributes("blockr.block.registry_id", block.registry_id)),
           ...requestOptions.span?.attributes,
         },
       };

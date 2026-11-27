@@ -11,7 +11,8 @@
       },
       "output": {
         "renderer": {
-          "id": "blockr.core-table_output",
+          "package": "blockr.core",
+          "id": "table_output",
           "module": "blockr.core/basic-table.js?v=b7e2a915"
         },
         "columns": [
@@ -78,7 +79,8 @@
       },
       "output": {
         "renderer": {
-          "id": "blockr.core-table_output",
+          "package": "blockr.core",
+          "id": "table_output",
           "module": "blockr.core/basic-table.js?v=b7e2a915"
         },
         "columns": [
@@ -146,7 +148,8 @@
       "params": {},
       "output": {
         "renderer": {
-          "id": "blockr.core-table_output",
+          "package": "blockr.core",
+          "id": "table_output",
           "module": "blockr.core/basic-table.js?v=b7e2a915"
         },
         "columns": [
@@ -266,7 +269,8 @@
       "params": {},
       "output": {
         "renderer": {
-          "id": "blockr.core-table_output",
+          "package": "blockr.core",
+          "id": "table_output",
           "module": "blockr.core/basic-table.js?v=b7e2a915"
         },
         "columns": [
@@ -305,7 +309,8 @@
       "params": {},
       "output": {
         "renderer": {
-          "id": "blockr.core-table_output",
+          "package": "blockr.core",
+          "id": "table_output",
           "module": "blockr.core/basic-table.js?v=b7e2a915"
         },
         "columns": [

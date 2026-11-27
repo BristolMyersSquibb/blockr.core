@@ -46,7 +46,7 @@ import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Plugin, PluginModule } from "../types/core-api.ts";
 import { log } from "../log/index.ts";
-import { asError, coreNotification, errorMessage, own, packageFromId, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, givenPluginClassId, idText, sourceModule } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 
 // What the render() of the `ui` of a plugin's class gets.
@@ -67,7 +67,7 @@ export interface Frontend {
 // CoreApi that reach them, and what starts them, which core calls as the board
 // opens.
 export interface RunningPlugins {
-  appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
+  appPlugins(): ReadonlyMap<PluginClassId, Plugin>;
   pluginClass(plugin: PluginClassId): PluginClass;
   storage(): Storage | undefined;
   mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
@@ -85,8 +85,9 @@ export interface RunningDeps {
   // The CoreApi that the plugins get, which core makes with what runPlugins()
   // returns.
   readonly core: () => CoreApi;
-  // The app's plugins, from R's reply to `hello`, by the ids of their classes.
-  readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
+  // The app's plugins, from R's reply to `hello`, by the ids of their classes,
+  // in the order of the rows that `serve()` takes.
+  readonly plugins: ReadonlyMap<PluginClassId, PluginEntry>;
   // Raises a notification of the board (./notifications.ts).
   readonly raise: Raise;
   // The plugin whose UI core mounted in each element, which mountPlugin()
@@ -97,14 +98,14 @@ export interface RunningDeps {
   readonly signal?: AbortSignal;
 }
 
-const NONE: Readonly<Record<PluginClassId, Plugin>> = Object.freeze({});
+const NONE: ReadonlyMap<PluginClassId, Plugin> = new Map();
 const NOTHING_FAILED: Promise<readonly string[]> = Promise.resolve([]);
 
 export function runPlugins(deps: RunningDeps): RunningPlugins {
   const { store, keepOptions } = deps;
   const replaced = deps.signal ?? new AbortController().signal;
 
-  const registeredClass = (id: PluginClassId): PluginClass | undefined => own(store.plugins.registered(), id);
+  const registeredClass = (id: PluginClassId): PluginClass | undefined => store.plugins.registered().get(id);
 
   // Why board options that the class of each plugin names did not go onto the
   // board, by the id of the plugin's class. Each resolves once the board
@@ -123,11 +124,11 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
 
   // The board options that the plugin of a class reads, as R names them in
   // the plugin's entry.
-  const optionsOf = (id: PluginClassId): readonly OptionId[] => own(deps.plugins, id)?.options ?? [];
+  const optionsOf = (id: PluginClassId): readonly OptionId[] => deps.plugins.get(id)?.options ?? [];
 
   function opened(): void {
-    for (const id of Object.keys(appPlugins())) {
-      added.set(id, keep(optionsOf(id), `the plugin class "${id}"`));
+    for (const id of appPlugins().keys()) {
+      added.set(id, keep(optionsOf(id), `the plugin class "${idText(id)}"`));
     }
   }
 
@@ -140,30 +141,31 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
   });
 
   // The app's plugins, each with its name alone.
-  const running: Readonly<Record<PluginClassId, Plugin>> = Object.freeze(
-    Object.fromEntries(Object.entries(deps.plugins).map(([id, { name }]) => [id, Object.freeze({ name })])),
+  const running: ReadonlyMap<PluginClassId, Plugin> = new Map(
+    [...deps.plugins].map(([id, { name }]) => [id, Object.freeze({ name })]),
   );
 
   // The app's plugins, which run once the store has opened a board. Every
   // package has registered their classes by then, since core opens no board
   // where the module of one fails.
-  function appPlugins(): Readonly<Record<PluginClassId, Plugin>> {
+  function appPlugins(): ReadonlyMap<PluginClassId, Plugin> {
     return store.hasBoard() ? running : NONE;
   }
 
-  function pluginClass(plugin: PluginClassId): PluginClass {
-    const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : undefined;
-    if (def === undefined) throw new Error(`The app runs no plugin "${plugin}" on the open board.`);
+  function pluginClass(given: PluginClassId): PluginClass {
+    const plugin = givenPluginClassId(given, "pluginClass()");
+    const def = appPlugins().has(plugin) ? registeredClass(plugin) : undefined;
+    if (def === undefined) throw new Error(`The app runs no plugin "${idText(plugin)}" on the open board.`);
     return def;
   }
 
   function storage(): Storage | undefined {
-    const [id] = inRole(appPlugins(), registeredClass, "storage");
+    const [id] = inRole(appPlugins().keys(), registeredClass, "storage");
     return id === undefined ? undefined : pluginClass(id).storage;
   }
 
   function frontend(): Frontend | undefined {
-    const [id] = inRole(appPlugins(), registeredClass, "frontend");
+    const [id] = inRole(appPlugins().keys(), registeredClass, "frontend");
     const drawn = id === undefined ? undefined : pluginClass(id).frontend;
     if (id === undefined || drawn === undefined) return undefined;
     return { frontend: drawn, plugin: id, added: added.get(id) ?? NOTHING_FAILED };
@@ -173,7 +175,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
   async function start(): Promise<void> {
     if (started) return;
     started = true;
-    const starting = Object.keys(appPlugins()).flatMap((id) => {
+    const starting = [...appPlugins().keys()].flatMap((id) => {
       const def = registeredClass(id);
       return def?.start === undefined ? [] : [{ id, def }];
     });
@@ -181,7 +183,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     starting.forEach(({ id, def }, i) => {
       if (replaced.aborted) return;
       if ((failures[i] ?? []).length > 0) {
-        log.error(`The plugin "${id}" does not start, since board options that its class requires did not go onto the board.`);
+        log.error(`The plugin "${idText(id)}" does not start, since board options that its class requires did not go onto the board.`);
         return;
       }
       launch(id, def);
@@ -201,9 +203,9 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     try {
       returned = def.start?.({ core: deps.core(), plugin: id, signal: controller.signal });
     } catch (error) {
-      const why = new Error(`The start of the plugin class "${id}" failed: ${errorMessage(error)}`, { cause: error });
+      const why = new Error(`The start of the plugin class "${idText(id)}" failed: ${errorMessage(error)}`, { cause: error });
       log.error(why);
-      const module = sourceModule({ plugin: id }, packageFromId(id));
+      const module = sourceModule({ plugin: id }, id.package);
       deps.raise(coreNotification("plugin_start_failed", "error", why.message, { module }));
       return;
     }
@@ -213,12 +215,13 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     else cleanup = given;
   }
 
-  function mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void {
+  function mountPlugin(el: HTMLElement, given: PluginClassId): () => void {
     if (replaced.aborted) throw new Error(REPLACED);
+    const plugin = givenPluginClassId(given, "mountPlugin()");
     const def = pluginClass(plugin);
     const { ui } = def;
     if (ui === undefined) {
-      throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
+      throw new Error(`The class of the plugin "${idText(plugin)}" has no ui to mount.`);
     }
 
     // The mount ends as its signal aborts, which may happen whenever the
@@ -253,7 +256,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
 
     // Raises that the ui cannot draw, which concerns the plugin.
     function cannotDraw(message: string): void {
-      deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
+      deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, plugin.package) }));
     }
 
     // Raises that the ui cannot draw without the board options that the class
@@ -261,14 +264,14 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     // option, which core has reported.
     function lacking(ids: readonly OptionId[]): void {
       const missing = ids.filter((id) => !Object.hasOwn(store.board().options, id));
-      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
+      cannotDraw(withoutOptions(`the ui of the plugin class "${idText(plugin)}"`, missing));
     }
 
     void (async () => {
       // Where a board option that the class names does not go onto the board,
       // the ui does not draw. A ui that has drawn ends then.
       const named = optionsOf(plugin);
-      const kept = keepOptions(named, `the plugin class "${plugin}"`, () => {
+      const kept = keepOptions(named, `the plugin class "${idText(plugin)}"`, () => {
         if (ended()) return;
         end();
         lacking(named);
@@ -288,7 +291,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
         if (ended()) attempt(rendered);
         else cleanup = rendered;
       } catch (error) {
-        fail(new Error(`The ui of the plugin class "${plugin}" failed in render(): ${errorMessage(error)}`, { cause: error }));
+        fail(new Error(`The ui of the plugin class "${idText(plugin)}" failed in render(): ${errorMessage(error)}`, { cause: error }));
       }
     })();
 

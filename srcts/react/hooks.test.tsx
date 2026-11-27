@@ -11,7 +11,11 @@ import { step } from "../testing/react.ts";
 import { openedStore } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../types/core-api.ts";
+import { interned } from "../util/index.ts";
 import { useBoard, useNotified } from "./index.ts";
+
+// The class of core's Edit board plugin, which names the plugin.
+const EDIT = interned("blockr.core", "edit_board_plugin");
 
 // A notification that core's Edit board plugin raised, about the board object
 // given, or about the board.
@@ -20,7 +24,7 @@ function raised(id: string, about?: BoardObject): Notification {
     id,
     severity: "warning",
     message: `warning ${id}`,
-    source: { kind: "module", module: { object: { plugin: "blockr.core-edit_board_plugin" }, package: "blockr.core" }, code: "edited" },
+    source: { kind: "module", module: { object: { plugin: EDIT }, package: "blockr.core" }, code: "edited" },
     ...(about === undefined ? {} : { about }),
   };
 }
@@ -28,11 +32,11 @@ function raised(id: string, about?: BoardObject): Notification {
 describe("useNotified()", () => {
   test("gives the notifications about the board object given, by its kind and its id, or every notification given null, in the order they came, and the same array until one comes or goes", async () => {
     const given = holding([
-      raised("a", { plugin: "blockr.core-edit_board_plugin" }),
+      raised("a", { plugin: EDIT }),
       raised("b", { block: "b" }),
       raised("c"),
       raised("d", { stack: "b" }),
-      raised("e", { plugin: "blockr.core-edit_board_plugin" }),
+      raised("e", { plugin: EDIT }),
     ]);
     const core: { readonly notifications: Pick<CoreApi["notifications"], "get" | "subscribe"> } = given;
     const seen: (readonly Notification[])[] = [];
@@ -45,14 +49,14 @@ describe("useNotified()", () => {
     const root = createRoot(el);
 
     await step(() => {
-      root.render(<Ids about={{ plugin: "blockr.core-edit_board_plugin" }} />);
+      root.render(<Ids about={{ plugin: EDIT }} />);
     });
     expect(el.textContent).toBe("a e");
 
     // A new object that names the same plugin gives the same array, so that a
     // component may give one on each render.
     await step(() => {
-      root.render(<Ids about={{ plugin: "blockr.core-edit_board_plugin" }} />);
+      root.render(<Ids about={{ plugin: EDIT }} />);
     });
     expect(seen).toHaveLength(2);
     expect(seen[1]).toBe(seen[0]);

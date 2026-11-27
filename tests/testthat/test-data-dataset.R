@@ -10,7 +10,10 @@ test_that("dataset block constructor", {
     list(dataset = "iris", package = "datasets")
   )
 
-  expect_identical(registry_id_from_block(blk), "blockr.core-dataset_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "dataset_block")
+  )
 })
 
 test_that("a dataset block names its dataset in its package", {

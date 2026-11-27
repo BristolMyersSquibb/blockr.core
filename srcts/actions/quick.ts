@@ -65,7 +65,7 @@ import type { Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { log } from "../log/index.ts";
-import { errorMessage, isObject } from "../util/index.ts";
+import { errorMessage, idText, isObject } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 
 // A level of a quick action: its rows, under the title given, with a field
@@ -298,11 +298,11 @@ const SUBJECTS: Readonly<Record<Part, string>> = {
 const GAVE: Readonly<Record<Part, string>> = {
   quick: 'It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
   pick: "It gave neither a batch of commands nor a level of rows.",
-  submit: 'It gave no batch of commands, as [{ id: "blockr.core-change_block", args: { id: "a", name: "Head" } }].',
+  submit: 'It gave no batch of commands, as [{ package: "blockr.core", id: "change_block", args: { id: "a", name: "Head" } }].',
 };
 
 // What core says of what a multi's apply gave, where it is no batch.
-const NO_BATCH = 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].';
+const NO_BATCH = 'It gave no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].';
 
 // What core says of a quick that gives no level where the board action has no
 // advanced action to open in its place.
@@ -445,7 +445,7 @@ export function openMenu(start: MenuStart, parts: MenuParts): DrivenMenu {
   // board action threw or gave, which core logs as a fault of the board
   // action's package.
   function failure(action: BoardAction, what: Part, error: unknown): Entry["state"] {
-    log.error(new Error(`${SUBJECTS[what]} "${action.id}" failed: ${errorMessage(error)}`, { cause: error }));
+    log.error(new Error(`${SUBJECTS[what]} "${idText(action)}" failed: ${errorMessage(error)}`, { cause: error }));
     return { kind: "error", message: errorMessage(error) };
   }
 
@@ -614,7 +614,7 @@ export function openMenu(start: MenuStart, parts: MenuParts): DrivenMenu {
         if (!isBatch(batch)) throw new TypeError(NO_BATCH);
         return batch;
       } catch (error) {
-        parts.failed(action, new Error(`${SUBJECTS.submit} "${action.id}" failed: ${errorMessage(error)}`, { cause: error }));
+        parts.failed(action, new Error(`${SUBJECTS.submit} "${idText(action)}" failed: ${errorMessage(error)}`, { cause: error }));
         return [];
       }
     });
@@ -756,7 +756,7 @@ function actionRow(action: BoardAction, board: Board, target: Target): QuickRow 
     const given: unknown = action.detail?.(board, target);
     if (typeof given === "string" && given !== "") detail = given;
   } catch (error) {
-    log.error(new Error(`The detail of the board action "${action.id}" failed: ${errorMessage(error)}`, { cause: error }));
+    log.error(new Error(`The detail of the board action "${idText(action)}" failed: ${errorMessage(error)}`, { cause: error }));
   }
   return {
     kind: "item",
@@ -789,7 +789,7 @@ export function nameRow(value: string, submit: (name: string) => readonly Comman
 
 // Whether a value is a batch of commands, each by its id.
 export function isBatch(value: unknown): value is readonly CommandCall[] {
-  return Array.isArray(value) && value.every((call) => isObject(call) && typeof call.id === "string");
+  return Array.isArray(value) && value.every((call) => isObject(call) && typeof call.package === "string" && typeof call.id === "string");
 }
 
 // Whether a value is a level of rows of the kinds that core defines, each

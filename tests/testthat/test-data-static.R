@@ -15,7 +15,10 @@ test_that("static block constructor", {
   # Core lists the class, with the metadata that an app's block registry
   # gives it, and the class gives its registry id
   expect_true("static_block" %in% core_block_rows()[["id"]])
-  expect_identical(registry_id_from_block(blk), "blockr.core-static_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "static_block")
+  )
 })
 
 test_that("a static block evaluates its expression", {

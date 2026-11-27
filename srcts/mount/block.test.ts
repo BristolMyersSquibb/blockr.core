@@ -23,6 +23,7 @@ import type { BlockId } from "../types/board.ts";
 import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, BlockModule } from "../types/hosts.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { interned } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Mounts, Source } from "./index.ts";
@@ -32,12 +33,20 @@ const HEAD_CSS = "blockr.core/head-block.css?v=c03e7b58";
 const MERGE = "blockr.core/merge-block.js?v=77d0a9e3";
 const UPLOAD = "blockr.core/upload-block.js?v=d5932c60";
 
-const head = registryEntry("blockr.core-head_block");
+const head = registryEntry("blockr.core", "head_block");
+// The registry id of the head block's class, as core's table holds it.
+const HEAD_ID = interned("blockr.core", "head_block");
 
-function registryEntry(id: string): RegistryEntry {
-  const entry = hello.block_registry[id];
-  if (entry === undefined) throw new Error(`The block registry has no class "${id}".`);
+function registryEntry(pkg: string, id: string): RegistryEntry {
+  const entry = hello.block_registry.find((found) => found.package === pkg && found.id === id);
+  if (entry === undefined) throw new Error(`The block registry has no class "${id}" of ${pkg}.`);
   return entry;
+}
+
+// The block registry's entries, with the entry given in place of the one of
+// its class.
+function replacing(registry: readonly RegistryEntry[], entry: RegistryEntry): RegistryEntry[] {
+  return registry.map((held) => (held.package === entry.package && held.id === entry.id ? entry : held));
 }
 
 // The reply to hello, with requests of the head block's class beside n_max: one
@@ -45,17 +54,14 @@ function registryEntry(id: string): RegistryEntry {
 // and a volatile one.
 const withRequests: HelloReply = {
   ...hello,
-  block_registry: {
-    ...hello.block_registry,
-    [head.id]: {
-      ...head,
-      requests: {
-        ...head.requests,
-        columns: { inputs: ["data"], state_args: ["direction"], options: ["n_rows"] },
-        listing: { inputs: [], state_args: [], options: [], volatile: true },
-      },
+  block_registry: replacing(hello.block_registry, {
+    ...head,
+    requests: {
+      ...head.requests,
+      columns: { inputs: ["data"], state_args: ["direction"], options: ["n_rows"] },
+      listing: { inputs: [], state_args: [], options: [], volatile: true },
     },
-  },
+  }),
 };
 
 // A board option that no board of the fixtures holds.
@@ -72,8 +78,8 @@ const zoom: Option = {
 // options given for its UI module, as R names those that `new_block_class()`
 // takes in `options`.
 function headReading(ids: readonly string[], reply: HelloReply = hello): HelloReply {
-  const entry = reply.block_registry[head.id] ?? head;
-  return { ...reply, block_registry: { ...reply.block_registry, [head.id]: { ...entry, options: ids } } };
+  const entry = reply.block_registry.find((found) => found.package === head.package && found.id === head.id) ?? head;
+  return { ...reply, block_registry: replacing(reply.block_registry, { ...entry, options: ids }) };
 }
 
 // A UI module that keeps each host it is mounted with and its element and
@@ -128,7 +134,11 @@ async function setup(
     reply = hello,
     options = [],
     offered = {},
-  }: { reply?: HelloReply; options?: readonly Option[]; offered?: Readonly<Record<string, Source>> } = {},
+  }: {
+    reply?: HelloReply;
+    options?: readonly Option[];
+    offered?: Readonly<Record<string, Readonly<Record<string, Source>>>>;
+  } = {},
 ): Promise<Setup> {
   const r = playR();
   r.connect();
@@ -274,7 +284,7 @@ describe("loading", () => {
   test("imports a module and its stylesheet once, however many blocks and mounts use it", async () => {
     const ui = recorder();
     const { store, mounts, imported, sheets } = await setup({ [HEAD]: ui.exports });
-    store.apply({ blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head", locked: null } } } });
+    store.apply({ blocks: { add: { g: { registry_id: HEAD_ID, state: { n: 3, direction: "head" }, name: "Head", locked: null } } } });
 
     const els = [document.createElement("div"), document.createElement("div"), document.createElement("div")];
     mounts.mountBlock(els[0] as HTMLElement, "b");
@@ -286,9 +296,9 @@ describe("loading", () => {
     expect(sheets).toEqual([HEAD_CSS]);
     expect(els.map((el) => el.textContent)).toEqual(["n = 6", "n = 6", "n = 3"]);
     expect(ui.mounts.map(({ host }) => [host.block, host.class])).toEqual([
-      ["b", head.id],
-      ["b", head.id],
-      ["g", head.id],
+      ["b", HEAD_ID],
+      ["b", HEAD_ID],
+      ["g", HEAD_ID],
     ]);
   });
 
@@ -340,19 +350,19 @@ describe("loading", () => {
     expect(() => mounts.mountBlock(document.createElement("div"), "z")).toThrow('The board holds no block "z" to mount.');
   });
 
-  test("resolves a module that another package offers, by id, through the host", async () => {
+  test("resolves a module that another package offers, by its package and its id, through the host", async () => {
     const ui = recorder();
     const filter = { api: 1, filter: "blockr.dplyr's" };
     const { mounts, imported, sheets } = await setup(
       { [HEAD]: ui.exports, "blockr.dplyr/filter.js?v=1": filter },
-      { offered: { "blockr.dplyr-filter": { module: "blockr.dplyr/filter.js?v=1", css: "blockr.dplyr/filter.css?v=2" } } },
+      { offered: { "blockr.dplyr": { filter: { module: "blockr.dplyr/filter.js?v=1", css: "blockr.dplyr/filter.css?v=2" } } } },
     );
     mounts.mountBlock(document.createElement("div"), "b");
     await tick();
 
-    await expect(ui.host().module("blockr.dplyr-filter")).resolves.toBe(filter);
-    await expect(ui.host().module("blockr.dplyr-filter")).resolves.toBe(filter);
-    await expect(ui.host().module("blockr.dplyr-select")).rejects.toThrow('No package offers a module "blockr.dplyr-select".');
+    await expect(ui.host().module(interned("blockr.dplyr", "filter"))).resolves.toBe(filter);
+    await expect(ui.host().module(interned("blockr.dplyr", "filter"))).resolves.toBe(filter);
+    await expect(ui.host().module(interned("blockr.dplyr", "select"))).rejects.toThrow('blockr.dplyr offers no module "select".');
     expect(imported).toEqual([HEAD, "blockr.dplyr/filter.js?v=1"]);
     expect(sheets).toEqual([HEAD_CSS, "blockr.dplyr/filter.css?v=2"]);
   });
@@ -482,11 +492,11 @@ describe("board options", () => {
     await evaluateAll(r);
     reported.restore();
 
-    const what = 'which the UI module of block class "blockr.core-head_block" requires';
+    const what = 'which the UI module of block class "head_block of blockr.core" requires';
     const failed = `The default of the board option "broken", ${what}, failed: No zoom today.`;
     const refused = `The default of the board option "unfit", ${what}, did not go onto the board: `;
     for (const el of els) expect(el.textContent).toBe("");
-    const lacking = cannotDraw('Without the board options "broken" and "unfit", the UI module of block class "blockr.core-head_block" cannot draw.');
+    const lacking = cannotDraw('Without the board options "broken" and "unfit", the UI module of block class "head_block of blockr.core" cannot draw.');
     expect(raisedCodes(raised)).toEqual([
       ["board_option_failed", { option: "broken" }],
       ["board_option_failed", { option: "unfit" }],
@@ -512,11 +522,11 @@ describe("board options", () => {
     await tick();
     reported.restore();
 
-    const why = 'The board option "nowhere", which the UI module of block class "blockr.core-head_block" requires, is defined by no package loaded.';
+    const why = 'The board option "nowhere", which the UI module of block class "head_block of blockr.core" requires, is defined by no package loaded.';
     expect(el.textContent).toBe("");
     expect(raised).toEqual([
       { severity: "error", message: why, source: { kind: "core", code: "board_option_failed" }, about: { option: "nowhere" } },
-      cannotDraw('Without the board option "nowhere", the UI module of block class "blockr.core-head_block" cannot draw.'),
+      cannotDraw('Without the board option "nowhere", the UI module of block class "head_block of blockr.core" cannot draw.'),
     ]);
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(ui.mounts).toHaveLength(0);
@@ -540,13 +550,13 @@ describe("board options", () => {
     await tick();
     reported.restore();
 
-    const why = 'The default of the board option "zoom", which the UI module of block class "blockr.core-head_block" requires, failed: No zoom any more.';
+    const why = 'The default of the board option "zoom", which the UI module of block class "head_block of blockr.core" requires, failed: No zoom any more.';
     expect(el.textContent).toBe("");
     expect(raisedCodes(raised)).toEqual([
       ["board_option_failed", { option: "zoom" }],
       ["module_failed", { block: "b" }],
     ]);
-    expect(raised[1]).toEqual(cannotDraw('Without the board option "zoom", the UI module of block class "blockr.core-head_block" cannot draw.'));
+    expect(raised[1]).toEqual(cannotDraw('Without the board option "zoom", the UI module of block class "head_block of blockr.core" cannot draw.'));
     expect(ui.cleanups()).toBe(1);
     expect(ui.mounts[0]?.signal.aborted).toBe(true);
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
@@ -572,20 +582,20 @@ describe("board options", () => {
     const context = ui.host().context();
 
     expect(() => context.option("n_rows")).toThrow(
-      'The block class "blockr.core-head_block" names no board option "n_rows" in R, so its UI module cannot read it.',
+      'The block class "head_block of blockr.core" names no board option "n_rows" in R, so its UI module cannot read it.',
     );
     expect(() => context.option("zom")).toThrow(
-      'The block class "blockr.core-head_block" names no board option "zom" in R, so its UI module cannot read it.',
+      'The block class "head_block of blockr.core" names no board option "zom" in R, so its UI module cannot read it.',
     );
   });
 
   test("that a module reads are those of the class of each block that it mounts for", async () => {
     const ui = recorder();
     // The merge block's class has the head block's module draw it too.
-    const merge = registryEntry("blockr.core-merge_block");
+    const merge = registryEntry("blockr.core", "merge_block");
     const reply: HelloReply = {
       ...withRequests,
-      block_registry: { ...withRequests.block_registry, [merge.id]: { ...merge, module: HEAD } },
+      block_registry: replacing(withRequests.block_registry, { ...merge, module: HEAD }),
     };
     const { mounts } = await setup({ [HEAD]: ui.exports }, { reply });
     mounts.mountBlock(document.createElement("div"), "b");
@@ -595,7 +605,7 @@ describe("board options", () => {
     const hostOf = (block: string): BlockHost | undefined => ui.mounts.find(({ host }) => host.block === block)?.host;
     expect(hostOf("b")?.context().option("n_rows")).toBe(50);
     expect(() => hostOf("c")?.context().option("n_rows")).toThrow(
-      'The block class "blockr.core-merge_block" names no board option "n_rows" in R, so its UI module cannot read it.',
+      'The block class "merge_block of blockr.core" names no board option "n_rows" in R, so its UI module cannot read it.',
     );
   });
 });
@@ -947,7 +957,7 @@ describe("a request", () => {
       id: lastRequest(r).id,
       kind: "request",
       type: "block_class",
-      registry_id: head.id,
+      registry_id: HEAD_ID,
       block: "b",
       name: "n_max",
       args: {},
@@ -974,7 +984,8 @@ describe("a request", () => {
     expect(request.attributes).toMatchObject({
       "blockr.request.type": "block_class",
       "blockr.block.id": "b",
-      "blockr.block.registry_id": head.id,
+      "blockr.block.package": "blockr.core",
+      "blockr.block.registry_id": "head_block",
     });
     // The evaluation of the input that it reads starts a trace of its own.
     expect(recorded.span("evaluate").parentSpanContext).toBeUndefined();
@@ -1007,7 +1018,7 @@ describe("a request", () => {
   test("is answered from what core keeps, by class, name, args, board options and revisions, for every block of the class", async () => {
     const { r, store, host, mounts, ui } = await mounted();
     store.apply({
-      blocks: { add: { g: { registry_id: head.id, state: { n: 3, direction: "head" }, name: "Head", locked: null } } },
+      blocks: { add: { g: { registry_id: HEAD_ID, state: { n: 3, direction: "head" }, name: "Head", locked: null } } },
       links: { add: { ag: { from: "a", to: "g", input: "data" } } },
     });
     mounts.mountBlock(document.createElement("div"), "g");
@@ -1082,7 +1093,7 @@ describe("a request", () => {
           ...json.board,
           blocks: {
             ...json.board.blocks,
-            u: { registry_id: "blockr.core-upload_block", version: 1, state: {}, name: "Upload", locked: null },
+            u: { registry_id: { package: "blockr.core", id: "upload_block" }, version: 1, state: {}, name: "Upload", locked: null },
           },
         },
       },
@@ -1110,7 +1121,7 @@ describe("a request", () => {
     const file = new File(["a,b\n1,2\n"], "sales.csv", { type: "text/csv" });
 
     await expect(host.request("listing", {}, { file })).rejects.toThrow(
-      'The request "listing" of the block class "blockr.core-head_block" takes no file, since its new_block_request() names no argument for one.',
+      'The request "listing" of the block class "head_block of blockr.core" takes no file, since its new_block_request() names no argument for one.',
     );
     await tick();
     expect(requests(r)).toHaveLength(0);
@@ -1305,7 +1316,7 @@ describe("a request", () => {
   test("of a request the class lacks, or of a block that left the board, rejects", async () => {
     const { store, host } = await mounted();
 
-    await expect(host.request("nothing")).rejects.toThrow('The block class "blockr.core-head_block" has no request "nothing".');
+    await expect(host.request("nothing")).rejects.toThrow('The block class "head_block of blockr.core" has no request "nothing".');
     store.apply({ blocks: { rm: ["b"] } });
     await expect(host.request("n_max")).rejects.toThrow('Block "b" left the board');
   });

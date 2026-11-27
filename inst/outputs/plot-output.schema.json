@@ -5,6 +5,12 @@
     "renderer": {
       "type": "object",
       "properties": {
+        "package": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "id": {
           "type": "string"
         },
@@ -16,6 +22,7 @@
         }
       },
       "required": [
+        "package",
         "id",
         "module"
       ]

@@ -30,11 +30,11 @@ test_that("writing a fixture registers no class, and serving it needs them", {
   board <- board_fixture_values()$board$board
   ids <- c("letters_block", "join_block")
 
-  expect_false(any(ids %in% list_blocks()))
+  expect_false(any(lgl_ply(ids, lists_block)))
 
   blockr_ser(board)
 
-  expect_false(any(ids %in% list_blocks()))
+  expect_false(any(lgl_ply(ids, lists_block)))
 
   # The fixture's classes are defined outside a package, so the script
   # registers them before it serves the board
@@ -44,5 +44,7 @@ test_that("writing a fixture registers no class, and serving it needs them", {
     local_block_class(cls)
   }
 
-  expect_true(all(ids %in% ls(served_registry(serve(board)))))
+  held <- ref_labels(registry_entries(served_registry(serve(board))))
+
+  expect_true(all(ids %in% held))
 })

@@ -1,6 +1,7 @@
 import type { Json } from "./json.ts";
 export interface BlockOutput {
     renderer: {
+        package: string | null;
         id: string;
         module: string;
         css?: string;

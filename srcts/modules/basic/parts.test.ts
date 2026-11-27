@@ -4,13 +4,13 @@
 import { describe, expect, test } from "vitest";
 import type { Stack } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { onMac, shortcutLabel } from "../../util/index.ts";
+import { interned, onMac, shortcutLabel } from "../../util/index.ts";
 import { demandShown, IN_VIEW, OWNER, SHOWN } from "./demand.ts";
 import type { View } from "./demand.ts";
 import { layoutItems } from "./layout.ts";
 
 describe("where each block goes", () => {
-  const block = { registry_id: "blockr.core-head_block", state: {}, name: "Head", locked: null };
+  const block = { registry_id: interned("blockr.core", "head_block"), state: {}, name: "Head", locked: null };
   const stack = (blocks: string[]): Stack => ({ name: "Stack", blocks, color: null });
 
   test("is the board's order, each stack at the place of its first block, with its blocks in its own order", () => {
@@ -161,6 +161,9 @@ describe("what the frontend demands", () => {
 });
 
 describe("what the frontend has on screen", () => {
+  // The class of the plugin whose section the test watches.
+  const MD = interned("blockr.md", "md_plugin");
+
   test("is the blocks whose cards and the plugins whose sections are in view, and only the blocks are demanded", () => {
     const { core, demands, screens } = played();
     const p = page();
@@ -169,11 +172,11 @@ describe("what the frontend has on screen", () => {
     const md = laidOut(100);
     const b = laidOut(700);
     shown.watch({ block: "a" }, a);
-    shown.watch({ plugin: "blockr.md-md_plugin" }, md);
+    shown.watch({ plugin: MD }, md);
     shown.watch({ block: "b" }, b);
 
     shown.measure();
-    expect(screens.at(-1)).toEqual({ blocks: ["a"], plugins: ["blockr.md-md_plugin"] });
+    expect(screens.at(-1)).toEqual({ blocks: ["a"], plugins: [MD] });
     expect(demands[1]?.blocks).toEqual(["a"]);
 
     p.report([
@@ -190,13 +193,13 @@ describe("what the frontend has on screen", () => {
     const a = laidOut(0);
     const md = laidOut(100);
     shown.watch({ block: "a" }, a);
-    const unwatch = shown.watch({ plugin: "blockr.md-md_plugin" }, md);
+    const unwatch = shown.watch({ plugin: MD }, md);
 
     expect(shown.element({ block: "a" })).toBe(a);
-    expect(shown.element({ plugin: "blockr.md-md_plugin" })).toBe(md);
-    expect(shown.element({ block: "blockr.md-md_plugin" })).toBeUndefined();
+    expect(shown.element({ plugin: MD })).toBe(md);
+    expect(shown.element({ block: "md_plugin" })).toBeUndefined();
     unwatch();
-    expect(shown.element({ plugin: "blockr.md-md_plugin" })).toBeUndefined();
+    expect(shown.element({ plugin: MD })).toBeUndefined();
   });
 });
 

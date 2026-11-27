@@ -5,7 +5,7 @@
       "id": "25",
       "kind": "request",
       "type": "block_class",
-      "registry_id": "blockr.core-upload_block",
+      "registry_id": { "package": "blockr.core", "id": "upload_block" },
       "block": "u",
       "name": "upload",
       "args": {},

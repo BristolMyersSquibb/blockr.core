@@ -113,30 +113,33 @@ local_plugin_classes <- function(..., modules = list(),
 
   classes <- Map(
     function(ctor, name) {
-      id <- plugin_class_id(ctor())
+      ref <- plugin_class_id(ctor())
       path <- coal(
         modules[[name]],
-        paste0("js/", id_class(id), ".js"),
+        paste0("js/", ref$id, ".js"),
         fail_all = FALSE
       )
       list(
-        package = id_package(id),
-        id = id_class(id),
+        package = ref$package,
+        id = ref$id,
         name = name,
         constructor = ctor,
-        module = js_module(path, package = id_package(id))
+        module = js_module(path, package = ref$package)
       )
     },
     given,
     names(given)
   )
 
-  ids <- chr_ply(classes, function(x) paste0(x$package, "-", x$id))
   listed <- available_plugin_classes
 
   testthat::local_mocked_bindings(
     available_plugin_classes = function() {
-      c(listed(), set_names(classes, ids))
+      res <- listed()
+      for (cls in classes) {
+        res[[cls$package]][[cls$id]] <- cls
+      }
+      res
     },
     .package = "blockr.core",
     .env = frame
@@ -205,15 +208,9 @@ fixture_plugins <- list(
 # serving a fixture registers go too.
 local_fixture_package <- function(frame = parent.frame()) {
 
-  saved <- as.list(block_registry, all.names = TRUE)
-
-  withr::defer(
-    {
-      rm(list = ls(block_registry, all.names = TRUE), envir = block_registry)
-      list2env(saved, envir = block_registry)
-    },
-    envir = frame
-  )
+  # Linting skips the call of local_block_registry(), a helper of another
+  # file, which lintr does not see.
+  local_block_registry(frame) # nolint: object_usage_linter.
 
   # Linting skips the call of local_listing(), a helper of another file, which
   # lintr does not see.
@@ -267,7 +264,8 @@ board_fixture_values <- function() {
       description = paste(
         "A board that an app script builds, with every id given, so that",
         "none is drawn at random. Its block classes are defined outside a",
-        "package, so their registry ids are their names, and it holds no",
+        "package, so the registry id of each holds a package of null beside",
+        "the class's id, and it holds no",
         "plugin, so the JSON board records only blockr.core, the package",
         "that lists the board option n_rows. The UI of the join",
         "block ships the schema of its state. R writes that block's by, a",
@@ -305,10 +303,11 @@ board_fixture_values <- function() {
     plugins = list(
       description = paste(
         "A board that holds the state of two plugins of the package",
-        "blockr.test, which defines their classes in JavaScript, each under",
-        "the id of its class, with the version of its class's state. The",
-        "plugin of the class blockr.test-grid_plugin",
-        "is a frontend, and the plugin of the class blockr.test-notes_plugin",
+        "blockr.test, which defines their classes in JavaScript, under the",
+        "package and then under the id of each one's class, each with the",
+        "version of its class's state. The",
+        "plugin of the class grid_plugin",
+        "is a frontend, and the plugin of the class notes_plugin",
         "holds two notes. The package ships the schema of the state of its",
         "notes class beside the module that it lists for the class, here",
         "blockr.test/js/notes.schema.json beside blockr.test/js/notes.js.",
@@ -317,12 +316,12 @@ board_fixture_values <- function() {
         "as an array, the empty one included. It writes the state of the grid",
         "plugin, whose class the package gives no schema, bare. The list of",
         "the board's plugins holds a third, of the class",
-        "blockr.test-tools_plugin, whose constructor gives it no state, so R",
+        "tools_plugin, whose constructor gives it no state, so R",
         "writes nothing for it and records no version of its class. The",
         "package gives the notes class version 2 through its method of",
         "plugin_version(), and the grid class has no such method, so the",
         "board records it at version 1. R records blockr.test among the",
-        "board's packages, as the ids of the plugins' classes name it. A",
+        "board's packages, as the package of the plugins' classes. A",
         "client keeps the state of a plugin only where the app runs the",
         "plugin and blockr.test registers its class, and drops it otherwise."
       ),

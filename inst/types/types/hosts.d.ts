@@ -38,7 +38,10 @@ export interface BlockHost<S extends State = State> {
     }): Promise<void>;
     request<T = Json>(name: string, args?: Partial<S> & Record<string, Json>, opts?: HostRequestOpts): Promise<T | Blob>;
     evaluate(params: Record<string, Json>): Promise<BlockStatus>;
-    module<T = unknown>(id: string): Promise<T>;
+    module<T = unknown>(id: {
+        readonly package: string;
+        readonly id: string;
+    }): Promise<T>;
     notify(notification: Raised): () => void;
     readonly log: Log;
 }

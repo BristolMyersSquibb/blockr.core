@@ -28,7 +28,7 @@ import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { keepContext } from "../trace/index.ts";
-import { givenNotifier, isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
+import { givenNotifier, idText, interned, isObject, own, quoted, sourceModule } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import type { Answers, ClassRequest } from "./answers.ts";
 
@@ -98,14 +98,14 @@ export async function blockRequest(
 ): Promise<Json | Blob> {
   const spec = own(entry.requests, name);
   if (spec === undefined) {
-    throw new Error(`The block class "${entry.id}" has no request "${name}".`);
+    throw new Error(`The block class "${idText(entry)}" has no request "${name}".`);
   }
   if (!isObject(given)) {
     throw new TypeError(`The args of the request "${name}" are an object of state args and parameters.`);
   }
   if (opts.file !== undefined && spec.file !== true) {
     throw new TypeError(
-      `The request "${name}" of the block class "${entry.id}" takes no file, since its new_block_request() names no argument for one.`,
+      `The request "${name}" of the block class "${idText(entry)}" takes no file, since its new_block_request() names no argument for one.`,
     );
   }
   const notifier = givenNotifier(opts, `the request "${name}" of block "${block}"`);
@@ -113,7 +113,7 @@ export async function blockRequest(
   const what = `The request "${name}" of block "${block}"`;
   // The block's UI module, which made the request, with the package of its
   // class.
-  const module = sourceModule({ block }, packageFromId(entry.id));
+  const module = sourceModule({ block }, entry.package);
   const inCaller = keepContext();
 
   for (let attempt = 1; ; attempt++) {
@@ -143,7 +143,7 @@ export async function blockRequest(
     const request: ClassRequest = {
       kind: "request",
       type: "block_class",
-      registry_id: entry.id,
+      registry_id: interned(entry.package, entry.id),
       block,
       name,
       args,

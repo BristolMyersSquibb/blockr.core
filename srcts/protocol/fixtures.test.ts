@@ -5,6 +5,9 @@
 // type, so that the check is the compiler's own: a property that a type lacks,
 // a kind or status that it does not allow, and a property that it requires and
 // the fixture leaves out all fail.
+// A fixture is JSON, so it is checked against the types as JSON gives them, in
+// which each id that core interns is the record of its package and its id that
+// it serializes to.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -17,6 +20,8 @@ import type { Fixture } from "./messages.ts";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const fixtures = join(root, "inst", "protocol", "fixtures");
 const messages = join(root, "srcts", "protocol", "messages.ts");
+const board = join(root, "srcts", "types", "board.ts");
+const jsonTypes = join(root, "srcts", "types", "json.ts");
 
 // The type of each fixture, by its file's name, since a fixture's replies say
 // nothing of the kind of request they answer.
@@ -98,15 +103,37 @@ function path(name: string): string {
   return join(root, "srcts", "protocol", "__fixtures__", `${name}.ts`);
 }
 
+// A module, which exists only in memory too, that gives the types of the
+// fixtures' messages as JSON gives them, under their names in messages.ts.
+// Each id that core interns, as the registry id of a recipe or the class that a
+// plugin's request names, is there the record of its package and its id, since
+// the brand of an id exists for the type checker alone (Interned,
+// ../types/board.ts).
+// The compiler finds a module that its imports name only in a directory that
+// exists, so this one sits beside messages.ts.
+const serialized = join(root, "srcts", "protocol", "__serialized__.ts");
+
+function serializedModule(): string {
+  const names = [...new Set(Object.values(types).join(" ").match(/\b[A-Z]\w*/g))].filter((name) => name !== "Fixture");
+  return [
+    `import type { Interned } from ${JSON.stringify(board)};`,
+    `import type { Json } from ${JSON.stringify(jsonTypes)};`,
+    `import type * as messages from ${JSON.stringify(messages)};`,
+    "type Serialized<T> = T extends Interned<infer P> ? { package: P; id: string } : T extends Json ? T : T extends object ? { [K in keyof T]: Serialized<T[K]> } : T;",
+    "export type Fixture<C extends messages.ClientMessage, R extends messages.RMessage[]> = Serialized<messages.Fixture<C, R>>;",
+    `export type { ${names.join(", ")} } from ${JSON.stringify(messages)};`,
+  ].join("\n");
+}
+
 let diagnostics: Map<string, string[]>;
 
 beforeAll(() => {
-  const modules = new Map<string, string>();
+  const modules = new Map<string, string>([[serialized, serializedModule()]]);
 
   for (const name of names) {
     const type = types[name];
     if (type === undefined) continue;
-    modules.set(path(name), declaration(type, messages, text(name)));
+    modules.set(path(name), declaration(type, serialized, text(name)));
   }
 
   for (const [what, [fixture]] of Object.entries(breaks)) {
@@ -119,6 +146,10 @@ beforeAll(() => {
 
 test("every fixture has a type to be checked against", () => {
   expect(names).toEqual(Object.keys(types).sort());
+});
+
+test("the types of the messages as JSON gives them type-check", () => {
+  expect(diagnostics.get(serialized)).toEqual([]);
 });
 
 test.each(names)("%s meets the types of its messages", (name) => {

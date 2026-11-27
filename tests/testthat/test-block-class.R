@@ -56,11 +56,11 @@ test_that("new_block_class() checks a class once", {
     class = "block_class_id_invalid"
   )
 
-  # A registry id splits at its first `-`, so a class's id holds none
-  expect_error(
-    new_block_class("my-block", "data", expr, ui),
-    class = "block_class_id_invalid",
-    regexp = "my-block"
+  # No part of a registry id is read out of another, so a class's id may hold
+  # a `-`
+  expect_identical(
+    registry_id_from_block(new_block_class("my-block", "data", expr, ui))$id,
+    "my-block"
   )
 
   expect_error(
@@ -589,7 +589,10 @@ test_that("a block class records the package whose code defines it", {
   )
 
   expect_null(cls$package)
-  expect_identical(registry_id_from_block(cls), "x_block")
+  expect_identical(
+    registry_id_from_block(cls),
+    list(package = NULL, id = "x_block")
+  )
 })
 
 test_that("each of core's block classes gives its id from its name", {
@@ -603,7 +606,7 @@ test_that("each of core's block classes gives its id from its name", {
     expect_identical(constructor_class(ctor), classes[[name]])
     expect_identical(
       registry_id_from_block(classes[[name]]),
-      paste0("blockr.core-", name)
+      list(package = "blockr.core", id = name)
     )
   }
 })

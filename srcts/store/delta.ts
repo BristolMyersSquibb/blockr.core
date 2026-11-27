@@ -92,9 +92,10 @@ export interface BlockMod {
 
 // A change to the state of the board's plugins, in the shape of a JSON Patch
 // operation (RFC 6902): its path is a JSON Pointer from the board's root, under
-// "/plugins", whose second segment names the plugin by the id of its class.
+// "/plugins", whose second and third segments name the plugin by the package
+// and the id of its class.
 // A patch at or below the plugin's own path changes the plugin's state, as
-// "/plugins/blockr.dag-dag_plugin/positions/a" moves a block in the DAG, and
+// "/plugins/blockr.dag/dag_plugin/positions/a" moves a block in the DAG, and
 // none adds or removes what the board holds for a plugin, since the app sets
 // the plugins that run.
 // A patch names the edit id of the plugin that it was built on,

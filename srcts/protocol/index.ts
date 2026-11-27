@@ -3,6 +3,7 @@
 // store, scheduler and `CoreApi` send their requests through the client.
 
 export { createClient, sameMajor, SessionEndedError } from "./client.ts";
+export { appPlugins, blockRegistry } from "./reply.ts";
 export type {
   Client,
   ClientOptions,

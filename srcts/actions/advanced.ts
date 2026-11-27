@@ -75,7 +75,7 @@ import type { BoardObject, CoreApi, FrontendModule, Notification, Notifier } fro
 import type { Rendered } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { log } from "../log/index.ts";
-import { asError, coreNotification, errorMessage, givenNotifier, holdsObject, packageFromId, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, givenNotifier, holdsObject, idText, interned, sourceModule } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { isElement, targetGiven } from "./given.ts";
 import { isBatch } from "./quick.ts";
@@ -141,7 +141,7 @@ export interface AdvancedParts {
   readonly raise: (notification: Omit<Notification, "id">) => void;
   // The plugin class that lists the board action with the id given, or
   // undefined for one of core's own.
-  readonly classOf: (id: string) => PluginClassId | undefined;
+  readonly classOf: (action: BoardAction) => PluginClassId | undefined;
   // Aborts as the next board opens, which ends every advanced action.
   readonly signal?: AbortSignal;
 }
@@ -248,10 +248,10 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
 
     const done = (calls?: readonly CommandCall[], opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<void> => {
       if (signal.aborted) {
-        return Promise.reject(new Error(`The advanced action of the board action "${action.id}" has ended, so its done() runs nothing.`));
+        return Promise.reject(new Error(`The advanced action of the board action "${idText(action)}" has ended, so its done() runs nothing.`));
       }
       if (pending) {
-        return Promise.reject(new Error(`The advanced action of the board action "${action.id}" runs a done() already.`));
+        return Promise.reject(new Error(`The advanced action of the board action "${idText(action)}" runs a done() already.`));
       }
       let notifier: Notifier | undefined;
       try {
@@ -264,7 +264,7 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
       if (batch !== undefined && !isBatch(batch)) {
         return Promise.reject(
           new TypeError(
-            `The done() of the advanced action of the board action "${action.id}" takes a batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }], or none.`,
+            `The done() of the advanced action of the board action "${idText(action)}" takes a batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }], or none.`,
           ),
         );
       }
@@ -304,11 +304,11 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
   // An advanced action that throws in render(), which is a fault of the
   // board action's package.
   function failed(action: BoardAction, error: unknown): void {
-    const why = new Error(`The advanced action of the board action "${action.id}" failed in render(): ${errorMessage(error)}`, { cause: error });
+    const why = new Error(`The advanced action of the board action "${idText(action)}" failed in render(): ${errorMessage(error)}`, { cause: error });
     log.error(why);
-    const plugin = parts.classOf(action.id);
+    const plugin = parts.classOf(action);
     parts.raise(
-      coreNotification("module_failed", "error", why.message, plugin === undefined ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) }),
+      coreNotification("module_failed", "error", why.message, plugin === undefined ? {} : { module: sourceModule({ plugin }, plugin.package) }),
     );
   }
 
@@ -431,7 +431,7 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
       returned = place(args);
     } catch (error) {
       log.error(
-        new Error(`The place that was to show the advanced action of the board action "${args.id}" failed, so core's dialog shows it: ${errorMessage(error)}`, {
+        new Error(`The place that was to show the advanced action of the board action "${idText(args.id)}" failed, so core's dialog shows it: ${errorMessage(error)}`, {
           cause: error,
         }),
       );
@@ -442,7 +442,7 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
       return parts.dialog(args, at);
     }
     if (typeof returned === "function") return returned as (deltas?: readonly Delta[]) => void;
-    log.error(`The place that shows the advanced action of the board action "${args.id}" returned no function, which core calls once done() ends it.`);
+    log.error(`The place that shows the advanced action of the board action "${idText(args.id)}" returned no function, which core calls once done() ends it.`);
     return () => undefined;
   }
 
@@ -486,7 +486,7 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
         };
         replace(shown);
         const args: PlaceArgs = Object.freeze({
-          id: action.id,
+          id: interned(action.package, action.id),
           title: action.label,
           target,
           mount: (el: HTMLElement, other?: Target) => mountIn(shown, el, other),

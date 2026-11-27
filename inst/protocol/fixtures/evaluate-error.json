@@ -8,7 +8,7 @@
       "revision": 8,
       "locked": null,
       "recipe": {
-        "registry_id": "blockr.core-subset_block",
+        "registry_id": { "package": "blockr.core", "id": "subset_block" },
         "state": { "subset": "Sepal.Widht > 4", "select": "" },
         "inputs": [{ "input": "data", "block": "a", "revision": 2 }]
       }

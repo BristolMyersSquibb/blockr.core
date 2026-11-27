@@ -76,7 +76,8 @@
 // A call of mountAdvanced() renders a board action's advanced action in a
 // plugin's own room.
 
-import { isCommandId } from "../commands/index.ts";
+import { CORE } from "../commands/index.ts";
+import type { CommandCall } from "../commands/index.ts";
 import { REPLACED } from "../mount/index.ts";
 import type { Delta, Store } from "../store/index.ts";
 import type { BlockId, Board, PluginClassId } from "../types/board.ts";
@@ -84,7 +85,7 @@ import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
 import { log } from "../log/index.ts";
-import { asError, coreNotification, errorMessage, isObject, packageFromId, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, idText, isIdRecord, isObject, sourceModule } from "../util/index.ts";
 import type { Refused } from "../util/index.ts";
 import { createAdvanced } from "./advanced.ts";
 import type { AdvancedModule, Batching, Opening, Place, ShowDialog } from "./advanced.ts";
@@ -96,9 +97,6 @@ import type { DrivenMenu, MenuStart, QuickLevel } from "./quick.ts";
 import { checkedPlayer, checkedRoles, CORE_ROLES } from "./roles.ts";
 import type { Role } from "./roles.ts";
 import { kindsFailure } from "./targets.ts";
-
-// The package of core's own board actions and roles.
-const CORE = "blockr.core";
 
 // What the page shows in place of the board where the blockr option
 // board_actions fails, after why.
@@ -120,18 +118,21 @@ export type Target =
   | { readonly block: BlockId; readonly input: string }
   | { readonly selection: readonly BoardObject[] };
 
-// A command of any package, by its id, with its args: one entry of the batch
-// that a board action runs.
-export interface CommandCall {
-  readonly id: string;
-  readonly args?: Json;
-}
+// A command of any package, by its package and its id, with its args: one entry
+// of the batch that a board action runs (../commands/commands.ts).
+export type { CommandCall };
 
 export interface BoardAction {
-  // Named as a command's id is, `{pkg}-{name}`, and ending in `_action` by
+  // Its id within its package, unique there, and ending in `_action` by
   // convention, so that it does not read as a command's id, as
-  // "blockr.core-remove_block_action".
+  // "remove_block_action".
   readonly id: string;
+  // Its package: blockr.core for core's own, and the package of the plugin
+  // class that lists it otherwise. Core sets it as it registers the board
+  // action, as it sets the id of a plugin class, so that a definition leaves
+  // it out, as Omit<BoardAction, "package">. A caller names the board action
+  // by the two, as { package: "blockr.core", id: "remove_block_action" }.
+  readonly package: string;
   // What a menu shows, as "Remove block".
   readonly label: string;
   // SVG markup, as a block class's icon in the block registry, which a button
@@ -191,11 +192,11 @@ export interface BoardActions {
   // A role breaks the rules that checkedRoles() in ./roles.ts names, as where
   // another role has its id, which names the packages of both, or where its
   // default is no board action of the class that can play it.
-  register(plugin: PluginClassId, actions: readonly BoardAction[] | undefined, roles?: readonly Role[]): () => void;
+  register(plugin: PluginClassId, actions: readonly Omit<BoardAction, "package">[] | undefined, roles?: readonly Role[]): () => void;
   registered(): readonly BoardAction[];
-  // The plugin class that lists the board action with the id given, or
-  // undefined for one of core's own.
-  classOf(id: string): PluginClassId | undefined;
+  // The plugin class that lists the board action, or undefined for one of
+  // core's own.
+  classOf(action: BoardAction): PluginClassId | undefined;
   // The role with the id given, or undefined where none is registered.
   role(id: string): Role | undefined;
   // Chooses the board action that plays each role, once every module is
@@ -224,15 +225,25 @@ export interface BoardActions {
 // registry and the board's block registry through it, as Add block lists its
 // classes. No board action plays a role before choosePlayers() has run.
 export function createBoardActions(parts: CoreParts): BoardActions {
-  let registered: readonly BoardAction[] = coreBoardActions(parts);
-  // The plugin class that lists each board action that a class lists, by the
-  // board action's id.
-  const classes = new Map<string, PluginClassId>();
+  let registered: readonly BoardAction[] = coreBoardActions(parts).map((action) => Object.freeze({ ...action, package: CORE }));
+  // The plugin class that lists each board action that a class lists.
+  const classes = new Map<BoardAction, PluginClassId>();
   // The roles, core's first, then those of each class as it lists them, each
-  // with the plugin class that lists it, which core's have none of.
+  // with the plugin class that lists it, which core's have none of, and the
+  // package of its default.
   const roles = new Map<string, { readonly role: Role; readonly plugin: PluginClassId | undefined }>(
     CORE_ROLES.map((role) => [role.id, { role, plugin: undefined }]),
   );
+  // The board action that plays the role where the app picks none: the
+  // board action of the role's class whose id the role names.
+  const fallbackOf = (role: string): BoardAction | undefined => {
+    const held = roles.get(role);
+    if (held === undefined) return undefined;
+    return find({ package: held.plugin?.package ?? CORE, id: held.role.default });
+  };
+  // The board action with the package and the id given, or undefined for none.
+  const find = (id: { readonly package: string; readonly id: string }): BoardAction | undefined =>
+    registered.find((each) => each.package === id.package && each.id === id.id);
   // The board action that plays each role, by the role's id.
   const players = new Map<string, BoardAction>();
   // What menus offer, until what is registered or who plays a role changes.
@@ -247,9 +258,9 @@ export function createBoardActions(parts: CoreParts): BoardActions {
   // plays a role takes the place of the role's default, where the board
   // actions hold it, and keeps its own place otherwise.
   function inMenus(): readonly BoardAction[] {
-    const places = new Map(registered.map(({ id }, i) => [id, i]));
+    const places = new Map(registered.map((action, i) => [action, i]));
     const placeOf = (action: BoardAction, i: number): number => {
-      const fallback = action.role === undefined ? undefined : roles.get(action.role)?.role.default;
+      const fallback = action.role === undefined ? undefined : fallbackOf(action.role);
       return (fallback === undefined ? undefined : places.get(fallback)) ?? i;
     };
     return registered
@@ -262,18 +273,21 @@ export function createBoardActions(parts: CoreParts): BoardActions {
   return {
     register(plugin, givenActions, givenRoles) {
       if (givenActions === undefined && givenRoles === undefined) return () => undefined;
-      const actions = givenActions === undefined ? [] : checked(plugin, givenActions, new Set(registered.map(({ id }) => id)));
+      const actions =
+        givenActions === undefined
+          ? []
+          : checked(plugin, givenActions, new Set(registered.filter((each) => each.package === plugin.package).map(({ id }) => id)));
       // The package of each role registered already, by the role's id.
       const taken = (): Map<string, string> =>
-        new Map([...roles.values()].map(({ role, plugin: by }) => [role.id, by === undefined ? CORE : (packageFromId(by) ?? by)]));
+        new Map([...roles.values()].map(({ role, plugin: by }) => [role.id, by === undefined ? CORE : by.package]));
       const listed = givenRoles === undefined ? [] : checkedRoles(plugin, givenRoles, taken(), actions);
       registered = [...registered, ...actions];
-      for (const { id } of actions) classes.set(id, plugin);
+      for (const action of actions) classes.set(action, plugin);
       for (const role of listed) roles.set(role.id, { role, plugin });
       offered = undefined;
       return () => {
         registered = registered.filter((action) => !actions.includes(action));
-        for (const { id } of actions) classes.delete(id);
+        for (const action of actions) classes.delete(action);
         for (const role of listed) {
           if (roles.get(role.id)?.role === role) roles.delete(role.id);
           players.delete(role.id);
@@ -282,7 +296,7 @@ export function createBoardActions(parts: CoreParts): BoardActions {
       };
     },
     registered: () => registered,
-    classOf: (id) => classes.get(id),
+    classOf: (action) => classes.get(action),
     role: (id) => roles.get(id)?.role,
     choosePlayers(value) {
       const picks = picksOf(value);
@@ -294,10 +308,9 @@ export function createBoardActions(parts: CoreParts): BoardActions {
       }
       for (const { role } of roles.values()) {
         const pick = picks.get(role.id);
-        const id = pick ?? role.default;
-        const found = checkedPlayer(role, registered.find((each) => each.id === id));
+        const found = checkedPlayer(role, pick === undefined ? fallbackOf(role.id) : find(pick));
         if ("player" in found) players.set(role.id, found.player);
-        else if (pick !== undefined) failures.push(`${picking(id, role.id)}, but ${found.why}.`);
+        else if (pick !== undefined) failures.push(`${picking(pick, role.id)}, but ${found.why}.`);
       }
       if (failures.length > 0) throw new Error([...failures, NO_BOARD].join("\n"));
     },
@@ -311,24 +324,27 @@ export function createBoardActions(parts: CoreParts): BoardActions {
 
 // The sentence of a failed pick up to what failed, which names the pick and the
 // role.
-function picking(action: string, role: string): string {
-  return `The blockr option board_actions picks the board action "${action}" to play the role "${role}"`;
+function picking(action: { readonly package: string; readonly id: string }, role: string): string {
+  return `The blockr option board_actions picks the board action "${idText(action)}" to play the role "${role}"`;
 }
 
-// The picks that the blockr option board_actions holds, as R sent it: the id
-// of a board action by the id of each role whose player the app picks, as an
-// R option gives them, since an environment variable holds no list. R sends an
-// empty list as an empty array, and nothing where nothing sets the option. It
-// throws for anything else, as for the string of an environment variable.
-function picksOf(value: Json | undefined): ReadonlyMap<string, string> {
+// The picks that the blockr option board_actions holds, as R sent it: the
+// package and the id of a board action by the id of each role whose player the
+// app picks, as an R option gives them, since an environment variable holds no
+// list. R sends an empty list as an empty array, and nothing where nothing sets
+// the option. It throws for anything else, as for the string of an environment
+// variable.
+function picksOf(value: Json | undefined): ReadonlyMap<string, { readonly package: string; readonly id: string }> {
   if (value === undefined || (Array.isArray(value) && value.length === 0)) return new Map();
   if (isObject(value)) {
     const entries = Object.entries(value);
-    if (entries.every((entry): entry is [string, string] => typeof entry[1] === "string")) return new Map(entries);
+    if (entries.every((entry) => isIdRecord(entry[1]))) {
+      return new Map(entries.map(([role, pick]) => [role, pick as { readonly package: string; readonly id: string }]));
+    }
   }
   throw new Error(
     [
-      `The blockr option board_actions holds ${JSON.stringify(value)}, where it picks a board action for a role by their ids, as list(append_block_role = "mykit-append_block_action") does in R.`,
+      `The blockr option board_actions holds ${JSON.stringify(value)}, where it picks a board action for a role by the role's id and the board action's package and id, as list(append_block_role = list(package = "mykit", id = "append_block_action")) does in R.`,
       NO_BOARD,
     ].join("\n"),
   );
@@ -336,9 +352,10 @@ function picksOf(value: Json | undefined): ReadonlyMap<string, string> {
 
 // The board actions that a plugin class lists, once each is a board action that
 // keeps the rules, or an Error that says why the class is refused. The ids given
-// are those of the board actions registered already.
+// are those of the board actions of the class's package registered already.
+// Each board action comes back with the package of the class, which core sets.
 function checked(plugin: PluginClassId, given: unknown, taken: ReadonlySet<string>): readonly BoardAction[] {
-  const of = `The plugin class "${plugin}"`;
+  const of = `The plugin class "${idText(plugin)}"`;
   if (!Array.isArray(given)) {
     throw new Error(`${of} gives board actions that are no array.`);
   }
@@ -348,12 +365,15 @@ function checked(plugin: PluginClassId, given: unknown, taken: ReadonlySet<strin
       throw new Error(`${of} gives a board action that is no object.`);
     }
     const { id } = action;
-    if (typeof id !== "string" || !isCommandId(id)) {
-      throw new Error(`${of} gives a board action whose id ${JSON.stringify(id)} is not named as a command's id is, "{pkg}-{name}".`);
+    if (typeof id !== "string" || id === "") {
+      throw new Error(`${of} gives a board action whose id ${JSON.stringify(id)} is no non-empty string, as "remove_block_action".`);
     }
     const named = `${of} gives the board action "${id}"`;
+    if (action.package !== undefined && action.package !== plugin.package) {
+      throw new Error(`${named} with the package ${JSON.stringify(action.package)}, where core sets the package of its class, ${plugin.package}.`);
+    }
     if (ids.has(id)) {
-      throw new Error(`${named}, which has the id of another board action.`);
+      throw new Error(`${named}, which has the id of another board action of ${plugin.package}.`);
     }
     ids.add(id);
     if (typeof action.label !== "string" || action.label === "") {
@@ -389,7 +409,7 @@ function checked(plugin: PluginClassId, given: unknown, taken: ReadonlySet<strin
     if (role !== undefined && (typeof role !== "string" || role === "")) {
       throw new Error(`${named}, whose role ${JSON.stringify(role)} is no role's id, as "append_block_role".`);
     }
-    return action as unknown as BoardAction;
+    return Object.freeze({ ...action, package: plugin.package }) as unknown as BoardAction;
   });
 }
 
@@ -483,7 +503,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     try {
       return action.offers(board, target, lock);
     } catch (error) {
-      log.error(new Error(`The offers of the board action "${action.id}" failed: ${errorMessage(error)}`, { cause: error }));
+      log.error(new Error(`The offers of the board action "${idText(action)}" failed: ${errorMessage(error)}`, { cause: error }));
       return false;
     }
   }
@@ -495,19 +515,25 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
   }
 
   // The board action that trigger() and mountAdvanced() act on for the id
-  // given: the board action with that id, or the one that plays the role with
-  // that id, since a board action's id names a package and a role's names
-  // none. It is undefined where no board action plays the role, and for a
-  // board action that names a role that it does not play, for which they run
-  // nothing. It throws for an id that no board action or role has.
-  function registered(id: string): BoardAction | undefined {
-    if (typeof id === "string" && packageFromId(id) === null) {
+  // given: the board action with that package and id, or the one that plays
+  // the role with that id, since a caller names a board action by its package
+  // and its id, and a role by its id alone, a string. It is undefined where no
+  // board action plays the role, and for a board action that names a role that
+  // it does not play, for which they run nothing. It throws for an id that no
+  // board action or role has, and for one that is neither.
+  function registered(id: unknown): BoardAction | undefined {
+    if (typeof id === "string") {
       if (actions.role(id) === undefined) throw new Error(`No role "${id}" is registered.`);
       return actions.player(id);
     }
-    const action = actions.registered().find((each) => each.id === id);
+    if (!isIdRecord(id)) {
+      throw new TypeError(
+        `A board action is named by its package and its id, as { package: "blockr.core", id: "rename_action" }, and a role by its id, as "rename_role", not by ${JSON.stringify(id)}.`,
+      );
+    }
+    const action = actions.registered().find((each) => each.package === id.package && each.id === id.id);
     if (action === undefined) {
-      throw new Error(`No board action "${id}" is registered.`);
+      throw new Error(`No board action "${idText(id)}" is registered.`);
     }
     return action.role === undefined || actions.player(action.role) === action ? action : undefined;
   }
@@ -523,12 +549,14 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     try {
       batch = await action.run?.(store.board(), target, parts.core());
     } catch (error) {
-      throw failed(action, new Error(`The board action "${action.id}" failed: ${errorMessage(error)}`, { cause: error }), notifier);
+      throw failed(action, new Error(`The board action "${idText(action)}" failed: ${errorMessage(error)}`, { cause: error }), notifier);
     }
     if (batch !== undefined && !isBatch(batch)) {
       throw failed(
         action,
-        new TypeError(`The run of the board action "${action.id}" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`),
+        new TypeError(
+          `The run of the board action "${idText(action)}" returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].`,
+        ),
         notifier,
       );
     }
@@ -544,13 +572,13 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
   // shows it again.
   function failed(action: BoardAction, failure: Error, notifier: Notifier | undefined): Error {
     log.error(failure);
-    const plugin = actions.classOf(action.id);
+    const plugin = actions.classOf(action);
     raiseAgain(
       coreNotification(
         "board_action_failed",
         "error",
         failure.message,
-        plugin === undefined ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) },
+        plugin === undefined ? {} : { module: sourceModule({ plugin }, plugin.package) },
       ),
       notifier,
     );
@@ -591,7 +619,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       const extra: unknown = extend(deltas);
       if (!isBatch(extra)) {
         throw new TypeError(
-          `The \`extend\` of ${batching.call ?? "the call"} returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`,
+          `The \`extend\` of ${batching.call ?? "the call"} returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].`,
         );
       }
       added = extra;
@@ -624,7 +652,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     raise: (notification) => {
       raiseAgain(notification);
     },
-    classOf: (id) => actions.classOf(id),
+    classOf: (action) => actions.classOf(action),
     ...(signal === undefined ? {} : { signal }),
   });
 
@@ -718,8 +746,8 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       const action = registered(id);
       if (action === undefined) return () => undefined;
       if (action.advanced === undefined) {
-        const playing = action.id === id ? "" : `, which plays the role "${id}",`;
-        throw new Error(`The board action "${action.id}"${playing} has no advanced action to mount.`);
+        const playing = typeof id === "string" ? `, which plays the role "${id}",` : "";
+        throw new Error(`The board action "${idText(action)}"${playing} has no advanced action to mount.`);
       }
       return advanced.mount(given, action, checked, picked);
     },

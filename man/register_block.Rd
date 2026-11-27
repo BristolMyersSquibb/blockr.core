@@ -35,13 +35,13 @@ list_blocks()
 
 registry_id_from_block(block)
 
-unregister_blocks(uid = list_blocks())
+unregister_blocks(blocks = list_blocks())
 
 register_blocks(...)
 
 available_blocks()
 
-create_block(id, ...)
+create_block(id, ..., package = NULL)
 }
 \arguments{
 \item{ctor}{Block constructor, made by \code{\link[=block_constructor]{block_constructor()}}}
@@ -65,23 +65,29 @@ discovery}
 
 \item{block}{A block or a block class}
 
-\item{uid}{Registry ids of the entries to remove}
+\item{blocks}{The block classes to remove, as rows with each class's package
+in \code{package} and its id in \code{id}, as \code{list_blocks()} gives them, or the
+registry id of one class, as \code{registry_id_from_block()} gives it}
 
 \item{...}{For \code{register_blocks()}, arguments forwarded to
 \code{register_block()}}
 
-\item{id}{Block ID as reported by \code{list_blocks()}}
+\item{id}{The id of the block class, as \code{list_blocks()} gives it in \code{id}}
+
+\item{package}{For \code{create_block()}, the package of the block class, as
+\code{list_blocks()} gives it in \code{package}, or \code{NULL} for a class that an app
+script defines}
 }
 \value{
 \code{register_block()} and \code{register_blocks()} are invoked for their side
 effects and return \code{block_registry_entry} object(s) invisibly, while
 \code{unregister_blocks()} returns \code{NULL} (invisibly).
-Listing via \code{list_blocks()} returns a character vector, and
-\code{available_blocks()} a data frame of \code{package} and \code{id} with a row for each
-class. Block
-construction via \code{create_block()} returns a newly instantiated \code{block}
+Listing via \code{list_blocks()} and \code{available_blocks()} returns a data frame of
+\code{package} and \code{id} with a row for each class.
+Block construction via \code{create_block()} returns a newly instantiated \code{block}
 object, and the lookup \code{registry_id_from_block()} returns the registry id
-that a block's class gives, a string.
+that a block's class gives, a list of its \code{package}, a string or \code{NULL}, and
+its \code{id}, a string.
 The categories that registration expects a class to name come from
 \code{suggested_categories()}, as a character vector.
 }
@@ -96,11 +102,11 @@ class.
 }
 \details{
 A block class's registry id comes from the class alone.
-It is \code{{pkg}-{id}}, such as \code{blockr.core-head_block},
-where \code{{pkg}} is the package whose code defines the class
-and \code{{id}} is the class's id (see \code{\link[=new_block_class]{new_block_class()}}).
-A class that an app script defines records no package,
-and its registry id is its id alone.
+It holds the package whose code defines the class and the class's id (see
+\code{\link[=new_block_class]{new_block_class()}}), as two parts of their own, as
+\code{list(package = "blockr.core", id = "head_block")}.
+A class that an app script defines records no package, so the package of
+its registry id is \code{NULL}.
 So renaming a constructor leaves the registry id as it is,
 while changing a class's id changes it.
 The \code{registry_id_from_block()} function reads the registry id from a
@@ -197,11 +203,17 @@ as a block's state has to be (see \code{\link[=blockr_ser]{blockr_ser()}}).
 Blocks can be registered (i.e. added to the registry) via \code{register_block()}
 with scalar-valued arguments and \code{register_blocks()}, where arguments may be
 vector-valued, while de-registration (or removal) is handled via
-\code{unregister_blocks()}, all in the block registry of the process. The
-registry IDs of the registered classes come from \code{list_blocks()}, while
-\code{available_blocks()} lists the block classes of the available packages,
-which an app may offer. Finally, block construction via a registry ID is
-available as \code{create_block()}.
+\code{unregister_blocks()}, all in the block registry of the process.
+The registered classes come from \code{list_blocks()}, as rows with each class's
+package in \code{package} and its id in \code{id}, the package \code{NA} for a class that
+an app script defines.
+The function \code{unregister_blocks()} takes such rows, or the registry id of
+one class, as \code{registry_id_from_block()} gives it.
+The function \code{available_blocks()} lists the block classes of the available
+packages, which an app may offer, as rows in the same shape.
+Finally, block construction via a registry id is available as
+\code{create_block()}, which takes the class's id, and its package in \code{package}
+for a class that a package defines.
 }
 \examples{
 new_identity_block <- block_constructor(
@@ -213,15 +225,16 @@ new_identity_block <- block_constructor(
   )
 )
 
-blks <- list_blocks()
 register_block(new_identity_block, "Identity", "Returns its input")
 
-new <- setdiff(list_blocks(), blks)
-new
+subset(list_blocks(), id == "identity_block")
 
-registry_id_from_block(new_identity_block())
+id <- registry_id_from_block(new_identity_block())
+id
 
-unregister_blocks(new)
-setequal(list_blocks(), blks)
+create_block("identity_block")
+
+unregister_blocks(id)
+subset(list_blocks(), id == "identity_block")
 
 }

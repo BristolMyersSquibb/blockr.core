@@ -18,6 +18,7 @@ import type { HelloReply } from "../protocol/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
 import { coreOptions, hello } from "../testing/store.ts";
 import { declaration, typecheck } from "../testing/typecheck.ts";
+import { interned } from "../util/index.ts";
 import type { JsonBoard } from "./board.ts";
 import type { JsonSchema } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
@@ -79,10 +80,11 @@ beforeAll(() => {
 }, 60_000);
 
 // The block registry's entries of the fixtures' classes, which are defined
-// outside a package, so that their registry ids are their names, with the
-// inputs that the fixtures' links feed.
+// outside a package, so that their registry ids hold a package of null beside
+// their names, with the inputs that the fixtures' links feed.
 function entry(id: string, inputs: readonly string[]): RegistryEntry {
   return {
+    package: null,
     id,
     name: id,
     description: "",
@@ -104,12 +106,12 @@ function entry(id: string, inputs: readonly string[]): RegistryEntry {
 // and the notes, whose state R wrote by the schema that blockr.test ships.
 const classes: readonly PluginClass[] = [
   {
-    id: "blockr.test-grid_plugin",
+    id: interned("blockr.test", "grid_plugin"),
     frontend: { render: () => undefined },
     state: { schema: { type: "object" }, default: { columns: 1 } },
   },
   {
-    id: "blockr.test-notes_plugin",
+    id: interned("blockr.test", "notes_plugin"),
     state: {
       schema: JSON.parse(
         readFileSync(join(fixtures, "blockr.test", "js", "notes.schema.json"), "utf8"),
@@ -119,10 +121,11 @@ const classes: readonly PluginClass[] = [
   },
 ];
 
-// The names of blockr.test's plugin classes, as R's reply to hello gives them.
+// The names of blockr.test's plugin classes, by their ids within the package,
+// as R's reply to hello gives them.
 const classNames: Readonly<Record<string, string>> = {
-  "blockr.test-grid_plugin": "Grid",
-  "blockr.test-notes_plugin": "Notes",
+  grid_plugin: "Grid",
+  notes_plugin: "Notes",
 };
 
 function jsonBoard({ format, packages, board }: Fixture): JsonBoard {
@@ -165,19 +168,19 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
   const replied: HelloReply = {
     ...hello,
     packages: json.packages,
-    plugins: {
+    plugins: [
       ...hello.plugins,
-      ...Object.fromEntries(
-        Object.entries(json.board.plugins).map(([id, plugin]) => [
+      ...Object.entries(json.board.plugins).flatMap(([pkg, byId]) =>
+        Object.entries(byId).map(([id, plugin]) => ({
+          package: pkg,
           id,
-          { name: classNames[id] ?? id, version: plugin.version, module: `blockr.test/${id}.js` },
-        ]),
+          name: classNames[id] ?? id,
+          version: plugin.version,
+          module: `${pkg}/${id}.js`,
+        })),
       ),
-    },
-    block_registry: {
-      letters_block: entry("letters_block", []),
-      join_block: entry("join_block", ["x", "y"]),
-    },
+    ],
+    block_registry: [entry("letters_block", []), entry("join_block", ["x", "y"])],
     board: json,
   };
   // A store of the app, which opens one board.
@@ -198,9 +201,14 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
 
   // A collection keeps the order of its entries, as JSON.parse() keeps the
   // order of keys that do not look like integers.
+  // The plugins keep the order of their packages and, within each package, the
+  // order of its classes.
   const board = store.board();
   for (const key of ["blocks", "links", "stacks", "plugins"] as const) {
     expect(Object.keys(board[key])).toEqual(Object.keys(json.board[key]));
+  }
+  for (const [pkg, byId] of Object.entries(json.board.plugins)) {
+    expect(Object.keys(board.plugins[pkg] ?? {})).toEqual(Object.keys(byId));
   }
 
   const other = app();

@@ -56,12 +56,13 @@ import type {
   Transport,
   TransportListener,
 } from "../protocol/index.ts";
-import type { BlockId, PluginClassId } from "../types/board.ts";
+import { appPlugins, blockRegistry } from "../protocol/index.ts";
+import type { BlockId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import type { BlockOutput, OutputFixtures } from "../types/outputs.ts";
-import { errorMessage, isObject, own, packageFromId } from "../util/index.ts";
+import { errorMessage, interned, isObject, nestedValue } from "../util/index.ts";
 import { stubDialogs } from "./advanced.ts";
 import type { StubAdvanced } from "./advanced.ts";
 import { stubMenus } from "./menu.ts";
@@ -80,21 +81,25 @@ import plotFixtures from "../../inst/outputs/fixtures/plot-output.json" with { t
 // block registry of core's block classes.
 export const HELLO = (helloFixture as unknown as Fixture).r[0]?.[0] as HelloReply;
 
-// The sample outputs of core's output classes, by the id of the renderer that
-// core gives the class.
-const SAMPLES: Readonly<Record<string, OutputFixtures>> = {
-  "blockr.core-table_output": tableFixtures as unknown as OutputFixtures,
-  "blockr.core-text_output": textFixtures,
-  "blockr.core-plot_output": plotFixtures,
+// The sample outputs of core's output classes, by the package and the id of the
+// renderer that core gives the class.
+const SAMPLES: Readonly<Record<string, Readonly<Record<string, OutputFixtures>>>> = {
+  "blockr.core": {
+    table_output: tableFixtures as unknown as OutputFixtures,
+    text_output: textFixtures,
+    plot_output: plotFixtures,
+  },
 };
 
-// The modules of core's own plugin classes, by the id of each class, which the
-// stub serves where R's reply names the class and the test gives no module of
-// its own, as the page imports them.
-const CORE_CLASSES: Readonly<Record<PluginClassId, unknown>> = {
-  "blockr.core-basic_frontend_plugin": { api: 1, default: basicFrontend },
-  "blockr.core-file_storage_plugin": { api: 1, default: fileStorage },
-  "blockr.core-edit_board_plugin": { api: 1, default: editBoard },
+// The modules of core's own plugin classes, by the package and the id of each
+// class, which the stub serves where R's reply names the class and the test
+// gives no module of its own, as the page imports them.
+const CORE_CLASSES: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  "blockr.core": {
+    basic_frontend_plugin: { api: 1, default: basicFrontend },
+    file_storage_plugin: { api: 1, default: fileStorage },
+    edit_board_plugin: { api: 1, default: editBoard },
+  },
 };
 
 // What an element measures for an output's info: a panel of 640 by 400 CSS
@@ -124,16 +129,19 @@ export interface StubCoreOptions {
   // given, so that the code that reads them takes its fallbacks.
   readonly blockrOptions?: Readonly<Record<string, Json>>;
   // What each module that core imports exports, by the URL that R serves it
-  // at, or by an id that R's reply names: the id of the class of one of the
-  // app's plugins, for the module of the class, the id of a board option, for
-  // its module, or the id of a module that packages offer each other's UIs,
-  // such as "blockr.core-controls". R serves a module that the test gives by
-  // an id of the form `{pkg}-{name}` that R's reply does not name as one that
-  // packages offer each other. The stub gives the modules of core's own plugin
-  // classes and board options, as the page imports them, unless the test gives
-  // its own. A module that the test leaves out fails to load, so that
-  // stubCore() rejects with why core opens no board.
+  // at, or by the id of a board option, for its module.
+  // The stub gives the modules of core's own plugin classes and board options,
+  // as the page imports them, unless the test gives its own. A module that the
+  // test leaves out fails to load, so that stubCore() rejects with why core
+  // opens no board.
   readonly modules?: Readonly<Record<string, unknown>>;
+  // What each module exports that R's reply names by a package and an id, by
+  // the package and then by the id: the module of the class of one of the
+  // app's plugins, and a module that packages offer each other's UIs, as
+  // { "blockr.test": { notes_plugin: { api: 1, default: … }, menu: … } }.
+  // R serves a module that the test gives here and that R's reply does not
+  // name as one that packages offer each other, which it then names so.
+  readonly offered?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   // What R replies to an evaluation, beside its id, block and revision, ok
   // with no conditions unless given.
   readonly evaluate?: (request: EvaluateRequest) => Partial<Omit<EvaluateReply, "id" | "block" | "revision">> | undefined;
@@ -204,30 +212,45 @@ type MenuOptions = Omit<Parameters<CoreApi["boardActions"]["menu"]>[1], "el" | "
 export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore> {
   const base = options.hello ?? HELLO;
   const given = options.modules ?? {};
-  // The modules that the test gives by an id that R's reply does not name,
-  // which R then serves at a URL of their own.
-  const offered = Object.keys(given).filter(
-    (id) =>
-      isModuleId(id) && !Object.hasOwn(base.modules, id) && !Object.hasOwn(base.plugins, id) && !Object.hasOwn(base.options, id),
+  const offered = options.offered ?? {};
+  // The modules that the test gives by a package and an id that R's reply
+  // names for no plugin and no module, which R then serves at a URL of their
+  // own, as modules that packages offer each other's UIs.
+  const plugins = appPlugins(base);
+  const modules: Record<string, Record<string, { module: string; css?: string }>> = Object.fromEntries(
+    Object.entries(base.modules).map(([pkg, byId]) => [pkg, { ...byId }]),
   );
-  const hello: HelloReply = {
-    ...base,
-    modules: { ...base.modules, ...Object.fromEntries(offered.map((id) => [id, { module: moduleUrl(id) }])) },
-  };
+  for (const [pkg, byId] of Object.entries(offered)) {
+    for (const id of Object.keys(byId)) {
+      const key = interned(pkg, id);
+      if (plugins.has(key) || nestedValue(base.modules, key) !== undefined) continue;
+      (modules[pkg] ??= {})[id] = { module: moduleUrl(pkg, id) };
+    }
+  }
+  const hello: HelloReply = { ...base, modules };
   // What each URL that R's reply names serves: what the test gives by the URL
   // or by the id that the reply names it under, or else core's own module.
   const named = (url: string): unknown => {
     if (Object.hasOwn(given, url)) return given[url];
     const ids = [
-      ...Object.entries(hello.plugins).filter(([, entry]) => entry.module === url).map(([id]) => id),
-      ...Object.entries(hello.options).filter(([, entry]) => entry.module === url).map(([id]) => id),
-      ...Object.entries(hello.modules).filter(([, source]) => source.module === url).map(([id]) => id),
+      ...hello.plugins.filter((entry) => entry.module === url).map((entry) => interned(entry.package, entry.id)),
+      ...Object.entries(hello.modules).flatMap(([pkg, byId]) =>
+        Object.entries(byId)
+          .filter(([, source]) => source.module === url)
+          .map(([id]) => interned(pkg, id)),
+      ),
     ];
-    const id = ids.find((key) => Object.hasOwn(given, key));
-    if (id !== undefined) return given[id];
-    const own = ids.find((key) => Object.hasOwn(CORE_CLASSES, key) || Object.hasOwn(coreOptions, key));
-    if (own === undefined) return undefined;
-    return Object.hasOwn(CORE_CLASSES, own) ? CORE_CLASSES[own] : { api: 1, default: coreOptions[own] };
+    const options = Object.entries(hello.options)
+      .filter(([, entry]) => entry.module === url)
+      .map(([id]) => id);
+    const id = ids.find((key) => nestedValue(offered, key) !== undefined);
+    if (id !== undefined) return nestedValue(offered, id);
+    const option = options.find((key) => Object.hasOwn(given, key));
+    if (option !== undefined) return given[option];
+    const cls = ids.find((key) => nestedValue(CORE_CLASSES, key) !== undefined);
+    if (cls !== undefined) return nestedValue(CORE_CLASSES, cls);
+    const core = options.find((key) => Object.hasOwn(coreOptions, key));
+    return core === undefined ? undefined : { api: 1, default: coreOptions[core] };
   };
 
   const logged: LogLine[] = [];
@@ -295,16 +318,10 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
   };
 }
 
-// Where R serves a module that the test gives by its id, `{pkg}-{name}`, as
-// "blockr.test/blockr.test-notes.js" for "blockr.test-notes".
-function moduleUrl(id: string): string {
-  return `${packageFromId(id) ?? "app"}/${id}.js`;
-}
-
-// Whether a key of the modules that the test gives is a module's id,
-// `{pkg}-{name}`, rather than a URL that R serves a module at.
-function isModuleId(key: string): boolean {
-  return packageFromId(key) !== null && !key.includes("/");
+// Where R serves a module that the test gives by its package and its id, as
+// "blockr.test/notes.js" for the module notes of blockr.test.
+function moduleUrl(pkg: string, id: string): string {
+  return `${pkg}/${id}.js`;
 }
 
 // R, played from the fixtures over a transport of its own: it starts a session
@@ -314,7 +331,7 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
   let pending = 0;
   let listener: TransportListener | undefined;
   // The revision of each block that R holds a result of, and its class.
-  const results = new Map<BlockId, { revision: number; registry_id: string }>();
+  const results = new Map<BlockId, { revision: number; registry_id: { readonly package: string | null; readonly id: string } }>();
 
   const transport: Transport = {
     send(message: ClientMessage, bodies) {
@@ -410,9 +427,9 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
 
   // The first sample output of the first renderer that the block's class
   // names, drawn by that renderer.
-  function sample(registryId: string): { output: BlockOutput & Record<string, Json>; body?: Blob } | undefined {
-    const renderer = own(hello.block_registry, registryId)?.renderers?.[0];
-    const samples = renderer === undefined ? undefined : own(SAMPLES, renderer.id);
+  function sample(registryId: { readonly package: string | null; readonly id: string }): { output: BlockOutput & Record<string, Json>; body?: Blob } | undefined {
+    const renderer = blockRegistry(hello).get(interned(registryId.package, registryId.id))?.renderers?.[0];
+    const samples = renderer?.package == null ? undefined : nestedValue(SAMPLES, interned(renderer.package, renderer.id));
     const first = samples?.outputs[0];
     if (renderer === undefined || first === undefined) return undefined;
     const output = { ...(first.output as unknown as Record<string, Json>), renderer } as BlockOutput & Record<string, Json>;

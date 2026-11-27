@@ -73,14 +73,16 @@ app's frontend, and generic consistency otherwise}
 \code{\link[=validate_board]{validate_board()}} passed it}
 
 \item{aliases}{For \code{complete_plugin()}, the names that the script gives the
-board's plugins, as a character vector of the IDs of their classes by name}
+board's plugins, as a list by name of the classes of the plugins, each a
+list of its \code{package} and its \code{id}}
 }
 \value{
 The constructors \code{new_plugin()}, \code{new_basic_frontend_plugin()},
 \code{new_file_storage_plugin()} and \code{new_edit_board_plugin()} return a \code{plugin}
 object, and \code{is_plugin()} a scalar logical.
-Of the getters, \code{plugin_class_id()} returns the id of the plugin's class in
-full, a string, and \code{plugin_state()} the state, a list by name.
+Of the getters, \code{plugin_class_id()} returns the class of the plugin, a list
+of its \code{package} and its \code{id}, each a string, and \code{plugin_state()} the
+state, a list by name.
 The generic \code{plugin_version()} returns a whole number, \code{plugin_options()}
 a board option constructor, a list of them or \code{NULL}, and
 \code{available_plugins()} a data frame with a row for each plugin class.
@@ -95,7 +97,8 @@ besides block classes.
 An app runs at most one plugin of each plugin class, and the app says which
 plugins run, not the board: \code{\link[=serve]{serve()}} takes them in \code{plugins}, as rows that
 give each plugin's class by its package and its id.
-So a plugin is identified by the id of its class, and named by its class.
+So a plugin is identified by its class's package and id, and named by its
+class.
 }
 \details{
 A plugin object holds the state that a plugin gives the board that an app
@@ -108,10 +111,12 @@ DAG, which it passes to \code{new_plugin()} as a list by name, followed by the i
 of the plugin's class, as \code{new_plugin(list(positions = positions), "dag_plugin")}.
 The class vector, \code{class}, defaults to the id, and serves S3 dispatch alone.
 
-The id of a plugin's class in full is \code{{pkg}-{id}}, as
-\code{blockr.dag-dag_plugin}, where the package is the one that the constructor
-lives in, since that package defines the class in JavaScript, in a module of
-its own, whose default export the client registers under that id.
+A plugin's class is identified by its package and its id, each a part of
+its own, as \code{list(package = "blockr.dag", id = "dag_plugin")}, which
+\code{plugin_class_id()} returns.
+The package is the one that the constructor lives in, since that package
+defines the class in JavaScript, in a module of its own, whose default
+export the client registers under that package and id.
 So an app script defines no plugin class, and \code{new_plugin()} raises an error
 where the constructor that calls it lives outside a package.
 A package lists each of its plugin classes in its \code{._BLOCKR_MODULES_}, by
@@ -191,24 +196,24 @@ Once the board is valid, \code{\link[=new_board]{new_board()}} calls the method 
 board's plugins.
 The method gets the board in \code{board}.
 In \code{aliases}, it gets the names that the script gives the board's plugins,
-each mapped to the ID of its plugin's class, as
-\code{c(dag = "blockr.dag-dag_plugin")}.
+each mapped to the package and the id of its plugin's class, as
+\code{list(dag = list(package = "blockr.dag", id = "dag_plugin"))}.
 It returns the plugin with its state completed, such as with each such name
-turned into the ID of a class, and the board holds what it returns.
+turned into the package and the id of a class, and the board holds what it
+returns.
 It may refuse a state that names what the board lacks, such as a block, so
 that a script's mistake fails where the script builds its board.
 Each method gets the board as \code{\link[=validate_board]{validate_board()}} passed it, before any
 plugin completed its state, so the order of the plugins does not matter.
 Core's method for \code{plugin} returns the plugin as it is.
-The board holds each plugin under the ID of its class, so \code{new_board()}
-refuses a result that is not a plugin of the same class.
+The board holds each plugin under the package and the id of its class, so
+\code{new_board()} refuses a result that is not a plugin of the same class.
 R reads nothing of a JSON board but its format, so only \code{new_board()} calls
 \code{complete_plugin()}, and the names exist only there.
 }
 \examples{
 \dontrun{
-# In a package such as blockr.dag, whose plugin class is
-# blockr.dag-dag_plugin
+# In a package such as blockr.dag, whose plugin class is dag_plugin
 new_dag_plugin <- function(positions = list()) {
   new_plugin(list(positions = positions), "dag_plugin")
 }
@@ -234,7 +239,7 @@ frontend_args.grid_plugin <- function(x, ..., title = "Grid") {
 # notes are about, which a script may give by a name, as in
 # list(dag = new_dag_plugin(), new_notes_plugin(about = "dag"))
 complete_plugin.notes_plugin <- function(x, board, aliases, ...) {
-  if (x[["about"]] \%in\% names(aliases)) {
+  if (is.character(x[["about"]]) && x[["about"]] \%in\% names(aliases)) {
     x[["about"]] <- aliases[[x[["about"]]]]
   }
   x

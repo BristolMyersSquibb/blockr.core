@@ -35,7 +35,7 @@
 
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
-import { suggestedName } from "../commands/index.ts";
+import { CORE, suggestedName } from "../commands/index.ts";
 import {
   Checkbox,
   ColorArea,
@@ -62,8 +62,8 @@ import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
 import { heldBlocks } from "./targets.ts";
 
-const ADD_STACK = "blockr.core-add_stack";
-const CHANGE_STACK = "blockr.core-change_stack";
+const ADD_STACK = { package: CORE, id: "add_stack" } as const;
+const CHANGE_STACK = { package: CORE, id: "change_stack" } as const;
 
 // The colours that a new stack starts from, ColorBrewer's Set2, of which a new
 // stack takes the first that no stack has.
@@ -183,7 +183,7 @@ function StackForm({
     const hex = color === null ? null : stackColor(color);
     if (editing === undefined) {
       const id = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
-      return [{ id: ADD_STACK, args: { id, blocks: kept, color: hex, ...(trimmed === "" ? {} : { name: trimmed }) } }];
+      return [{ ...ADD_STACK, args: { id, blocks: kept, color: hex, ...(trimmed === "" ? {} : { name: trimmed }) } }];
     }
     const { id, stack } = editing;
     const changed: Record<string, Json> = {
@@ -191,7 +191,7 @@ function StackForm({
       ...(sameBlocks(kept, stack.blocks) ? {} : { blocks: kept }),
       ...(sameColor(hex, stack.color) ? {} : { color: hex }),
     };
-    return Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id, ...changed } }];
+    return Object.keys(changed).length === 0 ? [] : [{ ...CHANGE_STACK, args: { id, ...changed } }];
   }
 
   async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {

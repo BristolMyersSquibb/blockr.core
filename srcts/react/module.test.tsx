@@ -10,7 +10,7 @@ import { outputRenderer, reactModule } from "./index.ts";
 import type { ModuleProps, OutputProps } from "./index.ts";
 
 const text = (value: string): TextOutput => ({
-  renderer: { id: "blockr.core-text_output", module: "blockr.core/js/basic-text.js" },
+  renderer: { package: "blockr.core", id: "text_output", module: "blockr.core/js/basic-text.js" },
   text: value,
 });
 

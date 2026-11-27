@@ -12,19 +12,62 @@ export type LinkId = string;
 export type StackId = string;
 export type OptionId = string;
 
-// A plugin class's id, `{pkg}-{id}`, such as "blockr.dag-dag_plugin", which
-// names the package that lists the class in R, with the module whose default
-// export the class is. An app runs at most one plugin of each class, so the id
-// of its class identifies a plugin.
-export type PluginClassId = string;
+declare const interned: unique symbol;
 
-// A block class's id in the block registry, `{pkg}-{name}`, such as
-// "blockr.core-head_block".
-export type RegistryId = string;
+// What a package defines, such as a block class, a plugin class, a renderer,
+// a module that it offers other packages, a command or a board action, named
+// by the package and by the id within that package, as
+// { package: "blockr.core", id: "head_block" }.
+// The package is null only for what an app script defines: a block class, or
+// a renderer whose module the script serves.
+// Core makes one object for each pair (interned(), ../util/ids.ts), so two that
+// name the same are the same object, which ===, a Set and a Map compare as they
+// compare strings.
+// The brand, which only interned() gives, keeps a record written by hand, which
+// would be another object, from passing for one.
+// The brand exists only for the type checker, so that one serializes as
+// { "package": "blockr.core", "id": "head_block" }.
+export interface Interned<P extends string | null = string> {
+  readonly package: P;
+  readonly id: string;
+  readonly [interned]: true;
+}
+
+// A plugin class's id: the package that lists the class in R, with the module
+// whose default export the class is, and the class's id within the package,
+// as { package: "blockr.dag", id: "dag_plugin" }.
+// An app runs at most one plugin of each class, so the id of its class
+// identifies a plugin.
+export type PluginClassId = Interned;
+
+// A block class's id in the block registry: the package that defines the
+// class, or null for one that an app script defines, and the id that
+// `new_block_class()` takes, as { package: "blockr.core", id: "head_block" }.
+export type RegistryId = Interned<string | null>;
+
+// A renderer's id: the package of its module, or null for one whose module an
+// app script serves, and the name that `new_renderer()` takes, as
+// { package: "blockr.core", id: "table_output" }.
+export type RendererId = Interned<string | null>;
+
+// The id of a module that a package offers other packages' UIs, as core's
+// controls: the package and the module's id within it, as
+// { package: "blockr.core", id: "controls" }.
+export type ModuleId = Interned;
+
+// A command's id: the package that registered it and its id within the
+// package, as { package: "blockr.core", id: "remove_block" }.
+export type CommandId = Interned;
+
+// A board action's id: the package of the plugin class that lists it, or
+// blockr.core for core's own, and its id within the package, as
+// { package: "blockr.core", id: "rename_action" }.
+export type BoardActionId = Interned;
 
 // A board has no class of its own. What a package adds to a board, such as the
-// dock's views, is the state of one of its plugins, under the id of the
-// plugin's class in `plugins`, which core carries without reading it.
+// dock's views, is the state of one of its plugins, under the package and the
+// id of the plugin's class in `plugins`, which core carries without reading
+// it.
 export interface Board {
   readonly id: string;
   readonly name: string;
@@ -33,11 +76,12 @@ export interface Board {
   readonly stacks: Readonly<Record<StackId, Stack>>;
   // Each board option's value by the board option's id, as { n_rows: 50 }.
   readonly options: Readonly<Record<OptionId, Json>>;
-  // The state of each plugin whose class has `state`, by the id of the
-  // plugin's class, in the shape that the class's schema gives, as
-  // { "blockr.dag-dag_plugin": { positions: {} } }. The app says which plugins
-  // run, so the board holds nothing for a plugin whose class keeps no state.
-  readonly plugins: Readonly<Record<PluginClassId, Json>>;
+  // The state of each plugin whose class has `state`, by the package of the
+  // plugin's class and then by the class's id within it, in the shape that the
+  // class's schema gives, as { "blockr.dag": { dag_plugin: { positions: {} } } }.
+  // The app says which plugins run, so the board holds nothing for a plugin
+  // whose class keeps no state.
+  readonly plugins: Readonly<Record<string, Readonly<Record<string, Json>>>>;
 }
 
 export interface Block {
@@ -89,31 +133,39 @@ export interface JsonBoard {
   readonly board: Omit<Board, "blocks" | "options" | "plugins"> & {
     readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
     readonly options: Readonly<Record<OptionId, JsonOption>>;
-    readonly plugins: Readonly<Record<PluginClassId, JsonPlugin>>;
+    // The state of each plugin by the package of its class, then by the id of
+    // its class within that package, as
+    // { "blockr.dag": { "dag_plugin": { state: { positions: {} }, version: 1 } } }.
+    readonly plugins: Readonly<Record<string, Readonly<Record<string, JsonPlugin>>>>;
   };
 }
 
 // A block as a JSON board holds it, with the version of its class's state,
-// which the class's entry in the block registry gives.
-export interface JsonBlock extends Block {
+// which the class's entry in the block registry gives. It names its class by
+// the class's package and the class's id within that package, as
+// { package: "blockr.core", id: "head_block" }, with a package of null for a
+// class that an app script defines.
+export interface JsonBlock extends Omit<Block, "registry_id"> {
+  readonly registry_id: { readonly package: string | null; readonly id: string };
   readonly version: number;
 }
 
 // A board option's value as a JSON board holds it, with the version of the
 // value's shape, which R's `board_option_version()` gives, and the package
 // that lists the board option, or null where no package lists it.
-// A board option's id names no package, unlike the id of a block's class or of
-// a plugin's class. So the JSON board records the package here, and a board
-// that opens without the package names it.
+// A board option's id holds no package, unlike the id of a block's class or of
+// a plugin's class, which holds the package beside the id within it.
+// So the JSON board records the package here, and a board that opens without
+// the package names it.
 export interface JsonOption {
   readonly value: Json;
   readonly version: number;
   readonly package: string | null;
 }
 
-// A plugin's state as a JSON board holds it, under the id of the plugin's
-// class, with the version of the state's shape, which R's `plugin_version()`
-// gives for the class.
+// A plugin's state as a JSON board holds it, under the package and the id of
+// the plugin's class, with the version of the state's shape, which R's
+// `plugin_version()` gives for the class.
 export interface JsonPlugin {
   readonly state: Json;
   readonly version: number;

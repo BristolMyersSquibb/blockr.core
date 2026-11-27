@@ -25,6 +25,41 @@ function jsonEqual(a, b) {
   }
   return false;
 }
+function isPackageName(name) {
+  return typeof name === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name);
+}
+
+// srcts/util/ids.ts
+var made = /* @__PURE__ */ new Map();
+function interned(pkg, id) {
+  if (pkg !== null && !isPackageName(pkg)) {
+    throw new TypeError(`The package ${JSON.stringify(pkg)} is not named as R names a package.`);
+  }
+  if (typeof id !== "string" || id === "") {
+    throw new TypeError(`The id ${JSON.stringify(id)} of ${pkg ?? "an app script"} is no non-empty string.`);
+  }
+  let ids2 = made.get(pkg);
+  if (ids2 === void 0) {
+    ids2 = /* @__PURE__ */ new Map();
+    made.set(pkg, ids2);
+  }
+  let found = ids2.get(id);
+  if (found === void 0) {
+    found = Object.freeze({ package: pkg, id });
+    ids2.set(id, found);
+  }
+  return found;
+}
+function internedRecord(record) {
+  return interned(record.package, record.id);
+}
+
+// srcts/util/notification.ts
+function internedObject(object) {
+  if (!("plugin" in object)) return object;
+  const id = internedRecord(object.plugin);
+  return id === object.plugin ? object : { ...object, plugin: id };
+}
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
@@ -371,9 +406,11 @@ function useNotified(core, about) {
     [core]
   );
   const all = useSyncExternalStore(subscribe, () => core.notifications.get());
-  const [kind, id] = about === null ? [] : Object.entries(about)[0] ?? [];
+  const [kind, id] = about === null ? [] : Object.entries(internedObject(about))[0] ?? [];
   return useMemo(
-    () => kind === void 0 ? all : all.filter((notification) => notification.about !== void 0 && own(notification.about, kind) === id),
+    () => kind === void 0 ? all : all.filter(
+      (notification) => notification.about !== void 0 && notification.about[kind] === id
+    ),
     [all, kind, id]
   );
 }

@@ -22,8 +22,9 @@ result_summary(result)
 \method{result_summary}{default}(result)
 }
 \arguments{
-\item{x}{For \code{evaluate_block()}, a registry id or a block class, and for
-\code{block_eval()}, a block's state with its class's class vector}
+\item{x}{For \code{evaluate_block()}, a block class, or the registry id of one
+that the block registry holds, as \code{\link[=registry_id_from_block]{registry_id_from_block()}} gives it, and
+for \code{block_eval()}, a block's state with its class's class vector}
 
 \item{state}{The block's state, a named list of its state args' values}
 

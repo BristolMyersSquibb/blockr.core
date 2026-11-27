@@ -50,7 +50,7 @@
 import { boardActionsApi } from "../actions/index.ts";
 import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index.ts";
 import { isLogged } from "../commands/index.ts";
-import type { Commands } from "../commands/index.ts";
+import type { CommandCall, Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OnScreenOf, OutputEvent } from "../mount/index.ts";
 import type { Lock, OptionEntry, PluginEntry } from "../protocol/index.ts";
@@ -66,8 +66,13 @@ import {
   coreNotification,
   errorMessage,
   givenNotifier,
+  givenModuleId,
   holdsObject,
+  idText,
+  internedObject,
+  internedRecord,
   isBoardObject,
+  isIdRecord,
   isPackageName,
   jsonEqual,
   own,
@@ -111,8 +116,9 @@ export interface CoreParts {
   // The locks that the app sets, from R's reply to `hello`.
   readonly lock: Lock;
   // The app's plugins, which run on the board, from the reply to `hello` that
-  // core starts with for it, by the ids of their classes.
-  readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
+  // core starts with for it, by the ids of their classes, in the order of the
+  // rows that `serve()` takes.
+  readonly plugins: ReadonlyMap<PluginClassId, PluginEntry>;
   // The board options that the loaded packages list, from the same reply, by
   // id, which name the package of each.
   readonly options: Readonly<Record<OptionId, OptionEntry>>;
@@ -309,13 +315,13 @@ export function createCore(parts: CoreParts): Core {
         }
         focus.set(shown.block);
       } else if (plugins.pluginClass(shown.plugin).ui === undefined) {
-        throw new Error(`The class of the plugin "${shown.plugin}" has no ui to show.`);
+        throw new Error(`The class of the plugin "${idText(shown.plugin)}" has no ui to show.`);
       }
       return parts.show(shown);
     },
     request: <T = Json>(plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
       pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name, args, opts) as Promise<T | Blob>,
-    module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
+    module: <T = unknown>(id: { readonly package: string; readonly id: string }) => loader.module(givenModuleId(id)) as Promise<T>,
     blockrOption: (name) => blockrOptions.read(name),
     mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
@@ -453,14 +459,14 @@ function refusing(store: Store, commands: Commands, refused: Refused): { store: 
       // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
       run(
-        target: string | readonly { readonly id: string; readonly args?: Json }[],
+        target: { readonly package: string; readonly id: string } | readonly CommandCall[],
         given?: Json,
         third?: Origin | NotifierOpts,
         fourth?: NotifierOpts,
       ) {
-        if (typeof target === "string") {
+        if (!Array.isArray(target)) {
           const origin = typeof third === "string" ? third : undefined;
-          return ran(fourth, () => commands.run(target, given, origin));
+          return ran(fourth, () => commands.run(target as { readonly package: string; readonly id: string }, given, origin));
         }
         const batchOrigin = typeof given === "string" ? given : undefined;
         return ran(typeof third === "string" ? undefined : third, () => commands.run(target, batchOrigin));
@@ -476,12 +482,14 @@ function shownObject(given: unknown): ShownObject {
   if (typeof given === "object" && given !== null && !Array.isArray(given)) {
     const entries = Object.entries(given);
     const [entry] = entries;
-    if (entries.length === 1 && entry !== undefined && typeof entry[1] === "string") {
-      if (entry[0] === "block") return Object.freeze({ block: entry[1] });
-      if (entry[0] === "plugin") return Object.freeze({ plugin: entry[1] });
+    if (entries.length === 1 && entry !== undefined) {
+      if (entry[0] === "block" && typeof entry[1] === "string") return Object.freeze({ block: entry[1] });
+      if (entry[0] === "plugin" && isIdRecord(entry[1])) return Object.freeze({ plugin: internedRecord(entry[1]) });
     }
   }
-  throw new TypeError(`Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`);
+  throw new TypeError(
+    `Core shows a block or a plugin, as { block: "a" } or { plugin: { package: "blockr.md", id: "md_plugin" } }, not ${JSON.stringify(given)}.`,
+  );
 }
 
 // Which blocks and plugins are on screen, as the frontend last set them, or
@@ -520,15 +528,19 @@ function createOnScreen(signal: AbortSignal | undefined): OnScreen {
 // The blocks and plugins that a frontend gives onScreen.set(), copied, so that
 // they change only as the frontend sets them again. It throws for anything
 // else, as a frontend in plain JS may give.
+// Each plugin is named by the id of its class, as core's table holds it.
 function seenGiven(given: unknown): Seen {
   if (typeof given === "object" && given !== null) {
     const { blocks, plugins } = given as { blocks?: unknown; plugins?: unknown };
-    if (isIds(blocks) && isIds(plugins)) {
-      return Object.freeze({ blocks: Object.freeze([...blocks]), plugins: Object.freeze([...plugins]) });
+    if (isIds(blocks) && Array.isArray(plugins) && plugins.every((plugin) => isIdRecord(plugin))) {
+      return Object.freeze({
+        blocks: Object.freeze([...blocks]),
+        plugins: Object.freeze(plugins.map((plugin) => internedRecord(plugin))),
+      });
     }
   }
   throw new TypeError(
-    `A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`,
+    `A frontend says what is on screen as { blocks: ["a"], plugins: [{ package: "blockr.md", id: "md_plugin" }] }, not ${JSON.stringify(given)}.`,
   );
 }
 
@@ -536,9 +548,10 @@ function isIds(given: unknown): given is string[] {
   return Array.isArray(given) && given.every((id) => typeof id === "string");
 }
 
-// Whether two lists hold the same ids, in whatever order.
-function sameIds(a: readonly string[], b: readonly string[]): boolean {
-  const inB = new Set(b);
+// Whether two lists hold the same ids, in whatever order: the ids of blocks,
+// or those of plugins' classes, which === compares as core's table holds them.
+function sameIds<T>(a: readonly T[], b: readonly T[]): boolean {
+  const inB = new Set<T>(b);
   return new Set(a).size === inB.size && a.every((id) => inB.has(id));
 }
 
@@ -684,7 +697,7 @@ function selectionGiven(given: unknown): readonly BoardObject[] {
   }
   const copies = new Map<string, BoardObject>();
   for (const object of given) {
-    const copy = Object.freeze({ ...object });
+    const copy = Object.freeze(internedObject({ ...object }));
     const key = objectKey(copy);
     if (!copies.has(key)) copies.set(key, copy);
   }
@@ -703,5 +716,5 @@ function unheld(object: BoardObject): string {
   if ("link" in object) return `The board holds no link ${JSON.stringify(object.link)} to select.`;
   if ("stack" in object) return `The board holds no stack ${JSON.stringify(object.stack)} to select.`;
   if ("option" in object) return `The board holds no board option ${JSON.stringify(object.option)} to select.`;
-  return `The app runs no plugin ${JSON.stringify(object.plugin)} to select.`;
+  return `The app runs no plugin "${idText(object.plugin)}" to select.`;
 }

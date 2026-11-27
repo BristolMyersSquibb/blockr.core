@@ -7,7 +7,8 @@
 new_renderer(name, module, requests = list())
 }
 \arguments{
-\item{name}{The name part of the renderer's ID}
+\item{name}{The renderer's name, which identifies it within the package of
+its module}
 
 \item{module}{The renderer's module, made by \code{\link[=js_module]{js_module()}}}
 
@@ -22,15 +23,17 @@ The constructor \code{new_renderer()} returns an object of class
 A renderer is a module that draws the outputs of an output family (see
 \code{\link[=new_output_family]{new_output_family()}}).
 A renderer object, which \code{new_renderer()} makes, holds the renderer's
-module, made by \code{\link[=js_module]{js_module()}}, its ID and the renderer's own requests.
-Its ID is \code{{pkg}-{name}}, as a registry ID is, where \code{pkg} is the package
-of its module, and its name alone for a module from no package, such as one
-beside an app script.
+module, made by \code{\link[=js_module]{js_module()}}, its name and the renderer's own requests.
+It is identified by the package of its module and its name, each a part of
+its own, as a block class is by its registry id, with the package \code{NULL} for
+a module from no package, such as one beside an app script.
+R sends it to the client with its name as the id, as
+\verb{\{"package": "blockr.core", "id": "table_output"\}}.
 }
 \details{
 The package that defines an output family gives the renderer that draws its
-outputs as the family's \code{renderer}, as core's \code{table_output} holds
-\code{blockr.core-table_output}.
+outputs as the family's \code{renderer}, as core's \code{table_output} holds the
+renderer \code{table_output} of blockr.core.
 R names it in the entry of each block class that names the family, in the
 block registry, so that the client loads it before it asks for a block's
 first output, and in each output that it sends.

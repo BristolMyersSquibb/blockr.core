@@ -11,6 +11,7 @@
 // (./start.test.ts).
 
 import { describe, expect, test } from "vitest";
+import { appPlugins, blockRegistry } from "../protocol/index.ts";
 import type { Condition } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
@@ -20,17 +21,22 @@ import { concerning, held, notificationCode } from "../testing/notifications.ts"
 import { listedModules, pluginUi } from "../testing/plugins.ts";
 import { logged } from "../testing/logged.ts";
 import { hello, withOptions, withPlugins } from "../testing/store.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost } from "../types/hosts.ts";
-import { coreNotification } from "../util/index.ts";
+import { coreNotification, interned } from "../util/index.ts";
 import { createNotifications } from "./notifications.ts";
 
-const FILE = "blockr.core-file_storage_plugin";
+const FILE: PluginClassId = interned("blockr.core", "file_storage_plugin");
 
 // The URL of the UI module of the class of block b, the head block, and of
 // the renderer of its output.
-const HEAD = HELLO.block_registry["blockr.core-head_block"]?.module ?? "";
-const TABLE = HELLO.block_registry["blockr.core-head_block"]?.renderers?.[0]?.module ?? "";
+const HEAD_BLOCK = blockRegistry(HELLO).get(interned("blockr.core", "head_block"));
+const HEAD = HEAD_BLOCK?.module ?? "";
+const TABLE = HEAD_BLOCK?.renderers?.[0]?.module ?? "";
+
+// The renderer of the output of block b, as a notification names it.
+const TABLE_OUTPUT = { package: "blockr.core", id: "table_output" };
 
 const fromModules = (notification: Notification): boolean => notification.source.kind === "module";
 
@@ -77,7 +83,7 @@ describe("a block's notifications", () => {
     await s.settled();
     // A holder that reads copies of the statuses, as a package's module or an
     // end-to-end test holds them.
-    const copies = createNotifications(s.core.store, { plugins: HELLO.plugins });
+    const copies = createNotifications(s.core.store, { plugins: appPlugins(HELLO) });
     copies.follow({
       status: (id) => structuredClone(s.core.scheduler.status(id)),
       subscribe: (fn) => s.core.scheduler.subscribe(fn),
@@ -107,7 +113,7 @@ describe("a block's notifications", () => {
     await s.settled();
     expect(s.core.notifications.get().filter(concerning("b")).map(notificationCode)).toEqual(["simpleWarning", "share_failed", "module_failed"]);
 
-    await s.core.commands.run("blockr.core-remove_block", { id: "b" });
+    await s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" });
     await s.settled();
     reported.restore();
     expect(held(s.core, concerning("b"))).toEqual([]);
@@ -124,16 +130,16 @@ describe("the notifications about a link or a stack", () => {
     s.core.notifications.notify(FILE, { severity: "warning", code: "crowded", message: "Crowded stack.", about: { stack: "s1" } });
     expect(held(s.core, fromModules).map(notificationCode)).toEqual(["slow", "crowded"]);
 
-    await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
+    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
     expect(held(s.core, fromModules).map(notificationCode)).toEqual(["crowded"]);
-    await s.core.commands.run("blockr.core-remove_stack", { id: "s1" });
+    await s.core.commands.run({ package: "blockr.core", id: "remove_stack" }, { id: "s1" });
     expect(held(s.core, fromModules)).toEqual([]);
 
     const reported = logged();
     s.core.notifications.notify(FILE, { severity: "warning", code: "slow", message: "Slow link.", about: { link: "ab" } });
     reported.restore();
     expect(reported.lines().map((line) => [line.level, line.message])).toEqual([
-      ["debug", `Core drops a notification that the plugin "${FILE}" raised about the link "ab", which has left the board.`],
+      ["debug", 'Core drops a notification that the plugin "file_storage_plugin of blockr.core" raised about the link "ab", which has left the board.'],
     ]);
     expect(held(s.core, fromModules)).toEqual([]);
     s.stop();
@@ -144,9 +150,9 @@ describe("what the holder drops", () => {
   test("is logged at debug where core raises a notification, or R replies with conditions, about a block that the board does not hold", async () => {
     const store = createStore({ hello });
     await store.open(hello);
-    const holder = createNotifications(store, { plugins: hello.plugins });
+    const holder = createNotifications(store, { plugins: appPlugins(hello) });
     const ui = { object: { block: "nowhere" } };
-    const renderer = { object: { block: "nowhere" }, renderer: "blockr.core-table_output", package: "blockr.core" };
+    const renderer = { object: { block: "nowhere" }, renderer: interned("blockr.core", "table_output"), package: "blockr.core" };
     const reported = logged();
 
     holder.raise(coreNotification("module_failed", "error", "No module.", { about: { block: "nowhere" } }));
@@ -165,7 +171,7 @@ describe("what the holder drops", () => {
       ["debug", 'Core drops the notifications of R\'s reply to the request "columns" about the block "nowhere", which the board does not hold.'],
       [
         "debug",
-        'Core drops the notifications of R\'s reply to the request "page" of the renderer "blockr.core-table_output" about the block "nowhere", which the board does not hold.',
+        'Core drops the notifications of R\'s reply to the request "page" of the renderer "table_output of blockr.core" about the block "nowhere", which the board does not hold.',
       ],
     ]);
   });
@@ -258,7 +264,7 @@ describe("the notifications of R's replies to requests", () => {
     const s = await stubCore({
       hello: withOptions(["zoom"]),
       modules: {
-        ...listedModules([], [zoom]),
+        ...listedModules([], [zoom]).modules,
         [HEAD]: {
           api: 1,
           default: {
@@ -324,7 +330,7 @@ describe("the notifications of R's replies to requests", () => {
     const s = await stubCore({
       hello: withOptions(["zoom"]),
       modules: {
-        ...listedModules([], [zoom]),
+        ...listedModules([], [zoom]).modules,
         [HEAD]: {
           api: 1,
           default: {
@@ -357,7 +363,7 @@ describe("the notifications of R's replies to requests", () => {
     await expect(hosts.output?.request("download")).rejects.toMatchObject({ status: "error" });
     await expect(hosts.output?.request("labels", {}, { scope: "renderer" })).rejects.toMatchObject({ status: "error" });
     await expect(hosts.option?.request("list_dir")).rejects.toMatchObject({ status: "error" });
-    const renderer = { object: { block: "b" }, renderer: "blockr.core-table_output", package: "blockr.core" };
+    const renderer = { object: { block: "b" }, renderer: TABLE_OUTPUT, package: "blockr.core" };
     const replied = held(s.core, (n) => n.source.kind === "r");
     expect(replied.map(({ source, about }) => [source.kind === "r" ? source.request : undefined, source.module, about])).toEqual([
       [{ type: "block_class", name: "n_max" }, { object: { block: "b" }, package: "blockr.core" }, { block: "b" }],
@@ -424,7 +430,7 @@ describe("the notifications of the modules of packages", () => {
       [undefined, { object: { block: "b" }, package: "blockr.core" }],
     ]);
 
-    await s.core.commands.run("blockr.core-remove_block", { id: "b" });
+    await s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "b" });
     await s.settled();
     expect(held(s.core, fromModules)).toEqual([]);
     s.stop();
@@ -456,7 +462,7 @@ describe("the notifications of the modules of packages", () => {
         message: "Only the first rows show.",
         source: {
           kind: "module",
-          module: { object: { block: "b" }, renderer: "blockr.core-table_output", package: "blockr.core" },
+          module: { object: { block: "b" }, renderer: TABLE_OUTPUT, package: "blockr.core" },
           code: "truncated",
         },
         about: { block: "b" },
@@ -479,10 +485,10 @@ describe("the notifications of the modules of packages", () => {
         if (value === 3) notify({ severity: "warning", code: "zoomed", message: "Text may not fit." });
       },
     };
-    const s = await stubCore({ hello: withOptions(["zoom"]), modules: listedModules([], [zoom]) });
+    const s = await stubCore({ hello: withOptions(["zoom"]), ...listedModules([], [zoom]) });
     await s.settled();
 
-    await s.core.commands.run("blockr.core-set_option", { id: "zoom", value: 3 });
+    await s.core.commands.run({ package: "blockr.core", id: "set_option" }, { id: "zoom", value: 3 });
     expect(held(s.core, fromModules)).toEqual([
       {
         severity: "warning",
@@ -491,7 +497,7 @@ describe("the notifications of the modules of packages", () => {
         about: { option: "zoom" },
       },
     ]);
-    await s.core.commands.run("blockr.core-set_option", { id: "zoom", value: 2 });
+    await s.core.commands.run({ package: "blockr.core", id: "set_option" }, { id: "zoom", value: 2 });
     expect(held(s.core, fromModules)).toEqual([]);
     s.stop();
   });
@@ -538,7 +544,7 @@ describe("core's notifications", () => {
         source: {
           kind: "core",
           code: "module_failed",
-          module: { object: { block: "b" }, renderer: "blockr.core-table_output", package: "blockr.core" },
+          module: { object: { block: "b" }, renderer: TABLE_OUTPUT, package: "blockr.core" },
         },
         about: { block: "b" },
       },
@@ -561,7 +567,7 @@ describe("core's notifications", () => {
         },
       },
     };
-    const s = await stubCore({ hello: withOptions(["zoom"]), modules: listedModules([], [zoom]) });
+    const s = await stubCore({ hello: withOptions(["zoom"]), ...listedModules([], [zoom]) });
     const el = document.createElement("div");
     s.core.mountOption(el, "zoom");
     await s.settled();
@@ -583,7 +589,7 @@ describe("core's notifications", () => {
     const reported = logged();
     const ui = pluginUi();
     const failing: PluginClass = {
-      id: "blockr.test-notes_plugin",
+      id: interned("blockr.test", "notes_plugin"),
       start: () => {
         throw new Error("No notes.");
       },
@@ -593,10 +599,10 @@ describe("core's notifications", () => {
         },
       },
     };
-    const fine: PluginClass = { id: "blockr.test-report_plugin", ui: ui.ui };
+    const fine: PluginClass = { id: interned("blockr.test", "report_plugin"), ui: ui.ui };
     const s = await stubCore({
-      hello: withPlugins({ [failing.id]: { name: "Notes" }, [fine.id]: { name: "Report" } }),
-      modules: listedModules([failing, fine]),
+      hello: withPlugins({ "blockr.test": { notes_plugin: { name: "Notes" }, report_plugin: { name: "Report" } } }),
+      ...listedModules([failing, fine]),
     });
     s.core.mountPlugin(document.createElement("div"), failing.id);
     s.core.mountPlugin(document.createElement("div"), fine.id);
@@ -606,19 +612,23 @@ describe("core's notifications", () => {
     expect(held(s.core, (n) => n.about !== undefined && "plugin" in n.about)).toEqual([
       {
         severity: "error",
-        message: 'The start of the plugin class "blockr.test-notes_plugin" failed: No notes.',
+        message: 'The start of the plugin class "notes_plugin of blockr.test" failed: No notes.',
         source: {
           kind: "core",
           code: "plugin_start_failed",
-          module: { object: { plugin: "blockr.test-notes_plugin" }, package: "blockr.test" },
+          module: { object: { plugin: { package: "blockr.test", id: "notes_plugin" } }, package: "blockr.test" },
         },
-        about: { plugin: "blockr.test-notes_plugin" },
+        about: { plugin: { package: "blockr.test", id: "notes_plugin" } },
       },
       {
         severity: "error",
-        message: 'The ui of the plugin class "blockr.test-notes_plugin" failed in render(): No pad.',
-        source: { kind: "core", code: "module_failed", module: { object: { plugin: "blockr.test-notes_plugin" }, package: "blockr.test" } },
-        about: { plugin: "blockr.test-notes_plugin" },
+        message: 'The ui of the plugin class "notes_plugin of blockr.test" failed in render(): No pad.',
+        source: {
+          kind: "core",
+          code: "module_failed",
+          module: { object: { plugin: { package: "blockr.test", id: "notes_plugin" } }, package: "blockr.test" },
+        },
+        about: { plugin: { package: "blockr.test", id: "notes_plugin" } },
       },
     ]);
     s.stop();
@@ -636,10 +646,10 @@ describe("core's notifications", () => {
       },
       ui: { render: () => undefined },
     };
-    const zoomed: PluginClass = { id: "blockr.test-zoomed_plugin", ui: pluginUi().ui };
+    const zoomed: PluginClass = { id: interned("blockr.test", "zoomed_plugin"), ui: pluginUi().ui };
     const s = await stubCore({
-      hello: withOptions(["zoom"], withPlugins({ [zoomed.id]: { name: "Zoomed", options: ["zoom"] } })),
-      modules: listedModules([zoomed], [zoom]),
+      hello: withOptions(["zoom"], withPlugins({ "blockr.test": { zoomed_plugin: { name: "Zoomed", options: ["zoom"] } } })),
+      ...listedModules([zoomed], [zoom]),
     });
     s.core.mountPlugin(document.createElement("div"), zoomed.id);
     await s.settled();
@@ -648,7 +658,7 @@ describe("core's notifications", () => {
     expect(held(s.core, (n) => notificationCode(n) === "board_option_failed")).toEqual([
       {
         severity: "error",
-        message: 'The default of the board option "zoom", which the plugin class "blockr.test-zoomed_plugin" requires, failed: No zoom today.',
+        message: 'The default of the board option "zoom", which the plugin class "zoomed_plugin of blockr.test" requires, failed: No zoom today.',
         source: { kind: "core", code: "board_option_failed", module: { object: { option: "zoom" }, package: "blockr.test" } },
         about: { option: "zoom" },
       },
@@ -658,10 +668,10 @@ describe("core's notifications", () => {
 
   test("of a board option that no loaded package defines concern the board option, are one for the board and name no module", async () => {
     const reported = logged();
-    const needy: PluginClass = { id: "blockr.test-needy_plugin", ui: pluginUi().ui };
+    const needy: PluginClass = { id: interned("blockr.test", "needy_plugin"), ui: pluginUi().ui };
     const s = await stubCore({
-      hello: withPlugins({ [needy.id]: { name: "Needy", options: ["nowhere"] } }),
-      modules: listedModules([needy]),
+      hello: withPlugins({ "blockr.test": { needy_plugin: { name: "Needy", options: ["nowhere"] } } }),
+      ...listedModules([needy]),
     });
     s.core.mountPlugin(document.createElement("div"), needy.id);
     s.core.mountPlugin(document.createElement("div"), needy.id);
@@ -671,7 +681,7 @@ describe("core's notifications", () => {
     expect(held(s.core, (n) => n.about !== undefined && "option" in n.about && n.about.option === "nowhere")).toEqual([
       {
         severity: "error",
-        message: 'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
+        message: 'The board option "nowhere", which the plugin class "needy_plugin of blockr.test" requires, is defined by no package loaded.',
         source: { kind: "core", code: "board_option_failed" },
         about: { option: "nowhere" },
       },
@@ -687,8 +697,8 @@ describe("core's notifications", () => {
 
     // A command that the command registry refuses, and a delta that the store
     // refuses.
-    await expect(s.core.commands.run("blockr.core-remove_block", { id: "nowhere" })).rejects.toThrow(
-      'The command "blockr.core-remove_block" refused to run',
+    await expect(s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" })).rejects.toThrow(
+      'The command "remove_block of blockr.core" refused to run',
     );
     expect(() => {
       s.core.store.apply(unknownInput);
@@ -696,8 +706,8 @@ describe("core's notifications", () => {
     // The user removes the link from block a to block b, and the assistant
     // then feeds b's one input from block d. An undo of the user's last step,
     // past the assistant's, would give that input a second link.
-    await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
-    await s.core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" }, "assistant");
+    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
+    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "b", input: "data" }, "assistant");
     expect(() => {
       s.core.store.undo("user");
     }).toThrow("The store refused to undo the step");
@@ -705,8 +715,8 @@ describe("core's notifications", () => {
     // and takes that back. The assistant then feeds it from block b, in a step
     // that is no undo step and so keeps the redo list, which a redo would give
     // a second link.
-    await s.core.commands.run("blockr.core-remove_link", { id: "keen_finch" });
-    await s.core.commands.run("blockr.core-add_link", { id: "df", from: "d", to: "f", input: "data" });
+    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "keen_finch" });
+    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "df", from: "d", to: "f", input: "data" });
     s.core.store.undo();
     s.core.store.apply({ links: { add: { bf: { from: "b", to: "f", input: "data" } } } }, "assistant", { undo: false });
     expect(() => {
@@ -720,7 +730,7 @@ describe("core's notifications", () => {
       Array.from({ length: 4 }, () => ["error", { kind: "core", code: "board_edit_failed" }, undefined]),
     );
     expect(refused.map((n) => n.message)).toEqual([
-      expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/),
+      expect.stringMatching(/^The command "remove_block of blockr\.core" refused to run/),
       expect.stringMatching(/^The store rejected the delta/),
       expect.stringMatching(/^The store refused to undo the step/),
       expect.stringMatching(/^The store refused to redo the step/),
@@ -735,8 +745,8 @@ describe("core's notifications", () => {
     const s = await stubCore();
     await s.settled();
     const error = new Error("No layout.");
-    s.core.commands.register({
-      id: "blockr.test-relayout",
+    s.core.commands.register("blockr.test", {
+      id: "relayout",
       label: "Relayout",
       run: () => {
         throw error;
@@ -744,16 +754,16 @@ describe("core's notifications", () => {
     });
     const reported = logged();
 
-    await expect(s.core.commands.run("blockr.test-relayout")).rejects.toThrow('The command "blockr.test-relayout" failed\n- No layout.');
+    await expect(s.core.commands.run({ package: "blockr.test", id: "relayout" })).rejects.toThrow('The command "relayout of blockr.test" failed\n- No layout.');
     await s.settled();
     reported.restore();
 
     const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
     expect(refused.map(({ severity, message, about }) => [severity, message, about])).toEqual([
-      ["error", 'The command "blockr.test-relayout" failed\n- No layout.', undefined],
+      ["error", 'The command "relayout of blockr.test" failed\n- No layout.', undefined],
     ]);
     expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual([
-      ["error", "blockr.core", 'The command "blockr.test-relayout" failed\n- No layout.'],
+      ["error", "blockr.core", 'The command "relayout of blockr.test" failed\n- No layout.'],
     ]);
     expect(reported.lines()[0]?.error?.cause).toBe(error);
     s.stop();
@@ -762,8 +772,8 @@ describe("core's notifications", () => {
   test("of a batch of the user's whose command's own code throws concern the board, and core logs no line of its own, as for a command alone", async () => {
     const s = await stubCore();
     await s.settled();
-    s.core.commands.register({
-      id: "blockr.test-relayout",
+    s.core.commands.register("blockr.test", {
+      id: "relayout",
       label: "Relayout",
       run: () => {
         throw new Error("No layout.");
@@ -771,18 +781,21 @@ describe("core's notifications", () => {
     });
     const reported = logged();
 
-    await expect(s.core.commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }, { id: "blockr.test-relayout" }])).rejects.toThrow(
-      'The batch was refused at command 2, "blockr.test-relayout"\n- No layout.',
+    await expect(s.core.commands.run([
+        { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
+        { package: "blockr.test", id: "relayout" },
+      ])).rejects.toThrow(
+      'The batch was refused at command 2, "relayout of blockr.test"\n- No layout.',
     );
     await s.settled();
     reported.restore();
 
     const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
     expect(refused.map(({ severity, message, about }) => [severity, message, about])).toEqual([
-      ["error", 'The batch was refused at command 2, "blockr.test-relayout"\n- No layout.', undefined],
+      ["error", 'The batch was refused at command 2, "relayout of blockr.test"\n- No layout.', undefined],
     ]);
     expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual([
-      ["error", "blockr.core", 'The command "blockr.test-relayout" failed\n- No layout.'],
+      ["error", "blockr.core", 'The command "relayout of blockr.test" failed\n- No layout.'],
     ]);
     s.stop();
   });
@@ -794,7 +807,7 @@ describe("core's notifications", () => {
     s.core.notifications.subscribe((all) => {
       heard.push(all.filter((n) => notificationCode(n) === "board_edit_failed").map((n) => n.message));
     });
-    const remove = (): Promise<boolean> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" });
+    const remove = (): Promise<boolean> => s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" });
 
     await expect(remove()).rejects.toThrow();
     const [first] = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
@@ -819,24 +832,24 @@ describe("core's notifications", () => {
       default: () => Promise.resolve("big"),
       ui: { render: () => undefined },
     };
-    const needy: PluginClass = { id: "blockr.test-needy_plugin", ui: pluginUi().ui };
+    const needy: PluginClass = { id: interned("blockr.test", "needy_plugin"), ui: pluginUi().ui };
     const s = await stubCore({
-      hello: withOptions(["unfit"], withPlugins({ [needy.id]: { name: "Needy", options: ["unfit"] } })),
-      modules: listedModules([needy], [unfit]),
+      hello: withOptions(["unfit"], withPlugins({ "blockr.test": { needy_plugin: { name: "Needy", options: ["unfit"] } } })),
+      ...listedModules([needy], [unfit]),
     });
     await s.settled();
     reported.restore();
 
     const quiet = logged();
-    await expect(s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "assistant")).rejects.toThrow();
+    await expect(s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" }, "assistant")).rejects.toThrow();
     expect(() => {
       s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant");
     }).toThrow();
     // The assistant removes the link from block a to block b, and the user
     // then feeds b's one input from block d. An undo of the assistant's last
     // step, past the user's, would give that input a second link.
-    await s.core.commands.run("blockr.core-remove_link", { id: "ab" }, "assistant");
-    await s.core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" });
+    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" }, "assistant");
+    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "b", input: "data" });
     expect(() => {
       s.core.store.undo("assistant");
     }).toThrow("The store refused to undo the step");
@@ -847,7 +860,7 @@ describe("core's notifications", () => {
       Array.from({ length: 3 }, () => ["error", { kind: "core", code: "board_edit_failed" }, undefined]),
     );
     expect(refused.map((n) => n.message)).toEqual([
-      expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/),
+      expect.stringMatching(/^The command "remove_block of blockr\.core" refused to run/),
       expect.stringMatching(/^The store rejected the delta/),
       expect.stringMatching(/^The store refused to undo the step/),
     ]);
@@ -864,12 +877,12 @@ describe("core's notifications", () => {
     const run = (origin?: string): Promise<boolean> =>
       s.core.commands.run(
         [
-          { id: "blockr.core-change_board", args: { name: "Sepals" } },
-          { id: "blockr.core-remove_block", args: { id: "nowhere" } },
+          { package: "blockr.core", id: "change_board", args: { name: "Sepals" } },
+          { package: "blockr.core", id: "remove_block", args: { id: "nowhere" } },
         ],
         origin,
       );
-    const refusal = 'The batch was refused at command 2, "blockr.core-remove_block"';
+    const refusal = 'The batch was refused at command 2, "remove_block of blockr.core"';
 
     await expect(run("assistant")).rejects.toThrow(refusal);
     const [first] = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
@@ -880,7 +893,7 @@ describe("core's notifications", () => {
     const refused = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
     expect(refused).toEqual([first]);
     expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual([["error", { kind: "core", code: "board_edit_failed" }, undefined]]);
-    expect(refused.map((n) => n.message)).toEqual([expect.stringMatching(/^The batch was refused at command 2, "blockr\.core-remove_block"\n/)]);
+    expect(refused.map((n) => n.message)).toEqual([expect.stringMatching(/^The batch was refused at command 2, "remove_block of blockr\.core"\n/)]);
     expect(s.core.store.board().name).not.toBe("Sepals");
     s.stop();
   });
@@ -895,24 +908,24 @@ describe("core's notifications", () => {
       heard.push("notified");
       taken.push(...notifications);
     };
-    const refusing = (): Promise<boolean> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "user", { notifier });
+    const refusing = (): Promise<boolean> => s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" }, "user", { notifier });
 
     // A command, a batch, a delta, an undo and a redo, each of
     // which the store or the command registry refuses.
     await refusing().catch(() => heard.push("rejected"));
     await expect(
-      s.core.commands.run([{ id: "blockr.core-remove_block", args: { id: "nowhere" } }], "assistant", { notifier }),
-    ).rejects.toThrow('The batch was refused at command 1, "blockr.core-remove_block"');
+      s.core.commands.run([{ package: "blockr.core", id: "remove_block", args: { id: "nowhere" } }], "assistant", { notifier }),
+    ).rejects.toThrow('The batch was refused at command 1, "remove_block of blockr.core"');
     expect(() => {
       s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant", { undo: false, notifier });
     }).toThrow("The store rejected the delta");
-    await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
-    await s.core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" }, "assistant");
+    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "ab" });
+    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { from: "d", to: "b", input: "data" }, "assistant");
     expect(() => {
       s.core.store.undo("user", { notifier });
     }).toThrow("The store refused to undo the step");
-    await s.core.commands.run("blockr.core-remove_link", { id: "keen_finch" });
-    await s.core.commands.run("blockr.core-add_link", { id: "df", from: "d", to: "f", input: "data" });
+    await s.core.commands.run({ package: "blockr.core", id: "remove_link" }, { id: "keen_finch" });
+    await s.core.commands.run({ package: "blockr.core", id: "add_link" }, { id: "df", from: "d", to: "f", input: "data" });
     s.core.store.undo();
     s.core.store.apply({ links: { add: { bf: { from: "b", to: "f", input: "data" } } } }, "assistant", { undo: false });
     expect(() => {
@@ -926,7 +939,7 @@ describe("core's notifications", () => {
       Array.from({ length: 5 }, () => ["error", { kind: "core", code: "board_edit_failed" }, undefined]),
     );
     expect(taken.map((n) => n.message)).toEqual([
-      expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/),
+      expect.stringMatching(/^The command "remove_block of blockr\.core" refused to run/),
       expect.stringMatching(/^The batch was refused at command 1/),
       expect.stringMatching(/^The store rejected the delta/),
       expect.stringMatching(/^The store refused to undo the step/),
@@ -935,7 +948,7 @@ describe("core's notifications", () => {
 
     // The same refusal without a notifier raises the same notification, and
     // the next with a notifier leaves it held.
-    await expect(s.core.commands.run("blockr.core-remove_block", { id: "nowhere" })).rejects.toThrow();
+    await expect(s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" })).rejects.toThrow();
     await expect(refusing()).rejects.toThrow();
     expect(s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed")).toEqual([taken[0]]);
     expect(taken[5]).toEqual(taken[0]);
@@ -955,9 +968,9 @@ describe("core's notifications", () => {
 
     expect(s.core.store.apply({ name: "Sepals" })).toBe(true);
     expect(s.core.store.apply({ name: "Petals" }, "assistant", { undo: false, notifier })).toBe(false);
-    await expect(s.core.commands.run("blockr.core-change_board", { name: "Sepals" }, "assistant", { notifier })).resolves.toBe(true);
-    await expect(s.core.commands.run("blockr.core-set_option", { id: "n_rows", value: 30 })).resolves.toBe(false);
-    await expect(s.core.commands.run([{ id: "blockr.core-change_board", args: { name: "Petals" } }], "assistant", { notifier })).resolves.toBe(true);
+    await expect(s.core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }, "assistant", { notifier })).resolves.toBe(true);
+    await expect(s.core.commands.run({ package: "blockr.core", id: "set_option" }, { id: "n_rows", value: 30 })).resolves.toBe(false);
+    await expect(s.core.commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Petals" } }], "assistant", { notifier })).resolves.toBe(true);
     await expect(s.core.commands.run([], "assistant")).resolves.toBe(false);
     await s.settled();
 
@@ -971,10 +984,10 @@ describe("core's notifications", () => {
     await s.settled();
     const bad = { notifier: "quiet" as never };
 
-    await expect(s.core.commands.run("blockr.core-change_board", { name: "Sepals" }, "user", bad)).rejects.toThrow(
+    await expect(s.core.commands.run({ package: "blockr.core", id: "change_board" }, { name: "Sepals" }, "user", bad)).rejects.toThrow(
       new TypeError("The `notifier` of run() is a function."),
     );
-    await expect(s.core.commands.run([{ id: "blockr.core-change_board", args: { name: "Sepals" } }], "user", bad)).rejects.toThrow(
+    await expect(s.core.commands.run([{ package: "blockr.core", id: "change_board", args: { name: "Sepals" } }], "user", bad)).rejects.toThrow(
       new TypeError("The `notifier` of run() is a function."),
     );
     expect(() => {
@@ -999,17 +1012,17 @@ describe("core's notifications", () => {
     const reported = logged();
 
     await expect(
-      s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "user", {
+      s.core.commands.run({ package: "blockr.core", id: "remove_block" }, { id: "nowhere" }, "user", {
         notifier: () => {
           throw thrown;
         },
       }),
-    ).rejects.toThrow('The command "blockr.core-remove_block" refused to run');
+    ).rejects.toThrow('The command "remove_block of blockr.core" refused to run');
     reported.restore();
 
     expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
     expect(reported.lines().map((line) => [line.level, line.message])).toEqual([
-      ["debug", expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/)],
+      ["debug", expect.stringMatching(/^The command "remove_block of blockr\.core" refused to run/)],
       ["error", "The notifier broke."],
     ]);
     expect(reported.lines()[1]?.error).toBe(thrown);

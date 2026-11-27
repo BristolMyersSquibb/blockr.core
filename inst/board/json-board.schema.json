@@ -29,7 +29,10 @@
         "plugins": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/JsonPlugin"
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/definitions/JsonPlugin"
+            }
           }
         },
         "id": {
@@ -71,9 +74,6 @@
     "JsonBlock": {
       "type": "object",
       "properties": {
-        "registry_id": {
-          "$ref": "#/definitions/RegistryId"
-        },
         "state": {
           "type": "object",
           "additionalProperties": {
@@ -89,6 +89,24 @@
             "null"
           ]
         },
+        "registry_id": {
+          "type": "object",
+          "properties": {
+            "package": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "package",
+            "id"
+          ]
+        },
         "version": {
           "type": "number"
         }
@@ -100,9 +118,6 @@
         "state",
         "version"
       ]
-    },
-    "RegistryId": {
-      "type": "string"
     },
     "Json": {
       "anyOf": [

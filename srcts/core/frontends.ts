@@ -41,7 +41,7 @@ import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { log } from "../log/index.ts";
-import { errorMessage } from "../util/index.ts";
+import { errorMessage, idText } from "../util/index.ts";
 import type { FrontEnds } from "./start.ts";
 
 interface Drawn {
@@ -150,7 +150,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         else current.cleanup = rendered;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const why = new Error(`The frontend of the plugin class "${prepared.plugin}" failed in render(): ${errorMessage(error)}`, {
+        const why = new Error(`The frontend of the plugin class "${idText(prepared.plugin)}" failed in render(): ${errorMessage(error)}`, {
           cause: error,
         });
         showError(el, why.message);
@@ -171,7 +171,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       } catch (error) {
         // A frontend that ended meanwhile has nothing left to show.
         if (current.controller.signal.aborted) return;
-        throw new Error(`The frontend of the plugin class "${current.plugin}" failed in show(): ${errorMessage(error)}`, { cause: error });
+        throw new Error(`The frontend of the plugin class "${idText(current.plugin)}" failed in show(): ${errorMessage(error)}`, { cause: error });
       }
     },
   };

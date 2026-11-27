@@ -51,7 +51,8 @@ test_that("An evaluation's span is the client's child and holds its phases", {
       session.id = "token-1",
       blockr.block.id = "a",
       blockr.block.revision = 2,
-      blockr.block.registry_id = "blockr.core-dataset_block",
+      blockr.block.package = "blockr.core",
+      blockr.block.registry_id = "dataset_block",
       blockr.reply.status = "ok"
     )
   )
@@ -118,7 +119,7 @@ test_that("R's span of a message without a valid traceparent is a root span", {
 test_that("R marks the spans of a failed evaluation and its phase as failed", {
 
   failing <- list(
-    registry_id = "blockr.core-static_block",
+    registry_id = pkg_ref("blockr.core", "static_block"),
     state = list(expression = "stop('No data.')"),
     inputs = list()
   )
@@ -198,7 +199,8 @@ test_that("R's span of an output names the registry id of its block's class", {
       session.id = "token-1",
       blockr.block.id = "a",
       blockr.block.revision = 2,
-      blockr.block.registry_id = "blockr.core-dataset_block",
+      blockr.block.package = "blockr.core",
+      blockr.block.registry_id = "dataset_block",
       blockr.reply.status = "ok"
     )
   )
@@ -221,7 +223,7 @@ test_that("R's span of a request names the request and what it belongs to", {
             id = "4",
             kind = "request",
             type = "plugin",
-            plugin = "blockr.notes-notes_plugin",
+            plugin = pkg_ref("blockr.notes", "notes_plugin"),
             name = "x",
             args = obj(),
             reads = list()
@@ -239,12 +241,14 @@ test_that("R's span of a request names the request and what it belongs to", {
   expect_identical(request[["parent"]], client_span)
   expect_identical(
     span_attributes(request)[c(
-      "blockr.request.type", "blockr.request.name", "blockr.plugin.class_id"
+      "blockr.request.type", "blockr.request.name", "blockr.plugin.package",
+      "blockr.plugin.class_id"
     )],
     list(
       blockr.request.type = "plugin",
       blockr.request.name = "x",
-      blockr.plugin.class_id = "blockr.notes-notes_plugin"
+      blockr.plugin.package = "blockr.notes",
+      blockr.plugin.class_id = "notes_plugin"
     )
   )
 })
@@ -303,7 +307,7 @@ test_that("R records no span of a hello or of reading blockr options", {
 test_that("the lines R logs as it handles a message name the session", {
 
   failing <- list(
-    registry_id = "blockr.core-static_block",
+    registry_id = pkg_ref("blockr.core", "static_block"),
     state = list(expression = "stop('No data.')"),
     inputs = list()
   )

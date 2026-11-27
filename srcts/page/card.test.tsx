@@ -13,10 +13,11 @@ import { find, texts } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import type { Block, Board } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
+import { interned } from "../util/index.ts";
 import { drawCard, OWNER } from "./card.tsx";
 import type { CardCore } from "./card.tsx";
 
-const HEAD: Block = { registry_id: "blockr.core-head_block", state: { n: 6, direction: "head" }, name: "Head", locked: null };
+const HEAD: Block = { registry_id: interned("blockr.core", "head_block"), state: { n: 6, direction: "head" }, name: "Head", locked: null };
 
 function createBoard(blocks: Board["blocks"]): Board {
   return { id: "quick_wren", name: "Quick wren", blocks, links: {}, stacks: {}, options: {}, plugins: {} };
@@ -366,11 +367,11 @@ describe("the card of a block that serve() serves alone", () => {
     const { el } = draw(r.core);
     await r.raise({
       severity: "error",
-      message: "Without the board option \"zoom\", the renderer \"blockr.core-table_output\" cannot draw.",
+      message: "Without the board option \"zoom\", the renderer \"table_output of blockr.core\" cannot draw.",
       source: {
         kind: "core",
         code: "module_failed",
-        module: { object: { block: "b" }, renderer: "blockr.core-table_output", package: "blockr.core" },
+        module: { object: { block: "b" }, renderer: interned("blockr.core", "table_output"), package: "blockr.core" },
       },
     });
     expect(pills(el)).toEqual(["error"]);

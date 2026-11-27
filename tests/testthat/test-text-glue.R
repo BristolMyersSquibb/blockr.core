@@ -11,7 +11,10 @@ test_that("glue block constructor", {
     list(text = "{nrow(data)} rows")
   )
 
-  expect_identical(registry_id_from_block(blk), "blockr.core-glue_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "glue_block")
+  )
 })
 
 test_that("a glue block refers to its inputs by their links' names", {

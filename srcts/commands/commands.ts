@@ -27,9 +27,9 @@
 // span failed. The span goes under the span that is active as run() is called,
 // so that a plugin that runs a command inside a span of its own, as the
 // assistant's tools do, holds the command in its trace. It names the command
-// by its id and the step's origin, as "assistant". A batch runs in one span,
-// "command batch", which names the ids of its commands in order, since the
-// store applies their deltas as one step. The span is active while
+// by its package and its id and the step's origin, as "assistant". A batch runs
+// in one span, "command batch", which names the packages and the ids of its
+// commands in order, since the store applies their deltas as one step. The span is active while
 // the command prepares and runs, and while the store applies its deltas, so
 // that the scheduler takes it as what gave each block that the deltas change
 // its revision, and the span of the block's evaluation links to it.
@@ -52,13 +52,13 @@ import { log } from "../log/index.ts";
 import type { Lock } from "../protocol/index.ts";
 import { asRandId, isDeltas, mintId, pluginClassFromPath, StoreError } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, Store } from "../store/index.ts";
-import type { Board } from "../types/board.ts";
+import type { Board, CommandId } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { failSpan, keepContext, tracer } from "../trace/index.ts";
-import { compile, errorMessage, packageFromId } from "../util/index.ts";
+import { compile, errorMessage, idAttributes, idText, interned, isIdRecord, isObject, isPackageName } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
-import { coreCommands } from "./core.ts";
+import { CORE, coreCommands } from "./core.ts";
 
 // What the command registry hands every command beside the board and its
 // args: what the app fixes for the page, and what the command refuses with.
@@ -85,9 +85,10 @@ export interface CommandContext {
 }
 
 export interface Command<A extends Json = Json, P = A> {
-  // Named as a registry id is, `{pkg}-{name}`, such as
-  // "blockr.core-remove_block": the package that registers it, and a name
-  // unique within that package.
+  // Its id within the package that registers it, unique there, such as
+  // "remove_block". The command registry holds it under the package and the
+  // id, as { package: "blockr.core", id: "remove_block" }, so that two
+  // packages may give commands of one id.
   readonly id: string;
   // What menus and a command palette show.
   readonly label: string;
@@ -119,14 +120,16 @@ export interface Command<A extends Json = Json, P = A> {
 }
 
 export interface Commands {
-  // Adds a command, which fails where another has its id.
-  register<A extends Json, P = A>(command: Command<A, P>): () => void;
+  // Adds a command of the package, which fails where the package has given a
+  // command of its id already. Core registers its own under blockr.core, and
+  // those that a plugin class lists under the class's package.
+  register<A extends Json, P = A>(pkg: string, command: Command<A, P>): () => void;
   // The registered commands by id, for menus, a command palette and the
-  // assistant's tools.
-  registered(): Readonly<Record<string, Command<Json, unknown>>>;
+  // assistant's tools, in the order registered.
+  registered(): ReadonlyMap<CommandId, Command<Json, unknown>>;
   // Whether the command passes its preflight on the current board with these
   // args, which fit the schema of its args.
-  preflight(id: string, args?: Json): boolean;
+  preflight(id: { readonly package: string; readonly id: string }, args?: Json): boolean;
   // Runs the command and applies its deltas as one step of the origin, "user"
   // unless given, or rejects with a CommandError that says what stopped it,
   // having changed nothing. It resolves with whether the step took an undo
@@ -136,7 +139,7 @@ export interface Commands {
   // Through `CoreApi`, core tells the user why the command was refused, or
   // hands that notification to the notifier in `opts`, before run() rejects
   // (../core/core.ts). The command registry itself ignores the notifier.
-  run(id: string, args?: Json, origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<boolean>;
+  run(id: { readonly package: string; readonly id: string }, args?: Json, origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<boolean>;
   // Runs the commands of the batch in order, each planned on the board that the
   // deltas of the commands before it leave, and applies the deltas of every
   // command as one step of the origin, "user" unless given. Where a command
@@ -147,7 +150,7 @@ export interface Commands {
   // commands changed. A batch whose commands do not prepare is applied before
   // run() returns. Its notifier is as for a command alone.
   run(
-    batch: readonly { readonly id: string; readonly args?: Json }[],
+    batch: readonly CommandCall[],
     origin?: Origin,
     opts?: { notifier?(notifications: readonly Notification[]): void },
   ): Promise<boolean>;
@@ -155,12 +158,20 @@ export interface Commands {
   // the edit ids of the board they were built on, so that the store refuses
   // them once another edit has come first, and with `undo: false` where the
   // command has it.
-  plan(id: string, args?: Json): Promise<Delta[]>;
+  plan(id: { readonly package: string; readonly id: string }, args?: Json): Promise<Delta[]>;
   // The deltas of the commands of the batch in order, each built on the board
   // that the deltas of the commands before it leave, not applied. It rejects
   // where run() would reject for the batch. The deltas name the edit ids of the
   // board that the batch was planned on.
-  plan(batch: readonly { readonly id: string; readonly args?: Json }[]): Promise<Delta[]>;
+  plan(batch: readonly CommandCall[]): Promise<Delta[]>;
+}
+
+// A command of any package, by its package and its id, with its args: one entry
+// of a batch, as { package: "blockr.core", id: "remove_block", args: { id: "a" } }.
+export interface CommandCall {
+  readonly package: string;
+  readonly id: string;
+  readonly args?: Json;
 }
 
 // What the command registry rejects with, whatever stopped a command that it
@@ -170,11 +181,12 @@ export interface Commands {
 // it, then a line for each failure.
 export class CommandError extends Error {
   // The id of the command that was stopped, such as
-  // "blockr.core-remove_block". It is left out only where the store refused a
-  // batch as a whole, after the dry run of each command's deltas had passed,
-  // which the first line says. There, a plugin class's afterStep failed, or
-  // returned what the store refuses, and the failures name the class.
-  readonly command?: string;
+  // { package: "blockr.core", id: "remove_block" }. It is left out only where
+  // the store refused a batch as a whole, after the dry run of each command's
+  // deltas had passed, which the first line says. There, a plugin class's
+  // afterStep failed, or returned what the store refuses, and the failures name
+  // the class.
+  readonly command?: CommandId;
   // What stopped the command:
   // - "registry": the command registry refused to run it, as where no command
   //   has its id, its args fail their schema or the store holds no board.
@@ -207,11 +219,16 @@ export class CommandError extends Error {
 // The first line of a CommandError's message, which says what stopped the
 // command.
 function firstLine({ command, by, index }: Pick<CommandError, "command" | "by" | "index">): string {
-  if (command === undefined) return "The store refused the batch as a whole, after the deltas of each command had passed";
-  if (index !== undefined) return `The batch was refused at command ${String(index + 1)}, "${command}"`;
-  if (by === "code") return `The command "${command}" failed`;
-  if (by === "store") return `The store refused the deltas of the command "${command}"`;
-  return `The command "${command}" refused to run`;
+  if (command === undefined) {
+    return by === "store"
+      ? "The store refused the batch as a whole, after the deltas of each command had passed"
+      : "The command registry refused a command that it cannot name";
+  }
+  const named = idText(command);
+  if (index !== undefined) return `The batch was refused at command ${String(index + 1)}, "${named}"`;
+  if (by === "code") return `The command "${named}" failed`;
+  if (by === "store") return `The store refused the deltas of the command "${named}"`;
+  return `The command "${named}" refused to run`;
 }
 
 // The CommandError of a command that refuses to run, with each failure in a
@@ -219,7 +236,7 @@ function firstLine({ command, by, index }: Pick<CommandError, "command" | "by" |
 // passes "registry" for its own refusals, and "preflight" where the command's
 // preflight() answered false.
 export function refusal(
-  id: string,
+  id: CommandId,
   failures: readonly string[],
   by: "registry" | "preflight" | "command" = "command",
 ): CommandError {
@@ -231,6 +248,9 @@ export function refusal(
 const DROPPED = "A board opened while it prepared, which drops it.";
 
 interface Registered {
+  // The command's id, its package and its id within the package, as core's
+  // table holds it.
+  readonly id: CommandId;
   readonly command: Command<Json, unknown>;
   readonly validate: Validate | undefined;
   // What the command registry hands the command's preflight(), prepare() and
@@ -260,9 +280,9 @@ export interface CommandsOptions {
 }
 
 export function createCommands(store: Store, options: CommandsOptions = {}): Commands {
-  const commands = signal<ReadonlyMap<string, Registered>>(new Map());
-  const registered = computed(() =>
-    Object.fromEntries([...commands.value].map(([id, { command }]) => [id, command])),
+  const commands = signal<ReadonlyMap<CommandId, Registered>>(new Map());
+  const registered = computed(
+    (): ReadonlyMap<CommandId, Command<Json, unknown>> => new Map([...commands.value].map(([id, { command }]) => [id, command])),
   );
   const ended = (): boolean => options.signal?.aborted === true;
   const randId = asRandId(options.randId);
@@ -273,28 +293,32 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     blockrOption: options.blockrOption ?? (() => Promise.resolve(undefined)),
   };
 
-  function register<A extends Json, P>(command: Command<A, P>): () => void {
-    const { id } = command;
-    if (typeof id !== "string" || !isCommandId(id)) {
-      throw new Error(
-        `The command id ${JSON.stringify(id)} is not named as a registry id is, "{pkg}-{name}".`,
-      );
+  function register<A extends Json, P>(pkg: string, command: Command<A, P>): () => void {
+    if (!isPackageName(pkg)) {
+      throw new Error(`A command is registered under the package that gives it, named as R names a package, not ${JSON.stringify(pkg)}.`);
     }
+    const given: unknown = command.id;
+    if (typeof given !== "string" || given === "") {
+      throw new Error(`The command id ${JSON.stringify(given)} of ${pkg} is no non-empty string, as "remove_block".`);
+    }
+    const id = interned(pkg, given);
+    const named = `The command "${idText(id)}"`;
     if (typeof command.label !== "string" || command.label === "") {
-      throw new Error(`The command "${id}" has no label.`);
+      throw new Error(`${named} has no label.`);
     }
     if (typeof command.run !== "function") {
-      throw new Error(`The command "${id}" has no run().`);
+      throw new Error(`${named} has no run().`);
     }
     if (commands.value.has(id)) {
-      throw new Error(`The command "${id}" is registered already.`);
+      throw new Error(`${named} is registered already.`);
     }
     const validate =
       command.args === undefined
         ? undefined
-        : compile(`the args of the command "${id}"`, command.args, "fail their schema");
+        : compile(`the args of the command "${idText(id)}"`, command.args, "fail their schema");
 
     const item: Registered = {
+      id,
       command,
       validate,
       context: { ...shared, refusal: (failures) => refusal(id, failures) },
@@ -309,11 +333,21 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   }
 
   // The registered command and its args, once they fit its schema, or a
-  // CommandError.
-  function lookup(id: string, given: Json | undefined): { item: Registered; args: Json } {
+  // CommandError. A caller names the command by a record of its package and
+  // its id, which need not be the object that core's table holds.
+  function lookup(name: unknown, given: Json | undefined): { item: Registered; args: Json } {
+    const id = nameOf(name);
+    if (id === undefined) {
+      throw new CommandError({
+        by: "registry",
+        failures: [
+          `No command is named ${JSON.stringify(name)}, where a command is named by its package and its id, as { package: "blockr.core", id: "remove_block" }.`,
+        ],
+      });
+    }
     const item = commands.value.get(id);
     if (item === undefined) {
-      throw refusal(id, [`No command "${id}" is registered.`], "registry");
+      throw refusal(id, [`No command "${idText(id)}" is registered.`], "registry");
     }
     const args = given ?? {};
     const failures = item.validate?.(args) ?? [];
@@ -323,7 +357,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     return { item, args };
   }
 
-  function current(id: string): Board {
+  function current(id: CommandId): Board {
     if (ended()) {
       throw refusal(id, ["Another board opened in a new store, so this command registry runs no command."], "registry");
     }
@@ -333,11 +367,12 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     return store.board();
   }
 
-  function allow({ command, context }: Registered, board: Board, args: Json): void {
-    const passes = attempt(command, () => command.preflight?.(board, args, context) ?? true);
+  function allow(item: Registered, board: Board, args: Json): void {
+    const { command, context } = item;
+    const passes = attempt(item, () => command.preflight?.(board, args, context) ?? true);
     if (!passes) {
       throw refusal(
-        command.id,
+        item.id,
         [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
         "preflight",
       );
@@ -347,8 +382,9 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // The deltas that the command returns on the board, with the edit ids the
   // board gives what they change where the command left them out, and with
   // `undo: false` where the command has it.
-  function build({ command, context }: Registered, board: Board, args: unknown): Delta[] {
-    const returned = attempt(command, () => command.run(board, args, context));
+  function build(item: Registered, board: Board, args: unknown): Delta[] {
+    const { command, context } = item;
+    const returned = attempt(item, () => command.run(board, args, context));
     const deltas: readonly Delta[] = isDeltas(returned) ? returned : [returned];
     return deltas.map((delta) => withEdits(command.undo === false ? { ...delta, undo: false } : delta));
   }
@@ -358,28 +394,27 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // once prepare() resolves, on the board as it is then, where the command
   // still passes its preflight and no board has opened in the meantime.
   function deltas(item: Registered, args: Json): Delta[] | Promise<Delta[]> {
-    const board = current(item.command.id);
+    const board = current(item.id);
     allow(item, board, args);
     if (item.command.prepare === undefined) return build(item, board, args);
     return prepared(item, board, args);
   }
 
   async function prepared(item: Registered, board: Board, args: Json): Promise<Delta[]> {
-    const { command } = item;
     const input = await prepare(item, board, args);
-    if (ended()) throw refusal(command.id, [DROPPED], "registry");
-    const now = current(command.id);
+    if (ended()) throw refusal(item.id, [DROPPED], "registry");
+    const now = current(item.id);
     allow(item, now, args);
     return build(item, now, input);
   }
 
   // What the command's prepare() resolves to, or a CommandError that names the
   // command where it rejects.
-  async function prepare({ command, context }: Registered, board: Board, args: Json): Promise<unknown> {
+  async function prepare(item: Registered, board: Board, args: Json): Promise<unknown> {
     try {
-      return await command.prepare?.(board, args, context);
+      return await item.command.prepare?.(board, args, item.context);
     } catch (error) {
-      throw failed(command, error);
+      throw failed(item, error);
     }
   }
 
@@ -401,18 +436,17 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // again, as a command alone does once it has prepared.
   // Whatever refuses a command, the store's refusal of its deltas included,
   // rejects as a CommandError that gives the command's index.
-  async function planned<T>(
-    batch: readonly { readonly id: string; readonly args?: Json }[],
-    then: (built: Delta[]) => T,
-  ): Promise<T> {
+  async function planned<T>(batch: readonly CommandCall[], then: (built: Delta[]) => T): Promise<T> {
     // The span of run(), active as planned() is called, which a command's
     // prepare() and `then` run in after an await.
     const within = keepContext();
-    const checked = batch.map(({ id, args }, index) => {
+    const checked = batch.map((call, index) => {
+      // The command's name is the call's package and id, without its args.
+      const name: unknown = isObject(call) ? { package: call.package, id: call.id } : call;
       try {
-        return lookup(id, args);
+        return lookup(name, call.args);
       } catch (error) {
-        throw inBatch(index, id, error);
+        throw inBatch(index, nameOf(name), error);
       }
     });
     const [first] = checked;
@@ -427,27 +461,26 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       built = [];
       let start: Board;
       try {
-        start = current(first.item.command.id);
+        start = current(first.item.id);
       } catch (error) {
-        throw inBatch(0, first.item.command.id, error);
+        throw inBatch(0, first.item.id, error);
       }
       let board = start;
       for (const [index, { item, args }] of checked.entries()) {
-        const { command } = item;
         try {
           allow(item, board, args);
-          if (command.prepare !== undefined && !inputs.has(index)) {
+          if (item.command.prepare !== undefined && !inputs.has(index)) {
             inputs.set(index, await within(() => prepare(item, board, args)));
-            if (ended()) throw refusal(command.id, [DROPPED], "registry");
+            if (ended()) throw refusal(item.id, [DROPPED], "registry");
             if (store.board() !== start) {
               again = true;
               break;
             }
           }
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
-          board = byStore(command.id, () => store.dryRun(built));
+          board = byStore(item.id, () => store.dryRun(built));
         } catch (error) {
-          throw inBatch(index, command.id, error);
+          throw inBatch(index, item.id, error);
         }
       }
     }
@@ -455,19 +488,21 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   }
 
   // Applies the deltas of the commands of a batch as one step of the origin.
-  // The batch runs in one span, which names the ids of its commands in order,
-  // since the store applies their deltas at once.
+  // The batch runs in one span, which names the packages and the ids of its
+  // commands in order, since the store applies their deltas at once.
   // The store can still refuse the step once the dry run of each command's
   // deltas has passed. The store's apply() runs the afterStep of each plugin's
   // class, and its dry run does not. That refusal names no command, since an
   // afterStep gets only the boards before and after the step as a whole.
   // Where an afterStep threw, the store has logged that at error
   // (../store/expand.ts).
-  function runBatch(batch: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<boolean> {
-    const ids = batch.map(({ id }) => id);
-    return traced("command batch", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
-      planned(batch, (built) => byStore(undefined, () => store.apply(built, origin))),
-    );
+  function runBatch(batch: readonly CommandCall[], origin: Origin): Promise<boolean> {
+    const attributes = {
+      "blockr.command.packages": batch.map((call) => call.package),
+      "blockr.command.ids": batch.map((call) => call.id),
+      "blockr.delta.origin": origin,
+    };
+    return traced("command batch", attributes, () => planned(batch, (built) => byStore(undefined, () => store.apply(built, origin))));
   }
 
   // Runs a command, or a batch, in a span of its own, as the head
@@ -532,7 +567,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     preflight(id, given) {
       try {
         const { item, args } = lookup(id, given);
-        allow(item, current(id), args);
+        allow(item, current(item.id), args);
         return true;
       } catch {
         return false;
@@ -542,39 +577,45 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     // options third, in place of the origin. The command registry ignores the
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(
-      target: string | readonly { readonly id: string; readonly args?: Json }[],
+      target: { readonly package: string; readonly id: string } | readonly CommandCall[],
       given?: Json,
       third?: Origin | { notifier?(notifications: readonly Notification[]): void },
     ) {
-      if (typeof target !== "string") return runBatch(target, typeof given === "string" ? given : "user");
+      if (isBatch(target)) return runBatch(target, typeof given === "string" ? given : "user");
       const origin = typeof third === "string" ? third : "user";
-      return traced(`command ${target}`, { "blockr.command.id": target, "blockr.delta.origin": origin }, async () => {
+      const named = nameOf(target);
+      const attributes = { ...(named === undefined ? {} : idAttributes("blockr.command.id", named)), "blockr.delta.origin": origin };
+      return traced(`command ${named === undefined ? "unnamed" : named.id}`, attributes, async () => {
         const within = keepContext();
         const { item, args } = lookup(target, given);
         const step = deltas(item, args);
         const ready = Array.isArray(step) ? step : await step;
-        return within(() => byStore(target, () => store.apply(ready, origin)));
+        return within(() => byStore(item.id, () => store.apply(ready, origin)));
       });
     },
-    async plan(target: string | readonly { readonly id: string; readonly args?: Json }[], given?: Json) {
-      if (typeof target !== "string") return planned(target, (built) => built);
+    async plan(target: { readonly package: string; readonly id: string } | readonly CommandCall[], given?: Json) {
+      if (isBatch(target)) return planned(target, (built) => built);
       const { item, args } = lookup(target, given);
       return deltas(item, args);
     },
   };
 
   for (const command of coreCommands(store)) {
-    registry.register(command);
+    registry.register(CORE, command);
   }
 
   return registry;
 }
 
-// Whether an id is named as a registry id is: a package name, a dash, and a
-// name. A board action's id is named so too (../actions/actions.ts).
-export function isCommandId(id: string): boolean {
-  const pkg = packageFromId(id);
-  return pkg !== null && id.length > pkg.length + 1;
+// The id of the command that a caller names, as core's table holds it, or
+// undefined where the caller names it by no package and id.
+function nameOf(name: unknown): CommandId | undefined {
+  return isIdRecord(name) ? interned(name.package, name.id) : undefined;
+}
+
+// Whether run() or plan() was given a batch rather than a command alone.
+function isBatch(target: { readonly package: string; readonly id: string } | readonly CommandCall[]): target is readonly CommandCall[] {
+  return Array.isArray(target);
 }
 
 // Whether the command registry logged what the error reports already: what a
@@ -588,7 +629,7 @@ export function isLogged(error: unknown): boolean {
 // CommandError stopped the command at the index. It says what that error
 // says, and gives the index. Any other error is a bug, and the batch rejects
 // with it as it is, as a command alone does.
-function inBatch(index: number, id: string, error: unknown): unknown {
+function inBatch(index: number, id: CommandId | undefined, error: unknown): unknown {
   if (!(error instanceof CommandError)) return error;
   return new CommandError({ command: id, by: error.by, failures: error.failures, index, cause: error.cause });
 }
@@ -596,7 +637,7 @@ function inBatch(index: number, id: string, error: unknown): unknown {
 // What `fn` returns, which hands the store the deltas of the command whose id
 // is given, or of a batch as a whole. Where the store refuses them, it throws
 // a CommandError whose `by` is "store", with the StoreError as its cause.
-function byStore<T>(id: string | undefined, fn: () => T): T {
+function byStore<T>(id: CommandId | undefined, fn: () => T): T {
   try {
     return fn();
   } catch (error) {
@@ -609,17 +650,17 @@ function byStore<T>(id: string | undefined, fn: () => T): T {
 // that names the command, unless it is one already, as a refusal is. It logs
 // the CommandError at error, whose cause holds the stack of what the command
 // threw.
-function failed(command: Command<Json, unknown>, error: unknown): CommandError {
+function failed(item: Registered, error: unknown): CommandError {
   if (error instanceof CommandError) return error;
-  const failure = new CommandError({ command: command.id, by: "code", failures: [errorMessage(error)], cause: error });
+  const failure = new CommandError({ command: item.id, by: "code", failures: [errorMessage(error)], cause: error });
   log.error(failure);
   return failure;
 }
 
-function attempt<T>(command: Command<Json, unknown>, fn: () => T): T {
+function attempt<T>(item: Registered, fn: () => T): T {
   try {
     return fn();
   } catch (error) {
-    throw failed(command, error);
+    throw failed(item, error);
   }
 }

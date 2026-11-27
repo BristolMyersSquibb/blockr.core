@@ -10,7 +10,10 @@ test_that("merge block constructor", {
     list(by = "Time", all_x = TRUE, all_y = FALSE)
   )
 
-  expect_identical(registry_id_from_block(blk), "blockr.core-merge_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "merge_block")
+  )
 })
 
 test_that("a merge block is invalid until it joins by a column", {

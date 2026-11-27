@@ -8,7 +8,7 @@
       "revision": 7,
       "locked": null,
       "recipe": {
-        "registry_id": "blockr.core-rbind_block",
+        "registry_id": { "package": "blockr.core", "id": "rbind_block" },
         "state": {},
         "inputs": [
           { "input": "", "block": "b", "revision": 3 },

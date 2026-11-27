@@ -12,7 +12,8 @@
 // now serves the file of the new version there.
 
 import { log } from "../log/index.ts";
-import { errorMessage, own, packageFromId } from "../util/index.ts";
+import type { ModuleId } from "../types/board.ts";
+import { errorMessage, nestedValue } from "../util/index.ts";
 
 // The major of core's JS API. A module that core mounts declares the major it
 // was built against, as `export const api = 1`, and core refuses one that
@@ -31,13 +32,13 @@ export interface Loader {
   // package it comes from, or null for none.
   load(source: Source, pkg: string | null): Promise<unknown>;
   // A module another package offers, by id, as R's latest reply names it.
-  module(id: string): Promise<unknown>;
+  module(id: ModuleId): Promise<unknown>;
 }
 
 export interface LoaderOptions {
-  // The modules that packages offer each other, by id, as R's reply names
-  // them.
-  readonly modules?: () => Readonly<Record<string, Source>>;
+  // The modules that packages offer each other, by package and then by id, as
+  // R's reply names them.
+  readonly modules?: () => Readonly<Record<string, Readonly<Record<string, Source>>>>;
   // The version of the package that the page loaded and the one that R runs
   // now, where R runs another, or undefined where R runs the one loaded.
   readonly changed?: (pkg: string) => { readonly loaded: string; readonly now: string } | undefined;
@@ -67,7 +68,7 @@ export class ModuleError extends Error {
 export function createLoader(options: LoaderOptions = {}): Loader {
   const importer = options.importer ?? importModule;
   const stylesheet = options.stylesheet ?? linkStylesheet;
-  const modules = options.modules ?? ((): Readonly<Record<string, Source>> => ({}));
+  const modules = options.modules ?? ((): Readonly<Record<string, Readonly<Record<string, Source>>>> => ({}));
   const changed = options.changed ?? ((): undefined => undefined);
 
   // What each URL resolved with, or why it failed, which a later load gets
@@ -115,11 +116,11 @@ export function createLoader(options: LoaderOptions = {}): Loader {
   return {
     load,
     module(id) {
-      const source = own(modules(), id);
+      const source = nestedValue(modules(), id);
       if (source === undefined) {
-        return Promise.reject(new Error(`No package offers a module "${id}".`));
+        return Promise.reject(new Error(`${id.package} offers no module "${id.id}".`));
       }
-      return load(source, packageFromId(id));
+      return load(source, id.package);
     },
   };
 }

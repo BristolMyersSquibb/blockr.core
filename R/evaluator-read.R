@@ -38,18 +38,20 @@ read_evaluate <- function(req) {
   fields <- read_block_revision(req, "An evaluate")
   recipe <- req[["recipe"]]
 
-  if (!is.list(recipe) || !is_nonempty_string(recipe[["registry_id"]])) {
+  if (!is.list(recipe) || !is_pkg_ref(recipe[["registry_id"]])) {
     protocol_abort(
       "An evaluate carries a recipe that names the registry id of the block's ",
-      "class."
+      "class, as the class's package, or null, and its id."
     )
   }
+
+  ref <- recipe[["registry_id"]]
 
   list(
     fields = fields,
     locked = read_evaluate_lock(req[["locked"]]),
     recipe = list(
-      registry_id = recipe[["registry_id"]],
+      registry_id = pkg_ref(ref[["package"]], ref[["id"]]),
       state = read_map(recipe, "state"),
       inputs = read_reads(recipe[["inputs"]], input = TRUE)
     ),
@@ -97,14 +99,14 @@ read_request <- function(req) {
     type,
     block_class = c(
       list(
-        registry_id = read_id(req, "registry_id"),
+        registry_id = read_ref(req, "registry_id"),
         reads = read_reads(req[["reads"]], input = TRUE),
         options = read_map(req, "options")
       ),
       read_call(req)
     ),
     output_class = read_output_request(req, NULL),
-    renderer = read_output_request(req, read_id(req, "renderer")),
+    renderer = read_output_request(req, read_ref(req, "renderer")),
     option = c(list(option = read_id(req, "option")), read_call(req)),
     plugin = c(
       list(
@@ -133,23 +135,41 @@ read_call <- function(req) {
   list(name = req[["name"]], args = read_map(req, "args"), body = req[["body"]])
 }
 
-# The ID of the class of the plugin whose request it is, as
-# `blockr.md-md_plugin`: a package's name, a dash, and the name of a class of
-# the package's own, which ends in `_plugin`.
+# The class of the plugin whose request it is, as a reference: a package's
+# name and the id of a class of the package's own, which ends in `_plugin`,
+# as the package blockr.md and the id md_plugin.
 read_plugin_class <- function(req) {
 
-  id <- req[["plugin"]]
+  x <- req[["plugin"]]
 
-  if (!is_string(id) ||
-        !grepl("^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]-.+_plugin$", id) ||
-        id_class(id) %in% core_plugin_classes()) {
+  if (!is_pkg_ref(x) || !is_package_name(x[["package"]]) ||
+        !grepl(".+_plugin$", x[["id"]]) ||
+        x[["id"]] %in% core_plugin_classes()) {
     protocol_abort(
-      "A request of type plugin names the ID of the plugin's class in ",
-      "`plugin`, as `blockr.md-md_plugin`."
+      "A request of type plugin names the plugin's class in `plugin`, as its ",
+      "package and its id, such as the package blockr.md and the id ",
+      "md_plugin."
     )
   }
 
-  id
+  pkg_ref(x[["package"]], x[["id"]])
+}
+
+# What a request names in `field` by a package and an id, as a reference,
+# where the package may be `null`, as for a block class that an app script
+# defines.
+read_ref <- function(req, field) {
+
+  x <- req[[field]]
+
+  if (!is_pkg_ref(x)) {
+    protocol_abort(
+      "A request of type {req$type} names a package, or null, and an id in ",
+      "`{field}`."
+    )
+  }
+
+  pkg_ref(x[["package"]], x[["id"]])
 }
 
 read_id <- function(req, field) {

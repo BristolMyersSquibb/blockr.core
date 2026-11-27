@@ -78,8 +78,9 @@ export interface BlockHost<S extends State = State> {
   // A one-time evaluation of the block with parameters, which its
   // block_eval() method reads, such as a save button's `{ save: true }`.
   evaluate(params: Record<string, Json>): Promise<BlockStatus>;
-  // A module another package offers, by id, such as "blockr.dplyr-filter".
-  module<T = unknown>(id: string): Promise<T>;
+  // A module another package offers, by its package and its id, such as
+  // { package: "blockr.dplyr", id: "filter" }, which a module writes as it is.
+  module<T = unknown>(id: { readonly package: string; readonly id: string }): Promise<T>;
   // Raises a notification of the module's, which concerns the block unless it
   // names another board object, and holds until the function that it returns
   // runs or the mount ends, as CoreApi's notify() raises a plugin's

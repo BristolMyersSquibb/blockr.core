@@ -11,7 +11,6 @@ export declare function frozenCopy<T extends Json>(x: T): T;
 export declare function listing(items: readonly string[]): string;
 export declare function quoted(items: readonly string[]): string;
 export declare function pathText(path: readonly string[]): string;
-export declare function packageFromId(id: string): string | null;
 export declare function isPackageName(name: unknown): name is string;
 export declare function asNumber(text: string): number;
 export declare function asLogical(text: string): boolean | undefined;

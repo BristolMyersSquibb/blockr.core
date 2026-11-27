@@ -69,7 +69,7 @@
 import type { Store } from "../store/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Condition, OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
-import type { BlockId, OptionId } from "../types/board.ts";
+import type { BlockId, OptionId, RendererId } from "../types/board.ts";
 import type { CoreFailure, SourceModule } from "../types/core-api.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
@@ -84,7 +84,8 @@ import {
   isObject,
   jsonEqual,
   own,
-  packageFromId,
+  idText,
+  interned,
   sourceModule,
 } from "../util/index.ts";
 import { createLog, log } from "../log/index.ts";
@@ -275,9 +276,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   if (found === undefined) {
     throw new Error(`The board holds no block "${block}" whose output to mount.`);
   }
-  const entry = own(store.blockRegistry(), found.registry_id);
+  const entry = store.blockRegistry().get(found.registry_id);
   if (entry === undefined) {
-    throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
+    throw new Error(`The block registry has no class "${idText(found.registry_id)}" for block "${block}".`);
   }
 
   const shelf = deps.shelves.of(block);
@@ -289,18 +290,17 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // mount keeps on the board while it lasts and asks with, the first time
   // included.
   const outputOptions = entry.output_options ?? [];
-  // The registry id of the block's class, which names it in what the mount
-  // says.
-  const registryId = entry.id;
+  // How what the mount says names the block's class.
+  const className = idText(entry);
   // The renderers that may draw the block's output, by id: those that the
   // block class's entry names, one for each family whose outputs the class's
   // family makes, and any other that an output names. The mount loads each,
   // and asks once all are loaded, so that it asks for no output that no
   // renderer can draw. Where none is named, the mount learns the renderer from
   // the first output.
-  const expected = new Map<string, OutputRenderer>();
-  const ready = new Map<string, Prepared>();
-  const preparing = new Map<string, Promise<Prepared>>();
+  const expected = new Map<RendererId, OutputRenderer>();
+  const ready = new Map<RendererId, Prepared>();
+  const preparing = new Map<RendererId, Promise<Prepared>>();
 
   let info = measure.info(el);
   let held: Made | undefined;
@@ -328,31 +328,33 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
   // The renderer as the module of the block's output, with its package.
   const rendererModule = (renderer: OutputRenderer): SourceModule =>
-    sourceModule({ block }, packageFromId(renderer.id), renderer.id);
+    sourceModule({ block }, renderer.package, rendererIdOf(renderer));
 
   // Loads a renderer.
   function prepare(given: OutputRenderer): Promise<Prepared> {
-    let loading = preparing.get(given.id);
+    const id = rendererIdOf(given);
+    let loading = preparing.get(id);
     if (loading === undefined) {
       loading = (async () => {
-        const pkg = packageFromId(given.id);
+        const pkg = given.package;
         const source = given.css === undefined ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule<OutputArgs>(await loader.load(source, pkg), given.module, pkg);
         return { renderer: given, mod };
       })();
-      preparing.set(given.id, loading);
+      preparing.set(id, loading);
     }
     return loading;
   }
 
   // Loads a renderer that may draw the block's output, then asks.
   function expect(given: OutputRenderer): void {
-    if (expected.has(given.id)) return;
-    expected.set(given.id, given);
+    const id = rendererIdOf(given);
+    if (expected.has(id)) return;
+    expected.set(id, given);
     prepare(given).then(
       (prepared) => {
         if (ended()) return;
-        ready.set(given.id, prepared);
+        ready.set(id, prepared);
         sync();
       },
       (failure: unknown) => {
@@ -585,7 +587,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     error = null;
     const named = next.output.renderer;
     expect(named);
-    if (drawing !== undefined && drawing.prepared.renderer.id !== named.id) unmountRenderer();
+    if (drawing !== undefined && rendererIdOf(drawing.prepared.renderer) !== rendererIdOf(named)) unmountRenderer();
     draw();
     announce();
     wake();
@@ -598,7 +600,15 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     const named = held.output.renderer;
     prepare(named).then(
       (prepared) => {
-        if (ended() || drawing !== undefined || held?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
+        if (
+          ended() ||
+          drawing !== undefined ||
+          held === undefined ||
+          rendererIdOf(held.output.renderer) !== rendererIdOf(prepared.renderer) ||
+          !onScreen()
+        ) {
+          return;
+        }
         mountRenderer(prepared);
       },
       (failure: unknown) => {
@@ -620,7 +630,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         else current.cleanup = rendered;
       } catch (failure) {
         if (signal.signal.aborted) return;
-        const pkg = packageFromId(prepared.renderer.id);
+        const pkg = prepared.renderer.package;
         const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${errorMessage(failure)}`, {
           cause: failure,
         });
@@ -741,7 +751,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       const fields = { output, name, args: { ...args }, options: target.asked.options, params: target.asked.params };
       const asked: OutputAsk =
         opts.scope === "renderer"
-          ? { kind: "request", type: "renderer", renderer: prepared.renderer.id, ...fields }
+          ? { kind: "request", type: "renderer", renderer: rendererIdOf(prepared.renderer), ...fields }
           : { kind: "request", type: "output_class", ...fields };
       const { reply, body } = await inCaller(() =>
         deps.answers.ask(
@@ -807,7 +817,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
             optionsFor(held?.asked),
             outputOptions,
             (unnamed) =>
-              `The output family of block class "${registryId}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`,
+              `The output family of block class "${className}" names no board option "${unnamed}" in R, so the renderer "${idText(prepared.renderer)}" cannot read it.`,
           );
           memo = { for: held, read };
           named = memo;
@@ -908,7 +918,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // Keeps the board options of the class's outputs on the board while the
   // mount lasts. Where one does not go onto the board, which core has
   // reported, the mount asks R for nothing, and the host's error() gives why.
-  const by = `the outputs of block class "${entry.id}"`;
+  const by = `the outputs of block class "${className}"`;
   const keepingOutputOptions = deps.keepOptions(outputOptions, by, lackOutputOptions);
   void keepingOutputOptions.added.then((failures) => {
     if (failures.length > 0) lackOutputOptions();
@@ -962,4 +972,10 @@ function sorted(x: Json): Json {
     );
   }
   return x;
+}
+
+// The renderer's id, its package and its name, as core's table holds it, so
+// that === tells whether two outputs name the same renderer.
+function rendererIdOf(renderer: OutputRenderer): RendererId {
+  return interned(renderer.package, renderer.id);
 }

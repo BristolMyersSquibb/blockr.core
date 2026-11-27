@@ -16,18 +16,27 @@ import type { PlayedR } from "../testing/r.ts";
 import { logged } from "../testing/logged.ts";
 import { handedOn } from "../testing/notifications.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
+import type { BlockId } from "../types/board.ts";
 import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { idText, interned } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Measure, Mounts, OnScreenOf, OutputEvent } from "./index.ts";
 
-const TABLE: OutputRenderer = { id: "blockr.core-table_output", module: "blockr.core/basic-table.js?v=b7e2a915" };
-const PREVIEW: OutputRenderer = { id: "blockr.ui-table_preview", module: "blockr.ui/table-preview.js?v=1", css: "blockr.ui/table-preview.css?v=2" };
-const TEXT: OutputRenderer = { id: "blockr.core-text_output", module: "blockr.core/basic-text.js?v=3c8f61d0" };
+const TABLE: OutputRenderer = { package: "blockr.core", id: "table_output", module: "blockr.core/basic-table.js?v=b7e2a915" };
+const PREVIEW: OutputRenderer = {
+  package: "blockr.ui",
+  id: "table_preview",
+  module: "blockr.ui/table-preview.js?v=1",
+  css: "blockr.ui/table-preview.css?v=2",
+};
+const TEXT: OutputRenderer = { package: "blockr.core", id: "text_output", module: "blockr.core/basic-text.js?v=3c8f61d0" };
+// The id of core's plain table renderer, as core's table holds it.
+const TABLE_ID = interned("blockr.core", "table_output");
 
 const INFO: OutputInfo = {
   width: 640,
@@ -49,10 +58,16 @@ const bare: HelloReply = { ...hello, board: { ...hello.board, board: { ...hello.
 function outputsRead(ids: readonly string[]): HelloReply {
   return {
     ...bare,
-    block_registry: Object.fromEntries(
-      Object.entries(bare.block_registry).map(([id, entry]) => [id, { ...entry, output_options: [...ids] }]),
-    ),
+    block_registry: bare.block_registry.map((entry) => ({ ...entry, output_options: [...ids] })),
   };
+}
+
+// How what core says names the class of the block given on the store's board,
+// as "head_block of blockr.core".
+function className(store: Store, block: BlockId): string {
+  const id = store.board().blocks[block]?.registry_id;
+  if (id === undefined) throw new Error(`The board holds no block "${block}".`);
+  return idText(id);
 }
 
 // A board option that a renderer of table outputs may name besides n_rows.
@@ -675,12 +690,7 @@ describe("board options", () => {
     const text = renderer();
     const themed: HelloReply = {
       ...bare,
-      block_registry: Object.fromEntries(
-        Object.entries(bare.block_registry).map(([id, entry]) => [
-          id,
-          { ...entry, output_options: ["zoom"], renderers: [TEXT] },
-        ]),
-      ),
+      block_registry: bare.block_registry.map((entry) => ({ ...entry, output_options: ["zoom"], renderers: [TEXT] })),
     };
     const s = await setup({ [TEXT.module]: text.exports }, { reply: themed });
     await ready(s);
@@ -700,18 +710,13 @@ describe("board options", () => {
     const text = renderer();
     const lacking: HelloReply = {
       ...bare,
-      block_registry: Object.fromEntries(
-        Object.entries(bare.block_registry).map(([id, entry]) => [
-          id,
-          { ...entry, output_options: ["nowhere"], renderers: [TEXT] },
-        ]),
-      ),
+      block_registry: bare.block_registry.map((entry) => ({ ...entry, output_options: ["nowhere"], renderers: [TEXT] })),
     };
     const s = await setup({ [TEXT.module]: text.exports }, { reply: lacking });
     await ready(s);
     reported.restore();
 
-    const cls = String(s.store.board().blocks.b?.registry_id);
+    const cls = className(s.store, "b");
     const why = `The board option "nowhere", which the outputs of block class "${cls}" requires, is defined by no package loaded.`;
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(outputs(s.r)).toHaveLength(0);
@@ -728,7 +733,7 @@ describe("board options", () => {
     const el = await ready(s);
     reported.restore();
 
-    const cls = String(s.store.board().blocks.b?.registry_id);
+    const cls = className(s.store, "b");
     const why = `The default of the board option "broken", which the outputs of block class "${cls}" requires, failed: No value today.`;
     expect(el.textContent).toBe("");
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
@@ -757,7 +762,7 @@ describe("board options", () => {
     s.store.apply({ options: { unset: ["once"] } });
     await tick();
     reported.restore();
-    const cls = String(s.store.board().blocks.b?.registry_id);
+    const cls = className(s.store, "b");
     const why = `The default of the board option "once", which the outputs of block class "${cls}" requires, failed: No value any more.`;
     const lacking = `Without the board option "once", the outputs of block class "${cls}" cannot draw.`;
     expect(table.host().error()).toEqual({ kind: "core", code: "board_option_failed", message: lacking });
@@ -787,9 +792,9 @@ describe("board options", () => {
     replyTable(s.r, lastOutput(s.r));
     await tick();
 
-    const cls = String(s.store.board().blocks.b?.registry_id);
+    const cls = className(s.store, "b");
     const unnamed = (id: string): string =>
-      `The output family of block class "${cls}" names no board option "${id}" in R, so the renderer "${TABLE.id}" cannot read it.`;
+      `The output family of block class "${cls}" names no board option "${id}" in R, so the renderer "${idText(TABLE)}" cannot read it.`;
     expect(table.host().option("n_rows")).toBe(50);
     expect(() => table.host().option("zoom")).toThrow(unnamed("zoom"));
     expect(() => table.host().option("n_row")).toThrow(unnamed("n_row"));
@@ -833,9 +838,7 @@ describe("the renderer", () => {
     const preview = renderer();
     const both: HelloReply = {
       ...bare,
-      block_registry: Object.fromEntries(
-        Object.entries(bare.block_registry).map(([id, entry]) => [id, { ...entry, renderers: [TABLE, PREVIEW] }]),
-      ),
+      block_registry: bare.block_registry.map((entry) => ({ ...entry, renderers: [TABLE, PREVIEW] })),
     };
     const s = await setup({ [TABLE.module]: table.exports, [PREVIEW.module]: preview.exports }, { reply: both });
     await ready(s);
@@ -854,11 +857,8 @@ describe("the renderer", () => {
     const plain: HelloReply = {
       ...bare,
       board: { ...bare.board, board: { ...bare.board.board, options: { dark_mode: { value: "dark", version: 1, package: "blockr.core" } } } },
-      block_registry: Object.fromEntries(
-        Object.entries(bare.block_registry).map(([id, entry]) => [
-          id,
-          Object.fromEntries(Object.entries(entry).filter(([key]) => key !== "renderers")) as unknown as RegistryEntry,
-        ]),
+      block_registry: bare.block_registry.map(
+        (entry) => Object.fromEntries(Object.entries(entry).filter(([key]) => key !== "renderers")) as unknown as RegistryEntry,
       ),
     };
     const s = await setup({ [TEXT.module]: text.exports }, { reply: plain });
@@ -896,7 +896,7 @@ describe("the renderer", () => {
           severity: "error",
           message:
             "The module blockr.core/basic-table.js of blockr.core was built against major 2 of core's JS API, where core's is 1.",
-          source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" } },
+          source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE_ID, package: "blockr.core" } },
           about: { block: "b" },
         }),
       ]),
@@ -926,7 +926,7 @@ describe("the renderer", () => {
       {
         severity: "error",
         message: "The module blockr.core/basic-table.js of blockr.core failed in render(): boom",
-        source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" } },
+        source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE_ID, package: "blockr.core" } },
         about: { block: "b" },
       },
     ]);
@@ -984,7 +984,7 @@ describe("a request", () => {
     const revision = s.scheduler.status("b")?.revision ?? 0;
     expect(requests(s.r)).toMatchObject([
       { kind: "request", type: "output_class", output: { block: "b", revision }, name: "download", args: { format: "csv" }, options: { n_rows: 50 }, params: { page: 2 } },
-      { kind: "request", type: "renderer", renderer: TABLE.id, output: { block: "b", revision }, name: "labels", args: {}, options: { n_rows: 50 }, params: { page: 2 } },
+      { kind: "request", type: "renderer", renderer: TABLE_ID, output: { block: "b", revision }, name: "labels", args: {}, options: { n_rows: 50 }, params: { page: 2 } },
     ]);
     const [first, second] = requests(s.r);
     s.r.reply({ id: first?.id ?? "", status: "ok", value: ["a,b"], conditions: [] });
@@ -1064,8 +1064,8 @@ describe("a request", () => {
     s.r.reply({ id: requests(s.r)[1]?.id ?? "", status: "ok", value: [], conditions: [warning] });
     await sorted;
     expect(s.replies).toEqual([
-      [{ object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" }, { type: "output_class", name: "download" }, [failure]],
-      [{ object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" }, { type: "renderer", name: "sort" }, [warning]],
+      [{ object: { block: "b" }, renderer: TABLE_ID, package: "blockr.core" }, { type: "output_class", name: "download" }, [failure]],
+      [{ object: { block: "b" }, renderer: TABLE_ID, package: "blockr.core" }, { type: "renderer", name: "sort" }, [warning]],
     ]);
   });
 });
@@ -1227,7 +1227,7 @@ describe("a mount", () => {
     const given: Raised = { severity: "warning", code: "truncated", message: "Only the first 150 rows show." };
     const withdraw = table.host().notify(given);
     table.host().notify({ ...given, code: "sorted", message: "Sorted." });
-    const module = { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" };
+    const module = { object: { block: "b" }, renderer: TABLE_ID, package: "blockr.core" };
     expect(s.notified).toEqual([
       { module, notification: given },
       { module, notification: { ...given, code: "sorted", message: "Sorted." } },

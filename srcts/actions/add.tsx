@@ -2,14 +2,14 @@
 // actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions),
 // in its order, each of the category "add":
-// - Add block, `blockr.core-add_block_action`, on the board, adds a block on
+// - Add block, `add_block_action`, on the board, adds a block on
 //   its own, with add_block.
-// - Append block, `blockr.core-append_block_action`, on a block, adds a block
+// - Append block, `append_block_action`, on a block, adds a block
 //   that takes the block's result, with add_block and add_link.
-// - Prepend block, `blockr.core-prepend_block_action`, on a block with an
+// - Prepend block, `prepend_block_action`, on a block with an
 //   input that no link feeds, or on such an input, adds a block that feeds
 //   that input, with add_block and add_link.
-// - Insert block, `blockr.core-insert_block_action`, on a link, adds a block
+// - Insert block, `insert_block_action`, on a link, adds a block
 //   between the two blocks that the link joins, with add_block, add_link and
 //   change_link. The link then comes from the new block, and keeps its id,
 //   its input and its place among the links.
@@ -63,7 +63,7 @@
 // A row that the user picks once the board no longer holds the board action's
 // target runs nothing.
 
-import { freeInputs } from "../commands/index.ts";
+import { CORE, freeInputs } from "../commands/index.ts";
 import { blockClasses, BlockPicker } from "../picker/index.ts";
 import type { AddMode } from "../picker/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
@@ -79,17 +79,17 @@ import { heldBlock, inputOf } from "./targets.ts";
 
 // The block registry's entries by registry id, as the store holds them for the
 // open board.
-type Registry = () => Readonly<Record<RegistryId, RegistryEntry>>;
+type Registry = () => ReadonlyMap<RegistryId, RegistryEntry>;
 
 // Core's board actions that add a block, in the order of their table, which
 // read the block registry through `registry`.
-export function addingBoardActions(registry: Registry): BoardAction[] {
+export function addingBoardActions(registry: Registry): Omit<BoardAction, "package">[] {
   // Whether the block registry holds a class that a board action can add,
   // one with an input where `taking` is true.
-  const adds = (taking: boolean): boolean => Object.values(registry()).some((entry) => !taking || hasInput(entry));
+  const adds = (taking: boolean): boolean => [...registry().values()].some((entry) => !taking || hasInput(entry));
   return [
     {
-      id: "blockr.core-add_block_action",
+      id: "add_block_action",
       label: "Add block",
       icon: PLUS,
       on: ["board"],
@@ -100,7 +100,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
       role: "add_block_role",
     },
     {
-      id: "blockr.core-append_block_action",
+      id: "append_block_action",
       label: "Append block",
       icon: PLUS,
       on: ["block"],
@@ -115,7 +115,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
       role: "append_block_role",
     },
     {
-      id: "blockr.core-prepend_block_action",
+      id: "prepend_block_action",
       label: "Prepend block",
       icon: PLUS,
       on: ["block", "input"],
@@ -139,7 +139,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
       role: "prepend_block_role",
     },
     {
-      id: "blockr.core-insert_block_action",
+      id: "insert_block_action",
       label: "Insert block",
       icon: PLUS,
       on: ["link"],
@@ -154,7 +154,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
             : [
                 addBlockCall(entry, block),
                 addLinkCall(link.from, block, newBlockInput(entry)),
-                { id: "blockr.core-change_link", args: { id, from: block } },
+                { package: CORE, id: "change_link", args: { id, from: block } },
               ];
         }),
       advanced: pickerModule((target) => ("link" in target ? { kind: "on", link: target.link } : undefined)),
@@ -179,7 +179,7 @@ function classLevel(
   batch: (entry: RegistryEntry, block: BlockId, board: Board) => readonly CommandCall[],
 ): QuickLevel {
   const registry = core.blockRegistry();
-  const entries = Object.values(registry).filter((entry) => !taking || hasInput(entry));
+  const entries = [...registry.values()].filter((entry) => !taking || hasInput(entry));
   return {
     filter: true,
     rows: blockClasses(entries).map((item) => ({
@@ -189,7 +189,7 @@ function classLevel(
       ...(item.icon === "" ? {} : { icon: item.icon }),
       ...(item.pkg === null ? {} : { detail: item.pkg }),
       pick() {
-        const entry = own(registry, item.id);
+        const entry = registry.get(item.registryId);
         const board = core.store.board();
         if (entry === undefined) return [];
         return batch(entry, core.mintId((id) => Object.hasOwn(board.blocks, id)), board);
@@ -201,14 +201,14 @@ function classLevel(
 // The command that adds a block of the class under the id given, which takes
 // the class's name.
 function addBlockCall(entry: RegistryEntry, block: BlockId): CommandCall {
-  return { id: "blockr.core-add_block", args: { registry_id: entry.id, id: block } };
+  return { package: CORE, id: "add_block", args: { registry_id: { package: entry.package, id: entry.id }, id: block } };
 }
 
 // The command that links two blocks, into the input given, which is empty for
 // a variadic block. Without one, the command finds the input, and refuses
 // where none is free.
 function addLinkCall(from: BlockId, to: BlockId, input: string | undefined): CommandCall {
-  return { id: "blockr.core-add_link", args: { from, to, ...(input === undefined ? {} : { input }) } };
+  return { package: CORE, id: "add_link", args: { from, to, ...(input === undefined ? {} : { input }) } };
 }
 
 // The first input of a new block of the class, which takes the link that the
@@ -226,7 +226,7 @@ function newBlockInput(entry: RegistryEntry): string | undefined {
 // - Links feed every input of the block.
 // - On an input, a link feeds the input, or the block has no input of that
 //   name. A variadic block has none but "", its next place.
-function freeInputOf(board: Board, registry: Readonly<Record<RegistryId, RegistryEntry>>, target: Target): string | undefined {
+function freeInputOf(board: Board, registry: ReadonlyMap<RegistryId, RegistryEntry>, target: Target): string | undefined {
   const block = heldBlock(board, target);
   const free = block === undefined ? undefined : freeInputs(board, registry, block);
   const input = inputOf(target);

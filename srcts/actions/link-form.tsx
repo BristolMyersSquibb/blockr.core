@@ -54,7 +54,7 @@
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
-import { freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
+import { CORE, freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../picker/index.ts";
 import { ComboBox, Form, Select, SelectItem, TextField, useBoard } from "../react/index.ts";
@@ -81,8 +81,8 @@ import { isObject, own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
 
-const ADD_LINK = "blockr.core-add_link";
-const CHANGE_LINK = "blockr.core-change_link";
+const ADD_LINK = { package: CORE, id: "add_link" } as const;
+const CHANGE_LINK = { package: CORE, id: "change_link" } as const;
 
 // What the form that adds a link starts from: its source, its target and the
 // input, each where given.
@@ -255,10 +255,10 @@ function LinkForm({
     const before = moved ? (among.others[position - 1] ?? null) : undefined;
     if (editing === undefined) {
       const id = core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
-      const added: CommandCall = { id: ADD_LINK, args: { id, ...link } };
-      return before === undefined ? [added] : [added, { id: CHANGE_LINK, args: { id, before } }];
+      const added: CommandCall = { ...ADD_LINK, args: { id, ...link } };
+      return before === undefined ? [added] : [added, { ...CHANGE_LINK, args: { id, before } }];
     }
-    return [{ id: CHANGE_LINK, args: { id: editing.id, ...link, ...(before === undefined ? {} : { before }) } }];
+    return [{ ...CHANGE_LINK, args: { id: editing.id, ...link, ...(before === undefined ? {} : { before }) } }];
   }
 
   async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {

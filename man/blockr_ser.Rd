@@ -68,14 +68,14 @@ board itself.
 A JSON board holds the board under \code{board}, with two things beside it:
 \code{format}, the version of the format, and \code{packages}, the version of each
 package that the board's content comes from, by package.
-Those are the packages that the IDs of the plugins' classes and of the
-blocks' classes name, each the part of the ID before its first \code{-}.
-The ID of a block class that an app script defines names no package.
+Those are the packages of the plugins' classes and of the blocks' classes,
+which each block and each plugin records apart from its class's id.
+A block class that an app script defines records no package.
 They are also the packages that list the board options that the board holds
 a value of, since a board option's ID names no package.
 The board holds its \code{id} and \code{name}, its blocks, links and stacks, each by
-ID, in their order, and the state of its plugins, by the IDs of their
-classes.
+ID, in their order, and the state of its plugins, by the package of each
+plugin's class and then by the id of the class.
 Each block holds the version of its class's state in \code{version} (see
 \code{\link[=new_block_class]{new_block_class()}}), and so does each plugin, beside its state (see
 \code{\link[=plugin_version]{plugin_version()}}), so that the client migrates by the versions of the
@@ -87,8 +87,9 @@ Beside the value, it holds the \code{package} that lists the board option, or
 \code{null} where no available package lists it, since a board option's ID names
 no package.
 
-A plugin is written under the ID of its class as its \code{state}, with the
-\code{version} of its class's state (see \code{\link[=new_plugin]{new_plugin()}}).
+A plugin is written under the package and the id of its class, as
+\code{plugins$blockr.dag$dag_plugin}, as its \code{state}, with the \code{version} of its
+class's state (see \code{\link[=new_plugin]{new_plugin()}}).
 A plugin whose constructor gives it no state is not written at all, so that
 no board names a plugin that keeps nothing, such as core's basic frontend.
 R checks no plugin's state, since the plugin's class is defined in the
@@ -98,11 +99,14 @@ board.
 A stack is written with its name, its blocks and its color, which is \code{null}
 for a stack without one.
 
-A block is written by the registry ID that its class gives (see
-\code{\link[=register_block]{register_block()}}), with its state, its name and its lock, \code{locked}, which
-a block whose lock is \code{NA} holds as \code{null}.
-R reads the ID, the version of the block's state and the schema of the
-state from the block's class.
+A block is written by the registry id that its class gives, the package of
+the class and its id, as \verb{\{"package": "blockr.core", "id": "head_block"\}},
+with a \code{package} of \code{null} for a class that an app script defines (see
+\code{\link[=register_block]{register_block()}}).
+Beside it go the block's state, its name and its lock, \code{locked}, which a
+block whose lock is \code{NA} holds as \code{null}.
+R reads the registry id, the version of the block's state and the schema of
+the state from the block's class.
 It reads nothing from the block registry, so writing a board registers no
 class (see \code{\link[=serve]{serve()}}).
 

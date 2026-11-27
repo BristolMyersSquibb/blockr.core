@@ -8,7 +8,7 @@
       "revision": 12,
       "locked": null,
       "recipe": {
-        "registry_id": "blockr.io-write_block",
+        "registry_id": { "package": "blockr.io", "id": "write_block" },
         "state": {
           "directory": "exports",
           "filename": "iris",

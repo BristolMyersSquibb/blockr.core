@@ -805,7 +805,7 @@ The package commits what it builds into `inst/js/`, since `R CMD check` and CRAN
 
 A module written in plain JS or TypeScript draws with core's controls, the same inputs that the React SDK offers, through `controls()`.
 A package that bundles its modules imports `controls()` from `@blockr/core/controls`.
-A package that builds nothing reaches the controls through its host, as the module `blockr.core-controls`, and writes its modules in JS, type-checked through `// @ts-check`:
+A package that builds nothing reaches the controls through its host, as the module `controls` of blockr.core, which the host names by its package and its id, and writes its modules in JS, type-checked through `// @ts-check`:
 
 ```js
 // @ts-check
@@ -821,7 +821,7 @@ const ends = [
 export default {
   async render({ el, host, signal }) {
     const { controls } = /** @type {typeof import("@blockr/core/controls")} */ (
-      await host.module("blockr.core-controls")
+      await host.module({ package: "blockr.core", id: "controls" })
     );
     const ui = controls(host, signal);
     const n = ui.number("n", { label: "Number of rows", minValue: 0, step: 1 });
@@ -869,10 +869,9 @@ A class defined outside a package, such as in an app script, names a module besi
 
 ## Registration
 
-Each app holds the block classes that it offers in a __block registry__ of its own, under a __registry ID__ `{pkg}-{id}`, such as `blockr.core-head_block`.
-The class gives its registry ID: `{pkg}` is the package whose code calls `new_block_class()`, and `{id}` is the id that the class takes.
+Each app holds the block classes that it offers in a __block registry__ of its own, under a __registry ID__ of two parts, the class's package and its id, such as `list(package = "blockr.core", id = "head_block")`.
+The class gives its registry ID: the package is the one whose code calls `new_block_class()`, and the id is the one that the class takes.
 So renaming a constructor leaves the registry ID as it is, while changing a class's id changes it, and boards saved before then no longer find the class.
-A class's id holds no `-`, since a registry ID splits at its first `-`.
 The registry holds each class with its metadata, so that R evaluates a block, and resolves a request, without building a block.
 R sends the client each class's entry, with its data inputs, its module, the schema of its state, the state a new block starts with and its requests.
 
@@ -914,14 +913,15 @@ A class that names a function of its own package, such as a request, finds that 
 An `@include` tag, from which roxygen writes the `Collate` field, makes R source that file first.
 
 Registration reads the class from its constructor.
-A class defined outside a package, such as in an app script, records no package, and its registry ID is the class's id alone:
+A class defined outside a package, such as in an app script, records no package, so the package of its registry ID is `NULL`:
 
 ```{r}
 register_block(new_head_block, "Head", "Keeps the first or last rows")
 
-registry_id_from_block(new_head_block())
+id <- registry_id_from_block(new_head_block())
+id
 
-unregister_blocks("head_block")
+unregister_blocks(id)
 ```
 
 ## Testing
@@ -1042,7 +1042,7 @@ test("marks n above the rows of its input and submits a pick", async () => {
 ```
 
 The stub's `setState()` and `setContext()` change the state or the context from outside the module, as undo or a new revision of an input does.
-A module that reaches other packages' modules through its host gets them from the stub's option `modules`, such as `{ "blockr.core-controls": controls }`, with `controls` imported from `@blockr/core/controls`.
+A module that reaches other packages' modules through its host gets them from the stub's option `modules`, by package and then by id, such as `{ "blockr.core": { controls } }`, with `controls` imported from `@blockr/core/controls`.
 
 ## Porting a block from `new_block()`
 

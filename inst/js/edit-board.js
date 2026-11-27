@@ -101,6 +101,11 @@ function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
 
+// srcts/util/ids.ts
+function idText(x) {
+  return x.package === null ? x.id : `${x.id} of ${x.package}`;
+}
+
 // srcts/ui/blocks.tsx
 import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 function blockName(board, block) {
@@ -108,7 +113,7 @@ function blockName(board, block) {
 }
 function classInputs(board, registry, block) {
   const held = own(board.blocks, block);
-  return (held === void 0 ? void 0 : own(registry, held.registry_id)?.inputs) ?? [];
+  return (held === void 0 ? void 0 : registry.get(held.registry_id)?.inputs) ?? [];
 }
 function isVariadicBlock(board, registry, block) {
   return classInputs(board, registry, block).includes("...");
@@ -419,23 +424,23 @@ function TakesKeys() {
 }
 function editTitle(board, action, target) {
   const object = named(board, target);
-  const edit = own(CORE_EDITS, action.id);
+  const edit = action.package === "blockr.core" ? own(CORE_EDITS, action.id) : void 0;
   return edit === void 0 ? `${action.label} failed for ${object}.` : `Could not ${edit(object)}.`;
 }
 var CORE_EDITS = {
-  "blockr.core-append_block_action": (object) => `append a block to ${object}`,
-  "blockr.core-prepend_block_action": (object) => `prepend a block to ${object}`,
-  "blockr.core-insert_block_action": (object) => `insert a block into ${object}`,
-  "blockr.core-add_link_action": (object) => `add a link for ${object}`,
-  "blockr.core-add_stack_action": (object) => `put ${object} in a new stack`,
-  "blockr.core-rename_action": (object) => `rename ${object}`,
-  "blockr.core-edit_link_action": (object) => `change ${object}`,
-  "blockr.core-edit_stack_action": (object) => `change ${object}`,
-  "blockr.core-add_to_stack_action": (object) => `add ${object} to a stack`,
-  "blockr.core-remove_block_action": (object) => `remove ${object}`,
-  "blockr.core-remove_link_action": (object) => `remove ${object}`,
-  "blockr.core-remove_stack_action": (object) => `remove ${object}`,
-  "blockr.core-remove_selected_action": (object) => `remove ${object}`
+  append_block_action: (object) => `append a block to ${object}`,
+  prepend_block_action: (object) => `prepend a block to ${object}`,
+  insert_block_action: (object) => `insert a block into ${object}`,
+  add_link_action: (object) => `add a link for ${object}`,
+  add_stack_action: (object) => `put ${object} in a new stack`,
+  rename_action: (object) => `rename ${object}`,
+  edit_link_action: (object) => `change ${object}`,
+  edit_stack_action: (object) => `change ${object}`,
+  add_to_stack_action: (object) => `add ${object} to a stack`,
+  remove_block_action: (object) => `remove ${object}`,
+  remove_link_action: (object) => `remove ${object}`,
+  remove_stack_action: (object) => `remove ${object}`,
+  remove_selected_action: (object) => `remove ${object}`
 };
 function named(board, target) {
   if ("selection" in target) return "the selection";
@@ -447,7 +452,7 @@ function named(board, target) {
   }
   if ("stack" in target) return `the stack "${own(board.stacks, target.stack)?.name ?? target.stack}"`;
   if ("option" in target) return `the board option "${target.option}"`;
-  return `the plugin "${target.plugin}"`;
+  return `the plugin "${idText(target.plugin)}"`;
 }
 function without2(map, key) {
   const next = new Map(map);
@@ -502,7 +507,7 @@ function blockRows(board, registry) {
   return Object.entries(board.blocks).map(([id, block]) => ({
     id,
     name: block.name,
-    cls: own(registry, block.registry_id)?.name ?? block.registry_id
+    cls: registry.get(block.registry_id)?.name ?? idText(block.registry_id)
   }));
 }
 

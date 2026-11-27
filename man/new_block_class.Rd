@@ -44,7 +44,7 @@ as_blocks(x, ...)
 }
 \arguments{
 \item{id}{Class id, from which the class's registry id comes, which leads
-the class vector of every block of the class and holds no \code{-}}
+the class vector of every block of the class}
 
 \item{inputs}{Data inputs, as a character vector of names, a list of formals
 or a function of them}
@@ -108,13 +108,9 @@ serves S3 dispatch alone.
 A class records the package whose code calls \code{new_block_class()},
 as \code{js_module()} records the package of a module.
 A class that an app script defines records no package.
-The class's registry id is \code{{pkg}-{id}}, from that package and the class's
-id, as \code{blockr.core-head_block}, or the id alone where the class records no
-package (see \code{\link[=register_block]{register_block()}}).
-A class's id may therefore hold no \code{-}, since a registry id splits at its
-first \code{-}.
-Otherwise a script's class with the id \code{my-block} would read as one from a
-package \code{my}.
+The class's registry id holds that package and the class's id, each as a
+part of its own, as \code{list(package = "blockr.core", id = "head_block")}, with
+the package \code{NULL} where the class records none (see \code{\link[=register_block]{register_block()}}).
 
 Every class has an \code{expr}, a function whose formals are the state args and
 whose body checks them, as a constructor checks its args, and returns what

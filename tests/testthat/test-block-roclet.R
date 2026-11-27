@@ -202,10 +202,10 @@ new_demo_block <- function() NULL
 
 test_that("a package that lists no block classes registers none", {
 
-  registry <- new.env()
+  registry <- new_block_registry()
 
   expect_invisible(register_listed_blocks("utils", registry))
-  expect_length(ls(registry), 0L)
+  expect_length(registry_entries(registry), 0L)
 })
 
 test_that("the shipped core registry is complete", {

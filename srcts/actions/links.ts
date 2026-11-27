@@ -21,10 +21,10 @@
 //   blockr.dock#549 had them. Move to input… shows where that block takes
 //   each input by its name, and Rename input… where it is variadic. An input
 //   that another link feeds says so at its end, since moving the link there
-//   swaps the inputs of the two links, as blockr.core-change_link does. Its
+//   swaps the inputs of the two links, as change_link of blockr.core does. Its
 //   advanced action is the form of a link, editing it.
 // Each quick action lists only the links for which the preflight of
-// blockr.core-add_link or blockr.core-change_link passes, so that a menu offers
+// add_link of blockr.core or change_link of blockr.core passes, so that a menu offers
 // no link that would close a cycle, join a block to itself or feed an input
 // that a link feeds already. Create link fails its offers() where no row would
 // be left, as on an input that a link feeds or that the block's class lacks,
@@ -35,7 +35,7 @@
 // what they run.
 // Create link plays add_link_role, and Edit link edit_link_role (./roles.ts).
 
-import { freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
+import { CORE, freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import type { Graph } from "../graph/index.ts";
 import { inputNameError, namesInto } from "../picker/index.ts";
@@ -51,14 +51,14 @@ import { levelItem } from "./quick.ts";
 import type { QuickLevel, QuickRow } from "./quick.ts";
 import { heldBlock, inputOf } from "./targets.ts";
 
-const CREATE_LINK = "blockr.core-add_link_action";
-const EDIT_LINK = "blockr.core-edit_link_action";
-const ADD_LINK = "blockr.core-add_link";
-const CHANGE_LINK = "blockr.core-change_link";
+const CREATE_LINK = "add_link_action";
+const EDIT_LINK = "edit_link_action";
+const ADD_LINK = { package: CORE, id: "add_link" } as const;
+const CHANGE_LINK = { package: CORE, id: "change_link" } as const;
 
 // Create link, whose rows ask the command registry's preflights through
 // `parts`, since offers() gets no CoreApi.
-export function createLinkAction(parts: CoreParts): BoardAction {
+export function createLinkAction(parts: CoreParts): Omit<BoardAction, "package"> {
   return {
     id: CREATE_LINK,
     label: "Create link",
@@ -103,7 +103,7 @@ export function createLinkAction(parts: CoreParts): BoardAction {
 
 // Edit link, whose rows ask the command registry's preflights through
 // `parts`.
-export function editLinkAction(parts: CoreParts): BoardAction {
+export function editLinkAction(parts: CoreParts): Omit<BoardAction, "package"> {
   return {
     id: EDIT_LINK,
     label: "Edit link",
@@ -143,7 +143,7 @@ function newLink(core: CoreApi, parts: CoreParts, from: BlockId, to: BlockId, in
   const board = core.store.board();
   const adding = (into?: string): CommandCall[] => [
     {
-      id: ADD_LINK,
+      ...ADD_LINK,
       args: { id: core.mintId((id) => Object.hasOwn(core.store.board().links, id)), from, to, ...(into === undefined ? {} : { input: into }) },
     },
   ];
@@ -227,7 +227,7 @@ function sourceRows(board: Board, registry: BlockRegistry, parts: CoreParts, id:
   const downstream = createGraph(board).withDownstream([link.to]);
   return Object.keys(board.blocks)
     .filter((from) => from !== link.from && !downstream.has(from) && parts.preflight(CHANGE_LINK, { id, from }))
-    .map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ id: CHANGE_LINK, args: { id, from } }] }));
+    .map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ ...CHANGE_LINK, args: { id, from } }] }));
 }
 
 // The rows of Move to input…: each other input of the block that the link goes
@@ -244,7 +244,7 @@ function inputRows(board: Board, registry: BlockRegistry, parts: CoreParts, id: 
         kind: "item",
         label: input,
         ...(from === undefined ? {} : { detail: `swaps with ${blockName(board, from)}` }),
-        pick: () => [{ id: CHANGE_LINK, args: { id, input } }],
+        pick: () => [{ ...CHANGE_LINK, args: { id, input } }],
       };
     });
 }
@@ -262,7 +262,7 @@ function renameRow(board: Board, id: LinkId, link: Link): QuickRow {
     check: (value) => inputNameError(value, taken),
     submit(value) {
       const input = value.trim();
-      return input === link.input ? [] : [{ id: CHANGE_LINK, args: { id, input } }];
+      return input === link.input ? [] : [{ ...CHANGE_LINK, args: { id, input } }];
     },
   };
 }
@@ -270,7 +270,8 @@ function renameRow(board: Board, id: LinkId, link: Link): QuickRow {
 // A block as a row of a quick action shows it: by its name, with its class's
 // icon, and with its ID at its end, by which the filter finds it too.
 function quickBlock(board: Board, registry: BlockRegistry, block: BlockId): { kind: "item"; label: string; detail: string; icon?: string } {
-  const icon = own(registry, own(board.blocks, block)?.registry_id ?? "")?.icon;
+  const registryId = own(board.blocks, block)?.registry_id;
+  const icon = registryId === undefined ? undefined : registry.get(registryId)?.icon;
   return { kind: "item", label: blockName(board, block), detail: block, ...(icon === undefined || icon === "" ? {} : { icon }) };
 }
 

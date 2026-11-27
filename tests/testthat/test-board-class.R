@@ -166,20 +166,21 @@ test_that("R draws the IDs of blocks, links and stacks a script leaves out", {
   expect_lt(match("a", topo_sort(board)), match("b", topo_sort(board)))
 })
 
-test_that("a board holds the state of its plugins, by their classes' ids", {
+test_that("a board holds the state of its plugins, by package and class id", {
 
   notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
   grid <- plugin_ctor(function() NULL, c("grid_plugin", "frontend_plugin"))
+  dag <- plugin_ctor(function() NULL, "dag_plugin", "blockr.dag")
 
-  board <- new_board(plugins = list(grid(), notes("To do")))
+  board <- new_board(plugins = list(grid(), dag(), notes("To do")))
+  plugins <- board_plugins(board)
 
+  expect_named(plugins, c("blockr.test", "blockr.dag"))
+  expect_named(plugins[["blockr.test"]], c("grid_plugin", "notes_plugin"))
+  expect_named(plugins[["blockr.dag"]], "dag_plugin")
+  expect_true(all(lgl_ply(flat_by_package(plugins), is_plugin)))
   expect_identical(
-    names(board_plugins(board)),
-    c("blockr.test-grid_plugin", "blockr.test-notes_plugin")
-  )
-  expect_true(all(lgl_ply(board_plugins(board), is_plugin)))
-  expect_identical(
-    plugin_state(board_plugins(board)[["blockr.test-notes_plugin"]]),
+    plugin_state(plugins[["blockr.test"]][["notes_plugin"]]),
     list(text = "To do")
   )
 
@@ -189,14 +190,23 @@ test_that("a board holds the state of its plugins, by their classes' ids", {
 
   # A board holds a plugin given alone
   expect_identical(
-    names(board_plugins(new_board(plugins = grid()))),
-    "blockr.test-grid_plugin"
+    names(board_plugins(new_board(plugins = grid()))[["blockr.test"]]),
+    "grid_plugin"
+  )
+
+  # A board takes the plugins of another board, as board_plugins() gives them
+  expect_identical(
+    board_plugins(new_board(plugins = board_plugins(board))),
+    plugins
   )
 
   # A board holds two frontends, since the app says which plugins run
   dock <- plugin_ctor(function() NULL, c("dock_plugin", "frontend_plugin"))
 
-  expect_length(board_plugins(new_board(plugins = list(dock(), grid()))), 2L)
+  expect_length(
+    board_plugins(new_board(plugins = list(dock(), grid())))[["blockr.test"]],
+    2L
+  )
 
   # A board takes no other component and no class
   expect_error(new_board(views = list()), "unused argument")
@@ -210,9 +220,9 @@ test_that("a board takes names for its plugins, and keeps none", {
 
   board <- new_board(plugins = list(grid(), todo = notes("To do")), id = "b")
 
-  expect_identical(
-    names(board_plugins(board)),
-    c("blockr.test-grid_plugin", "blockr.test-notes_plugin")
+  expect_named(
+    board_plugins(board)[["blockr.test"]],
+    c("grid_plugin", "notes_plugin")
   )
 
   # The board is the one that the list gives without its names
@@ -235,24 +245,34 @@ test_that("a board refuses two plugins of one class", {
 
   expect_error(
     new_board(plugins = list(notes(), notes())),
-    "blockr.test-notes_plugin",
+    "notes_plugin of blockr.test",
     class = "board_plugins_invalid"
   )
 
   expect_error(
     new_board(plugins = list(todo = notes(), done = notes())),
-    "blockr.test-notes_plugin",
+    "notes_plugin of blockr.test",
     class = "board_plugins_invalid"
   )
 
   expect_error(new_board(plugins = list(1L)), class = "board_plugins_invalid")
   expect_error(new_board(plugins = "notes"), class = "board_plugins_invalid")
 
-  # A board that holds a plugin under another id than its class's is invalid
+  # A board that holds a plugin under another package or id than its class's
+  # is invalid, and so is one that holds its plugins in a list of their own
   board <- new_board(plugins = notes())
-  names(board[["plugins"]]) <- "notes"
 
-  expect_error(validate_board(board), class = "board_plugins_invalid")
+  moved <- board
+  names(moved[["plugins"]]) <- "blockr.other"
+  expect_error(validate_board(moved), class = "board_plugins_invalid")
+
+  renamed <- board
+  names(renamed[["plugins"]][["blockr.test"]]) <- "notes"
+  expect_error(validate_board(renamed), class = "board_plugins_invalid")
+
+  flat <- board
+  flat[["plugins"]] <- list(notes())
+  expect_error(validate_board(flat), class = "board_plugins_invalid")
 })
 
 test_that("each plugin completes its state on the board, by the names", {
@@ -262,7 +282,11 @@ test_that("each plugin completes its state on the board, by the names", {
   notes <- plugin_ctor(function(about = "") NULL, "notes_plugin")
   grid <- plugin_ctor(function(blocks = character()) NULL, "grid_plugin")
 
-  ids <- c(notes = "blockr.test-notes_plugin", grid = "blockr.test-grid_plugin")
+  refs <- list(
+    notes = list(package = "blockr.test", id = "notes_plugin"),
+    grid = list(package = "blockr.test", id = "grid_plugin")
+  )
+  ids <- c(notes = "notes_plugin", grid = "grid_plugin")
 
   seen <- list()
 
@@ -293,11 +317,11 @@ test_that("each plugin completes its state on the board, by the names", {
   blocks <- c(a = new_dataset_block(), b = new_subset_block())
 
   board <- new_board(blocks, plugins = list(notes("main"), main = grid("a")))
-  plugins <- board_plugins(board)
+  plugins <- board_plugins(board)[["blockr.test"]]
 
   expect_identical(
     plugin_state(plugins[[ids[["notes"]]]]),
-    list(about = ids[["grid"]])
+    list(about = refs[["grid"]])
   )
   expect_identical(
     plugin_state(plugins[[ids[["grid"]]]]),
@@ -308,9 +332,9 @@ test_that("each plugin completes its state on the board, by the names", {
   # state, so the grid's method, which runs second, sees the notes as given
   for (key in names(ids)) {
 
-    expect_identical(seen[[key]][["aliases"]], c(main = ids[["grid"]]))
+    expect_identical(seen[[key]][["aliases"]], list(main = refs[["grid"]]))
 
-    before <- board_plugins(seen[[key]][["board"]])
+    before <- board_plugins(seen[[key]][["board"]])[["blockr.test"]]
 
     expect_identical(
       plugin_state(before[[ids[["notes"]]]]),
@@ -325,15 +349,15 @@ test_that("each plugin completes its state on the board, by the names", {
     plugins = list(main = grid("a"), notes("main"))
   )
 
-  expect_identical(board_plugins(reversed)[ids], plugins[ids])
+  expect_identical(
+    board_plugins(reversed)[["blockr.test"]][ids],
+    plugins[ids]
+  )
 
   # Without names, a method gets none
   new_board(blocks, plugins = list(grid("b")))
 
-  expect_identical(
-    seen[["grid"]][["aliases"]],
-    set_names(character(), character())
-  )
+  expect_identical(seen[["grid"]][["aliases"]], set_names(list(), character()))
 
   # A method refuses what the board lacks, so that the script fails here
   expect_error(
@@ -363,7 +387,7 @@ test_that("a board refuses a method's result that is no plugin of its class", {
 
     expect_error(
       new_board(plugins = notes()),
-      "blockr.test-notes_plugin",
+      "notes_plugin of blockr.test",
       class = "plugin_complete_invalid"
     )
   }
@@ -431,7 +455,7 @@ test_that("a board has a compact str_value()", {
 
   expect_identical(
     lines[length(lines)],
-    "plugins: <notes_plugin> blockr.test-notes_plugin"
+    "plugins: <notes_plugin> notes_plugin of blockr.test"
   )
 })
 
@@ -446,7 +470,7 @@ test_that("a board prints its plugins", {
 
   expect_identical(out[1L], "<board>")
   expect_true("Plugins[1]:" %in% out)
-  expect_true("<notes_plugin> blockr.test-notes_plugin" %in% out)
+  expect_true("<notes_plugin> notes_plugin of blockr.test" %in% out)
   expect_true(" $ text: chr \"To do\"" %in% out)
   expect_true(" $ tags: chr(0)" %in% out)
 })

@@ -13,13 +13,9 @@
 #' A class records the package whose code calls `new_block_class()`,
 #' as `js_module()` records the package of a module.
 #' A class that an app script defines records no package.
-#' The class's registry id is `{pkg}-{id}`, from that package and the class's
-#' id, as `blockr.core-head_block`, or the id alone where the class records no
-#' package (see [register_block()]).
-#' A class's id may therefore hold no `-`, since a registry id splits at its
-#' first `-`.
-#' Otherwise a script's class with the id `my-block` would read as one from a
-#' package `my`.
+#' The class's registry id holds that package and the class's id, each as a
+#' part of its own, as `list(package = "blockr.core", id = "head_block")`, with
+#' the package `NULL` where the class records none (see [register_block()]).
 #'
 #' Every class has an `expr`, a function whose formals are the state args and
 #' whose body checks them, as a constructor checks its args, and returns what
@@ -108,7 +104,7 @@
 #' A block passed without a name gets an ID that [rand_names()] draws.
 #'
 #' @param id Class id, from which the class's registry id comes, which leads
-#'   the class vector of every block of the class and holds no `-`
+#'   the class vector of every block of the class
 #' @param inputs Data inputs, as a character vector of names, a list of formals
 #'   or a function of them
 #' @param expr Function of the state args that returns what interpolation
@@ -174,14 +170,6 @@ new_block_class <- function(id, inputs = NULL, expr, ui, requests = NULL,
   if (!is_nonempty_string(id)) {
     blockr_abort(
       "A block class id is expected to be a non-empty string.",
-      class = "block_class_id_invalid"
-    )
-  }
-
-  if (grepl("-", id, fixed = TRUE)) {
-    blockr_abort(
-      "The block class id {id} holds a `-`, which no block class id may ",
-      "hold, since a registry id splits at its first `-`.",
       class = "block_class_id_invalid"
     )
   }

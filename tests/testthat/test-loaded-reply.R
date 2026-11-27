@@ -19,16 +19,24 @@ test_that("R tells the client what it loaded in the properties of its reply", {
       "\"blockr.test\":\"0.1.0\"}"
     )
   )
-  expect_named(reply$block_registry, c("count_block", "letters_block"))
+  # The entries of the script's classes, which record no package, as an array
+  expect_null(names(reply$block_registry))
+  expect_identical(
+    chr_xtr(reply$block_registry, "id"),
+    c("count_block", "letters_block")
+  )
+  expect_true(all(lgl_ply(lst_xtr(reply$block_registry, "package"), is.null)))
 })
 
 test_that("an entry has the metadata registration gives, with link as url", {
 
-  entry <- declared_fields()$block_registry$letters_block
+  entry <- reply_entry(declared_fields()$block_registry, "letters_block")
 
   expect_identical(
-    entry[c("id", "name", "description", "url", "guidance", "category")],
+    entry[c("package", "id", "name", "description", "url", "guidance",
+            "category")],
     list(
+      package = NULL,
       id = "letters_block",
       name = "letters block",
       description = "Pick columns",
@@ -43,13 +51,13 @@ test_that("an entry has the metadata registration gives, with link as url", {
 
 test_that("an entry leaves out the metadata that registration leaves unset", {
 
-  entry <- declared_fields()$block_registry$count_block
+  entry <- reply_entry(declared_fields()$block_registry, "count_block")
 
   expect_named(
     entry,
-    c("id", "name", "description", "keywords", "category", "icon", "inputs",
-      "module", "version", "schema", "block_name", "state", "options",
-      "requests", "output_options", "renderers")
+    c("package", "id", "name", "description", "keywords", "category", "icon",
+      "inputs", "module", "version", "schema", "block_name", "state",
+      "options", "requests", "output_options", "renderers")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -58,7 +66,7 @@ test_that("an entry holds what the client cannot read off a class in R", {
 
   reply <- declared_fields()
 
-  letters <- reply$block_registry$letters_block
+  letters <- reply_entry(reply$block_registry, "letters_block")
 
   expect_identical(json(letters$inputs), "[\"data\"]")
   expect_match(letters$module, "^blockr-modules/[0-9a-f]{8}/letters-block.js$")
@@ -73,32 +81,39 @@ test_that("an entry holds what the client cannot read off a class in R", {
     )
   )
 
-  count <- reply$block_registry$count_block
+  count <- reply_entry(reply$block_registry, "count_block")
 
   expect_identical(json(count$inputs), "[]")
   expect_null(count$css)
   expect_identical(json(count$schema), "{}")
 })
 
-test_that("an entry holds no block class, constructor or package", {
+test_that("an entry holds its class's package and id, and no block class", {
 
-  entry <- declared_fields()$block_registry$letters_block
+  entry <- reply_entry(declared_fields()$block_registry, "letters_block")
+
+  # The package of a class that an app script defines is null
+  expect_identical(entry[c("package", "id")], pkg_ref(NULL, "letters_block"))
+  expect_match(json(entry), "^\\{\"package\":null,\"id\":\"letters_block\",")
 
   expect_length(
-    intersect(
-      names(entry),
-      c("block_class", "constructor", "package", "ui", "link")
-    ),
+    intersect(names(entry), c("block_class", "constructor", "ui", "link")),
     0L
   )
+
+  local_fixture_renderer_urls()
+
+  head <- registry_entry_reply(get_registry_entry(core_head_ref()))
+
+  expect_identical(head[c("package", "id")], core_head_ref())
 })
 
 test_that("an entry names a new block as R's constructors do", {
 
   reply <- declared_fields()$block_registry
 
-  expect_identical(reply$count_block$block_name, "Count")
-  expect_identical(reply$letters_block$block_name, "Letters")
+  expect_identical(reply_entry(reply, "count_block")$block_name, "Count")
+  expect_identical(reply_entry(reply, "letters_block")$block_name, "Letters")
 })
 
 test_that("the starting state is written by the schema of the class's state", {
@@ -107,17 +122,19 @@ test_that("the starting state is written by the schema of the class's state", {
 
   # A vector of length one is an array where the schema has one.
   expect_identical(
-    json(reply$block_registry$letters_block$state),
+    json(reply_entry(reply$block_registry, "letters_block")$state),
     "{\"columns\":[\"x\"],\"sep\":\",\"}"
   )
 
   # Without a schema, a value is written bare.
-  expect_identical(json(reply$block_registry$count_block$state), "{\"n\":3}")
+  count <- reply_entry(reply$block_registry, "count_block")
+  expect_identical(json(count$state), "{\"n\":3}")
 })
 
 test_that("a request says what it reads, and whether volatile or an action", {
 
-  requests <- declared_fields()$block_registry$letters_block$requests
+  entry <- reply_entry(declared_fields()$block_registry, "letters_block")
+  requests <- entry$requests
 
   expect_identical(
     json(requests),
@@ -141,16 +158,21 @@ test_that("R says where it serves what packages list", {
     paste0("^blockr.test/js/", file, "\\?v=[0-9a-f]{8}$")
   }
 
-  # The modules that the package offers others, by ID
-  expect_named(reply$modules, "blockr.test-picker")
-  expect_named(reply$modules[["blockr.test-picker"]], "module")
-  expect_match(reply$modules[["blockr.test-picker"]]$module, url("picker.js"))
+  # The modules that the package offers others, by package and then by name
+  expect_named(reply$modules, "blockr.test")
+  expect_named(reply$modules[["blockr.test"]], "picker")
+  picker <- reply$modules[["blockr.test"]][["picker"]]
+  expect_named(picker, "module")
+  expect_match(picker$module, url("picker.js"))
 
   # The module of the class of each of the app's plugins, with the stylesheet
   # beside it
-  grid <- reply$plugins[["blockr.test-grid_plugin"]]
+  grid <- app_plugin(reply$plugins, "blockr.test", "grid_plugin")
 
-  expect_named(grid, c("name", "version", "options", "module", "css"))
+  expect_named(
+    grid,
+    c("package", "id", "name", "version", "options", "module", "css")
+  )
   expect_match(grid$module, url("grid.js"))
   expect_match(grid$css, url("grid.css"))
 
@@ -167,15 +189,15 @@ test_that("R gives the app's plugins with their classes' names and versions", {
   expect_match(
     json(declared_fields()$plugins),
     paste0(
-      "^\\{\"blockr.test-grid_plugin\":",
-      "\\{\"name\":\"Grid\",\"version\":2,\"options\":\\[\\],\"module\":"
+      "^\\[\\{\"package\":\"blockr.test\",\"id\":\"grid_plugin\",",
+      "\"name\":\"Grid\",\"version\":2,\"options\":\\[\\],\"module\":"
     )
   )
-  expect_identical(json(loaded_reply()$plugins), "{}")
+  expect_identical(json(loaded_reply()$plugins), "[]")
 
-  # The package that the id of each plugin's class names is among those of
-  # the reply, where R serves its class's module at a URL that serves nothing,
-  # which it logs as a warning
+  # The package of each plugin's class is among those of the reply, where R
+  # serves its class's module at a URL that serves nothing, which it logs as a
+  # warning
   local_versions(blockr.one = "1.2.0")
   withr::local_options(blockr.log_level = "error")
   reset_logging()
@@ -183,7 +205,9 @@ test_that("R gives the app's plugins with their classes' names and versions", {
 
   reply <- loaded_reply(
     plugins = list(
-      `blockr.one-dag_plugin` = list(
+      list(
+        package = "blockr.one",
+        id = "dag_plugin",
         name = "DAG",
         version = 3L,
         options = character(),
@@ -227,7 +251,9 @@ test_that("R gives the version of each board option of the app's packages", {
   )
   local_board_option_version("bad_gap", 0L)
 
-  plugins <- list(`blockr.test-grid_plugin` = list(name = "Grid"))
+  plugins <- list(
+    list(package = "blockr.test", id = "grid_plugin", name = "Grid")
+  )
 
   expect_error(
     loaded_reply(plugins = plugins),
@@ -239,22 +265,22 @@ test_that("an entry names the renderers of its class's outputs", {
 
   local_fixture_renderer_urls()
 
-  head <- get_registry_entry("blockr.core-head_block")
+  head <- get_registry_entry(core_head_ref())
 
   expect_identical(
     json(registry_entry_reply(head)$renderers),
     paste0(
-      "[{\"id\":\"blockr.core-table_output\",",
+      "[{\"package\":\"blockr.core\",\"id\":\"table_output\",",
       "\"module\":\"blockr.core/basic-table.js?v=b7e2a915\"}]"
     )
   )
 
   # A class that names no output family shows its results as text
-  upload <- get_registry_entry("blockr.core-upload_block")
+  upload <- get_registry_entry(pkg_ref("blockr.core", "upload_block"))
 
   expect_identical(
-    chr_xtr(entry_renderers(upload), "id"),
-    "blockr.core-text_output"
+    renderer_labels(entry_renderers(upload)),
+    "text_output of blockr.core"
   )
 
   # The entry names the renderer of every family whose outputs the class's
@@ -276,8 +302,8 @@ test_that("an entry names the renderers of its class's outputs", {
   )
 
   expect_identical(
-    chr_xtr(entry_renderers(entry(words_output)), "id"),
-    c("words_output", "blockr.core-table_output")
+    renderer_labels(entry_renderers(entry(words_output))),
+    c("words_output", "table_output of blockr.core")
   )
 
   head_output <- new_output_family(
@@ -287,14 +313,14 @@ test_that("an entry names the renderers of its class's outputs", {
   )
 
   expect_identical(
-    chr_xtr(entry_renderers(entry(head_output)), "id"),
-    "blockr.core-table_output"
+    renderer_labels(entry_renderers(entry(head_output))),
+    "table_output of blockr.core"
   )
 })
 
 test_that("an entry names the board options that its class's UI module reads", {
 
-  head <- get_registry_entry("blockr.core-head_block")
+  head <- get_registry_entry(core_head_ref())
 
   expect_identical(json(registry_entry_reply(head)$options), "[]")
 
@@ -311,8 +337,8 @@ test_that("an entry names the board options that its class's UI module reads", {
 
 test_that("an entry names the board options that its class's outputs read", {
 
-  head <- get_registry_entry("blockr.core-head_block")
-  upload <- get_registry_entry("blockr.core-upload_block")
+  head <- get_registry_entry(core_head_ref())
+  upload <- get_registry_entry(pkg_ref("blockr.core", "upload_block"))
 
   expect_identical(
     json(registry_entry_reply(head)$output_options),
@@ -343,15 +369,15 @@ test_that("an entry of a class whose family is open names every listed one", {
     families = TRUE
   )
 
-  head <- get_registry_entry("blockr.core-head_block")
+  head <- get_registry_entry(core_head_ref())
   head$block_class$output <- any_output
 
   # The renderers and the board options of the families that core and
   # famprobe list, as the available packages list them
   expect_identical(
-    chr_xtr(entry_renderers(head), "id"),
-    c("blockr.core-table_output", "blockr.core-text_output",
-      "blockr.core-plot_output", "famprobe-probe_output")
+    renderer_labels(entry_renderers(head)),
+    c("table_output of blockr.core", "text_output of blockr.core",
+      "plot_output of blockr.core", "probe_output of famprobe")
   )
   expect_identical(
     json(registry_entry_reply(head)$output_options),
@@ -362,8 +388,8 @@ test_that("an entry of a class whose family is open names every listed one", {
   listed <- list(text_output = text_output)
 
   expect_identical(
-    chr_xtr(entry_renderers(head, listed), "id"),
-    "blockr.core-text_output"
+    renderer_labels(entry_renderers(head, listed)),
+    "text_output of blockr.core"
   )
   expect_identical(
     json(registry_entry_reply(head, families = listed)$output_options),
@@ -386,16 +412,18 @@ test_that("the renderer the deployment names for a family is in the entry", {
   )
   local_reset_logging()
 
-  head <- get_registry_entry("blockr.core-head_block")
+  head <- get_registry_entry(core_head_ref())
 
   expect_identical(entry_renderers(head), list(preview))
 
   # The reply names the version of the package that the renderer comes from
   reply <- loaded_reply()
 
+  head_entry <- reply_entry(reply$block_registry, "head_block", "blockr.core")
+
   expect_identical(
-    reply$block_registry[["blockr.core-head_block"]]$renderers[[1L]]$id,
-    "blockr.ui-preview"
+    head_entry$renderers[[1L]][c("package", "id")],
+    list(package = "blockr.ui", id = "preview")
   )
   expect_identical(
     json(reply$packages),
@@ -424,12 +452,10 @@ test_that("R names the modules that every loaded package offers", {
 
   reply <- loaded_reply()
 
-  # By ID, the packages in order of their names, with no order of their
-  # DESCRIPTION files
-  expect_named(
-    reply$modules,
-    c("blockr.dag-kit", "blockr.dock-kit", "blockr.ui-kit")
-  )
+  # By package and then by name, the packages in order of their names, with no
+  # order of their DESCRIPTION files
+  expect_named(reply$modules, c("blockr.dag", "blockr.dock", "blockr.ui"))
+  expect_identical(unique(lapply(unname(reply$modules), names)), list("kit"))
   expect_identical(
     json(reply$packages),
     paste0(
@@ -449,7 +475,10 @@ test_that("building what R tells the client builds no block", {
   local_reset_logging()
 
   expect_no_error(reply <- loaded_reply())
-  expect_setequal(names(reply$block_registry), list_blocks())
+  expect_identical(
+    lapply(reply$block_registry, `[`, c("package", "id")),
+    lapply(registry_entries(), `[`, c("package", "id"))
+  )
   expect_identical(
     reply$packages[["blockr.core"]],
     as.character(pkg_version("blockr.core"))
@@ -468,5 +497,5 @@ test_that("registration refuses a starting state the client cannot get", {
     register_block(block_constructor(cls), "Factor", "Holds a factor"),
     class = "board_value_invalid"
   )
-  expect_false("factor_block" %in% list_blocks())
+  expect_false(lists_block("factor_block"))
 })

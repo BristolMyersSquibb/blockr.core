@@ -22,15 +22,17 @@ import { classModule, listedModules, noBoard, pluginUi, refusedClass } from "../
 import { logged } from "../testing/logged.ts";
 import { withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Raised } from "../types/core-api.ts";
+import { idText, interned, nestedEntries, nestedValue } from "../util/index.ts";
 
 // The classes of core's own plugins, which the app of the fixture hello runs.
-const BASIC = "blockr.core-basic_frontend_plugin";
-const FILE = "blockr.core-file_storage_plugin";
-const EDIT = "blockr.core-edit_board_plugin";
+const BASIC: PluginClassId = interned("blockr.core", "basic_frontend_plugin");
+const FILE: PluginClassId = interned("blockr.core", "file_storage_plugin");
+const EDIT: PluginClassId = interned("blockr.core", "edit_board_plugin");
 
 const saving: PluginClass = {
-  id: "blockr.test-session_plugin",
+  id: interned("blockr.test", "session_plugin"),
   storage: { controls: () => [] },
 };
 const zoom: Option = {
@@ -45,29 +47,38 @@ const zoom: Option = {
 // A module for each renderer that the fixture's block classes name, which
 // draws nothing.
 const RENDERERS: Readonly<Record<string, unknown>> = Object.fromEntries(
-  Object.values(HELLO.block_registry).flatMap((entry) =>
+  HELLO.block_registry.flatMap((entry) =>
     (entry.renderers ?? []).map((renderer) => [renderer.module, { api: 1, default: { render: () => undefined } }]),
   ),
 );
 
 // The CoreApi for tests on the board of the fixture hello, whose app runs core's
-// plugins and the plugins given too, by the ids of their classes, of the classes
-// given, each the default export of its class's module, and whose reply names
-// the board options given, each the default export of its module.
+// plugins and the plugins given too, by the package and then by the id of each
+// one's class, of the classes given, each the default export of its class's
+// module, and whose reply names the board options given, each the default
+// export of its module.
 function stubbed(
   classes: readonly PluginClass[],
-  plugins: Readonly<Record<string, GivenPlugin>>,
+  plugins: Readonly<Record<string, Readonly<Record<string, GivenPlugin>>>>,
   options: StubCoreOptions & { readonly options?: readonly Option[] } = {},
   replied: HelloReply = HELLO,
 ) {
   const given = options.options ?? [];
+  const listed = listedModules(classes, given);
+  // The modules of the classes given and those that the test gives, by
+  // package and then by id.
+  const offered: Record<string, Record<string, unknown>> = {};
+  for (const source of [listed.offered, options.offered ?? {}]) {
+    for (const [pkg, byId] of Object.entries(source)) offered[pkg] = { ...offered[pkg], ...byId };
+  }
   return stubCore({
     ...options,
     hello: withOptions(
       given.map(({ id }) => id),
       withPlugins(plugins, replied),
     ),
-    modules: { ...listedModules(classes, given), ...options.modules },
+    modules: { ...listed.modules, ...options.modules },
+    offered,
   });
 }
 
@@ -82,21 +93,23 @@ async function reopen(s: Awaited<ReturnType<typeof stubCore>>): Promise<CoreApi>
 describe("the plugins that run", () => {
   test("are the app's plugins that the reply names, which pluginClass() gives", async () => {
     const ui = pluginUi();
-    const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: ui.ui };
+    const notes: PluginClass = { id: interned("blockr.test", "notes_plugin"), ui: ui.ui };
     // A class whose plugin draws with the ui of the notes' class.
-    const report: PluginClass = { id: "blockr.test-report_plugin", ui: ui.ui };
+    const report: PluginClass = { id: interned("blockr.test", "report_plugin"), ui: ui.ui };
     const s = await stubbed([notes, report, saving], {
-      [notes.id]: { name: "Notes" },
-      [report.id]: { name: "Report" },
-      [saving.id]: { name: "Session" },
+      "blockr.test": {
+        notes_plugin: { name: "Notes" },
+        report_plugin: { name: "Report" },
+        session_plugin: { name: "Session" },
+      },
     });
     const { core } = s;
 
     // In the order of the reply, core's own first.
-    expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT, notes.id, report.id, saving.id]);
-    expect(core.plugins.appPlugins()[report.id]).toEqual({ name: "Report" });
-    expect(core.plugins.appPlugins()[BASIC]).toEqual({ name: "Basic frontend" });
-    expect(core.plugins.appPlugins()[EDIT]).toEqual({ name: "Edit board" });
+    expect([...core.plugins.appPlugins().keys()]).toEqual([BASIC, FILE, EDIT, notes.id, report.id, saving.id]);
+    expect(core.plugins.appPlugins().get(report.id)).toEqual({ name: "Report" });
+    expect(core.plugins.appPlugins().get(BASIC)).toEqual({ name: "Basic frontend" });
+    expect(core.plugins.appPlugins().get(EDIT)).toEqual({ name: "Edit board" });
     expect(core.plugins.appPlugins()).toBe(core.plugins.appPlugins());
     // The default export of the class's module, under the id that R gives it.
     expect(core.plugins.pluginClass(report.id)).toEqual(report);
@@ -105,50 +118,54 @@ describe("the plugins that run", () => {
     // Core's Edit board plugin has a ui alone, so that the board holds nothing
     // for it.
     expect(core.plugins.pluginClass(EDIT)).toEqual({ id: EDIT, ui: editBoard.ui });
-    expect(Object.keys(core.store.board().plugins)).not.toContain(EDIT);
-    expect(() => core.plugins.pluginClass("blockr.gone-gone_plugin")).toThrow(
-      'The app runs no plugin "blockr.gone-gone_plugin" on the open board.',
+    expect(nestedEntries(core.store.board().plugins).map(([id]) => id)).not.toContain(EDIT);
+    expect(() => core.plugins.pluginClass(interned("blockr.gone", "gone_plugin"))).toThrow(
+      'The app runs no plugin "gone_plugin of blockr.gone" on the open board.',
     );
     s.stop();
   });
 
   test("register the commands of their classes, which change their plugins' state", async () => {
     const notes: PluginClass = {
-      id: "blockr.test-notes_plugin",
+      id: interned("blockr.test", "notes_plugin"),
       state: { schema: { type: "object" }, default: { text: "" } },
       commands: [
         {
-          id: "blockr.test-clear_notes",
+          id: "clear_notes",
           label: "Clear the notes",
-          run: () => ({ patches: [{ op: "replace", path: "/plugins/blockr.test-notes_plugin/text", value: "" }] }),
+          run: () => ({ patches: [{ op: "replace", path: "/plugins/blockr.test/notes_plugin/text", value: "" }] }),
         },
       ],
     };
-    const s = await stubbed([notes], { [notes.id]: { name: "Notes", state: { text: "To do" } } });
+    // The command, under the package of its class.
+    const clear = interned("blockr.test", "clear_notes");
+    const s = await stubbed([notes], { "blockr.test": { notes_plugin: { name: "Notes", state: { text: "To do" } } } });
 
-    expect(Object.keys(s.core.commands.registered())).toContain("blockr.test-clear_notes");
-    await s.core.commands.run("blockr.test-clear_notes");
-    expect(s.core.store.board().plugins[notes.id]).toEqual({ text: "" });
+    expect([...s.core.commands.registered().keys()]).toContain(clear);
+    await s.core.commands.run(clear);
+    expect(nestedValue(s.core.store.board().plugins, notes.id)).toEqual({ text: "" });
 
     // As each board opens, since an opening ends the commands of the board
     // before.
     const next = await reopen(s);
-    expect(Object.keys(next.commands.registered())).toContain("blockr.test-clear_notes");
+    expect([...next.commands.registered().keys()]).toContain(clear);
     s.stop();
   });
 
   test("open no board where the command registry refuses commands of their class, naming each in the line of the class's module", async () => {
+    // The command registry registers the commands of a class under the class's
+    // package, so the second command with the id "fine" clashes with the first.
     const clashing: PluginClass = {
-      id: "blockr.test-clashing_plugin",
+      id: interned("blockr.test", "clashing_plugin"),
       commands: [
-        { id: "blockr.core-remove_block", label: "Remove block", run: () => ({}) },
-        { id: "blockr.test-fine", label: "Fine", run: () => ({}) },
-        { id: "blockr.test-unlabelled", label: "", run: () => ({}) },
+        { id: "fine", label: "Fine", run: () => ({}) },
+        { id: "fine", label: "Fine again", run: () => ({}) },
+        { id: "unlabelled", label: "", run: () => ({}) },
       ],
     };
     const reported = logged();
-    await expect(stubbed([clashing], { [clashing.id]: { name: "Clashing" } })).rejects.toThrow(
-      noBoard(refusedClass(clashing.id, 'The command "blockr.core-remove_block" is registered already. The command "blockr.test-unlabelled" has no label.')),
+    await expect(stubbed([clashing], { "blockr.test": { clashing_plugin: { name: "Clashing" } } })).rejects.toThrow(
+      noBoard(refusedClass(clashing.id, 'The command "fine of blockr.test" is registered already. The command "unlabelled of blockr.test" has no label.')),
     );
     reported.restore();
   });
@@ -156,11 +173,11 @@ describe("the plugins that run", () => {
   test("hand the commands of their classes the app's locks, the blockr options that R gives and ids in the shape that rand_id names", async () => {
     const got: { lock?: Lock; limit?: unknown } = {};
     const notes: PluginClass = {
-      id: "blockr.test-notes_plugin",
+      id: interned("blockr.test", "notes_plugin"),
       state: { schema: { type: "object" }, default: {} },
       commands: [
         {
-          id: "blockr.test-add_note",
+          id: "add_note",
           label: "Add a note",
           preflight(_board, _args, { lock }) {
             got.lock = lock;
@@ -169,24 +186,24 @@ describe("the plugins that run", () => {
           prepare: (_board, _args, { blockrOption }) => blockrOption("notes_limit"),
           run(_board, limit, { mintId }) {
             got.limit = limit;
-            return { patches: [{ op: "add", path: `/plugins/blockr.test-notes_plugin/${mintId(() => false)}`, value: "To do" }] };
+            return { patches: [{ op: "add", path: `/plugins/blockr.test/notes_plugin/${mintId(() => false)}`, value: "To do" }] };
           },
         },
       ],
     };
     const s = await stubbed(
       [notes],
-      { [notes.id]: { name: "Notes", state: {} } },
+      { "blockr.test": { notes_plugin: { name: "Notes", state: {} } } },
       { blockrOptions: { rand_id: "letters_8", notes_limit: 3 } },
       { ...HELLO, lock: { board: true, load: false } },
     );
 
     // Under the board lock, the store applies a patch inside a plugin's state,
     // which the plugin's commands lock themselves.
-    await s.core.commands.run("blockr.test-add_note");
+    await s.core.commands.run({ package: "blockr.test", id: "add_note" });
 
     expect(got).toEqual({ lock: { board: true, load: false }, limit: 3 });
-    const state = s.core.store.board().plugins[notes.id] as Readonly<Record<string, unknown>>;
+    const state = nestedValue(s.core.store.board().plugins, notes.id) as Readonly<Record<string, unknown>>;
     expect(Object.entries(state)).toEqual([[expect.stringMatching(/^[a-z]{8}$/), "To do"]]);
     s.stop();
   });
@@ -195,19 +212,23 @@ describe("the plugins that run", () => {
     const reported = logged();
     const starting = stubCore({
       hello: withPlugins({
-        "blockr.gone-gone_plugin": { name: "Gone" },
-        "blockr.test-old_plugin": { name: "Old" },
-        "blockr.test-bad_plugin": { name: "Bad" },
+        "blockr.gone": { gone_plugin: { name: "Gone" } },
+        "blockr.test": {
+          old_plugin: { name: "Old" },
+          bad_plugin: { name: "Bad" },
+        },
       }),
-      modules: {
-        "blockr.test-old_plugin": { api: 2, default: {} },
-        "blockr.test-bad_plugin": classModule({ start: "now" } as unknown as Omit<PluginClass, "id">),
+      offered: {
+        "blockr.test": {
+          old_plugin: { api: 2, default: {} },
+          bad_plugin: classModule({ start: "now" } as unknown as Omit<PluginClass, "id">),
+        },
       },
     });
     const why = noBoard(
-      "The module blockr.gone/blockr.gone-gone_plugin.js of blockr.gone failed to load: The test gives no module blockr.gone/blockr.gone-gone_plugin.js.",
-      "The module blockr.test/blockr.test-old_plugin.js of blockr.test was built against major 2 of core's JS API, where core's is 1.",
-      refusedClass("blockr.test-bad_plugin", 'The plugin class "blockr.test-bad_plugin" has a start that is no function.'),
+      "The module blockr.gone/gone_plugin.js of blockr.gone failed to load: The test gives no module blockr.gone/gone_plugin.js.",
+      "The module blockr.test/old_plugin.js of blockr.test was built against major 2 of core's JS API, where core's is 1.",
+      refusedClass({ package: "blockr.test", id: "bad_plugin" }, 'The plugin class "bad_plugin of blockr.test" has a start that is no function.'),
     );
     await expect(starting).rejects.toThrow(why);
     reported.restore();
@@ -217,32 +238,32 @@ describe("the plugins that run", () => {
 
   test("are the reply's plugins, whatever the opening board holds the state of", async () => {
     const dag: PluginClass = {
-      id: "blockr.test-dag_plugin",
+      id: interned("blockr.test", "dag_plugin"),
       state: { schema: { type: "object" }, default: { positions: {} } },
     };
     const kept: PluginClass = {
-      id: "blockr.test-kept_plugin",
+      id: interned("blockr.test", "kept_plugin"),
       state: { schema: { type: "object" }, default: { kept: false } },
     };
-    const replied = withPlugins({ [kept.id]: { name: "Kept" } });
+    const replied = withPlugins({ "blockr.test": { kept_plugin: { name: "Kept" } } });
     // An opening board that holds the state of a plugin that the app does not
     // run, and none for the plugin that it runs.
     const hello: HelloReply = {
       ...replied,
       board: {
         ...replied.board,
-        board: { ...replied.board.board, plugins: { [dag.id]: { state: { positions: { a: { x: 1 } } }, version: 1 } } },
+        board: { ...replied.board.board, plugins: { "blockr.test": { dag_plugin: { state: { positions: { a: { x: 1 } } }, version: 1 } } } },
       },
     };
-    const s = await stubCore({ hello, modules: listedModules([dag, kept]) });
+    const s = await stubCore({ hello, ...listedModules([dag, kept]) });
 
-    expect(Object.keys(s.core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT, kept.id]);
-    expect(s.core.store.board().plugins).toEqual({ [kept.id]: { kept: false } });
-    expect(() => s.core.plugins.pluginClass(dag.id)).toThrow(`The app runs no plugin "${dag.id}" on the open board.`);
+    expect([...s.core.plugins.appPlugins().keys()]).toEqual([BASIC, FILE, EDIT, kept.id]);
+    expect(s.core.store.board().plugins).toEqual({ "blockr.test": { kept_plugin: { kept: false } } });
+    expect(() => s.core.plugins.pluginClass(dag.id)).toThrow(`The app runs no plugin "${idText(dag.id)}" on the open board.`);
 
     // The next board runs the same plugins.
     const next = await reopen(s);
-    expect(Object.keys(next.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT, kept.id]);
+    expect([...next.plugins.appPlugins().keys()]).toEqual([BASIC, FILE, EDIT, kept.id]);
     s.stop();
   });
 
@@ -253,17 +274,17 @@ describe("the plugins that run", () => {
     const own = t.core.plugins.storage();
     expect(own?.controls({ core: t.core, plugin: FILE }).map((control) => control.id)).toEqual(["save", "open"]);
     expect(t.core.plugins.storage()).toBe(own);
-    expect(Object.keys(t.core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT]);
+    expect([...t.core.plugins.appPlugins().keys()]).toEqual([BASIC, FILE, EDIT]);
     t.stop();
 
     // The storage plugin that takes the place of core's own.
-    const s = await stubbed([saving], { [saving.id]: { name: "Session" } }, {}, withoutPlugins(HELLO, FILE));
+    const s = await stubbed([saving], { "blockr.test": { session_plugin: { name: "Session" } } }, {}, withoutPlugins(HELLO, FILE));
     expect(s.core.plugins.storage()).toBe(saving.storage);
     s.stop();
 
     const u = await stubCore({ hello: withoutPlugins(HELLO, FILE) });
     expect(u.core.plugins.storage()).toBeUndefined();
-    expect(Object.keys(u.core.plugins.appPlugins())).toEqual([BASIC, EDIT]);
+    expect([...u.core.plugins.appPlugins().keys()]).toEqual([BASIC, EDIT]);
     u.stop();
   });
 });
@@ -271,9 +292,9 @@ describe("the plugins that run", () => {
 describe("mounting a plugin's UI", () => {
   test("calls the ui of its class, with CoreApi, the id of the class and a signal, until the cleanup runs", async () => {
     const ui = pluginUi();
-    const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: ui.ui };
-    const report: PluginClass = { id: "blockr.test-report_plugin", ui: ui.ui };
-    const s = await stubbed([notes, report], { [notes.id]: { name: "Notes" }, [report.id]: { name: "Report" } });
+    const notes: PluginClass = { id: interned("blockr.test", "notes_plugin"), ui: ui.ui };
+    const report: PluginClass = { id: interned("blockr.test", "report_plugin"), ui: ui.ui };
+    const s = await stubbed([notes, report], { "blockr.test": { notes_plugin: { name: "Notes" }, report_plugin: { name: "Report" } } });
     const first = document.createElement("div");
     const second = document.createElement("div");
 
@@ -303,7 +324,7 @@ describe("mounting a plugin's UI", () => {
 
   test("throws for a plugin that the app does not run or whose class has no ui, and leaves the element empty where its ui fails, raising why", async () => {
     const broken: PluginClass = {
-      id: "blockr.test-broken_plugin",
+      id: interned("blockr.test", "broken_plugin"),
       ui: {
         render: () => {
           throw new Error("boom");
@@ -312,20 +333,20 @@ describe("mounting a plugin's UI", () => {
     };
     const s = await stubbed(
       [saving, broken],
-      { [saving.id]: { name: "Session" }, [broken.id]: { name: "Broken" } },
+      { "blockr.test": { session_plugin: { name: "Session" }, broken_plugin: { name: "Broken" } } },
       {},
       withoutPlugins(HELLO, FILE),
     );
     const el = (): HTMLElement => document.createElement("div");
 
-    expect(() => s.core.mountPlugin(el(), "blockr.test-nowhere_plugin")).toThrow(
-      'The app runs no plugin "blockr.test-nowhere_plugin" on the open board.',
+    expect(() => s.core.mountPlugin(el(), interned("blockr.test", "nowhere_plugin"))).toThrow(
+      'The app runs no plugin "nowhere_plugin of blockr.test" on the open board.',
     );
     expect(() => s.core.mountPlugin(el(), saving.id)).toThrow(
-      'The class of the plugin "blockr.test-session_plugin" has no ui to mount.',
+      'The class of the plugin "session_plugin of blockr.test" has no ui to mount.',
     );
     expect(() => s.core.mountPlugin(el(), BASIC)).toThrow(
-      'The class of the plugin "blockr.core-basic_frontend_plugin" has no ui to mount.',
+      'The class of the plugin "basic_frontend_plugin of blockr.core" has no ui to mount.',
     );
 
     const reported = logged();
@@ -338,13 +359,13 @@ describe("mounting a plugin's UI", () => {
     expect(held(s.core, (n) => n.about !== undefined && "plugin" in n.about)).toEqual([
       {
         severity: "error",
-        message: 'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): boom',
+        message: 'The ui of the plugin class "broken_plugin of blockr.test" failed in render(): boom',
         source: {
           kind: "core",
           code: "module_failed",
-          module: { object: { plugin: "blockr.test-broken_plugin" }, package: "blockr.test" },
+          module: { object: { plugin: broken.id }, package: "blockr.test" },
         },
-        about: { plugin: "blockr.test-broken_plugin" },
+        about: { plugin: broken.id },
       },
     ]);
     expect(reported.errors()).toHaveLength(1);
@@ -359,12 +380,12 @@ describe("mounting a plugin's UI", () => {
         return undefined;
       },
     };
-    const zoomed: PluginClass = { id: "blockr.test-notes_plugin", ui };
-    const needy: PluginClass = { id: "blockr.test-needy_plugin", ui };
+    const zoomed: PluginClass = { id: interned("blockr.test", "notes_plugin"), ui };
+    const needy: PluginClass = { id: interned("blockr.test", "needy_plugin"), ui };
     const reported = logged();
     const s = await stubbed(
       [zoomed, needy],
-      { [zoomed.id]: { name: "Notes", options: ["zoom"] }, [needy.id]: { name: "Needy", options: ["nowhere"] } },
+      { "blockr.test": { notes_plugin: { name: "Notes", options: ["zoom"] }, needy_plugin: { name: "Needy", options: ["nowhere"] } } },
       { options: [zoom] },
     );
     const fine = document.createElement("div");
@@ -380,12 +401,12 @@ describe("mounting a plugin's UI", () => {
       [
         { kind: "core", code: "board_option_failed" },
         { option: "nowhere" },
-        'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
+        'The board option "nowhere", which the plugin class "needy_plugin of blockr.test" requires, is defined by no package loaded.',
       ],
       [
-        { kind: "core", code: "module_failed", module: { object: { plugin: "blockr.test-needy_plugin" }, package: "blockr.test" } },
-        { plugin: "blockr.test-needy_plugin" },
-        'Without the board option "nowhere", the ui of the plugin class "blockr.test-needy_plugin" cannot draw.',
+        { kind: "core", code: "module_failed", module: { object: { plugin: needy.id }, package: "blockr.test" } },
+        { plugin: needy.id },
+        'Without the board option "nowhere", the ui of the plugin class "needy_plugin of blockr.test" cannot draw.',
       ],
     ]);
     s.stop();
@@ -465,7 +486,7 @@ describe("what a frontend offers other plugins", () => {
     const refused =
       (given: unknown, plugin: unknown = FILE): (() => void) =>
       () => {
-        notifications.notify(plugin as string, given as Raised);
+        notifications.notify(plugin as PluginClassId, given as Raised);
       };
     expect(refused({ ...base, severity: "fatal" })).toThrow(
       'The severity of a notification is "message", "warning" or "error", not "fatal".',
@@ -480,7 +501,7 @@ describe("what a frontend offers other plugins", () => {
     expect(refused({ ...base, about: "b" })).toThrow(`${part} "b".`);
     expect(refused("Saved.")).toThrow('A notification is an object, not "Saved.".');
     expect(refused(base, "")).toThrow(
-      'A plugin\'s notification names the plugin by the id of its class, a non-empty string, not "".',
+      'A plugin\'s notification names a plugin by the id of its class, a package and an id, as { package: "blockr.dag", id: "dag_plugin" }, not by "".',
     );
     s.stop();
   });
@@ -503,8 +524,8 @@ describe("what a frontend offers other plugins", () => {
       notifications.notify(FILE, { ...base, about: { block: "nowhere" } }),
       notifications.notify(FILE, { ...base, about: { stack: "nowhere" } }),
       notifications.notify(FILE, { ...base, about: { option: "nowhere" } }),
-      notifications.notify(FILE, { ...base, about: { plugin: "blockr.test-session_plugin" } }),
-      notifications.notify("blockr.test-session_plugin", base),
+      notifications.notify(FILE, { ...base, about: { plugin: saving.id } }),
+      notifications.notify(saving.id, base),
     ];
     for (const withdraw of raised) withdraw();
     const lines = reported.lines();
@@ -512,15 +533,15 @@ describe("what a frontend offers other plugins", () => {
     expect(notifications.get()).toBe(before);
     expect(heard).toEqual([]);
     expect(lines.filter((line) => line.level === "debug").map((line) => line.message)).toEqual([
-      `Core drops a notification that the plugin "${FILE}" raised about the block "b", which has left the board.`,
-      `Core drops a notification that the plugin "${FILE}" raised about the link "ab", which has left the board.`,
+      `Core drops a notification that the plugin "${idText(FILE)}" raised about the block "b", which has left the board.`,
+      `Core drops a notification that the plugin "${idText(FILE)}" raised about the link "ab", which has left the board.`,
     ]);
     expect(lines.filter((line) => line.level === "error").map((line) => line.message)).toEqual([
-      `Core drops a notification that the plugin "${FILE}" raised about the block "nowhere", which the board has never held.`,
-      `Core drops a notification that the plugin "${FILE}" raised about the stack "nowhere", which the board has never held.`,
-      `Core drops a notification that the plugin "${FILE}" raised about the board option "nowhere", which no loaded package defines.`,
-      `Core drops a notification that the plugin "${FILE}" raised about the plugin "blockr.test-session_plugin", which the app does not run.`,
-      'Core drops a notification that the plugin "blockr.test-session_plugin" raised, which the app does not run.',
+      `Core drops a notification that the plugin "${idText(FILE)}" raised about the block "nowhere", which the board has never held.`,
+      `Core drops a notification that the plugin "${idText(FILE)}" raised about the stack "nowhere", which the board has never held.`,
+      `Core drops a notification that the plugin "${idText(FILE)}" raised about the board option "nowhere", which no loaded package defines.`,
+      `Core drops a notification that the plugin "${idText(FILE)}" raised about the plugin "session_plugin of blockr.test", which the app does not run.`,
+      'Core drops a notification that the plugin "session_plugin of blockr.test" raised, which the app does not run.',
     ]);
     s.stop();
   });
@@ -591,7 +612,9 @@ describe("what a frontend offers other plugins", () => {
     for (const given of [null, {}, { blocks: ["a"] }, { blocks: "a", plugins: [] }, { blocks: [1], plugins: [] }]) {
       expect(() => {
         core.onScreen.set(given as never);
-      }).toThrow(`A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`);
+      }).toThrow(
+        `A frontend says what is on screen as { blocks: ["a"], plugins: [{ package: "blockr.md", id: "md_plugin" }] }, not ${JSON.stringify(given)}.`,
+      );
     }
 
     const next = await reopen(s);
@@ -607,7 +630,7 @@ describe("what a frontend offers other plugins", () => {
     const popover = document.createElement("div");
     document.body.append(page, popover);
     const report: PluginClass = {
-      id: "blockr.test-report_plugin",
+      id: interned("blockr.test", "report_plugin"),
       ui: {
         render({ el, core }) {
           const figure = document.createElement("figure");
@@ -616,26 +639,28 @@ describe("what a frontend offers other plugins", () => {
         },
       },
     };
-    const s = await stubbed([report], { [report.id]: { name: "Report" } }, {
+    const s = await stubbed([report], { "blockr.test": { report_plugin: { name: "Report" } } }, {
       el: page,
-      modules: {
-        ...RENDERERS,
-        [BASIC]: classModule({
-          frontend: {
-            render({ el, core }) {
-              const shown = core.scheduler.demand("blockr.test", ["a", "b", "d"]);
-              const card = document.createElement("article");
-              const section = document.createElement("section");
-              el.append(card, section);
-              core.onScreen.set({ blocks: [], plugins: [] });
-              const stops = [core.mountOutput(card, "b"), core.mountPlugin(section, report.id), core.mountOutput(popover, "a")];
-              return () => {
-                for (const stop of stops) stop();
-                shown.release();
-              };
+      modules: RENDERERS,
+      offered: {
+        "blockr.core": {
+          basic_frontend_plugin: classModule({
+            frontend: {
+              render({ el, core }) {
+                const shown = core.scheduler.demand("blockr.test", ["a", "b", "d"]);
+                const card = document.createElement("article");
+                const section = document.createElement("section");
+                el.append(card, section);
+                core.onScreen.set({ blocks: [], plugins: [] });
+                const stops = [core.mountOutput(card, "b"), core.mountPlugin(section, report.id), core.mountOutput(popover, "a")];
+                return () => {
+                  for (const stop of stops) stop();
+                  shown.release();
+                };
+              },
             },
-          },
-        }),
+          }),
+        },
       },
     });
     await s.settled();
@@ -664,18 +689,20 @@ describe("what a frontend offers other plugins", () => {
     let finish = (): void => undefined;
     const s = await stubCore({
       el,
-      modules: {
-        [BASIC]: classModule({
-          frontend: {
-            render: () => undefined,
-            show({ object, el: at, core: given }: { object: unknown; el: HTMLElement; core: CoreApi }) {
-              asked.push({ object, el: at === el, board: given.store.board().name });
-              return new Promise<void>((resolve) => {
-                finish = resolve;
-              });
+      offered: {
+        "blockr.core": {
+          basic_frontend_plugin: classModule({
+            frontend: {
+              render: () => undefined,
+              show({ object, el: at, core: given }: { object: unknown; el: HTMLElement; core: CoreApi }) {
+                asked.push({ object, el: at === el, board: given.store.board().name });
+                return new Promise<void>((resolve) => {
+                  finish = resolve;
+                });
+              },
             },
-          },
-        }),
+          }),
+        },
       },
     });
     await s.settled();
@@ -708,13 +735,13 @@ describe("what a frontend offers other plugins", () => {
     const s = await stubCore();
     const { core } = s;
     expect(() => core.show({ block: "nowhere" })).toThrow('The board holds no block "nowhere" to show.');
-    expect(() => core.show({ plugin: BASIC })).toThrow(`The class of the plugin "${BASIC}" has no ui to show.`);
-    expect(() => core.show({ plugin: "blockr.test-nowhere_plugin" })).toThrow(
-      'The app runs no plugin "blockr.test-nowhere_plugin" on the open board.',
+    expect(() => core.show({ plugin: BASIC })).toThrow(`The class of the plugin "${idText(BASIC)}" has no ui to show.`);
+    expect(() => core.show({ plugin: interned("blockr.test", "nowhere_plugin") })).toThrow(
+      'The app runs no plugin "nowhere_plugin of blockr.test" on the open board.',
     );
     for (const given of [null, "b", { stack: "s" }, { block: "b", plugin: EDIT }, { block: 1 }]) {
       expect(() => core.show(given as never)).toThrow(
-        `Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`,
+        `Core shows a block or a plugin, as { block: "a" } or { plugin: { package: "blockr.md", id: "md_plugin" } }, not ${JSON.stringify(given)}.`,
       );
     }
     expect(core.focus.get()).toBeNull();
@@ -730,21 +757,23 @@ describe("what a frontend offers other plugins", () => {
     const asked: unknown[] = [];
     const s = await stubCore({
       el,
-      modules: {
-        [BASIC]: classModule({
-          frontend: {
-            render: () => undefined,
-            show({ object }: { object: unknown }) {
-              asked.push(object);
-              throw new Error("No room.");
+      offered: {
+        "blockr.core": {
+          basic_frontend_plugin: classModule({
+            frontend: {
+              render: () => undefined,
+              show({ object }: { object: unknown }) {
+                asked.push(object);
+                throw new Error("No room.");
+              },
             },
-          },
-        }),
+          }),
+        },
       },
     });
     await s.settled();
     const before = s.core;
-    await expect(before.show({ block: "b" })).rejects.toThrow(`The frontend of the plugin class "${BASIC}" failed in show(): No room.`);
+    await expect(before.show({ block: "b" })).rejects.toThrow(`The frontend of the plugin class "${idText(BASIC)}" failed in show(): No room.`);
 
     await reopen(s);
     await before.show({ block: "b" });
@@ -814,7 +843,7 @@ describe("the board objects that the user selected", () => {
       // A board option that a package defines, but whose value the board
       // lacks.
       [{ option: "zoom" }, 'The board holds no board option "zoom" to select.'],
-      [{ plugin: "blockr.test-nowhere_plugin" }, 'The app runs no plugin "blockr.test-nowhere_plugin" to select.'],
+      [{ plugin: interned("blockr.test", "nowhere_plugin") }, 'The app runs no plugin "nowhere_plugin of blockr.test" to select.'],
     ];
     for (const [object, why] of lacking) {
       expect(() => {

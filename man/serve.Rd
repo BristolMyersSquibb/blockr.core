@@ -111,15 +111,15 @@ A board with a block of a class that nothing registers fails, naming the
 block and the class.
 So a script registers a class that it defines itself with
 \code{\link[=register_block]{register_block()}} before it serves a board with a block of the class.
-A class from a package keeps its package's ID, so that a board saved from
-the app opens in an app that offers the package.
-A class from outside a package, whose registry ID is its id alone,
-replaces another class that the script registered under that ID, and keeps
-the metadata that the script registered.
+A class from a package keeps its package in its registry id, so that a
+board saved from the app opens in an app that offers the package.
+A class from outside a package, whose registry id has no package,
+replaces another class that the script registered under that registry id,
+and keeps the metadata that the script registered.
 So a script that redefines a class after it registered it runs the new
 definition.
 A board with blocks of two such classes of one id fails, since the client
-and the evaluator know a block's class by its registry ID alone.
+and the evaluator know a block's class by its registry id alone.
 For the path of a JSON board, R reads only the file's format, and sends the
 file's text as it is, for the client to open.
 It loads no package for the file.
@@ -187,8 +187,9 @@ its function \code{statuses()} gives each block's status by block ID, as in
 \code{app$get_js("blockrTest.statuses()")}.
 Its function \code{focus()} gives the ID of the block that has focus, or \code{null}
 where none has.
-Its function \code{onScreen()} gives the IDs of the blocks and the plugins on
-screen, in \code{blocks} and \code{plugins}, or \code{null} until the frontend sets them.
+Its function \code{onScreen()} gives the IDs of the blocks on screen, in
+\code{blocks}, and the plugins on screen, each by the package and the id of its
+class, in \code{plugins}, or \code{null} until the frontend sets them.
 Its function \code{notifications()} gives the notifications that hold, in the
 order they came.
 Its function \code{show()} has the frontend show a block or a plugin, as a

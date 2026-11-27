@@ -13,7 +13,7 @@ import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Delta, Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
+import type { BlockId, BoardActionId, LinkId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
@@ -103,10 +103,11 @@ export interface CoreApi {
         advanced?: FrontendModule["advanced"];
       },
     ): void;
-    // Triggers the board action with the id given on the target, as a button
-    // or a gesture does, or the one that plays the role with the id given, as
-    // "append_block_role", so that a caller that relies on what a board action
-    // does meets the app's pick. It runs nothing where on() leaves the board
+    // Triggers the board action with the package and the id given on the
+    // target, as { package: "blockr.core", id: "rename_action" }, as a button
+    // or a gesture does, or the one that plays the role with the id given, a
+    // string, as "append_block_role", so that a caller that relies on what a
+    // board action does meets the app's pick. It runs nothing where on() leaves the board
     // action out for the target, as under the board lock for every board
     // action of core's but Copy block ID, and nothing for the id of a board
     // action that names a role that it does not play. Otherwise:
@@ -138,7 +139,7 @@ export interface CoreApi {
     // that no board action or role has, for what is no target, and for
     // options without `el`.
     trigger(
-      id: string,
+      id: { readonly package: string; readonly id: string } | string,
       target: Target,
       opts: {
         el: HTMLElement;
@@ -151,9 +152,9 @@ export interface CoreApi {
         advanced?: FrontendModule["advanced"];
       },
     ): Promise<void>;
-    // Renders the advanced action of the board action with the id given on
-    // the target in the element, or of the one that plays the role with the
-    // id given, which a plugin gives as room of its own, as the Edit board
+    // Renders the advanced action of the board action with the package and the
+    // id given on the target in the element, or of the one that plays the role
+    // with the id given, which a plugin gives as room of its own, as the Edit board
     // plugin shows the advanced action of Add block, until the function that
     // it returns runs. The advanced action gets `picked` where
     // given. There its done() runs the batch as one step of the user, and core
@@ -165,13 +166,13 @@ export interface CoreApi {
     // id that no board action or role has, for a board action without an
     // advanced action, for what is no target or no element, and once the
     // next board has opened.
-    mountAdvanced(el: HTMLElement, id: string, target: Target, picked?: Json): () => void;
+    mountAdvanced(el: HTMLElement, id: { readonly package: string; readonly id: string } | string, target: Target, picked?: Json): () => void;
   };
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
   readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
   // The block registry's entries by registry id, for pickers, as R's reply to
-  // `hello` gives them for the board.
+  // `hello` gives them for the board, in R's order.
   blockRegistry(): BlockRegistry;
   // The board options that packages define, by id, and the value of each, as
   // the board holds it, which is undefined where the board holds none.
@@ -185,9 +186,10 @@ export interface CoreApi {
   // default export of the module that R names for it.
   readonly plugins: {
     // The app's plugins, by the ids of their classes, each with its class's
-    // name, as R's reply to `hello` names them. It returns the same object
-    // while the board is open, and an empty one while no board is open.
-    appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
+    // name, as R's reply to `hello` names them, in the order of the rows that
+    // `serve()` takes. It returns the same map while the board is open, and an
+    // empty one while no board is open.
+    appPlugins(): ReadonlyMap<PluginClassId, Plugin>;
     // The definition of the class of a plugin that runs. It throws for a
     // plugin that the app does not run.
     pluginClass(plugin: PluginClassId): PluginClass;
@@ -305,8 +307,9 @@ export interface CoreApi {
   // condition of R's reply, ok or error, raises a notification about the
   // plugin, unless the request's notifier takes them.
   request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
-  // A module another package offers, by id.
-  module<T = unknown>(id: string): Promise<T>;
+  // A module another package offers, by its package and its id within it, as
+  // { package: "blockr.core", id: "controls" }, which a caller writes as it is.
+  module<T = unknown>(id: { readonly package: string; readonly id: string }): Promise<T>;
   // A blockr option as R sent it, asked of R once per page, or undefined where
   // nothing sets it. The caller converts and checks the value, as one that an
   // environment variable sets arrives as a string, and takes a fallback of its
@@ -408,7 +411,7 @@ export interface SourceModule {
   // output or the renderer that draws the board option. A module without it
   // is the block's UI module, the board option's own module or the plugin
   // class's module.
-  readonly renderer?: string;
+  readonly renderer?: RendererId;
   // The module's package, where core knows it, which it does but for a block
   // class defined outside a package.
   readonly package?: string;
@@ -557,8 +560,9 @@ export interface PluginModule {
 // It may give `advanced` too, which shows an advanced action in the
 // frontend's place, as the dock shows one in its sidebar
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#what-a-frontend-gives).
-// Core calls it with the board action's id, a title, the target, a mount()
-// and a close(). The frontend renders the advanced action in its place
+// Core calls it with the board action's id, its package and its id within
+// the package, as core's table holds them, a title, the target, a mount() and
+// a close(). The frontend renders the advanced action in its place
 // through mount(), until the cleanup that mount() returns runs, and calls
 // close() as the user closes the place. It may pass mount() another target,
 // on which core renders the same board action where a menu of the target
@@ -584,7 +588,7 @@ export interface FrontendModule {
     core: CoreApi;
   }): void | Promise<void>;
   advanced?(args: {
-    readonly id: string;
+    readonly id: BoardActionId;
     readonly title: string;
     readonly target: Target;
     readonly mount: (el: HTMLElement, target?: Target) => () => void;
@@ -609,7 +613,7 @@ export interface OnScreen {
   subscribe(fn: (shown: { readonly blocks: readonly BlockId[]; readonly plugins: readonly PluginClassId[] } | null) => void): () => void;
 }
 
-export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;
+export type BlockRegistry = ReadonlyMap<RegistryId, RegistryEntry>;
 
 export interface RequestOpts {
   // The blocks it reads, which core has evaluated first.

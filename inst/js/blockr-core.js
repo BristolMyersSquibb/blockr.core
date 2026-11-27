@@ -164,12 +164,6 @@ function listing(items) {
 function quoted(items) {
   return listing(items.map((item) => `"${item}"`));
 }
-function packageFromId(id2) {
-  const at = id2.indexOf("-");
-  if (at < 0) return null;
-  const pkg = id2.slice(0, at);
-  return isPackageName(pkg) ? pkg : null;
-}
 function isPackageName(name3) {
   return typeof name3 === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name3);
 }
@@ -182,6 +176,86 @@ function asLogical(text) {
   if (["TRUE", "true", "True", "T"].includes(trimmed)) return true;
   if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;
   return void 0;
+}
+
+// srcts/util/ids.ts
+var made = /* @__PURE__ */ new Map();
+function interned(pkg, id2) {
+  if (pkg !== null && !isPackageName(pkg)) {
+    throw new TypeError(`The package ${JSON.stringify(pkg)} is not named as R names a package.`);
+  }
+  if (typeof id2 !== "string" || id2 === "") {
+    throw new TypeError(`The id ${JSON.stringify(id2)} of ${pkg ?? "an app script"} is no non-empty string.`);
+  }
+  let ids2 = made.get(pkg);
+  if (ids2 === void 0) {
+    ids2 = /* @__PURE__ */ new Map();
+    made.set(pkg, ids2);
+  }
+  let found = ids2.get(id2);
+  if (found === void 0) {
+    found = Object.freeze({ package: pkg, id: id2 });
+    ids2.set(id2, found);
+  }
+  return found;
+}
+function isIdRecord(x, nullable = false) {
+  if (typeof x !== "object" || x === null || Array.isArray(x)) return false;
+  const keys = Object.keys(x);
+  if (keys.length !== 2 || !keys.includes("package") || !keys.includes("id")) return false;
+  const { package: pkg, id: id2 } = x;
+  return (pkg === null ? nullable : isPackageName(pkg)) && typeof id2 === "string" && id2 !== "";
+}
+function internedRecord(record) {
+  return interned(record.package, record.id);
+}
+function idText(x) {
+  return x.package === null ? x.id : `${x.id} of ${x.package}`;
+}
+var numbers = /* @__PURE__ */ new Map();
+function idNumber(x) {
+  let number = numbers.get(x);
+  if (number === void 0) {
+    number = numbers.size;
+    numbers.set(x, number);
+  }
+  return number;
+}
+function nestedEntries(record) {
+  return Object.entries(record).flatMap(
+    ([pkg, byId]) => Object.entries(byId).map(([id2, value2]) => [interned(pkg, id2), value2])
+  );
+}
+function nestedValue(record, id2) {
+  const byId = Object.hasOwn(record, id2.package) ? record[id2.package] : void 0;
+  return byId !== void 0 && Object.hasOwn(byId, id2.id) ? byId[id2.id] : void 0;
+}
+function nestedRecord(entries) {
+  const record = {};
+  for (const [id2, value2] of entries) {
+    (record[id2.package] ??= {})[id2.id] = value2;
+  }
+  return record;
+}
+function idAttributes(of, x) {
+  const pkg = of.replace(/\.[a-z_]+$/, ".package");
+  return { [of]: x.id, ...x.package === null ? {} : { [pkg]: x.package } };
+}
+function givenPluginClassId(given, call) {
+  if (!isIdRecord(given)) {
+    throw new TypeError(
+      `${call} names a plugin by the id of its class, a package and an id, as { package: "blockr.dag", id: "dag_plugin" }, not by ${JSON.stringify(given)}.`
+    );
+  }
+  return interned(given.package, given.id);
+}
+function givenModuleId(given) {
+  if (!isIdRecord(given)) {
+    throw new TypeError(
+      `Core loads a module that a package offers by its package and id, as { package: "blockr.core", id: "controls" }, not by ${JSON.stringify(given)}.`
+    );
+  }
+  return interned(given.package, given.id);
 }
 
 // srcts/util/notification.ts
@@ -219,14 +293,20 @@ function isBoardObject(value2) {
   const [kind] = keys;
   if (keys.length !== 1 || kind === void 0 || !KINDS.includes(kind)) return false;
   const id2 = value2[kind];
+  if (kind === "plugin") return isIdRecord(id2);
   return typeof id2 === "string" && id2 !== "";
 }
-function holdsObject(board, object2, plugins) {
+function internedObject(object2) {
+  if (!("plugin" in object2)) return object2;
+  const id2 = internedRecord(object2.plugin);
+  return id2 === object2.plugin ? object2 : { ...object2, plugin: id2 };
+}
+function holdsObject(board, object2, plugins2) {
   if ("block" in object2) return Object.hasOwn(board.blocks, object2.block);
   if ("link" in object2) return Object.hasOwn(board.links, object2.link);
   if ("stack" in object2) return Object.hasOwn(board.stacks, object2.stack);
   if ("option" in object2) return Object.hasOwn(board.options, object2.option);
-  return Object.hasOwn(plugins, object2.plugin);
+  return plugins2.has(internedRecord(object2.plugin));
 }
 function checkRaised(notification) {
   const given = notification;
@@ -831,7 +911,7 @@ function requestAttributes(request) {
       return {
         "blockr.block.id": request.block,
         "blockr.block.revision": request.revision,
-        "blockr.block.registry_id": request.recipe.registry_id
+        ...idAttributes("blockr.block.registry_id", request.recipe.registry_id)
       };
     case "output":
       return { "blockr.block.id": request.block, "blockr.block.revision": request.revision };
@@ -839,11 +919,11 @@ function requestAttributes(request) {
       const named4 = { "blockr.request.type": request.type, "blockr.request.name": request.name };
       switch (request.type) {
         case "block_class":
-          return { ...named4, "blockr.block.id": request.block, "blockr.block.registry_id": request.registry_id };
+          return { ...named4, "blockr.block.id": request.block, ...idAttributes("blockr.block.registry_id", request.registry_id) };
         case "option":
           return { ...named4, "blockr.option.id": request.option };
         case "plugin":
-          return { ...named4, "blockr.plugin.class_id": request.plugin };
+          return { ...named4, ...idAttributes("blockr.plugin.class_id", request.plugin) };
         case "output_class":
           return { ...named4, "blockr.block.id": request.output.block, "blockr.block.revision": request.output.revision };
         case "renderer":
@@ -851,7 +931,7 @@ function requestAttributes(request) {
             ...named4,
             "blockr.block.id": request.output.block,
             "blockr.block.revision": request.output.revision,
-            "blockr.renderer.id": request.renderer
+            ...idAttributes("blockr.renderer.id", request.renderer)
           };
       }
       break;
@@ -890,6 +970,28 @@ function guard(fn) {
 }
 function quietly(sent2) {
   sent2.catch(() => void 0);
+}
+
+// srcts/protocol/reply.ts
+var registries = /* @__PURE__ */ new WeakMap();
+var plugins = /* @__PURE__ */ new WeakMap();
+function blockRegistry(reply) {
+  const list = reply.block_registry;
+  let map = registries.get(list);
+  if (map === void 0) {
+    map = new Map(list.map((entry) => [interned(entry.package, entry.id), entry]));
+    registries.set(list, map);
+  }
+  return map;
+}
+function appPlugins(reply) {
+  const list = reply.plugins;
+  let map = plugins.get(list);
+  if (map === void 0) {
+    map = new Map(list.map((entry) => [interned(entry.package, entry.id), entry]));
+    plugins.set(list, map);
+  }
+  return map;
 }
 
 // srcts/protocol/messages.ts
@@ -1331,7 +1433,7 @@ function evaluationPlan(input2) {
 function inputsByBlock(board, graph, registry, bound) {
   const inputs = /* @__PURE__ */ new Map();
   for (const [id2, block] of Object.entries(board.blocks)) {
-    const declared = own(registry, block.registry_id)?.inputs ?? [];
+    const declared = registry.get(block.registry_id)?.inputs ?? [];
     const links = graph.linksInto(id2).flatMap((link) => own(board.links, link) ?? []);
     inputs.set(
       id2,
@@ -1419,7 +1521,7 @@ function createScheduler(options) {
   const delay = setting(options.backgroundEvaluationDelay, Infinity, "background_evaluation_delay");
   const gated = flag(options.gateVisibility, true, "gate_visibility");
   const board = signal(void 0);
-  const registry = signal({});
+  const registry = signal(/* @__PURE__ */ new Map());
   const bound = signal(new Set(options.bound ?? []));
   const revisions = signal(/* @__PURE__ */ new Map());
   const outcomes = signal(/* @__PURE__ */ new Map());
@@ -1708,7 +1810,7 @@ function createScheduler(options) {
   function resendable(request) {
     if (request.kind === "output" || request.output !== void 0) return true;
     if (request.registry_id === void 0) return false;
-    const entry = own(store.blockRegistry(), request.registry_id);
+    const entry = store.blockRegistry().get(request.registry_id);
     return entry === void 0 || own(entry.requests, request.name)?.action !== true;
   }
   function demanding(id2, owner, blocks, priority) {
@@ -1846,7 +1948,7 @@ function createScheduler(options) {
       const span = {
         ...requestOptions.span,
         attributes: {
-          ...block === void 0 ? {} : { "blockr.block.registry_id": block.registry_id },
+          ...block === void 0 ? {} : idAttributes("blockr.block.registry_id", block.registry_id),
           ...requestOptions.span?.attributes
         }
       };
@@ -2027,7 +2129,7 @@ function requestKey(request) {
     return JSON.stringify(
       sorted([
         request.type,
-        request.registry_id,
+        { package: request.registry_id.package, id: request.registry_id.id },
         request.name,
         request.args,
         request.options ?? {},
@@ -2038,7 +2140,7 @@ function requestKey(request) {
   return JSON.stringify(
     sorted([
       request.type,
-      request.type === "renderer" ? request.renderer : null,
+      request.type === "renderer" ? { package: request.renderer.package, id: request.renderer.id } : null,
       request.output,
       request.name,
       request.args,
@@ -2114,11 +2216,11 @@ function createLoader(options = {}) {
   return {
     load,
     module(id2) {
-      const source = own(modules(), id2);
+      const source = nestedValue(modules(), id2);
       if (source === void 0) {
-        return Promise.reject(new Error(`No package offers a module "${id2}".`));
+        return Promise.reject(new Error(`${id2.package} offers no module "${id2.id}".`));
       }
-      return load(source, packageFromId(id2));
+      return load(source, id2.package);
     }
   };
 }
@@ -2292,20 +2394,20 @@ var RequestError = class extends Error {
 async function blockRequest(deps, block, entry, name3, given, opts) {
   const spec = own(entry.requests, name3);
   if (spec === void 0) {
-    throw new Error(`The block class "${entry.id}" has no request "${name3}".`);
+    throw new Error(`The block class "${idText(entry)}" has no request "${name3}".`);
   }
   if (!isObject(given)) {
     throw new TypeError(`The args of the request "${name3}" are an object of state args and parameters.`);
   }
   if (opts.file !== void 0 && spec.file !== true) {
     throw new TypeError(
-      `The request "${name3}" of the block class "${entry.id}" takes no file, since its new_block_request() names no argument for one.`
+      `The request "${name3}" of the block class "${idText(entry)}" takes no file, since its new_block_request() names no argument for one.`
     );
   }
   const notifier = givenNotifier(opts, `the request "${name3}" of block "${block}"`);
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name3}" of block "${block}"`;
-  const module = sourceModule({ block }, packageFromId(entry.id));
+  const module = sourceModule({ block }, entry.package);
   const inCaller = keepContext();
   for (let attempt3 = 1; ; attempt3++) {
     const reads = await evaluateReads(deps, block, entry, name3, spec.inputs, opts.signal);
@@ -2329,7 +2431,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
     const request = {
       kind: "request",
       type: "block_class",
-      registry_id: entry.id,
+      registry_id: interned(entry.package, entry.id),
       block,
       name: name3,
       args,
@@ -2505,7 +2607,7 @@ function mountOption(deps, el, option) {
       if (!bound()) throw unboundError();
       const notifier = givenNotifier(opts, `a submit of the board option "${option}"`);
       try {
-        await deps.commands.run("blockr.core-set_option", { id: option, value: next });
+        await deps.commands.run({ package: "blockr.core", id: "set_option" }, { id: option, value: next });
       } catch (error) {
         deps.refused(error, { option }, notifier);
         throw error;
@@ -2647,15 +2749,15 @@ function mountOutput(deps, el, block) {
   if (found === void 0) {
     throw new Error(`The board holds no block "${block}" whose output to mount.`);
   }
-  const entry = own(store.blockRegistry(), found.registry_id);
+  const entry = store.blockRegistry().get(found.registry_id);
   if (entry === void 0) {
-    throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
+    throw new Error(`The block registry has no class "${idText(found.registry_id)}" for block "${block}".`);
   }
   const shelf = deps.shelves.of(block);
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const outputOptions = entry.output_options ?? [];
-  const registryId2 = entry.id;
+  const className = idText(entry);
   const expected = /* @__PURE__ */ new Map();
   const ready = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
@@ -2673,27 +2775,29 @@ function mountOutput(deps, el, block) {
   const unboundError = () => new Error(
     deps.replaced.aborted ? `Another board opened, so the host of the output of block "${block}" no longer asks R.` : `Block "${block}" left the board, so the host of its output no longer asks R.`
   );
-  const rendererModule = (renderer) => sourceModule({ block }, packageFromId(renderer.id), renderer.id);
+  const rendererModule = (renderer) => sourceModule({ block }, renderer.package, rendererIdOf(renderer));
   function prepare(given) {
-    let loading = preparing.get(given.id);
+    const id2 = rendererIdOf(given);
+    let loading = preparing.get(id2);
     if (loading === void 0) {
       loading = (async () => {
-        const pkg = packageFromId(given.id);
+        const pkg = given.package;
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
         return { renderer: given, mod };
       })();
-      preparing.set(given.id, loading);
+      preparing.set(id2, loading);
     }
     return loading;
   }
   function expect(given) {
-    if (expected.has(given.id)) return;
-    expected.set(given.id, given);
+    const id2 = rendererIdOf(given);
+    if (expected.has(id2)) return;
+    expected.set(id2, given);
     prepare(given).then(
       (prepared) => {
         if (ended()) return;
-        ready.set(given.id, prepared);
+        ready.set(id2, prepared);
         sync();
       },
       (failure) => {
@@ -2867,7 +2971,7 @@ function mountOutput(deps, el, block) {
     error = null;
     const named5 = next.output.renderer;
     expect(named5);
-    if (drawing !== void 0 && drawing.prepared.renderer.id !== named5.id) unmountRenderer();
+    if (drawing !== void 0 && rendererIdOf(drawing.prepared.renderer) !== rendererIdOf(named5)) unmountRenderer();
     draw();
     announce2();
     wake();
@@ -2877,7 +2981,9 @@ function mountOutput(deps, el, block) {
     const named5 = held3.output.renderer;
     prepare(named5).then(
       (prepared) => {
-        if (ended() || drawing !== void 0 || held3?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
+        if (ended() || drawing !== void 0 || held3 === void 0 || rendererIdOf(held3.output.renderer) !== rendererIdOf(prepared.renderer) || !onScreen()) {
+          return;
+        }
         mountRenderer(prepared);
       },
       (failure) => {
@@ -2898,7 +3004,7 @@ function mountOutput(deps, el, block) {
         else current3.cleanup = rendered;
       } catch (failure) {
         if (signal5.signal.aborted) return;
-        const pkg = packageFromId(prepared.renderer.id);
+        const pkg = prepared.renderer.package;
         const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${errorMessage(failure)}`, {
           cause: failure
         });
@@ -2992,7 +3098,7 @@ function mountOutput(deps, el, block) {
       const target2 = await current2(name3, opts.signal);
       const output = { block, revision: target2.asked.revision };
       const fields = { output, name: name3, args: { ...args }, options: target2.asked.options, params: target2.asked.params };
-      const asked = opts.scope === "renderer" ? { kind: "request", type: "renderer", renderer: prepared.renderer.id, ...fields } : { kind: "request", type: "output_class", ...fields };
+      const asked = opts.scope === "renderer" ? { kind: "request", type: "renderer", renderer: rendererIdOf(prepared.renderer), ...fields } : { kind: "request", type: "output_class", ...fields };
       const { reply, body } = await inCaller(
         () => deps.answers.ask(
           { request: asked, share: opts.file === void 0 ? "keep" : "once", ...opts.file === void 0 ? {} : { body: opts.file } },
@@ -3050,7 +3156,7 @@ function mountOutput(deps, el, block) {
           const read = optionReader(
             optionsFor(held3?.asked),
             outputOptions,
-            (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
+            (unnamed) => `The output family of block class "${className}" names no board option "${unnamed}" in R, so the renderer "${idText(prepared.renderer)}" cannot read it.`
           );
           memo = { for: held3, read };
           named5 = memo;
@@ -3136,7 +3242,7 @@ function mountOutput(deps, el, block) {
     );
   });
   const offEnd = onAbort(deps.replaced, end);
-  const by = `the outputs of block class "${entry.id}"`;
+  const by = `the outputs of block class "${className}"`;
   const keepingOutputOptions = deps.keepOptions(outputOptions, by, lackOutputOptions);
   void keepingOutputOptions.added.then((failures) => {
     if (failures.length > 0) lackOutputOptions();
@@ -3181,9 +3287,14 @@ function sorted2(x) {
   }
   return x;
 }
+function rendererIdOf(renderer) {
+  return interned(renderer.package, renderer.id);
+}
 
 // srcts/mount/block.ts
 var CORE = "blockr.core";
+var SET_OPTION = { package: CORE, id: "set_option" };
+var CHANGE_BLOCK = { package: CORE, id: "change_block" };
 var NO_STATUS = Object.freeze(unevaluated(0, false));
 var EVERY_OUTPUT_ON_SCREEN = { holds: () => true, subscribe: () => () => void 0 };
 function createMounts(options) {
@@ -3242,7 +3353,7 @@ function createMounts(options) {
         }
         if (replaced2.aborted || Object.hasOwn(store.board().options, id2)) return [];
         try {
-          await commands.run("blockr.core-set_option", { id: id2, value: value2 }, CORE);
+          await commands.run(SET_OPTION, { id: id2, value: value2 }, CORE);
         } catch (error) {
           return failure(
             id2,
@@ -3281,13 +3392,13 @@ function createMounts(options) {
     if (found === void 0) {
       throw new Error(`The board holds no block "${block}" to mount.`);
     }
-    const entry = own(store.blockRegistry(), found.registry_id);
+    const entry = store.blockRegistry().get(found.registry_id);
     if (entry === void 0) {
-      throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
+      throw new Error(`The block registry has no class "${idText(found.registry_id)}" for block "${block}".`);
     }
-    const pkg = packageFromId(entry.id);
+    const pkg = entry.package;
     const module = sourceModule({ block }, pkg);
-    const by = `the UI module of block class "${entry.id}"`;
+    const by = `the UI module of block class "${idText(entry)}"`;
     const controller = new AbortController();
     const { signal: signal5 } = controller;
     const ended = () => signal5.aborted;
@@ -3424,7 +3535,7 @@ function blockHost(deps) {
       option: optionReader(
         values2,
         named4,
-        (id2) => `The block class "${entry.id}" names no board option "${id2}" in R, so its UI module cannot read it.`
+        (id2) => `The block class "${idText(entry)}" names no board option "${id2}" in R, so its UI module cannot read it.`
       )
     });
     contextValues.set(context5, values2);
@@ -3479,7 +3590,7 @@ function blockHost(deps) {
   );
   return {
     block,
-    class: entry.id,
+    class: interned(entry.package, entry.id),
     state: () => state2,
     context: () => context4,
     on(event, fn) {
@@ -3504,7 +3615,7 @@ function blockHost(deps) {
       const set = Object.fromEntries(Object.entries(change).filter(([, value2]) => value2 !== void 0));
       const unset = Object.entries(change).flatMap(([arg, value2]) => value2 === void 0 ? [arg] : []);
       try {
-        await commands.run("blockr.core-change_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
+        await commands.run(CHANGE_BLOCK, { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
       } catch (error) {
         deps.refused(error, { block }, notifier);
         throw error;
@@ -3525,7 +3636,7 @@ function blockHost(deps) {
       return status;
     },
     module(id2) {
-      return deps.loader.module(id2);
+      return deps.loader.module(givenModuleId(id2));
     },
     notify(notification) {
       const given = checkRaised(notification);
@@ -4814,7 +4925,7 @@ var validators = /* @__PURE__ */ new WeakMap();
 function stateFailures(entry, state2) {
   let validate = validators.get(entry);
   if (validate === void 0) {
-    validate = compile(`the state of the block class "${entry.id}"`, entry.schema);
+    validate = compile(`the state of the block class "${idText(entry)}"`, entry.schema);
     validators.set(entry, validate);
   }
   return validate(state2);
@@ -4844,7 +4955,7 @@ function checkBlocks(board, registry, registrations, changed, failures) {
   for (const [id2, block] of Object.entries(board.blocks)) {
     if (changed !== void 0 && !changed.blocks.has(id2)) continue;
     const fields = shape(block, {
-      registry_id: "string",
+      registry_id: "registry id",
       state: "object",
       name: "string",
       locked: "boolean or null"
@@ -4853,10 +4964,10 @@ function checkBlocks(board, registry, registrations, changed, failures) {
       failures.push(`The block "${id2}" ${fields.join(", ")}.`);
       continue;
     }
-    const entry = own(registry, block.registry_id);
+    const entry = registry.get(internedRecord(block.registry_id));
     if (entry === void 0) {
       failures.push(
-        `The block "${id2}" is of the class "${block.registry_id}", which the block registry lacks.`
+        `The block "${id2}" is of the class "${idText(block.registry_id)}", which the block registry lacks.`
       );
       continue;
     }
@@ -4885,7 +4996,7 @@ function checkLinks(board, registry, changed, failures) {
       failures.push(`The link "${id2}" goes to block "${link.to}", which the board lacks.`);
       continue;
     }
-    const inputs = own(registry, to.registry_id)?.inputs;
+    const inputs = isIdRecord(to.registry_id, true) ? registry.get(internedRecord(to.registry_id))?.inputs : void 0;
     if (inputs === void 0 || inputs.includes("...")) continue;
     if (!inputs.includes(link.input)) {
       failures.push(
@@ -4953,19 +5064,30 @@ function checkValues(board, registrations, changed, failures) {
   }
 }
 function checkPlugins(board, registrations, changed, failures) {
-  for (const [id2, state2] of Object.entries(board.plugins)) {
-    if (changed !== void 0 && !changed.plugins.has(id2)) continue;
-    const cls = registrations.plugin(id2);
-    if (cls === void 0) {
-      failures.push(`The board holds the state of a plugin of the class "${id2}", which no package registered.`);
+  for (const [pkg, byId] of Object.entries(board.plugins)) {
+    if (!isPackageName(pkg) || !isObject(byId)) {
+      failures.push(`The board holds the state of plugins under "${pkg}", where it holds an object by the ids of the classes of a package.`);
       continue;
     }
-    if (cls.validate === void 0) {
-      failures.push(`The board holds the state of a plugin of the class "${id2}", which keeps none.`);
-      continue;
-    }
-    for (const failure of cls.validate(state2)) {
-      failures.push(`The state of the plugin "${id2}" ${failure}`);
+    for (const [cls, state2] of Object.entries(byId)) {
+      if (cls === "") {
+        failures.push(`The board holds the state of a plugin of ${pkg} under an empty id.`);
+        continue;
+      }
+      const id2 = interned(pkg, cls);
+      if (changed !== void 0 && !changed.plugins.has(id2)) continue;
+      const registered = registrations.plugin(id2);
+      if (registered === void 0) {
+        failures.push(`The board holds the state of a plugin of the class "${idText(id2)}", which no package registered.`);
+        continue;
+      }
+      if (registered.validate === void 0) {
+        failures.push(`The board holds the state of a plugin of the class "${idText(id2)}", which keeps none.`);
+        continue;
+      }
+      for (const failure of registered.validate(state2)) {
+        failures.push(`The state of the plugin "${idText(id2)}" ${failure}`);
+      }
     }
   }
 }
@@ -4992,6 +5114,8 @@ function fits(x, kind) {
       return x === null || typeof x === "boolean";
     case "string":
       return typeof x === "string";
+    case "registry id":
+      return isIdRecord(x, true);
   }
 }
 
@@ -5003,8 +5127,11 @@ function segmentsFromPath(path) {
   return segments.map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
 }
 function pluginClassFromPath(path) {
-  const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
-  return boardProperty === "plugins" ? plugin : void 0;
+  const [boardProperty, pkg, cls] = segmentsFromPath(path) ?? [];
+  if (boardProperty !== "plugins" || pkg === void 0 || !isPackageName(pkg) || cls === void 0 || cls === "") {
+    return void 0;
+  }
+  return interned(pkg, cls);
 }
 function pathFromSegments(segments) {
   return segments.map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
@@ -5137,7 +5264,7 @@ function arrayIndex(segment) {
 
 // srcts/store/commit.ts
 function target(of) {
-  return "block" in of ? JSON.stringify(["block", of.block]) : JSON.stringify(["plugin", of.plugin]);
+  return "block" in of ? of.block : interned(of.plugin.package, of.plugin.id);
 }
 function commit(board, delta, places = {}) {
   const failures = [];
@@ -5145,7 +5272,7 @@ function commit(board, delta, places = {}) {
   const blocks = collection(
     (id2) => `block "${id2}"`,
     board.blocks,
-    delta.blocks,
+    internedBlocks(delta.blocks),
     (old, mod, id2) => modifyBlock(old, mod, id2, failures),
     places.blocks,
     void 0,
@@ -5220,7 +5347,7 @@ function patch(board, patches2, placed, failures) {
   let next = board;
   const inverse = [];
   const places = {};
-  const plugins = /* @__PURE__ */ new Set();
+  const plugins2 = /* @__PURE__ */ new Set();
   for (const [i, given] of patches2.entries()) {
     const name3 = `The patch ${String(i + 1)}`;
     const problems = malformed(given);
@@ -5244,16 +5371,31 @@ function patch(board, patches2, placed, failures) {
     if (applied.inverse === void 0) continue;
     inverse.unshift(applied.inverse);
     if (applied.place !== void 0) places[applied.inverse.path] = applied.place;
-    plugins.add(segments[1] ?? "");
+    plugins2.add(interned(segments[1] ?? "", segments[2] ?? ""));
   }
-  return { board: next, inverse, places, plugins };
+  return { board: next, inverse, places, plugins: plugins2 };
+}
+function internedBlocks(part) {
+  if (part?.add === void 0) return part;
+  const given = Object.entries(part.add);
+  const entries = given.map(([id2, block]) => {
+    const held3 = block;
+    if (!isObject(held3) || !isIdRecord(held3.registry_id, true)) return [id2, block];
+    const registryId2 = internedRecord(held3.registry_id);
+    return registryId2 === block.registry_id ? [id2, block] : [id2, { ...block, registry_id: registryId2 }];
+  });
+  const same2 = entries.every(([, block], i) => block === given[i]?.[1]);
+  return same2 ? part : { ...part, add: Object.fromEntries(entries) };
 }
 function outside(segments, op) {
-  const [boardProperty, plugin] = segments;
+  const [boardProperty, pkg, cls] = segments;
   if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the state of the board's plugins alone`;
-  if (plugin === void 0) return "changes the board's plugins as a whole, where a patch changes the state of one plugin";
-  if (segments.length === 2 && op !== "replace") {
-    return `${op === "add" ? "adds" : "removes"} what the board holds for the plugin "${plugin}", where a patch changes a plugin's state alone, since the app sets the plugins that run`;
+  if (pkg === void 0) return "changes the board's plugins as a whole, where a patch changes the state of one plugin";
+  if (!isPackageName(pkg)) return `names the package "${segments[1] ?? ""}", which is not named as R names a package`;
+  if (cls === void 0) return `changes the plugins of ${pkg} as a whole, where a patch changes the state of one plugin`;
+  if (cls === "") return `names a plugin of ${pkg} by an empty id`;
+  if (segments.length === 3 && op !== "replace") {
+    return `${op === "add" ? "adds" : "removes"} what the board holds for the plugin "${idText(interned(pkg, cls))}", where a patch changes a plugin's state alone, since the app sets the plugins that run`;
   }
   return void 0;
 }
@@ -5456,7 +5598,7 @@ function expand(delta, board, registrations) {
     const core = expandCore(expanded, board);
     const grew = core !== expanded;
     expanded = core;
-    for (const id2 of Object.keys(board.plugins)) {
+    for (const [id2] of nestedEntries(board.plugins)) {
       const def = registrations.plugin(id2)?.def;
       if (def?.state?.update === void 0) continue;
       let patches2;
@@ -5464,11 +5606,15 @@ function expand(delta, board, registrations) {
         patches2 = def.state.update(expanded, board, id2);
       } catch (error) {
         failures.push(
-          thrown(`The plugin class "${id2}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id2 })
+          thrown(
+            `The plugin class "${idText(id2)}" failed to update the delta for its plugin`,
+            error,
+            idAttributes("blockr.plugin.class_id", id2)
+          )
         );
         continue;
       }
-      const wrong = misplaced(id2, patches2, `The plugin class "${id2}" updated the delta for its plugin with`);
+      const wrong = misplaced(id2, patches2, `The plugin class "${idText(id2)}" updated the delta for its plugin with`);
       if (wrong.length > 0) {
         failures.push(...wrong);
         continue;
@@ -5482,7 +5628,7 @@ function expand(delta, board, registrations) {
     if (round === ROUNDS - 1) {
       return {
         failures: [
-          `The delta kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin${adding.length > 1 ? "s" : ""} ${quoted(adding)}.`
+          `The delta kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin${adding.length > 1 ? "s" : ""} ${quoted(adding.map(idText))}.`
         ]
       };
     }
@@ -5492,17 +5638,19 @@ function expand(delta, board, registrations) {
 function afterStep(board, before, registrations) {
   const patches2 = [];
   const failures = [];
-  for (const id2 of Object.keys(board.plugins)) {
+  for (const [id2] of nestedEntries(board.plugins)) {
     const def = registrations.plugin(id2)?.def;
     if (def?.state?.afterStep === void 0) continue;
     let returned;
     try {
       returned = def.state.afterStep(board, before, id2);
     } catch (error) {
-      failures.push(thrown(`The afterStep of the plugin class "${id2}" failed`, error, { "blockr.plugin.class_id": id2 }));
+      failures.push(
+        thrown(`The afterStep of the plugin class "${idText(id2)}" failed`, error, idAttributes("blockr.plugin.class_id", id2))
+      );
       continue;
     }
-    const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${id2}" returned`);
+    const wrong = misplaced(id2, returned, `The afterStep of the plugin class "${idText(id2)}" returned`);
     if (wrong.length > 0) {
       failures.push(...wrong);
       continue;
@@ -5545,8 +5693,8 @@ function misplaced(id2, patches2, of) {
       continue;
     }
     const { path } = patch2;
-    const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
-    if (boardProperty !== "plugins" || plugin !== id2) {
+    const [boardProperty, pkg, cls] = segmentsFromPath(path) ?? [];
+    if (boardProperty !== "plugins" || pkg !== id2.package || cls !== id2.id) {
       failures.push(`${of} a patch at "${path}", outside that plugin's state.`);
     }
   }
@@ -5577,16 +5725,16 @@ function fixes(board, block, boardLock) {
 }
 function lockFailures(before, inverse) {
   const failures = [];
-  const refuse = (verb, one2, several, ids2) => {
+  const refuse2 = (verb, one2, several, ids2) => {
     if (ids2.length === 0) return;
     failures.push(`The board lock refuses to ${verb} ${ids2.length === 1 ? one2 : several} ${quoted(ids2)}.`);
   };
   const blocks = inverse.blocks;
   const mods = Object.entries(blocks?.mod ?? {});
-  refuse("add", "block", "blocks", blocks?.rm ?? []);
-  refuse("remove", "block", "blocks", Object.keys(blocks?.add ?? {}));
-  refuse("rename", "block", "blocks", mods.filter(([, mod]) => mod.name !== void 0).map(([id2]) => id2));
-  refuse(
+  refuse2("add", "block", "blocks", blocks?.rm ?? []);
+  refuse2("remove", "block", "blocks", Object.keys(blocks?.add ?? {}));
+  refuse2("rename", "block", "blocks", mods.filter(([, mod]) => mod.name !== void 0).map(([id2]) => id2));
+  refuse2(
     "change",
     "the lock of block",
     "the locks of the blocks",
@@ -5605,11 +5753,11 @@ function lockFailures(before, inverse) {
     [inverse.links, "link", "links"],
     [inverse.stacks, "stack", "stacks"]
   ]) {
-    refuse("add", one2, several, part?.rm ?? []);
-    refuse("change", one2, several, Object.keys(part?.mod ?? {}));
-    refuse("remove", one2, several, Object.keys(part?.add ?? {}));
+    refuse2("add", one2, several, part?.rm ?? []);
+    refuse2("change", one2, several, Object.keys(part?.mod ?? {}));
+    refuse2("remove", one2, several, Object.keys(part?.add ?? {}));
   }
-  refuse("move", "link", "links", Object.keys(inverse.links?.before ?? {}));
+  refuse2("move", "link", "links", Object.keys(inverse.links?.before ?? {}));
   if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
   return failures;
 }
@@ -5688,28 +5836,28 @@ function isEmpty(delta) {
 }
 
 // srcts/store/plugins.ts
-function inRole(plugins, registeredClass, role) {
-  return Object.keys(plugins).filter((id2) => registeredClass(id2)?.[role] !== void 0);
+function inRole(plugins2, registeredClass, role) {
+  return [...plugins2].filter((id2) => registeredClass(id2)?.[role] !== void 0);
 }
 function keptPlugins(board, app, registeredClass) {
-  return Object.fromEntries(
-    Object.entries(board).filter(
-      (entry) => Object.hasOwn(app, entry[0]) && registeredClass(entry[0])?.state !== void 0
+  return nestedRecord(
+    nestedEntries(board).filter(
+      (entry) => app.has(entry[0]) && registeredClass(entry[0])?.state !== void 0
     )
   );
 }
 function droppedPlugins(board, app, registeredClass) {
-  return Object.keys(board).filter((id2) => !Object.hasOwn(app, id2) || registeredClass(id2) === void 0);
+  return nestedEntries(board).map(([id2]) => id2).filter((id2) => !app.has(id2) || registeredClass(id2) === void 0);
 }
 function pluginsWithDefaults(kept, app, registeredClass) {
-  const plugins = {};
-  for (const id2 of Object.keys(app)) {
+  const plugins2 = [];
+  for (const id2 of app.keys()) {
     const state2 = registeredClass(id2)?.state;
     if (state2 === void 0) continue;
-    const held3 = own(kept, id2);
-    plugins[id2] = held3 === void 0 ? frozenCopy(state2.default) : held3;
+    const held3 = nestedValue(kept, id2);
+    plugins2.push([id2, held3 === void 0 ? frozenCopy(state2.default) : held3]);
   }
-  return plugins;
+  return nestedRecord(plugins2);
 }
 
 // srcts/store/open.ts
@@ -5756,14 +5904,25 @@ function isVersion(value2) {
 }
 function checkRecorded(board) {
   const failures = [];
-  for (const [cls, plugin] of Object.entries(board.plugins)) {
-    if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
-      failures.push(`The plugin "${cls}" is recorded as no state with the version of its class's state.`);
+  for (const [pkg, byId] of Object.entries(board.plugins)) {
+    if (!isPackageName(pkg) || !isObject(byId)) {
+      failures.push(`The board holds plugins under "${pkg}", where it holds the plugins of a package by the ids of their classes.`);
+      continue;
+    }
+    for (const [cls, plugin] of Object.entries(byId)) {
+      if (cls === "" || !isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
+        failures.push(`The plugin "${cls}" of ${pkg} is recorded as no state with the version of its class's state.`);
+      }
     }
   }
   for (const [id2, block] of Object.entries(board.blocks)) {
     if (isObject(block) && !isVersion(block.version)) {
       failures.push(`The block "${id2}" records no version of its class's state.`);
+    }
+    if (isObject(block) && !isIdRecord(block.registry_id, true)) {
+      failures.push(
+        `The block "${id2}" names its class by ${JSON.stringify(block.registry_id)}, where it names a package, or null, and an id, as { "package": "blockr.core", "id": "head_block" }.`
+      );
     }
   }
   for (const [id2, option] of Object.entries(board.options)) {
@@ -5782,26 +5941,30 @@ function unversioned(board) {
     blocks: Object.fromEntries(
       Object.entries(board.blocks).map(([id2, block]) => [
         id2,
-        without(block, ["version"])
+        {
+          ...without(block, ["version"]),
+          registry_id: internedRecord(block.registry_id)
+        }
       ])
     ),
     options: Object.fromEntries(Object.entries(board.options).map(([id2, option]) => [id2, option.value])),
-    plugins: Object.fromEntries(Object.entries(board.plugins).map(([cls, plugin]) => [cls, plugin.state]))
+    plugins: nestedRecord(nestedEntries(board.plugins).map(([cls, plugin]) => [cls, plugin.state]))
   };
 }
 function migrate(board, json, reply, registrations) {
   const failures = /* @__PURE__ */ new Set();
   const changed = /* @__PURE__ */ new Set();
-  const plugins = Object.fromEntries(
-    Object.entries(board.plugins).map(([cls, state2]) => {
+  const app = appPlugins(reply);
+  const plugins2 = nestedRecord(
+    nestedEntries(board.plugins).map(([cls, state2]) => {
       const def = registrations.plugin(cls)?.def;
       if (def === void 0) return [cls, state2];
-      const from = own(json.plugins, cls)?.version;
-      const to = own(reply.plugins, cls)?.version ?? 1;
+      const from = nestedValue(json.plugins, cls)?.version;
+      const to = app.get(cls)?.version ?? 1;
       if (from === void 0 || from === to) return [cls, state2];
       if (from > to) {
         failures.add(
-          `The board records version ${String(from)} of the plugin class "${cls}", while R gives version ${String(to)}.`
+          `The board records version ${String(from)} of the plugin class "${idText(cls)}", while R gives version ${String(to)}.`
         );
         return [cls, state2];
       }
@@ -5810,21 +5973,22 @@ function migrate(board, json, reply, registrations) {
       return [
         cls,
         migratedValue(
-          `The migration of the plugin class "${cls}"`,
-          { "blockr.plugin.class_id": cls },
+          `The migration of the plugin class "${idText(cls)}"`,
+          idAttributes("blockr.plugin.class_id", cls),
           () => def.state?.migrate?.(frozenCopy(state2), from)
         )
       ];
     })
   );
+  const registry = blockRegistry(reply);
   const blocks = Object.fromEntries(
     Object.entries(board.blocks).map(([id2, block]) => {
       const from = own(json.blocks, id2)?.version;
-      const to = own(reply.block_registry, block.registry_id)?.version;
+      const to = registry.get(block.registry_id)?.version;
       if (from === void 0 || to === void 0 || from === to) return [id2, block];
       if (from > to) {
         failures.add(
-          `The block "${id2}" records version ${String(from)} of the state of "${block.registry_id}", while its class is at version ${String(to)}.`
+          `The block "${id2}" records version ${String(from)} of the state of "${idText(block.registry_id)}", while its class is at version ${String(to)}.`
         );
         return [id2, block];
       }
@@ -5832,8 +5996,8 @@ function migrate(board, json, reply, registrations) {
       if (fn === void 0) return [id2, block];
       changed.add("blocks");
       const state2 = migrated(
-        `The migration of the block class "${block.registry_id}"`,
-        { "blockr.block.registry_id": block.registry_id },
+        `The migration of the block class "${idText(block.registry_id)}"`,
+        idAttributes("blockr.block.registry_id", block.registry_id),
         () => fn(frozenCopy(block.state), from)
       );
       return [id2, { ...block, state: state2 }];
@@ -5866,7 +6030,7 @@ function migrate(board, json, reply, registrations) {
   );
   if (failures.size > 0) throw new StoreError(refused, [...failures]);
   if (changed.size === 0) return board;
-  return { ...board, plugins, blocks, options };
+  return { ...board, plugins: plugins2, blocks, options };
 }
 function migrated(what, attributes, fn) {
   const out = migratedValue(what, attributes, fn);
@@ -5886,16 +6050,18 @@ function migratedValue(what, attributes, fn) {
 function openJsonBoard(json, reply, registrations) {
   const registeredClass = (id2) => registrations.plugin(id2)?.def;
   const read = unversioned(json.board);
-  const held3 = keptPlugins(read.plugins, reply.plugins, registeredClass);
-  const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
+  const app = appPlugins(reply);
+  const registry = blockRegistry(reply);
+  const held3 = keptPlugins(read.plugins, app, registeredClass);
+  const plugins2 = droppedPlugins(read.plugins, app, registeredClass).map((id2) => ({
     about: { plugin: id2 },
-    package: packageFromId(id2)
+    package: id2.package
   }));
   const migrated2 = migrate({ ...read, plugins: held3 }, json.board, reply, registrations);
-  const lacking = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0);
+  const lacking = Object.entries(migrated2.blocks).filter(([, block]) => !registry.has(block.registry_id));
   const blocks = lacking.map(([id2, block]) => ({
     about: { block: id2, name: block.name, registry_id: block.registry_id },
-    package: packageFromId(block.registry_id)
+    package: block.registry_id.package
   }));
   const gone = lacking.map(([id2]) => id2);
   const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
@@ -5904,15 +6070,16 @@ function openJsonBoard(json, reply, registrations) {
     package: own(json.board.options, id2)?.package ?? null
   }));
   const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
-  const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
-  const failures = check(board, reply.block_registry, registrations);
+  const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, app, registeredClass) };
+  const failures = check(board, registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
   const used = /* @__PURE__ */ new Set([
-    ...[...Object.values(read.blocks).map((block) => block.registry_id), ...Object.keys(read.plugins)].map(packageFromId),
+    ...Object.values(read.blocks).map((block) => block.registry_id.package),
+    ...nestedEntries(read.plugins).map(([cls]) => cls.package),
     ...Object.values(json.board.options).map((option) => option.package)
   ]);
   const packages = Object.entries(json.packages).filter(([pkg]) => used.has(pkg) && own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ about: { package: pkg, version }, package: pkg }));
-  return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
+  return { board, dropped: [...packages, ...blocks, ...plugins2, ...options] };
 }
 function remove(board, gone, registrations) {
   if (gone.length === 0) return board;
@@ -5933,7 +6100,7 @@ function createRegistrations(migration = () => void 0) {
     () => new Map(options.value.map((option) => [option.def.id, option]))
   );
   const classDefs = computed2(
-    () => Object.fromEntries([...classes2.value].map(([id2, cls]) => [id2, cls.def]))
+    () => new Map([...classes2.value].map(([id2, cls]) => [id2, cls.def]))
   );
   const optionDefs = computed2(
     () => Object.fromEntries(options.value.map((option) => [option.def.id, option.def]))
@@ -5946,65 +6113,66 @@ function createRegistrations(migration = () => void 0) {
     }
   }
   function registerPlugin(def) {
-    const { id: id2 } = def;
-    if (typeof id2 !== "string" || !isPluginClassId(id2)) {
+    const given = def;
+    if (!isPluginClassId(given.id)) {
       throw new Error(
-        `The plugin class id ${JSON.stringify(id2)} is not named as R names a plugin class, "{pkg}-{name}_plugin".`
+        `The plugin class id ${JSON.stringify(given.id)} is not named as R names a plugin class, as { package: "blockr.dag", id: "dag_plugin" }.`
       );
     }
+    const id2 = interned(given.id.package, given.id.id);
+    const named4 = `The plugin class "${idText(id2)}"`;
     if (classes2.value.has(id2)) {
-      throw new Error(`The plugin class "${id2}" is registered already.`);
+      throw new Error(`${named4} is registered already.`);
     }
-    const given = def;
     for (const [member, article] of STATE_FUNCTIONS) {
       if (given[member] !== void 0) {
-        throw new Error(`The plugin class "${id2}" gives ${article} ${member} outside its state.`);
+        throw new Error(`${named4} gives ${article} ${member} outside its state.`);
       }
     }
     if (given.start !== void 0 && typeof given.start !== "function") {
-      throw new Error(`The plugin class "${id2}" has a start that is no function.`);
+      throw new Error(`${named4} has a start that is no function.`);
     }
     for (const member of ["ui", "frontend"]) {
       const drawn2 = given[member];
       if (drawn2 !== void 0 && (!isObject(drawn2) || typeof drawn2.render !== "function")) {
-        throw new Error(`The plugin class "${id2}" has a ${member} without a render() function.`);
+        throw new Error(`${named4} has a ${member} without a render() function.`);
       }
     }
     const frontend = given.frontend;
     if (isObject(frontend) && frontend.advanced !== void 0 && typeof frontend.advanced !== "function") {
-      throw new Error(`The plugin class "${id2}" has a frontend whose advanced is no function.`);
+      throw new Error(`${named4} has a frontend whose advanced is no function.`);
     }
     const storage = given.storage;
     if (storage !== void 0) {
       if (!isObject(storage) || typeof storage.controls !== "function") {
-        throw new Error(`The plugin class "${id2}" has a storage without a controls() function.`);
+        throw new Error(`${named4} has a storage without a controls() function.`);
       }
       if (storage.subscribe !== void 0 && typeof storage.subscribe !== "function") {
-        throw new Error(`The plugin class "${id2}" has a storage whose subscribe is no function.`);
+        throw new Error(`${named4} has a storage whose subscribe is no function.`);
       }
       if (storage.load !== void 0 && typeof storage.load !== "function") {
-        throw new Error(`The plugin class "${id2}" has a storage whose load is no function.`);
+        throw new Error(`${named4} has a storage whose load is no function.`);
       }
     }
     if (given.commands !== void 0 && !Array.isArray(given.commands)) {
-      throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
+      throw new Error(`${named4} gives commands that are no array.`);
     }
-    const what = `the state of the plugin class "${id2}"`;
+    const what = `the state of the plugin class "${idText(id2)}"`;
     let validate;
     const state2 = given.state;
     if (state2 !== void 0) {
       if (!isObject(state2) || !isObject(state2.schema) || !Object.hasOwn(state2, "default")) {
-        throw new Error(`The plugin class "${id2}" gives a state without a schema and a default.`);
+        throw new Error(`${named4} gives a state without a schema and a default.`);
       }
       for (const [member] of STATE_FUNCTIONS) {
         if (state2[member] !== void 0 && typeof state2[member] !== "function") {
-          throw new Error(`The plugin class "${id2}" has a state whose ${member} is no function.`);
+          throw new Error(`${named4} has a state whose ${member} is no function.`);
         }
       }
       validate = compile(what, state2.schema);
       checkInitial(what, validate, state2.default, "default");
     }
-    const item = { def, validate };
+    const item = { def: def.id === id2 ? def : { ...def, id: id2 }, validate };
     classes2.value = new Map([...classes2.value, [id2, item]]);
     return () => {
       if (classes2.value.get(id2) !== item) return;
@@ -6053,8 +6221,7 @@ function createRegistrations(migration = () => void 0) {
   };
 }
 function isPluginClassId(id2) {
-  const pkg = packageFromId(id2);
-  return pkg !== null && /^.+_plugin$/.test(id2.slice(pkg.length + 1));
+  return isIdRecord(id2) && /^.+_plugin$/.test(id2.id);
 }
 
 // srcts/store/store.ts
@@ -6063,7 +6230,9 @@ function createStore(options = {}) {
   const registrations = createRegistrations(options.migration);
   const board = signal3(void 0);
   let hello = options.hello;
-  const registry = signal3(options.hello?.block_registry ?? {});
+  const registry = signal3(
+    options.hello === void 0 ? /* @__PURE__ */ new Map() : blockRegistry(options.hello)
+  );
   const packages = signal3(options.hello?.packages ?? {});
   const history = signal3({ undo: [], redo: [] });
   const subscribers = /* @__PURE__ */ new Set();
@@ -6143,12 +6312,10 @@ function createStore(options = {}) {
     return { applied, inverses };
   }
   function exists(next, key2) {
-    const [kind, id2] = JSON.parse(key2);
-    return Object.hasOwn(kind === "block" ? next.blocks : next.plugins, id2);
+    return typeof key2 === "string" ? Object.hasOwn(next.blocks, key2) : nestedValue(next.plugins, key2) !== void 0;
   }
   function describe2(key2) {
-    const [kind, id2] = JSON.parse(key2);
-    return kind === "block" ? `block "${id2}"` : `the plugin "${id2}"`;
+    return typeof key2 === "string" ? `block "${key2}"` : `the plugin "${idText(key2)}"`;
   }
   function named4(deltas) {
     const failures = [];
@@ -6252,7 +6419,7 @@ function createStore(options = {}) {
   function prepareOpen(given) {
     if (typeof given !== "string") {
       hello = given;
-      registry.value = given.block_registry;
+      registry.value = blockRegistry(given);
       packages.value = given.packages;
       return { json: checkJsonBoard(given.board), reply: given };
     }
@@ -6336,10 +6503,10 @@ function createStore(options = {}) {
         return [id3, { value: value2, version: entry?.version ?? 1, package: entry?.package ?? null }];
       })
     );
-    const classes2 = Object.keys(next.plugins);
+    const held3 = nestedEntries(next.plugins);
     const owned = /* @__PURE__ */ new Set([
-      ...classes2.flatMap((cls) => packageFromId(cls) ?? []),
-      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
+      ...held3.map(([cls]) => cls.package),
+      ...Object.values(next.blocks).flatMap(({ registry_id }) => registry_id.package ?? []),
       ...Object.values(options2).flatMap((option) => option.package ?? [])
     ]);
     const recorded = Object.fromEntries(
@@ -6353,24 +6520,20 @@ function createStore(options = {}) {
         id3,
         {
           registry_id: block.registry_id,
-          version: own(registry.value, block.registry_id)?.version ?? 1,
+          version: registry.value.get(block.registry_id)?.version ?? 1,
           state: block.state,
           name: block.name,
           locked: block.locked
         }
       ])
     );
-    const plugins = Object.fromEntries(
-      Object.entries(next.plugins).map(([cls, state2]) => [
-        cls,
-        { state: state2, version: own(hello?.plugins ?? {}, cls)?.version ?? 1 }
-      ])
-    );
+    const app = hello === void 0 ? /* @__PURE__ */ new Map() : appPlugins(hello);
+    const plugins2 = nestedRecord(held3.map(([cls, state2]) => [cls, { state: state2, version: app.get(cls)?.version ?? 1 }]));
     const { id: id2, name: name3, links, stacks } = next;
     return {
       format: FORMAT,
       packages: recorded,
-      board: { id: id2, name: name3, blocks, links, stacks, options: options2, plugins }
+      board: { id: id2, name: name3, blocks, links, stacks, options: options2, plugins: plugins2 }
     };
   }
   function save() {
@@ -6380,7 +6543,7 @@ function createStore(options = {}) {
   function everyTarget(next) {
     const targets = [
       ...Object.keys(next.blocks).map((id2) => ({ block: id2 })),
-      ...Object.keys(next.plugins).map((id2) => ({ plugin: id2 }))
+      ...nestedEntries(next.plugins).map(([id2]) => ({ plugin: id2 }))
     ];
     return targets.map(target);
   }
@@ -6450,10 +6613,19 @@ var stackId = {
   ...id,
   description: "The id of a stack, unique among the board's stacks."
 };
+var packageName = { type: "string", pattern: "^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$" };
 var registryId = {
-  type: "string",
-  minLength: 1,
-  description: `A block class's id in the block registry, such as "blockr.core-head_block".`
+  type: "object",
+  properties: {
+    package: {
+      anyOf: [packageName, { type: "null" }],
+      description: "The package that defines the class, or null for a class that the app script defines."
+    },
+    id: { type: "string", minLength: 1, description: "The class's id within its package." }
+  },
+  required: ["package", "id"],
+  additionalProperties: false,
+  description: `A block class's id in the block registry, its package and its id within the package, such as { "package": "blockr.core", "id": "head_block" }.`
 };
 var name2 = {
   type: "string",
@@ -6497,9 +6669,14 @@ var value = {
   description: "A JSON value, which the schema of what it is set on types."
 };
 var pluginClassId = {
-  type: "string",
-  minLength: 1,
-  description: `The id of a plugin's class, such as "blockr.dag-dag_plugin", which identifies the plugin, since an app runs at most one plugin of each class.`
+  type: "object",
+  properties: {
+    package: { ...packageName, description: "The package that lists the class." },
+    id: { type: "string", minLength: 1, description: "The class's id within its package." }
+  },
+  required: ["package", "id"],
+  additionalProperties: false,
+  description: `The id of a plugin's class, its package and its id within the package, such as { "package": "blockr.dag", "id": "dag_plugin" }, which identifies the plugin, since an app runs at most one plugin of each class.`
 };
 var statePatches = {
   type: "array",
@@ -6521,6 +6698,10 @@ var statePatches = {
 };
 
 // srcts/commands/core.ts
+var CORE2 = "blockr.core";
+function refuse(command2, failures) {
+  return refusal(interned(CORE2, command2), failures);
+}
 var newBlock = {
   registry_id: { ...registryId, description: "The class of the new block." },
   id: {
@@ -6538,21 +6719,22 @@ var newBlock = {
 };
 function coreCommands(store) {
   function registryEntry(command2, registryId2) {
-    const entry = own(store.blockRegistry(), registryId2);
+    const entry = store.blockRegistry().get(registryId2);
     if (entry === void 0) {
-      throw refusal(command2, [`The block registry has no block class "${registryId2}".`]);
+      throw refuse(command2, [`The block registry has no block class "${idText(registryId2)}".`]);
     }
     return entry;
   }
   function added(command2, board2, args, mintId2) {
-    const entry = registryEntry(command2, args.registry_id);
+    const registryId2 = internedRecord(args.registry_id);
+    const entry = registryEntry(command2, registryId2);
     const state2 = { ...entry.state, ...args.state };
     const failures = stateFailures(entry, state2);
     if (failures.length > 0) {
-      throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
+      throw refuse(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? entry.block_name, locked: null }];
+    return [id2, { registry_id: registryId2, state: state2, name: args.name ?? entry.block_name, locked: null }];
   }
   function inputFailures(board2, to, given) {
     const registry = store.blockRegistry();
@@ -6566,10 +6748,10 @@ function coreCommands(store) {
   function noFreeInput(board2, to) {
     const block = own(board2.blocks, to);
     if (block === void 0) return `The board holds no block "${to}".`;
-    const entry = own(store.blockRegistry(), block.registry_id);
-    if (entry === void 0) return `The block registry has no block class "${block.registry_id}".`;
+    const entry = store.blockRegistry().get(block.registry_id);
+    if (entry === void 0) return `The block registry has no block class "${idText(block.registry_id)}".`;
     if (entry.inputs.length === 0) {
-      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+      return `The block "${to}" takes no input, since its class "${idText(entry)}" has none.`;
     }
     return `Every input of the block "${to}" takes a link already.`;
   }
@@ -6585,9 +6767,9 @@ function coreCommands(store) {
   }
   const blocks = [
     command({
-      id: "blockr.core-add_block",
+      id: "add_block",
       label: "Add block",
-      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
+      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with add_link of blockr.core in the same batch, after this command.",
       args: object(newBlock, ["registry_id"]),
       run(board2, args, { mintId: mintId2 }) {
         const [id2, block] = added(this.id, board2, args, mintId2);
@@ -6595,7 +6777,7 @@ function coreCommands(store) {
       }
     }),
     command({
-      id: "blockr.core-remove_block",
+      id: "remove_block",
       label: "Remove block",
       description: "Removes a block, with its links and its place in its stack.",
       args: object({ id: blockId }, ["id"]),
@@ -6603,7 +6785,7 @@ function coreCommands(store) {
       run: (_board, { id: id2 }) => ({ blocks: { rm: [id2] } })
     }),
     command({
-      id: "blockr.core-change_block",
+      id: "change_block",
       label: "Change block",
       description: "Changes a block's name, its lock or its state. It sets the state args given, which the schema of the block's class types, and unsets those named, as a block's UI submits an edit. The block keeps what the args leave out.",
       args: object(
@@ -6630,7 +6812,7 @@ function coreCommands(store) {
           const entry = registryEntry(this.id, block.registry_id);
           const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
           if (failures.length > 0) {
-            throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
+            throw refuse(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
           }
         }
         return { blocks: { mod: { [id2]: change } } };
@@ -6639,7 +6821,7 @@ function coreCommands(store) {
   ];
   const links = [
     command({
-      id: "blockr.core-add_link",
+      id: "add_link",
       label: "Add link",
       description: "Adds a link, through which a block takes the result of another as one of its inputs.",
       args: object(
@@ -6665,7 +6847,7 @@ function coreCommands(store) {
       }
     }),
     command({
-      id: "blockr.core-change_link",
+      id: "change_link",
       label: "Change link",
       description: "Changes the block a link comes from, the block it goes to, the input it feeds or its place among the links into its block, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from.",
       args: object(
@@ -6706,17 +6888,17 @@ function coreCommands(store) {
         if (before === void 0) return { links: { mod } };
         const block = own(board2.blocks, to);
         if (block !== void 0 && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
-          throw refusal(this.id, [
+          throw refuse(this.id, [
             `The block "${to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The arg "input" changes the input that a link into it feeds, and "before" has to be left out.`
           ]);
         }
         if (before !== null) {
           if (before === args.id) {
-            throw refusal(this.id, [`The link "${args.id}" cannot go before itself.`]);
+            throw refuse(this.id, [`The link "${args.id}" cannot go before itself.`]);
           }
           const next = own(board2.links, before);
           if (next !== void 0 && next.to !== to) {
-            throw refusal(this.id, [
+            throw refuse(this.id, [
               `The link "${args.id}" goes into block "${to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${to}".`
             ]);
           }
@@ -6726,7 +6908,7 @@ function coreCommands(store) {
       }
     }),
     command({
-      id: "blockr.core-remove_link",
+      id: "remove_link",
       label: "Remove link",
       description: "Removes a link.",
       args: object({ id: linkId }, ["id"]),
@@ -6736,7 +6918,7 @@ function coreCommands(store) {
   ];
   const stacks = [
     command({
-      id: "blockr.core-add_stack",
+      id: "add_stack",
       label: "Add stack",
       description: "Adds a stack of blocks, taking each out of the stack it is in, since a block sits in one stack at most.",
       args: object({
@@ -6768,7 +6950,7 @@ function coreCommands(store) {
       }
     }),
     command({
-      id: "blockr.core-change_stack",
+      id: "change_stack",
       label: "Change stack",
       description: "Changes the name of a stack, its blocks or its colour, taking each block out of the stack it is in, since a block sits in one stack at most.",
       args: object(
@@ -6793,7 +6975,7 @@ function coreCommands(store) {
       })
     }),
     command({
-      id: "blockr.core-remove_stack",
+      id: "remove_stack",
       label: "Remove stack",
       description: "Removes a stack, leaving its blocks on the board.",
       args: object({ id: stackId }, ["id"]),
@@ -6803,14 +6985,14 @@ function coreCommands(store) {
   ];
   const board = [
     command({
-      id: "blockr.core-change_board",
+      id: "change_board",
       label: "Change board",
       description: "Changes the board's name. The board keeps what the args leave out.",
       args: object({ name: { ...name2, description: "The board's name, which it keeps where this is left out." } }),
       run: (_board, change) => change
     }),
     command({
-      id: "blockr.core-set_option",
+      id: "set_option",
       label: "Set board option",
       description: "Sets the value of a board option, which the board option's schema types.",
       args: object({ id: optionId, value }, ["id", "value"]),
@@ -6818,9 +7000,9 @@ function coreCommands(store) {
       run: (_board, { id: id2, value: value2 }) => ({ options: { set: { [id2]: value2 } } })
     })
   ];
-  const plugins = [
+  const plugins2 = [
     command({
-      id: "blockr.core-set_plugin_state",
+      id: "set_plugin_state",
       label: "Set plugin state",
       description: "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It fails its preflight on a locked board, where only the commands of a plugin's class know what the plugin locks.",
       args: object(
@@ -6833,18 +7015,21 @@ function coreCommands(store) {
         },
         ["plugin", "patches"]
       ),
-      preflight: (board2, { plugin }, { lock }) => !lock.board && Object.hasOwn(board2.plugins, plugin),
+      preflight: (board2, { plugin }, { lock }) => !lock.board && plugin.package !== null && nestedValue(board2.plugins, interned(plugin.package, plugin.id)) !== void 0,
       run: (_board, { plugin, patches: patches2 }) => ({
-        patches: patches2.map((patch2) => ({ ...patch2, path: `${pathFromSegments(["plugins", plugin])}${patch2.path}` }))
+        patches: patches2.map((patch2) => ({
+          ...patch2,
+          path: `${pathFromSegments(["plugins", plugin.package ?? "", plugin.id])}${patch2.path}`
+        }))
       })
     })
   ];
-  return [...blocks, ...links, ...stacks, ...board, ...plugins];
+  return [...blocks, ...links, ...stacks, ...board, ...plugins2];
 }
 function freeInputs(board, registry, to, except) {
   const block = own(board.blocks, to);
   if (block === void 0) return void 0;
-  const inputs = own(registry, block.registry_id)?.inputs;
+  const inputs = registry.get(block.registry_id)?.inputs;
   if (inputs === void 0) return void 0;
   if (inputs.includes("...")) return [""];
   const fed = new Set(
@@ -6857,7 +7042,7 @@ function takesLink(board, registry, to) {
 }
 function linkFeeding(board, registry, to, input2, except) {
   const block = own(board.blocks, to);
-  const inputs = block === void 0 ? void 0 : own(registry, block.registry_id)?.inputs;
+  const inputs = block === void 0 ? void 0 : registry.get(block.registry_id)?.inputs;
   if (inputs === void 0 || inputs.includes("...")) return void 0;
   return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
 }
@@ -6900,8 +7085,8 @@ function named(input2) {
 }
 function one(command2, inputs, none, several) {
   const [input2, ...rest] = inputs;
-  if (input2 === void 0) throw refusal(command2, [none]);
-  if (rest.length > 0) throw refusal(command2, [several]);
+  if (input2 === void 0) throw refuse(command2, [none]);
+  if (rest.length > 0) throw refuse(command2, [several]);
   return input2;
 }
 function command(def) {
@@ -6915,10 +7100,11 @@ function command(def) {
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
   // The id of the command that was stopped, such as
-  // "blockr.core-remove_block". It is left out only where the store refused a
-  // batch as a whole, after the dry run of each command's deltas had passed,
-  // which the first line says. There, a plugin class's afterStep failed, or
-  // returned what the store refuses, and the failures name the class.
+  // { package: "blockr.core", id: "remove_block" }. It is left out only where
+  // the store refused a batch as a whole, after the dry run of each command's
+  // deltas had passed, which the first line says. There, a plugin class's
+  // afterStep failed, or returned what the store refuses, and the failures name
+  // the class.
   command;
   // What stopped the command:
   // - "registry": the command registry refused to run it, as where no command
@@ -6948,11 +7134,14 @@ var CommandError = class extends Error {
   }
 };
 function firstLine({ command: command2, by, index }) {
-  if (command2 === void 0) return "The store refused the batch as a whole, after the deltas of each command had passed";
-  if (index !== void 0) return `The batch was refused at command ${String(index + 1)}, "${command2}"`;
-  if (by === "code") return `The command "${command2}" failed`;
-  if (by === "store") return `The store refused the deltas of the command "${command2}"`;
-  return `The command "${command2}" refused to run`;
+  if (command2 === void 0) {
+    return by === "store" ? "The store refused the batch as a whole, after the deltas of each command had passed" : "The command registry refused a command that it cannot name";
+  }
+  const named4 = idText(command2);
+  if (index !== void 0) return `The batch was refused at command ${String(index + 1)}, "${named4}"`;
+  if (by === "code") return `The command "${named4}" failed`;
+  if (by === "store") return `The store refused the deltas of the command "${named4}"`;
+  return `The command "${named4}" refused to run`;
 }
 function refusal(id2, failures, by = "command") {
   return new CommandError({ command: id2, by, failures });
@@ -6961,7 +7150,7 @@ var DROPPED = "A board opened while it prepared, which drops it.";
 function createCommands(store, options = {}) {
   const commands = signal4(/* @__PURE__ */ new Map());
   const registered = computed3(
-    () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
+    () => new Map([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
   );
   const ended = () => options.signal?.aborted === true;
   const randId = asRandId(options.randId);
@@ -6970,24 +7159,28 @@ function createCommands(store, options = {}) {
     mintId: (taken) => mintId(taken, randId),
     blockrOption: options.blockrOption ?? (() => Promise.resolve(void 0))
   };
-  function register(command2) {
-    const { id: id2 } = command2;
-    if (typeof id2 !== "string" || !isCommandId(id2)) {
-      throw new Error(
-        `The command id ${JSON.stringify(id2)} is not named as a registry id is, "{pkg}-{name}".`
-      );
+  function register(pkg, command2) {
+    if (!isPackageName(pkg)) {
+      throw new Error(`A command is registered under the package that gives it, named as R names a package, not ${JSON.stringify(pkg)}.`);
     }
+    const given = command2.id;
+    if (typeof given !== "string" || given === "") {
+      throw new Error(`The command id ${JSON.stringify(given)} of ${pkg} is no non-empty string, as "remove_block".`);
+    }
+    const id2 = interned(pkg, given);
+    const named4 = `The command "${idText(id2)}"`;
     if (typeof command2.label !== "string" || command2.label === "") {
-      throw new Error(`The command "${id2}" has no label.`);
+      throw new Error(`${named4} has no label.`);
     }
     if (typeof command2.run !== "function") {
-      throw new Error(`The command "${id2}" has no run().`);
+      throw new Error(`${named4} has no run().`);
     }
     if (commands.value.has(id2)) {
-      throw new Error(`The command "${id2}" is registered already.`);
+      throw new Error(`${named4} is registered already.`);
     }
-    const validate = command2.args === void 0 ? void 0 : compile(`the args of the command "${id2}"`, command2.args, "fail their schema");
+    const validate = command2.args === void 0 ? void 0 : compile(`the args of the command "${idText(id2)}"`, command2.args, "fail their schema");
     const item = {
+      id: id2,
       command: command2,
       validate,
       context: { ...shared, refusal: (failures) => refusal(id2, failures) }
@@ -7000,10 +7193,19 @@ function createCommands(store, options = {}) {
       commands.value = rest;
     };
   }
-  function lookup(id2, given) {
+  function lookup(name3, given) {
+    const id2 = nameOf(name3);
+    if (id2 === void 0) {
+      throw new CommandError({
+        by: "registry",
+        failures: [
+          `No command is named ${JSON.stringify(name3)}, where a command is named by its package and its id, as { package: "blockr.core", id: "remove_block" }.`
+        ]
+      });
+    }
     const item = commands.value.get(id2);
     if (item === void 0) {
-      throw refusal(id2, [`No command "${id2}" is registered.`], "registry");
+      throw refusal(id2, [`No command "${idText(id2)}" is registered.`], "registry");
     }
     const args = given ?? {};
     const failures = item.validate?.(args) ?? [];
@@ -7021,49 +7223,51 @@ function createCommands(store, options = {}) {
     }
     return store.board();
   }
-  function allow({ command: command2, context: context4 }, board, args) {
-    const passes2 = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
+  function allow(item, board, args) {
+    const { command: command2, context: context4 } = item;
+    const passes2 = attempt2(item, () => command2.preflight?.(board, args, context4) ?? true);
     if (!passes2) {
       throw refusal(
-        command2.id,
+        item.id,
         [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
         "preflight"
       );
     }
   }
-  function build({ command: command2, context: context4 }, board, args) {
-    const returned = attempt2(command2, () => command2.run(board, args, context4));
+  function build(item, board, args) {
+    const { command: command2, context: context4 } = item;
+    const returned = attempt2(item, () => command2.run(board, args, context4));
     const deltas2 = isDeltas(returned) ? returned : [returned];
     return deltas2.map((delta) => withEdits(command2.undo === false ? { ...delta, undo: false } : delta));
   }
   function deltas(item, args) {
-    const board = current2(item.command.id);
+    const board = current2(item.id);
     allow(item, board, args);
     if (item.command.prepare === void 0) return build(item, board, args);
     return prepared(item, board, args);
   }
   async function prepared(item, board, args) {
-    const { command: command2 } = item;
     const input2 = await prepare(item, board, args);
-    if (ended()) throw refusal(command2.id, [DROPPED], "registry");
-    const now = current2(command2.id);
+    if (ended()) throw refusal(item.id, [DROPPED], "registry");
+    const now = current2(item.id);
     allow(item, now, args);
     return build(item, now, input2);
   }
-  async function prepare({ command: command2, context: context4 }, board, args) {
+  async function prepare(item, board, args) {
     try {
-      return await command2.prepare?.(board, args, context4);
+      return await item.command.prepare?.(board, args, item.context);
     } catch (error) {
-      throw failed(command2, error);
+      throw failed(item, error);
     }
   }
   async function planned(batch2, then) {
     const within = keepContext();
-    const checked3 = batch2.map(({ id: id2, args }, index) => {
+    const checked3 = batch2.map((call, index) => {
+      const name3 = isObject(call) ? { package: call.package, id: call.id } : call;
       try {
-        return lookup(id2, args);
+        return lookup(name3, call.args);
       } catch (error) {
-        throw inBatch(index, id2, error);
+        throw inBatch(index, nameOf(name3), error);
       }
     });
     const [first] = checked3;
@@ -7076,39 +7280,38 @@ function createCommands(store, options = {}) {
       built = [];
       let start2;
       try {
-        start2 = current2(first.item.command.id);
+        start2 = current2(first.item.id);
       } catch (error) {
-        throw inBatch(0, first.item.command.id, error);
+        throw inBatch(0, first.item.id, error);
       }
       let board = start2;
       for (const [index, { item, args }] of checked3.entries()) {
-        const { command: command2 } = item;
         try {
           allow(item, board, args);
-          if (command2.prepare !== void 0 && !inputs.has(index)) {
+          if (item.command.prepare !== void 0 && !inputs.has(index)) {
             inputs.set(index, await within(() => prepare(item, board, args)));
-            if (ended()) throw refusal(command2.id, [DROPPED], "registry");
+            if (ended()) throw refusal(item.id, [DROPPED], "registry");
             if (store.board() !== start2) {
               again = true;
               break;
             }
           }
           built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
-          board = byStore(command2.id, () => store.dryRun(built));
+          board = byStore(item.id, () => store.dryRun(built));
         } catch (error) {
-          throw inBatch(index, command2.id, error);
+          throw inBatch(index, item.id, error);
         }
       }
     }
     return within(() => then(built));
   }
   function runBatch(batch2, origin) {
-    const ids2 = batch2.map(({ id: id2 }) => id2);
-    return traced(
-      "command batch",
-      { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(batch2, (built) => byStore(void 0, () => store.apply(built, origin)))
-    );
+    const attributes = {
+      "blockr.command.packages": batch2.map((call) => call.package),
+      "blockr.command.ids": batch2.map((call) => call.id),
+      "blockr.delta.origin": origin
+    };
+    return traced("command batch", attributes, () => planned(batch2, (built) => byStore(void 0, () => store.apply(built, origin))));
   }
   async function traced(name3, attributes, run) {
     const span = tracer().startSpan(name3, { attributes });
@@ -7153,7 +7356,7 @@ function createCommands(store, options = {}) {
     preflight(id2, given) {
       try {
         const { item, args } = lookup(id2, given);
-        allow(item, current2(id2), args);
+        allow(item, current2(item.id), args);
         return true;
       } catch {
         return false;
@@ -7163,30 +7366,34 @@ function createCommands(store, options = {}) {
     // options third, in place of the origin. The command registry ignores the
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(target2, given, third) {
-      if (typeof target2 !== "string") return runBatch(target2, typeof given === "string" ? given : "user");
+      if (isBatch(target2)) return runBatch(target2, typeof given === "string" ? given : "user");
       const origin = typeof third === "string" ? third : "user";
-      return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
+      const named4 = nameOf(target2);
+      const attributes = { ...named4 === void 0 ? {} : idAttributes("blockr.command.id", named4), "blockr.delta.origin": origin };
+      return traced(`command ${named4 === void 0 ? "unnamed" : named4.id}`, attributes, async () => {
         const within = keepContext();
         const { item, args } = lookup(target2, given);
         const step2 = deltas(item, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        return within(() => byStore(target2, () => store.apply(ready, origin)));
+        return within(() => byStore(item.id, () => store.apply(ready, origin)));
       });
     },
     async plan(target2, given) {
-      if (typeof target2 !== "string") return planned(target2, (built) => built);
+      if (isBatch(target2)) return planned(target2, (built) => built);
       const { item, args } = lookup(target2, given);
       return deltas(item, args);
     }
   };
   for (const command2 of coreCommands(store)) {
-    registry.register(command2);
+    registry.register(CORE2, command2);
   }
   return registry;
 }
-function isCommandId(id2) {
-  const pkg = packageFromId(id2);
-  return pkg !== null && id2.length > pkg.length + 1;
+function nameOf(name3) {
+  return isIdRecord(name3) ? interned(name3.package, name3.id) : void 0;
+}
+function isBatch(target2) {
+  return Array.isArray(target2);
 }
 function isLogged(error) {
   return error instanceof CommandError && error.by === "code";
@@ -7203,17 +7410,17 @@ function byStore(id2, fn) {
     throw new CommandError({ command: id2, by: "store", failures: error.failures, cause: error });
   }
 }
-function failed(command2, error) {
+function failed(item, error) {
   if (error instanceof CommandError) return error;
-  const failure = new CommandError({ command: command2.id, by: "code", failures: [errorMessage(error)], cause: error });
+  const failure = new CommandError({ command: item.id, by: "code", failures: [errorMessage(error)], cause: error });
   log.error(failure);
   return failure;
 }
-function attempt2(command2, fn) {
+function attempt2(item, fn) {
   try {
     return fn();
   } catch (error) {
-    throw failed(command2, error);
+    throw failed(item, error);
   }
 }
 
@@ -7248,9 +7455,9 @@ var SUBJECTS = {
 var GAVE = {
   quick: 'It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
   pick: "It gave neither a batch of commands nor a level of rows.",
-  submit: 'It gave no batch of commands, as [{ id: "blockr.core-change_block", args: { id: "a", name: "Head" } }].'
+  submit: 'It gave no batch of commands, as [{ package: "blockr.core", id: "change_block", args: { id: "a", name: "Head" } }].'
 };
-var NO_BATCH = 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].';
+var NO_BATCH = 'It gave no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].';
 var NO_LEVEL = "It gave no level for the target, and the board action has no advanced action to open in its place.";
 var MENU = "Board actions";
 var FIRST = ["add", "edit", "clipboard"];
@@ -7339,7 +7546,7 @@ function openMenu(start2, parts) {
       place(failure(action2, what, new TypeError(NO_LEVEL)), action2, replacing);
       return Promise.resolve();
     }
-    if (what !== "quick" && isBatch(value2)) return finish(value2, action2);
+    if (what !== "quick" && isBatch2(value2)) return finish(value2, action2);
     if ((what === "quick" || what === "pick") && isLevel(value2)) {
       place({ kind: "level", level: value2 }, action2, replacing);
       return Promise.resolve();
@@ -7348,7 +7555,7 @@ function openMenu(start2, parts) {
     return Promise.resolve();
   }
   function failure(action2, what, error) {
-    log.error(new Error(`${SUBJECTS[what]} "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+    log.error(new Error(`${SUBJECTS[what]} "${idText(action2)}" failed: ${errorMessage(error)}`, { cause: error }));
     return { kind: "error", message: errorMessage(error) };
   }
   function shownNow() {
@@ -7477,10 +7684,10 @@ function openMenu(start2, parts) {
       if (picked.length === before.length && picked.every((id2, i) => id2 === before[i])) return [];
       try {
         const batch2 = row.apply(picked);
-        if (!isBatch(batch2)) throw new TypeError(NO_BATCH);
+        if (!isBatch2(batch2)) throw new TypeError(NO_BATCH);
         return batch2;
       } catch (error) {
-        parts.failed(action2, new Error(`${SUBJECTS.submit} "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+        parts.failed(action2, new Error(`${SUBJECTS.submit} "${idText(action2)}" failed: ${errorMessage(error)}`, { cause: error }));
         return [];
       }
     });
@@ -7603,7 +7810,7 @@ function actionRow(action2, board, target2) {
     const given = action2.detail?.(board, target2);
     if (typeof given === "string" && given !== "") detail = given;
   } catch (error) {
-    log.error(new Error(`The detail of the board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+    log.error(new Error(`The detail of the board action "${idText(action2)}" failed: ${errorMessage(error)}`, { cause: error }));
   }
   return {
     kind: "item",
@@ -7626,8 +7833,8 @@ function nameRow(value2, submit) {
     submit: (given) => submit(given.trim())
   };
 }
-function isBatch(value2) {
-  return Array.isArray(value2) && value2.every((call) => isObject(call) && typeof call.id === "string");
+function isBatch2(value2) {
+  return Array.isArray(value2) && value2.every((call) => isObject(call) && typeof call.package === "string" && typeof call.id === "string");
 }
 function isLevel(value2) {
   if (!isObject(value2) || !Array.isArray(value2.rows)) return false;
@@ -7691,10 +7898,10 @@ function createAdvanced(parts) {
     const offBoard = parts.signal === void 0 ? () => void 0 : onAbort(parts.signal, end2);
     const done = (calls, opts) => {
       if (signal5.aborted) {
-        return Promise.reject(new Error(`The advanced action of the board action "${action2.id}" has ended, so its done() runs nothing.`));
+        return Promise.reject(new Error(`The advanced action of the board action "${idText(action2)}" has ended, so its done() runs nothing.`));
       }
       if (pending) {
-        return Promise.reject(new Error(`The advanced action of the board action "${action2.id}" runs a done() already.`));
+        return Promise.reject(new Error(`The advanced action of the board action "${idText(action2)}" runs a done() already.`));
       }
       let notifier;
       try {
@@ -7703,10 +7910,10 @@ function createAdvanced(parts) {
         return Promise.reject(asError(error));
       }
       const batch2 = calls;
-      if (batch2 !== void 0 && !isBatch(batch2)) {
+      if (batch2 !== void 0 && !isBatch2(batch2)) {
         return Promise.reject(
           new TypeError(
-            `The done() of the advanced action of the board action "${action2.id}" takes a batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }], or none.`
+            `The done() of the advanced action of the board action "${idText(action2)}" takes a batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }], or none.`
           )
         );
       }
@@ -7740,11 +7947,11 @@ function createAdvanced(parts) {
     return end2;
   }
   function failed2(action2, error) {
-    const why = new Error(`The advanced action of the board action "${action2.id}" failed in render(): ${errorMessage(error)}`, { cause: error });
+    const why = new Error(`The advanced action of the board action "${idText(action2)}" failed in render(): ${errorMessage(error)}`, { cause: error });
     log.error(why);
-    const plugin = parts.classOf(action2.id);
+    const plugin = parts.classOf(action2);
     parts.raise(
-      coreNotification("module_failed", "error", why.message, plugin === void 0 ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) })
+      coreNotification("module_failed", "error", why.message, plugin === void 0 ? {} : { module: sourceModule({ plugin }, plugin.package) })
     );
   }
   function renders(action2, target2) {
@@ -7754,9 +7961,9 @@ function createAdvanced(parts) {
     if (!store.hasBoard()) return false;
     if ("board" in target2) return true;
     const board = store.board();
-    const plugins = parts.core().plugins.appPlugins();
+    const plugins2 = parts.core().plugins.appPlugins();
     const objects = "selection" in target2 ? target2.selection : ["input" in target2 ? { block: target2.block } : target2];
-    return objects.every((object2) => holdsObject(board, object2, plugins));
+    return objects.every((object2) => holdsObject(board, object2, plugins2));
   }
   function mountIn(shown2, el, other) {
     if (!isElement(el)) {
@@ -7838,7 +8045,7 @@ function createAdvanced(parts) {
       returned = place(args);
     } catch (error) {
       log.error(
-        new Error(`The place that was to show the advanced action of the board action "${args.id}" failed, so core's dialog shows it: ${errorMessage(error)}`, {
+        new Error(`The place that was to show the advanced action of the board action "${idText(args.id)}" failed, so core's dialog shows it: ${errorMessage(error)}`, {
           cause: error
         })
       );
@@ -7849,7 +8056,7 @@ function createAdvanced(parts) {
       return parts.dialog(args, at);
     }
     if (typeof returned === "function") return returned;
-    log.error(`The place that shows the advanced action of the board action "${args.id}" returned no function, which core calls once done() ends it.`);
+    log.error(`The place that shows the advanced action of the board action "${idText(args.id)}" returned no function, which core calls once done() ends it.`);
     return () => void 0;
   }
   function replace(shown2) {
@@ -7888,7 +8095,7 @@ function createAdvanced(parts) {
         };
         replace(shown2);
         const args = Object.freeze({
-          id: action2.id,
+          id: interned(action2.package, action2.id),
           title: action2.label,
           target: target2,
           mount: (el, other) => mountIn(shown2, el, other),
@@ -7951,7 +8158,7 @@ import { ComboBoxItem, Text } from "@blockr/core/react";
 import { jsx, jsxs } from "react/jsx-runtime";
 function blockItem(board, registry, id2) {
   const block = own(board.blocks, id2);
-  const cls = block === void 0 ? void 0 : own(registry, block.registry_id)?.name ?? block.registry_id;
+  const cls = block === void 0 ? void 0 : registry.get(block.registry_id)?.name ?? idText(block.registry_id);
   return { id: id2, name: block?.name ?? id2, detail: cls === void 0 ? id2 : `${id2} \xB7 ${cls}` };
 }
 function blockTexts(item) {
@@ -7968,7 +8175,7 @@ function blockName(board, block) {
 }
 function classInputs(board, registry, block) {
   const held3 = own(board.blocks, block);
-  return (held3 === void 0 ? void 0 : own(registry, held3.registry_id)?.inputs) ?? [];
+  return (held3 === void 0 ? void 0 : registry.get(held3.registry_id)?.inputs) ?? [];
 }
 function isVariadicBlock(board, registry, block) {
   return classInputs(board, registry, block).includes("...");
@@ -7982,7 +8189,7 @@ function useEdits(core) {
     const opts = { notifier: () => void 0 };
     function run(title, target2, given) {
       setRefusal(null);
-      const running2 = typeof target2 === "string" ? core.commands.run(target2, given, "user", opts) : typeof given === "function" ? given(target2, opts) : core.commands.run(target2, "user", opts);
+      const running2 = isCommandName(target2) ? core.commands.run(target2, given, "user", opts) : typeof given === "function" ? given(target2, opts) : core.commands.run(target2, "user", opts);
       return running2.then(
         () => true,
         (error) => {
@@ -8006,6 +8213,9 @@ function reasons(error) {
 }
 function isSentences(x) {
   return Array.isArray(x) && x.length > 0 && x.every((item) => typeof item === "string");
+}
+function isCommandName(target2) {
+  return !Array.isArray(target2);
 }
 
 // srcts/ui/hooks.ts
@@ -8323,14 +8533,15 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
   const [errors, setErrors] = useState7({});
   const [busy, setBusy] = useState7(false);
   const takes = mode.kind === "after" || mode.kind === "on";
-  const options = useMemo2(() => blockClasses(Object.values(registry).filter((entry2) => !takes || entry2.inputs.length > 0)), [registry, takes]);
+  const options = useMemo2(() => blockClasses([...registry.values()].filter((entry2) => !takes || entry2.inputs.length > 0)), [registry, takes]);
   const search = useSearch(
     options,
-    (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
+    (item) => [item.name, item.description, item.registryId.id, item.category, item.pkg ?? "", ...item.keywords],
     "No block class to pick.",
     filter
   );
-  const entry = picked === void 0 ? void 0 : own(registry, picked);
+  const pickedItem = picked === void 0 ? void 0 : options.find((item) => item.key === picked);
+  const entry = pickedItem === void 0 ? void 0 : registry.get(pickedItem.registryId);
   const link = useBoard(core, (board) => linkChoice(mode, board, core.blockRegistry(), entry));
   const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
   const places = link.kind === "name" ? link.places : void 0;
@@ -8357,7 +8568,7 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
       return;
     }
     const args = {
-      registry_id: entry.id,
+      registry_id: { package: entry.package, id: entry.id },
       ...filled("id", id2),
       ...filled("name", name3)
     };
@@ -8394,11 +8605,11 @@ function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
             errorMessage: errors.registry,
             description: entry?.description === "" ? void 0 : entry?.description,
             onChange: (key2) => {
-              setPicked(key2 === null ? void 0 : String(key2));
+              setPicked(key2 === null ? void 0 : Number(key2));
               if (takes) setInput(void 0);
               setErrors((now) => without3(now, "registry"));
             },
-            children: (category) => /* @__PURE__ */ jsx6(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item) => /* @__PURE__ */ jsxs5(ComboBoxItem2, { id: item.id, textValue: item.name, children: [
+            children: (category) => /* @__PURE__ */ jsx6(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item) => /* @__PURE__ */ jsxs5(ComboBoxItem2, { id: item.key, textValue: item.name, children: [
               /* @__PURE__ */ jsx6(Text2, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item.name }),
               item.description === "" ? null : /* @__PURE__ */ jsx6(Text2, { slot: "description", children: item.description }),
               item.pkg === null ? null : /* @__PURE__ */ jsx6("span", { className: BADGE, children: item.pkg })
@@ -8516,9 +8727,10 @@ function fixedInput(free, input2, name3) {
 }
 function pickedBatch(core, mode, on, args, into, before) {
   const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
-  const add = { id: "blockr.core-add_block", args: { ...args, id: block } };
+  const add = { package: CORE2, id: "add_block", args: { ...args, id: block } };
   const linked = (from, to, id2) => ({
-    id: "blockr.core-add_link",
+    package: CORE2,
+    id: "add_link",
     args: { ...id2 === void 0 ? {} : { id: id2 }, from, to, ...into }
   });
   switch (mode.kind) {
@@ -8529,10 +8741,10 @@ function pickedBatch(core, mode, on, args, into, before) {
     case "before": {
       if (before === void 0) return [add, linked(block, mode.to)];
       const link = core.mintId((id2) => Object.hasOwn(core.store.board().links, id2));
-      return [add, linked(block, mode.to, link), { id: "blockr.core-change_link", args: { id: link, before } }];
+      return [add, linked(block, mode.to, link), { package: CORE2, id: "change_link", args: { id: link, before } }];
     }
     case "on":
-      return on === void 0 ? [] : [add, linked(on.from, block), { id: "blockr.core-change_link", args: { id: mode.link, from: block } }];
+      return on === void 0 ? [] : [add, linked(on.from, block), { package: CORE2, id: "change_link", args: { id: mode.link, from: block } }];
   }
 }
 function linksInto(board, to) {
@@ -8554,12 +8766,14 @@ function blockClasses(entries) {
   return entries.map(classItem).sort(byGroupAndName);
 }
 function classItem(entry) {
+  const registryId2 = interned(entry.package, entry.id);
   return {
-    id: entry.id,
+    registryId: registryId2,
+    key: idNumber(registryId2),
     name: entry.name,
     description: entry.description,
     icon: entry.icon,
-    pkg: packageFromId(entry.id),
+    pkg: entry.package,
     category: entry.category === "" ? UNCATEGORIZED : entry.category,
     keywords: entry.keywords
   };
@@ -8661,10 +8875,10 @@ function heldBlocks(board, target2) {
 // srcts/actions/add.tsx
 import { jsx as jsx7 } from "react/jsx-runtime";
 function addingBoardActions(registry) {
-  const adds = (taking) => Object.values(registry()).some((entry) => !taking || hasInput(entry));
+  const adds = (taking) => [...registry().values()].some((entry) => !taking || hasInput(entry));
   return [
     {
-      id: "blockr.core-add_block_action",
+      id: "add_block_action",
       label: "Add block",
       icon: PLUS,
       on: ["board"],
@@ -8675,7 +8889,7 @@ function addingBoardActions(registry) {
       role: "add_block_role"
     },
     {
-      id: "blockr.core-append_block_action",
+      id: "append_block_action",
       label: "Append block",
       icon: PLUS,
       on: ["block"],
@@ -8689,7 +8903,7 @@ function addingBoardActions(registry) {
       role: "append_block_role"
     },
     {
-      id: "blockr.core-prepend_block_action",
+      id: "prepend_block_action",
       label: "Prepend block",
       icon: PLUS,
       on: ["block", "input"],
@@ -8708,7 +8922,7 @@ function addingBoardActions(registry) {
       role: "prepend_block_role"
     },
     {
-      id: "blockr.core-insert_block_action",
+      id: "insert_block_action",
       label: "Insert block",
       icon: PLUS,
       on: ["link"],
@@ -8720,7 +8934,7 @@ function addingBoardActions(registry) {
         return id2 === void 0 || link === void 0 ? [] : [
           addBlockCall(entry, block),
           addLinkCall(link.from, block, newBlockInput(entry)),
-          { id: "blockr.core-change_link", args: { id: id2, from: block } }
+          { package: CORE2, id: "change_link", args: { id: id2, from: block } }
         ];
       }),
       advanced: pickerModule((target2) => "link" in target2 ? { kind: "on", link: target2.link } : void 0),
@@ -8733,7 +8947,7 @@ function hasInput(entry) {
 }
 function classLevel(core, taking, batch2) {
   const registry = core.blockRegistry();
-  const entries = Object.values(registry).filter((entry) => !taking || hasInput(entry));
+  const entries = [...registry.values()].filter((entry) => !taking || hasInput(entry));
   return {
     filter: true,
     rows: blockClasses(entries).map((item) => ({
@@ -8743,7 +8957,7 @@ function classLevel(core, taking, batch2) {
       ...item.icon === "" ? {} : { icon: item.icon },
       ...item.pkg === null ? {} : { detail: item.pkg },
       pick() {
-        const entry = own(registry, item.id);
+        const entry = registry.get(item.registryId);
         const board = core.store.board();
         if (entry === void 0) return [];
         return batch2(entry, core.mintId((id2) => Object.hasOwn(board.blocks, id2)), board);
@@ -8752,10 +8966,10 @@ function classLevel(core, taking, batch2) {
   };
 }
 function addBlockCall(entry, block) {
-  return { id: "blockr.core-add_block", args: { registry_id: entry.id, id: block } };
+  return { package: CORE2, id: "add_block", args: { registry_id: { package: entry.package, id: entry.id }, id: block } };
 }
 function addLinkCall(from, to, input2) {
-  return { id: "blockr.core-add_link", args: { from, to, ...input2 === void 0 ? {} : { input: input2 } } };
+  return { package: CORE2, id: "add_link", args: { from, to, ...input2 === void 0 ? {} : { input: input2 } } };
 }
 function newBlockInput(entry) {
   return entry.inputs.includes("...") ? "" : entry.inputs[0];
@@ -8830,9 +9044,9 @@ import { useState as useState8 } from "react";
 import { flushSync as flushSync3 } from "react-dom";
 import { Button as Button2, ComboBox as ComboBox2, Form as Form2, GridList, GridListItem, TextField as TextField3, useBoard as useBoard2, useDragAndDrop } from "@blockr/core/react";
 import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
-var ADD_LINK = "blockr.core-add_link";
-var CHANGE_LINK = "blockr.core-change_link";
-var REMOVE_LINK = "blockr.core-remove_link";
+var ADD_LINK = { package: CORE2, id: "add_link" };
+var CHANGE_LINK = { package: CORE2, id: "change_link" };
+var REMOVE_LINK = { package: CORE2, id: "remove_link" };
 var editInputs = {
   render({ el, core, target: target2, done }) {
     if (!("block" in target2)) return void 0;
@@ -8927,11 +9141,11 @@ function fixedBatch(core, board, registry, block, given) {
     const id2 = linkFeeding(board, registry, block, input2);
     const from = id2 === void 0 ? void 0 : own(board.links, id2)?.from;
     if (id2 === void 0) {
-      if (source !== null) adds.push({ id: ADD_LINK, args: { id: mint(core, minted), from: source, to: block, input: input2 } });
+      if (source !== null) adds.push({ ...ADD_LINK, args: { id: mint(core, minted), from: source, to: block, input: input2 } });
     } else if (source === null) {
-      removes.push({ id: REMOVE_LINK, args: { id: id2 } });
+      removes.push({ ...REMOVE_LINK, args: { id: id2 } });
     } else if (source !== from) {
-      changes2.push({ id: CHANGE_LINK, args: { id: id2, from: source } });
+      changes2.push({ ...CHANGE_LINK, args: { id: id2, from: source } });
     }
   }
   return [...removes, ...changes2, ...adds];
@@ -9103,16 +9317,16 @@ function variadicBatch(core, board, block, shown2) {
     if (link === void 0) {
       const id2 = mint(core, minted);
       order.push(id2);
-      adds.push({ id: ADD_LINK, args: { id: id2, from, to: block, ...name3 === "" ? {} : { input: name3 } } });
+      adds.push({ ...ADD_LINK, args: { id: id2, from, to: block, ...name3 === "" ? {} : { input: name3 } } });
       continue;
     }
     order.push(key2);
     const args = { ...from === link.from ? {} : { from }, ...name3 === link.input ? {} : { input: name3 } };
-    if (Object.keys(args).length > 0) changes2.push({ id: CHANGE_LINK, args: { id: key2, ...args } });
+    if (Object.keys(args).length > 0) changes2.push({ ...CHANGE_LINK, args: { id: key2, ...args } });
   }
   const kept = into.filter((id2) => order.includes(id2));
   return [
-    ...into.filter((id2) => !order.includes(id2)).map((id2) => ({ id: REMOVE_LINK, args: { id: id2 } })),
+    ...into.filter((id2) => !order.includes(id2)).map((id2) => ({ ...REMOVE_LINK, args: { id: id2 } })),
     ...changes2,
     ...adds,
     ...moves([...kept, ...minted], order)
@@ -9120,7 +9334,7 @@ function variadicBatch(core, board, block, shown2) {
 }
 function moves(from, to) {
   if (from.length === to.length && from.every((id2, i) => id2 === to[i])) return [];
-  return to.map((id2) => ({ id: CHANGE_LINK, args: { id: id2, before: null } }));
+  return to.map((id2) => ({ ...CHANGE_LINK, args: { id: id2, before: null } }));
 }
 function inputText(board, { from, input: input2 }, place) {
   const source = blockName(board, from);
@@ -9216,8 +9430,8 @@ import { useState as useState9 } from "react";
 import { flushSync as flushSync4 } from "react-dom";
 import { ComboBox as ComboBox3, Form as Form3, Select as Select2, SelectItem as SelectItem2, TextField as TextField4, useBoard as useBoard3 } from "@blockr/core/react";
 import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
-var ADD_LINK2 = "blockr.core-add_link";
-var CHANGE_LINK2 = "blockr.core-change_link";
+var ADD_LINK2 = { package: CORE2, id: "add_link" };
+var CHANGE_LINK2 = { package: CORE2, id: "change_link" };
 var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
     const given = picked === void 0 ? {} : startOf(picked);
@@ -9327,10 +9541,10 @@ function LinkForm({
     const before = moved ? among.others[position - 1] ?? null : void 0;
     if (editing === void 0) {
       const id2 = core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
-      const added = { id: ADD_LINK2, args: { id: id2, ...link } };
-      return before === void 0 ? [added] : [added, { id: CHANGE_LINK2, args: { id: id2, before } }];
+      const added = { ...ADD_LINK2, args: { id: id2, ...link } };
+      return before === void 0 ? [added] : [added, { ...CHANGE_LINK2, args: { id: id2, before } }];
     }
-    return [{ id: CHANGE_LINK2, args: { id: editing.id, ...link, ...before === void 0 ? {} : { before } } }];
+    return [{ ...CHANGE_LINK2, args: { id: editing.id, ...link, ...before === void 0 ? {} : { before } } }];
   }
   async function submit(event) {
     event.preventDefault();
@@ -9485,10 +9699,10 @@ function optional3(key2, error) {
 }
 
 // srcts/actions/links.ts
-var CREATE_LINK = "blockr.core-add_link_action";
-var EDIT_LINK = "blockr.core-edit_link_action";
-var ADD_LINK3 = "blockr.core-add_link";
-var CHANGE_LINK3 = "blockr.core-change_link";
+var CREATE_LINK = "add_link_action";
+var EDIT_LINK = "edit_link_action";
+var ADD_LINK3 = { package: CORE2, id: "add_link" };
+var CHANGE_LINK3 = { package: CORE2, id: "change_link" };
 function createLinkAction(parts) {
   return {
     id: CREATE_LINK,
@@ -9565,7 +9779,7 @@ function newLink(core, parts, from, to, input2) {
   const board = core.store.board();
   const adding = (into) => [
     {
-      id: ADD_LINK3,
+      ...ADD_LINK3,
       args: { id: core.mintId((id2) => Object.hasOwn(core.store.board().links, id2)), from, to, ...into === void 0 ? {} : { input: into } }
     }
   ];
@@ -9613,7 +9827,7 @@ function passing(blocks, check2, first) {
 }
 function sourceRows(board, registry, parts, id2, link) {
   const downstream = createGraph(board).withDownstream([link.to]);
-  return Object.keys(board.blocks).filter((from) => from !== link.from && !downstream.has(from) && parts.preflight(CHANGE_LINK3, { id: id2, from })).map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ id: CHANGE_LINK3, args: { id: id2, from } }] }));
+  return Object.keys(board.blocks).filter((from) => from !== link.from && !downstream.has(from) && parts.preflight(CHANGE_LINK3, { id: id2, from })).map((from) => ({ ...quickBlock(board, registry, from), pick: () => [{ ...CHANGE_LINK3, args: { id: id2, from } }] }));
 }
 function inputRows(board, registry, parts, id2, link) {
   return classInputs(board, registry, link.to).filter((input2) => input2 !== link.input && parts.preflight(CHANGE_LINK3, { id: id2, input: input2 })).map((input2) => {
@@ -9623,7 +9837,7 @@ function inputRows(board, registry, parts, id2, link) {
       kind: "item",
       label: input2,
       ...from === void 0 ? {} : { detail: `swaps with ${blockName(board, from)}` },
-      pick: () => [{ id: CHANGE_LINK3, args: { id: id2, input: input2 } }]
+      pick: () => [{ ...CHANGE_LINK3, args: { id: id2, input: input2 } }]
     };
   });
 }
@@ -9636,12 +9850,13 @@ function renameRow(board, id2, link) {
     check: (value2) => inputNameError(value2, taken),
     submit(value2) {
       const input2 = value2.trim();
-      return input2 === link.input ? [] : [{ id: CHANGE_LINK3, args: { id: id2, input: input2 } }];
+      return input2 === link.input ? [] : [{ ...CHANGE_LINK3, args: { id: id2, input: input2 } }];
     }
   };
 }
 function quickBlock(board, registry, block) {
-  const icon = own(registry, own(board.blocks, block)?.registry_id ?? "")?.icon;
+  const registryId2 = own(board.blocks, block)?.registry_id;
+  const icon = registryId2 === void 0 ? void 0 : registry.get(registryId2)?.icon;
   return { kind: "item", label: blockName(board, block), detail: block, ...icon === void 0 || icon === "" ? {} : { icon } };
 }
 function heldLink(board, target2) {
@@ -9667,8 +9882,8 @@ import {
   useBoard as useBoard4
 } from "@blockr/core/react";
 import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
-var ADD_STACK = "blockr.core-add_stack";
-var CHANGE_STACK = "blockr.core-change_stack";
+var ADD_STACK = { package: CORE2, id: "add_stack" };
+var CHANGE_STACK = { package: CORE2, id: "change_stack" };
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
@@ -9742,7 +9957,7 @@ function StackForm({
     const hex3 = color2 === null ? null : stackColor(color2);
     if (editing === void 0) {
       const id3 = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
-      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, ...trimmed === "" ? {} : { name: trimmed } } }];
+      return [{ ...ADD_STACK, args: { id: id3, blocks: kept, color: hex3, ...trimmed === "" ? {} : { name: trimmed } } }];
     }
     const { id: id2, stack } = editing;
     const changed = {
@@ -9750,7 +9965,7 @@ function StackForm({
       ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
       ...sameColor(hex3, stack.color) ? {} : { color: hex3 }
     };
-    return Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id: id2, ...changed } }];
+    return Object.keys(changed).length === 0 ? [] : [{ ...CHANGE_STACK, args: { id: id2, ...changed } }];
   }
   async function submit(event) {
     event.preventDefault();
@@ -9853,11 +10068,11 @@ function sameBlocks(a, b) {
 }
 
 // srcts/actions/stacks.ts
-var CREATE_STACK = "blockr.core-add_stack_action";
-var EDIT_STACK = "blockr.core-edit_stack_action";
-var ADD_TO_STACK = "blockr.core-add_to_stack_action";
-var ADD_STACK2 = "blockr.core-add_stack";
-var CHANGE_STACK2 = "blockr.core-change_stack";
+var CREATE_STACK = "add_stack_action";
+var EDIT_STACK = "edit_stack_action";
+var ADD_TO_STACK = "add_to_stack_action";
+var ADD_STACK2 = { package: CORE2, id: "add_stack" };
+var CHANGE_STACK2 = { package: CORE2, id: "change_stack" };
 function createStackAction() {
   return {
     id: CREATE_STACK,
@@ -9917,7 +10132,7 @@ function addToStackAction() {
             label: stack.name,
             icon: swatch(stack.color),
             detail: count(stack.blocks.length),
-            pick: () => [{ id: CHANGE_STACK2, args: { id: id2, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }]
+            pick: () => [{ ...CHANGE_STACK2, args: { id: id2, blocks: [...stack.blocks, ...blocks.filter((block) => !stack.blocks.includes(block))] } }]
           })
         )
       };
@@ -9928,7 +10143,7 @@ function addToStackAction() {
 function newStack(core, blocks, name3) {
   return [
     {
-      id: ADD_STACK2,
+      ...ADD_STACK2,
       args: {
         id: core.mintId((id2) => Object.hasOwn(core.store.board().stacks, id2)),
         name: name3,
@@ -9953,7 +10168,7 @@ function colourRows(board, id2, stack) {
         kind: "item",
         label: color2.toUpperCase(),
         icon: swatch(color2),
-        pick: () => [{ id: CHANGE_STACK2, args: { id: id2, color: color2 } }]
+        pick: () => [{ ...CHANGE_STACK2, args: { id: id2, color: color2 } }]
       })
     )
   ];
@@ -9969,7 +10184,7 @@ function blocksRow(board, id2, stack) {
       ...members.map((block) => ({ id: block, label: blockName(board, block), picked: true })),
       ...free.map((block) => ({ id: block, label: blockName(board, block), picked: false }))
     ],
-    apply: (picked) => [{ id: CHANGE_STACK2, args: { id: id2, blocks: [...picked] } }]
+    apply: (picked) => [{ ...CHANGE_STACK2, args: { id: id2, blocks: [...picked] } }]
   };
 }
 function count(blocks) {
@@ -9993,7 +10208,7 @@ function coreBoardActions(parts) {
     createLinkAction(parts),
     createStackAction(),
     {
-      id: "blockr.core-rename_action",
+      id: "rename_action",
       label: "Rename",
       on: ["block", "stack"],
       category: "edit",
@@ -10002,14 +10217,14 @@ function coreBoardActions(parts) {
         const object2 = named2(board, target2);
         if (object2 === void 0) return void 0;
         return {
-          rows: [nameRow(object2.name, (name3) => name3 === object2.name ? [] : [{ id: object2.command, args: { id: object2.id, name: name3 } }])]
+          rows: [nameRow(object2.name, (name3) => name3 === object2.name ? [] : [{ ...object2.command, args: { id: object2.id, name: name3 } }])]
         };
       },
       role: "rename_role"
     },
     editLinkAction(parts),
     {
-      id: "blockr.core-edit_inputs_action",
+      id: "edit_inputs_action",
       label: "Edit inputs",
       on: ["block"],
       category: "edit",
@@ -10023,7 +10238,7 @@ function coreBoardActions(parts) {
     editStackAction(),
     addToStackAction(),
     {
-      id: "blockr.core-copy_block_id_action",
+      id: "copy_block_id_action",
       label: "Copy block ID",
       detail: (_board, target2) => blockOf(target2),
       on: ["block"],
@@ -10043,37 +10258,37 @@ function coreBoardActions(parts) {
       }
     },
     {
-      id: "blockr.core-remove_block_action",
+      id: "remove_block_action",
       label: "Remove block",
       icon: TRASH,
       on: ["block"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && heldBlock(board, target2) !== void 0,
-      run: (_board, target2) => removing("blockr.core-remove_block", blockOf(target2)),
+      run: (_board, target2) => removing({ package: CORE2, id: "remove_block" }, blockOf(target2)),
       role: "remove_block_role"
     },
     {
-      id: "blockr.core-remove_link_action",
+      id: "remove_link_action",
       label: "Remove link",
       icon: TRASH,
       on: ["link"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && "link" in target2 && Object.hasOwn(board.links, target2.link),
-      run: (_board, target2) => removing("blockr.core-remove_link", "link" in target2 ? target2.link : void 0),
+      run: (_board, target2) => removing({ package: CORE2, id: "remove_link" }, "link" in target2 ? target2.link : void 0),
       role: "remove_link_role"
     },
     {
-      id: "blockr.core-remove_stack_action",
+      id: "remove_stack_action",
       label: "Remove stack",
       icon: TRASH,
       on: ["stack"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && "stack" in target2 && Object.hasOwn(board.stacks, target2.stack),
-      run: (_board, target2) => removing("blockr.core-remove_stack", "stack" in target2 ? target2.stack : void 0),
+      run: (_board, target2) => removing({ package: CORE2, id: "remove_stack" }, "stack" in target2 ? target2.stack : void 0),
       role: "remove_stack_role"
     },
     {
-      id: "blockr.core-remove_selected_action",
+      id: "remove_selected_action",
       label: "Remove",
       icon: TRASH,
       on: ["selection"],
@@ -10087,20 +10302,20 @@ function coreBoardActions(parts) {
 function named2(board, target2) {
   if ("block" in target2) {
     const block = own(board.blocks, target2.block);
-    return block === void 0 ? void 0 : { id: target2.block, name: block.name, command: "blockr.core-change_block" };
+    return block === void 0 ? void 0 : { id: target2.block, name: block.name, command: { package: CORE2, id: "change_block" } };
   }
   if ("stack" in target2) {
     const stack = own(board.stacks, target2.stack);
-    return stack === void 0 ? void 0 : { id: target2.stack, name: stack.name, command: "blockr.core-change_stack" };
+    return stack === void 0 ? void 0 : { id: target2.stack, name: stack.name, command: { package: CORE2, id: "change_stack" } };
   }
   return void 0;
 }
 function removing(command2, id2) {
-  return id2 === void 0 ? void 0 : [{ id: command2, args: { id: id2 } }];
+  return id2 === void 0 ? void 0 : [{ ...command2, args: { id: id2 } }];
 }
 function removals(board, target2) {
   if (!("selection" in target2)) return [];
-  const removing2 = (kind) => held2(board, target2, kind).map((id2) => ({ id: `blockr.core-remove_${kind}`, args: { id: id2 } }));
+  const removing2 = (kind) => held2(board, target2, kind).map((id2) => ({ package: CORE2, id: `remove_${kind}`, args: { id: id2 } }));
   return [...removing2("link"), ...removing2("block"), ...removing2("stack")];
 }
 var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';
@@ -10108,43 +10323,43 @@ var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke=
 // srcts/actions/roles.ts
 var CORE_ROLES = [
   // Adds a block on its own.
-  { id: "add_block_role", on: ["board"], default: "blockr.core-add_block_action", advanced: true },
+  { id: "add_block_role", on: ["board"], default: "add_block_action", advanced: true },
   // Adds a block that takes the result of the block, through a link from it.
-  { id: "append_block_role", on: ["block"], default: "blockr.core-append_block_action" },
+  { id: "append_block_role", on: ["block"], default: "append_block_action" },
   // Adds a block that feeds the block, through a link into one of its inputs,
   // or on an input, into that input. On the next place of a variadic block,
   // the link goes into that block, as on the block, under any name or none and
   // at any place among its links.
-  { id: "prepend_block_role", on: ["block", "input"], default: "blockr.core-prepend_block_action" },
+  { id: "prepend_block_role", on: ["block", "input"], default: "prepend_block_action" },
   // Adds a block on the link, which then comes from the new block, while a
   // new link feeds the new block from the block that the link came from.
-  { id: "insert_block_role", on: ["link"], default: "blockr.core-insert_block_action" },
+  { id: "insert_block_role", on: ["link"], default: "insert_block_action" },
   // Adds a link that starts or ends at the block, or any link on the board.
   // On an input, the link goes into that input. On the next place of a
   // variadic block, it goes into that block, under any name or none and at
   // any place among its links.
-  { id: "add_link_role", on: ["block", "input", "board"], default: "blockr.core-add_link_action", advanced: true },
+  { id: "add_link_role", on: ["block", "input", "board"], default: "add_link_action", advanced: true },
   // Adds a stack of exactly the blocks that the target holds, or of any
   // blocks on the board.
-  { id: "add_stack_role", on: ["block", "selection", "board"], default: "blockr.core-add_stack_action", advanced: true },
+  { id: "add_stack_role", on: ["block", "selection", "board"], default: "add_stack_action", advanced: true },
   // Renames the block or the stack.
-  { id: "rename_role", on: ["block", "stack"], default: "blockr.core-rename_action" },
+  { id: "rename_role", on: ["block", "stack"], default: "rename_action" },
   // Changes the link, its ends, its input or its place among the links into
   // its block.
-  { id: "edit_link_role", on: ["link"], default: "blockr.core-edit_link_action" },
+  { id: "edit_link_role", on: ["link"], default: "edit_link_action" },
   // Changes the links into the block's inputs: removes, changes, adds and
   // moves any number of them.
-  { id: "edit_inputs_role", on: ["block"], default: "blockr.core-edit_inputs_action" },
+  { id: "edit_inputs_role", on: ["block"], default: "edit_inputs_action" },
   // Changes the stack, its name, its colour or its blocks.
-  { id: "edit_stack_role", on: ["stack"], default: "blockr.core-edit_stack_action" },
+  { id: "edit_stack_role", on: ["stack"], default: "edit_stack_action" },
   // Puts the blocks that the target holds into a stack that the board holds.
-  { id: "add_to_stack_role", on: ["block", "selection"], default: "blockr.core-add_to_stack_action" },
+  { id: "add_to_stack_role", on: ["block", "selection"], default: "add_to_stack_action" },
   // Removes the block, the link or the stack.
-  { id: "remove_block_role", on: ["block"], default: "blockr.core-remove_block_action" },
-  { id: "remove_link_role", on: ["link"], default: "blockr.core-remove_link_action" },
-  { id: "remove_stack_role", on: ["stack"], default: "blockr.core-remove_stack_action" },
+  { id: "remove_block_role", on: ["block"], default: "remove_block_action" },
+  { id: "remove_link_role", on: ["link"], default: "remove_link_action" },
+  { id: "remove_stack_role", on: ["stack"], default: "remove_stack_action" },
   // Removes every link, block and stack of the selection.
-  { id: "remove_selected_role", on: ["selection"], default: "blockr.core-remove_selected_action" }
+  { id: "remove_selected_role", on: ["selection"], default: "remove_selected_action" }
 ];
 function checkedPlayer(role, action2) {
   if (action2 === void 0) return { why: "no package registers that board action" };
@@ -10160,11 +10375,11 @@ function checkedPlayer(role, action2) {
   return { player: action2 };
 }
 function checkedRoles(plugin, given, taken, actions) {
-  const of = `The plugin class "${plugin}"`;
+  const of = `The plugin class "${idText(plugin)}"`;
   if (!Array.isArray(given)) {
     throw new Error(`${of} gives roles that are no array.`);
   }
-  const pkg = packageFromId(plugin) ?? plugin;
+  const pkg = plugin.package;
   const ids2 = new Map(taken);
   return given.map((role) => {
     if (!isObject(role)) {
@@ -10173,9 +10388,6 @@ function checkedRoles(plugin, given, taken, actions) {
     const { id: id2 } = role;
     if (typeof id2 !== "string" || id2 === "") {
       throw new Error(`${of} gives a role whose id ${JSON.stringify(id2)} is no string, as "append_block_role".`);
-    }
-    if (packageFromId(id2) !== null) {
-      throw new Error(`${of} gives the role "${id2}", whose id names a package, while a role's id names none, as "append_block_role".`);
     }
     const other = ids2.get(id2);
     if (other !== void 0) {
@@ -10188,8 +10400,10 @@ function checkedRoles(plugin, given, taken, actions) {
       throw new Error(`${named4}, whose on ${kinds}.`);
     }
     const fallback = role.default;
-    if (typeof fallback !== "string" || !isCommandId(fallback)) {
-      throw new Error(`${named4}, whose default ${JSON.stringify(fallback)} is not named as a board action's id is, "{pkg}-{name}".`);
+    if (typeof fallback !== "string" || fallback === "") {
+      throw new Error(
+        `${named4}, whose default ${JSON.stringify(fallback)} is no id of a board action of the class, as "append_block_action".`
+      );
     }
     if (role.advanced !== void 0 && role.advanced !== true) {
       throw new Error(`${named4}, whose advanced is neither true nor left out.`);
@@ -10206,14 +10420,19 @@ function checkedRoles(plugin, given, taken, actions) {
 }
 
 // srcts/actions/actions.ts
-var CORE2 = "blockr.core";
 var NO_BOARD2 = "Core opens no board, since the blockr option board_actions holds for every board of the app.";
 function createBoardActions(parts) {
-  let registered = coreBoardActions(parts);
+  let registered = coreBoardActions(parts).map((action2) => Object.freeze({ ...action2, package: CORE2 }));
   const classes2 = /* @__PURE__ */ new Map();
   const roles = new Map(
     CORE_ROLES.map((role) => [role.id, { role, plugin: void 0 }])
   );
+  const fallbackOf = (role) => {
+    const held3 = roles.get(role);
+    if (held3 === void 0) return void 0;
+    return find({ package: held3.plugin?.package ?? CORE2, id: held3.role.default });
+  };
+  const find = (id2) => registered.find((each) => each.package === id2.package && each.id === id2.id);
   const players = /* @__PURE__ */ new Map();
   let offered;
   function player(role) {
@@ -10221,9 +10440,9 @@ function createBoardActions(parts) {
     return action2 !== void 0 && registered.includes(action2) ? action2 : void 0;
   }
   function inMenus() {
-    const places = new Map(registered.map(({ id: id2 }, i) => [id2, i]));
+    const places = new Map(registered.map((action2, i) => [action2, i]));
     const placeOf = (action2, i) => {
-      const fallback = action2.role === void 0 ? void 0 : roles.get(action2.role)?.role.default;
+      const fallback = action2.role === void 0 ? void 0 : fallbackOf(action2.role);
       return (fallback === void 0 ? void 0 : places.get(fallback)) ?? i;
     };
     return registered.map((action2, i) => ({ action: action2, at: placeOf(action2, i), i })).filter(({ action: action2 }) => action2.role === void 0 || player(action2.role) === action2).sort((a, b) => a.at - b.at || a.i - b.i).map(({ action: action2 }) => action2);
@@ -10231,16 +10450,16 @@ function createBoardActions(parts) {
   return {
     register(plugin, givenActions, givenRoles) {
       if (givenActions === void 0 && givenRoles === void 0) return () => void 0;
-      const actions = givenActions === void 0 ? [] : checked2(plugin, givenActions, new Set(registered.map(({ id: id2 }) => id2)));
-      const taken = () => new Map([...roles.values()].map(({ role, plugin: by }) => [role.id, by === void 0 ? CORE2 : packageFromId(by) ?? by]));
+      const actions = givenActions === void 0 ? [] : checked2(plugin, givenActions, new Set(registered.filter((each) => each.package === plugin.package).map(({ id: id2 }) => id2)));
+      const taken = () => new Map([...roles.values()].map(({ role, plugin: by }) => [role.id, by === void 0 ? CORE2 : by.package]));
       const listed = givenRoles === void 0 ? [] : checkedRoles(plugin, givenRoles, taken(), actions);
       registered = [...registered, ...actions];
-      for (const { id: id2 } of actions) classes2.set(id2, plugin);
+      for (const action2 of actions) classes2.set(action2, plugin);
       for (const role of listed) roles.set(role.id, { role, plugin });
       offered = void 0;
       return () => {
         registered = registered.filter((action2) => !actions.includes(action2));
-        for (const { id: id2 } of actions) classes2.delete(id2);
+        for (const action2 of actions) classes2.delete(action2);
         for (const role of listed) {
           if (roles.get(role.id)?.role === role) roles.delete(role.id);
           players.delete(role.id);
@@ -10249,7 +10468,7 @@ function createBoardActions(parts) {
       };
     },
     registered: () => registered,
-    classOf: (id2) => classes2.get(id2),
+    classOf: (action2) => classes2.get(action2),
     role: (id2) => roles.get(id2)?.role,
     choosePlayers(value2) {
       const picks = picksOf(value2);
@@ -10261,10 +10480,9 @@ function createBoardActions(parts) {
       }
       for (const { role } of roles.values()) {
         const pick2 = picks.get(role.id);
-        const id2 = pick2 ?? role.default;
-        const found = checkedPlayer(role, registered.find((each) => each.id === id2));
+        const found = checkedPlayer(role, pick2 === void 0 ? fallbackOf(role.id) : find(pick2));
         if ("player" in found) players.set(role.id, found.player);
-        else if (pick2 !== void 0) failures.push(`${picking(id2, role.id)}, but ${found.why}.`);
+        else if (pick2 !== void 0) failures.push(`${picking(pick2, role.id)}, but ${found.why}.`);
       }
       if (failures.length > 0) throw new Error([...failures, NO_BOARD2].join("\n"));
     },
@@ -10276,23 +10494,25 @@ function createBoardActions(parts) {
   };
 }
 function picking(action2, role) {
-  return `The blockr option board_actions picks the board action "${action2}" to play the role "${role}"`;
+  return `The blockr option board_actions picks the board action "${idText(action2)}" to play the role "${role}"`;
 }
 function picksOf(value2) {
   if (value2 === void 0 || Array.isArray(value2) && value2.length === 0) return /* @__PURE__ */ new Map();
   if (isObject(value2)) {
     const entries = Object.entries(value2);
-    if (entries.every((entry) => typeof entry[1] === "string")) return new Map(entries);
+    if (entries.every((entry) => isIdRecord(entry[1]))) {
+      return new Map(entries.map(([role, pick2]) => [role, pick2]));
+    }
   }
   throw new Error(
     [
-      `The blockr option board_actions holds ${JSON.stringify(value2)}, where it picks a board action for a role by their ids, as list(append_block_role = "mykit-append_block_action") does in R.`,
+      `The blockr option board_actions holds ${JSON.stringify(value2)}, where it picks a board action for a role by the role's id and the board action's package and id, as list(append_block_role = list(package = "mykit", id = "append_block_action")) does in R.`,
       NO_BOARD2
     ].join("\n")
   );
 }
 function checked2(plugin, given, taken) {
-  const of = `The plugin class "${plugin}"`;
+  const of = `The plugin class "${idText(plugin)}"`;
   if (!Array.isArray(given)) {
     throw new Error(`${of} gives board actions that are no array.`);
   }
@@ -10302,12 +10522,15 @@ function checked2(plugin, given, taken) {
       throw new Error(`${of} gives a board action that is no object.`);
     }
     const { id: id2 } = action2;
-    if (typeof id2 !== "string" || !isCommandId(id2)) {
-      throw new Error(`${of} gives a board action whose id ${JSON.stringify(id2)} is not named as a command's id is, "{pkg}-{name}".`);
+    if (typeof id2 !== "string" || id2 === "") {
+      throw new Error(`${of} gives a board action whose id ${JSON.stringify(id2)} is no non-empty string, as "remove_block_action".`);
     }
     const named4 = `${of} gives the board action "${id2}"`;
+    if (action2.package !== void 0 && action2.package !== plugin.package) {
+      throw new Error(`${named4} with the package ${JSON.stringify(action2.package)}, where core sets the package of its class, ${plugin.package}.`);
+    }
     if (ids2.has(id2)) {
-      throw new Error(`${named4}, which has the id of another board action.`);
+      throw new Error(`${named4}, which has the id of another board action of ${plugin.package}.`);
     }
     ids2.add(id2);
     if (typeof action2.label !== "string" || action2.label === "") {
@@ -10343,7 +10566,7 @@ function checked2(plugin, given, taken) {
     if (role !== void 0 && (typeof role !== "string" || role === "")) {
       throw new Error(`${named4}, whose role ${JSON.stringify(role)} is no role's id, as "append_block_role".`);
     }
-    return action2;
+    return Object.freeze({ ...action2, package: plugin.package });
   });
 }
 function boardActionsApi(actions, parts) {
@@ -10362,7 +10585,7 @@ function boardActionsApi(actions, parts) {
     try {
       return action2.offers(board, target2, lock);
     } catch (error) {
-      log.error(new Error(`The offers of the board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+      log.error(new Error(`The offers of the board action "${idText(action2)}" failed: ${errorMessage(error)}`, { cause: error }));
       return false;
     }
   }
@@ -10372,13 +10595,18 @@ function boardActionsApi(actions, parts) {
     return actions.offered().filter((action2) => applies(action2, board, target2));
   }
   function registered(id2) {
-    if (typeof id2 === "string" && packageFromId(id2) === null) {
+    if (typeof id2 === "string") {
       if (actions.role(id2) === void 0) throw new Error(`No role "${id2}" is registered.`);
       return actions.player(id2);
     }
-    const action2 = actions.registered().find((each) => each.id === id2);
+    if (!isIdRecord(id2)) {
+      throw new TypeError(
+        `A board action is named by its package and its id, as { package: "blockr.core", id: "rename_action" }, and a role by its id, as "rename_role", not by ${JSON.stringify(id2)}.`
+      );
+    }
+    const action2 = actions.registered().find((each) => each.package === id2.package && each.id === id2.id);
     if (action2 === void 0) {
-      throw new Error(`No board action "${id2}" is registered.`);
+      throw new Error(`No board action "${idText(id2)}" is registered.`);
     }
     return action2.role === void 0 || actions.player(action2.role) === action2 ? action2 : void 0;
   }
@@ -10387,12 +10615,14 @@ function boardActionsApi(actions, parts) {
     try {
       batch2 = await action2.run?.(store.board(), target2, parts.core());
     } catch (error) {
-      throw failed2(action2, new Error(`The board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }), notifier);
+      throw failed2(action2, new Error(`The board action "${idText(action2)}" failed: ${errorMessage(error)}`, { cause: error }), notifier);
     }
-    if (batch2 !== void 0 && !isBatch(batch2)) {
+    if (batch2 !== void 0 && !isBatch2(batch2)) {
       throw failed2(
         action2,
-        new TypeError(`The run of the board action "${action2.id}" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`),
+        new TypeError(
+          `The run of the board action "${idText(action2)}" returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].`
+        ),
         notifier
       );
     }
@@ -10400,13 +10630,13 @@ function boardActionsApi(actions, parts) {
   }
   function failed2(action2, failure, notifier) {
     log.error(failure);
-    const plugin = actions.classOf(action2.id);
+    const plugin = actions.classOf(action2);
     raiseAgain(
       coreNotification(
         "board_action_failed",
         "error",
         failure.message,
-        plugin === void 0 ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) }
+        plugin === void 0 ? {} : { module: sourceModule({ plugin }, plugin.package) }
       ),
       notifier
     );
@@ -10434,9 +10664,9 @@ function boardActionsApi(actions, parts) {
     }
     if (extend !== void 0) {
       const extra = extend(deltas);
-      if (!isBatch(extra)) {
+      if (!isBatch2(extra)) {
         throw new TypeError(
-          `The \`extend\` of ${batching2.call ?? "the call"} returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`
+          `The \`extend\` of ${batching2.call ?? "the call"} returned no batch of commands, as [{ package: "blockr.core", id: "remove_block", args: { id: "a" } }].`
         );
       }
       added = extra;
@@ -10461,7 +10691,7 @@ function boardActionsApi(actions, parts) {
     raise: (notification) => {
       raiseAgain(notification);
     },
-    classOf: (id2) => actions.classOf(id2),
+    classOf: (action2) => actions.classOf(action2),
     ...signal5 === void 0 ? {} : { signal: signal5 }
   });
   function openingOf(given, action2, opened = {}) {
@@ -10539,8 +10769,8 @@ function boardActionsApi(actions, parts) {
       const action2 = registered(id2);
       if (action2 === void 0) return () => void 0;
       if (action2.advanced === void 0) {
-        const playing = action2.id === id2 ? "" : `, which plays the role "${id2}",`;
-        throw new Error(`The board action "${action2.id}"${playing} has no advanced action to mount.`);
+        const playing = typeof id2 === "string" ? `, which plays the role "${id2}",` : "";
+        throw new Error(`The board action "${idText(action2)}"${playing} has no advanced action to mount.`);
       }
       return advanced.mount(given, action2, checked3, picked);
     }
@@ -10644,24 +10874,36 @@ var WIDTH = "bc:min-w-[min(420px,100%)]";
 
 // srcts/actions/module.ts
 var MENU_OPTION = "board_action_menu";
-var CORE_MENU = "blockr.core-board_action_menu";
+var CORE_MENU = interned("blockr.core", "board_action_menu");
 async function menuModule(loader, value2) {
-  if (value2 !== void 0 && (typeof value2 !== "string" || value2 === "")) {
+  const named4 = value2 === void 0 ? CORE_MENU : menuOf(value2);
+  if (named4 === void 0) {
     throw new Error(
-      `Core opens no board, since the blockr option ${MENU_OPTION} names no module by its id, as "${CORE_MENU}", but holds ${JSON.stringify(value2)}.`
+      `Core opens no board, since the blockr option ${MENU_OPTION} names no module by its package and id, as ${JSON.stringify(CORE_MENU)}, but holds ${JSON.stringify(value2)}.`
     );
   }
-  const id2 = value2 ?? CORE_MENU;
+  const id2 = interned(named4.package, named4.id);
   let module;
   try {
-    module = mountableModule(await loader.module(id2), id2, packageFromId(id2));
+    module = mountableModule(await loader.module(id2), id2.id, id2.package);
   } catch (error) {
     throw new Error(
-      `Core opens no board, since it cannot draw the menus of board actions with the module "${id2}" that the blockr option ${MENU_OPTION} names. ${errorMessage(error)}`,
+      `Core opens no board, since it cannot draw the menus of board actions with the module "${idText(id2)}" that the blockr option ${MENU_OPTION} names. ${errorMessage(error)}`,
       { cause: error }
     );
   }
-  return drawWith(module, id2);
+  return drawWith(module, idText(id2));
+}
+function menuOf(value2) {
+  let given = value2;
+  if (typeof value2 === "string") {
+    try {
+      given = JSON.parse(value2);
+    } catch {
+      return void 0;
+    }
+  }
+  return isObject(given) && isIdRecord(given) ? { package: given.package, id: given.id } : void 0;
 }
 function drawWith(module, id2) {
   const named4 = id2 === void 0 ? "The module" : `The module "${id2}"`;
@@ -10726,12 +10968,12 @@ function rowGiven(row, member) {
 }
 
 // srcts/core/plugins.ts
-var NONE = Object.freeze({});
+var NONE = /* @__PURE__ */ new Map();
 var NOTHING_FAILED = Promise.resolve([]);
 function runPlugins(deps) {
   const { store, keepOptions } = deps;
   const replaced2 = deps.signal ?? new AbortController().signal;
-  const registeredClass = (id2) => own(store.plugins.registered(), id2);
+  const registeredClass = (id2) => store.plugins.registered().get(id2);
   const added = /* @__PURE__ */ new Map();
   const stops = [];
   function keep(ids2, by) {
@@ -10740,10 +10982,10 @@ function runPlugins(deps) {
     stops.push(kept.stop);
     return kept.added;
   }
-  const optionsOf = (id2) => own(deps.plugins, id2)?.options ?? [];
+  const optionsOf = (id2) => deps.plugins.get(id2)?.options ?? [];
   function opened() {
-    for (const id2 of Object.keys(appPlugins())) {
-      added.set(id2, keep(optionsOf(id2), `the plugin class "${id2}"`));
+    for (const id2 of appPlugins2().keys()) {
+      added.set(id2, keep(optionsOf(id2), `the plugin class "${idText(id2)}"`));
     }
   }
   const offStore = store.subscribe((change) => {
@@ -10753,23 +10995,24 @@ function runPlugins(deps) {
     offStore();
     for (const stop of stops.splice(0)) stop();
   });
-  const running2 = Object.freeze(
-    Object.fromEntries(Object.entries(deps.plugins).map(([id2, { name: name3 }]) => [id2, Object.freeze({ name: name3 })]))
+  const running2 = new Map(
+    [...deps.plugins].map(([id2, { name: name3 }]) => [id2, Object.freeze({ name: name3 })])
   );
-  function appPlugins() {
+  function appPlugins2() {
     return store.hasBoard() ? running2 : NONE;
   }
-  function pluginClass(plugin) {
-    const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : void 0;
-    if (def === void 0) throw new Error(`The app runs no plugin "${plugin}" on the open board.`);
+  function pluginClass(given) {
+    const plugin = givenPluginClassId(given, "pluginClass()");
+    const def = appPlugins2().has(plugin) ? registeredClass(plugin) : void 0;
+    if (def === void 0) throw new Error(`The app runs no plugin "${idText(plugin)}" on the open board.`);
     return def;
   }
   function storage() {
-    const [id2] = inRole(appPlugins(), registeredClass, "storage");
+    const [id2] = inRole(appPlugins2().keys(), registeredClass, "storage");
     return id2 === void 0 ? void 0 : pluginClass(id2).storage;
   }
   function frontend() {
-    const [id2] = inRole(appPlugins(), registeredClass, "frontend");
+    const [id2] = inRole(appPlugins2().keys(), registeredClass, "frontend");
     const drawn2 = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
     if (id2 === void 0 || drawn2 === void 0) return void 0;
     return { frontend: drawn2, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
@@ -10778,7 +11021,7 @@ function runPlugins(deps) {
   async function start2() {
     if (started) return;
     started = true;
-    const starting = Object.keys(appPlugins()).flatMap((id2) => {
+    const starting = [...appPlugins2().keys()].flatMap((id2) => {
       const def = registeredClass(id2);
       return def?.start === void 0 ? [] : [{ id: id2, def }];
     });
@@ -10786,7 +11029,7 @@ function runPlugins(deps) {
     starting.forEach(({ id: id2, def }, i) => {
       if (replaced2.aborted) return;
       if ((failures[i] ?? []).length > 0) {
-        log.error(`The plugin "${id2}" does not start, since board options that its class requires did not go onto the board.`);
+        log.error(`The plugin "${idText(id2)}" does not start, since board options that its class requires did not go onto the board.`);
         return;
       }
       launch(id2, def);
@@ -10803,9 +11046,9 @@ function runPlugins(deps) {
     try {
       returned = def.start?.({ core: deps.core(), plugin: id2, signal: controller.signal });
     } catch (error) {
-      const why = new Error(`The start of the plugin class "${id2}" failed: ${errorMessage(error)}`, { cause: error });
+      const why = new Error(`The start of the plugin class "${idText(id2)}" failed: ${errorMessage(error)}`, { cause: error });
       log.error(why);
-      const module = sourceModule({ plugin: id2 }, packageFromId(id2));
+      const module = sourceModule({ plugin: id2 }, id2.package);
       deps.raise(coreNotification("plugin_start_failed", "error", why.message, { module }));
       return;
     }
@@ -10814,12 +11057,13 @@ function runPlugins(deps) {
     if (controller.signal.aborted) attempt(given);
     else cleanup = given;
   }
-  function mountPlugin(el, plugin) {
+  function mountPlugin(el, given) {
     if (replaced2.aborted) throw new Error(REPLACED);
+    const plugin = givenPluginClassId(given, "mountPlugin()");
     const def = pluginClass(plugin);
     const { ui } = def;
     if (ui === void 0) {
-      throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
+      throw new Error(`The class of the plugin "${idText(plugin)}" has no ui to mount.`);
     }
     const controller = new AbortController();
     const { signal: signal5 } = controller;
@@ -10843,15 +11087,15 @@ function runPlugins(deps) {
       cannotDraw(errorMessage(error));
     }
     function cannotDraw(message) {
-      deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
+      deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, plugin.package) }));
     }
     function lacking(ids2) {
       const missing = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
-      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
+      cannotDraw(withoutOptions(`the ui of the plugin class "${idText(plugin)}"`, missing));
     }
     void (async () => {
       const named4 = optionsOf(plugin);
-      const kept = keepOptions(named4, `the plugin class "${plugin}"`, () => {
+      const kept = keepOptions(named4, `the plugin class "${idText(plugin)}"`, () => {
         if (ended()) return;
         end();
         lacking(named4);
@@ -10870,36 +11114,34 @@ function runPlugins(deps) {
         if (ended()) attempt(rendered);
         else cleanup = rendered;
       } catch (error) {
-        fail(new Error(`The ui of the plugin class "${plugin}" failed in render(): ${errorMessage(error)}`, { cause: error }));
+        fail(new Error(`The ui of the plugin class "${idText(plugin)}" failed in render(): ${errorMessage(error)}`, { cause: error }));
       }
     })();
     return end;
   }
-  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start: start2 };
+  return { appPlugins: appPlugins2, pluginClass, storage, mountPlugin, frontend, start: start2 };
 }
 
 // srcts/core/requests.ts
 var ATTEMPTS3 = 3;
-async function pluginRequest(deps, plugin, name3, args, opts) {
-  if (typeof plugin !== "string" || plugin === "") {
-    throw new TypeError("A plugin's request names the plugin by the id of its class, a non-empty string.");
-  }
-  if (!Object.hasOwn(deps.plugins.appPlugins(), plugin)) {
-    throw new Error(`The app runs no plugin "${plugin}" on the open board, so its request did not go to R.`);
+async function pluginRequest(deps, named4, name3, args, opts) {
+  const plugin = givenPluginClassId(named4, "A plugin's request");
+  if (!deps.plugins.appPlugins().has(plugin)) {
+    throw new Error(`The app runs no plugin "${idText(plugin)}" on the open board, so its request did not go to R.`);
   }
   if (typeof name3 !== "string" || name3 === "") {
-    throw new TypeError(`A request of the plugin "${plugin}" is named by a non-empty string.`);
+    throw new TypeError(`A request of the plugin "${idText(plugin)}" is named by a non-empty string.`);
   }
   if (!isObject(args)) {
-    throw new TypeError(`The args of the request "${name3}" of the plugin "${plugin}" are an object.`);
+    throw new TypeError(`The args of the request "${name3}" of the plugin "${idText(plugin)}" are an object.`);
   }
   const reads = opts.reads ?? [];
   if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
-    throw new TypeError(`The blocks that the request "${name3}" of the plugin "${plugin}" reads are an array of their ids.`);
+    throw new TypeError(`The blocks that the request "${name3}" of the plugin "${idText(plugin)}" reads are an array of their ids.`);
   }
-  const notifier = givenNotifier(opts, `the request "${name3}" of the plugin "${plugin}"`);
-  const what = `The request "${name3}" of the plugin "${plugin}"`;
-  const module = sourceModule({ plugin }, packageFromId(plugin));
+  const notifier = givenNotifier(opts, `the request "${name3}" of the plugin "${idText(plugin)}"`);
+  const what = `The request "${name3}" of the plugin "${idText(plugin)}"`;
+  const module = sourceModule({ plugin }, plugin.package);
   const inCaller = keepContext();
   const handOn = (conditions) => {
     deps.replied(module, { type: "plugin", name: name3 }, conditions, notifier);
@@ -10926,10 +11168,10 @@ async function pluginRequest(deps, plugin, name3, args, opts) {
         if (attempt3 < ATTEMPTS3) continue;
         throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
       case "cancelled":
-        throw new RequestError(`R cancelled the request "${name3}" of the plugin "${plugin}".`, { status: "cancelled" });
+        throw new RequestError(`R cancelled the request "${name3}" of the plugin "${idText(plugin)}".`, { status: "cancelled" });
       default:
         handOn(conditions);
-        throw new RequestError(`R replied ${reply.status} to the request "${name3}" of the plugin "${plugin}".`, {
+        throw new RequestError(`R replied ${reply.status} to the request "${name3}" of the plugin "${idText(plugin)}".`, {
           status: reply.status,
           conditions
         });
@@ -11022,7 +11264,7 @@ function createCore(parts) {
       }
     }
   });
-  const plugins = runPlugins({
+  const plugins2 = runPlugins({
     store,
     keepOptions: (ids2, by, failed2) => mounts.keepOptions(ids2, by, failed2),
     core: () => api,
@@ -11032,7 +11274,7 @@ function createCore(parts) {
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const focus = createFocus(store, parts.signal);
-  const selection = createSelection(store, plugins, parts.signal);
+  const selection = createSelection(store, plugins2, parts.signal);
   const edits = refusing(store, commands, refused2);
   const api = {
     store: edits.store,
@@ -11064,9 +11306,9 @@ function createCore(parts) {
       value: (id2) => store.hasBoard() ? own(store.board().options, id2) : void 0
     },
     plugins: {
-      appPlugins: () => plugins.appPlugins(),
-      pluginClass: (plugin) => plugins.pluginClass(plugin),
-      storage: () => plugins.storage()
+      appPlugins: () => plugins2.appPlugins(),
+      pluginClass: (plugin) => plugins2.pluginClass(plugin),
+      storage: () => plugins2.storage()
     },
     lock: parts.lock,
     outputEvents,
@@ -11089,19 +11331,19 @@ function createCore(parts) {
           throw new Error(`The board holds no block ${JSON.stringify(shown2.block)} to show.`);
         }
         focus.set(shown2.block);
-      } else if (plugins.pluginClass(shown2.plugin).ui === void 0) {
-        throw new Error(`The class of the plugin "${shown2.plugin}" has no ui to show.`);
+      } else if (plugins2.pluginClass(shown2.plugin).ui === void 0) {
+        throw new Error(`The class of the plugin "${idText(shown2.plugin)}" has no ui to show.`);
       }
       return parts.show(shown2);
     },
-    request: (plugin, name3, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name3, args, opts),
-    module: (id2) => loader.module(id2),
+    request: (plugin, name3, args = {}, opts = {}) => pluginRequest({ plugins: plugins2, scheduler, replied: notifications.replied }, plugin, name3, args, opts),
+    module: (id2) => loader.module(givenModuleId(id2)),
     blockrOption: (name3) => blockrOptions.read(name3),
     mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),
-    mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin)
+    mountPlugin: (el, plugin) => plugins2.mountPlugin(el, plugin)
   };
   let heard = {};
   store.subscribe((change, board) => {
@@ -11147,7 +11389,7 @@ function createCore(parts) {
     for (const withdraw of raisedBy.get(id2) ?? []) withdraw();
     raisedBy.set(id2, raisedNow);
   }
-  return { api, plugins };
+  return { api, plugins: plugins2 };
 }
 function refusing(store, commands, refused2) {
   function edit(opts, call, fn) {
@@ -11193,7 +11435,7 @@ function refusing(store, commands, refused2) {
       // A batch comes with its origin second, in place of the args, and its
       // options third, as the command registry takes it.
       run(target2, given, third, fourth) {
-        if (typeof target2 === "string") {
+        if (!Array.isArray(target2)) {
           const origin = typeof third === "string" ? third : void 0;
           return ran(fourth, () => commands.run(target2, given, origin));
         }
@@ -11207,12 +11449,14 @@ function shownObject(given) {
   if (typeof given === "object" && given !== null && !Array.isArray(given)) {
     const entries = Object.entries(given);
     const [entry] = entries;
-    if (entries.length === 1 && entry !== void 0 && typeof entry[1] === "string") {
-      if (entry[0] === "block") return Object.freeze({ block: entry[1] });
-      if (entry[0] === "plugin") return Object.freeze({ plugin: entry[1] });
+    if (entries.length === 1 && entry !== void 0) {
+      if (entry[0] === "block" && typeof entry[1] === "string") return Object.freeze({ block: entry[1] });
+      if (entry[0] === "plugin" && isIdRecord(entry[1])) return Object.freeze({ plugin: internedRecord(entry[1]) });
     }
   }
-  throw new TypeError(`Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`);
+  throw new TypeError(
+    `Core shows a block or a plugin, as { block: "a" } or { plugin: { package: "blockr.md", id: "md_plugin" } }, not ${JSON.stringify(given)}.`
+  );
 }
 function createOnScreen(signal5) {
   let seen = null;
@@ -11245,13 +11489,16 @@ function createOnScreen(signal5) {
 }
 function seenGiven(given) {
   if (typeof given === "object" && given !== null) {
-    const { blocks, plugins } = given;
-    if (isIds(blocks) && isIds(plugins)) {
-      return Object.freeze({ blocks: Object.freeze([...blocks]), plugins: Object.freeze([...plugins]) });
+    const { blocks, plugins: plugins2 } = given;
+    if (isIds(blocks) && Array.isArray(plugins2) && plugins2.every((plugin) => isIdRecord(plugin))) {
+      return Object.freeze({
+        blocks: Object.freeze([...blocks]),
+        plugins: Object.freeze(plugins2.map((plugin) => internedRecord(plugin)))
+      });
     }
   }
   throw new TypeError(
-    `A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`
+    `A frontend says what is on screen as { blocks: ["a"], plugins: [{ package: "blockr.md", id: "md_plugin" }] }, not ${JSON.stringify(given)}.`
   );
 }
 function isIds(given) {
@@ -11314,10 +11561,10 @@ function createFocus(store, signal5) {
   };
 }
 var NOTHING_SELECTED = Object.freeze([]);
-function createSelection(store, plugins, signal5) {
+function createSelection(store, plugins2, signal5) {
   let selected = NOTHING_SELECTED;
   const listeners = /* @__PURE__ */ new Set();
-  const holds = (object2, board) => holdsObject(board, object2, plugins.appPlugins());
+  const holds = (object2, board) => holdsObject(board, object2, plugins2.appPlugins());
   const offStore = store.subscribe((_change, board) => {
     const kept = selected.filter((object2) => holds(object2, board));
     if (kept.length === selected.length) return;
@@ -11359,7 +11606,7 @@ function selectionGiven(given) {
   }
   const copies = /* @__PURE__ */ new Map();
   for (const object2 of given) {
-    const copy = Object.freeze({ ...object2 });
+    const copy = Object.freeze(internedObject({ ...object2 }));
     const key2 = objectKey(copy);
     if (!copies.has(key2)) copies.set(key2, copy);
   }
@@ -11373,7 +11620,7 @@ function unheld(object2) {
   if ("link" in object2) return `The board holds no link ${JSON.stringify(object2.link)} to select.`;
   if ("stack" in object2) return `The board holds no stack ${JSON.stringify(object2.stack)} to select.`;
   if ("option" in object2) return `The board holds no board option ${JSON.stringify(object2.option)} to select.`;
-  return `The app runs no plugin ${JSON.stringify(object2.plugin)} to select.`;
+  return `The app runs no plugin "${idText(object2.plugin)}" to select.`;
 }
 
 // srcts/core/frontends.ts
@@ -11455,7 +11702,7 @@ function pageFrontEnds(el) {
         else current2.cleanup = rendered;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const why = new Error(`The frontend of the plugin class "${prepared.plugin}" failed in render(): ${errorMessage(error)}`, {
+        const why = new Error(`The frontend of the plugin class "${idText(prepared.plugin)}" failed in render(): ${errorMessage(error)}`, {
           cause: error
         });
         showError(el, why.message);
@@ -11475,7 +11722,7 @@ function pageFrontEnds(el) {
         await current2.frontend.show({ object: object2, el, core: current2.core });
       } catch (error) {
         if (current2.controller.signal.aborted) return;
-        throw new Error(`The frontend of the plugin class "${current2.plugin}" failed in show(): ${errorMessage(error)}`, { cause: error });
+        throw new Error(`The frontend of the plugin class "${idText(current2.plugin)}" failed in show(): ${errorMessage(error)}`, { cause: error });
       }
     }
   };
@@ -11485,7 +11732,7 @@ function pageFrontEnds(el) {
 function createMigrations(loader) {
   const known = /* @__PURE__ */ new Map();
   async function load(registryId2, module) {
-    const pkg = packageFromId(registryId2);
+    const pkg = registryId2.package;
     let migration;
     try {
       migration = migrationFromExports(await loader.load({ module }, pkg), module, pkg);
@@ -11499,7 +11746,7 @@ function createMigrations(loader) {
     async prepare(board, registry) {
       const needed = /* @__PURE__ */ new Map();
       for (const block of olderBlocks(board, registry)) {
-        const entry = own(registry, block);
+        const entry = registry.get(block);
         if (entry === void 0 || known.get(block)?.module === entry.module) continue;
         needed.set(block, entry.module);
       }
@@ -11520,9 +11767,10 @@ function olderBlocks(given, registry) {
   const older = /* @__PURE__ */ new Set();
   if (!isObject(blocks)) return older;
   for (const block of Object.values(blocks)) {
-    if (!isObject(block) || typeof block.registry_id !== "string" || typeof block.version !== "number") continue;
-    const version = own(registry, block.registry_id)?.version;
-    if (version !== void 0 && block.version < version) older.add(block.registry_id);
+    if (!isObject(block) || !isIdRecord(block.registry_id, true) || typeof block.version !== "number") continue;
+    const registryId2 = internedRecord(block.registry_id);
+    const version = registry.get(registryId2)?.version;
+    if (version !== void 0 && block.version < version) older.add(registryId2);
   }
   return older;
 }
@@ -11546,7 +11794,7 @@ var NONE2 = Object.freeze([]);
 var nothing = () => void 0;
 function createNotifications(store, options = {}) {
   const { signal: signal5 } = options;
-  const plugins = options.plugins ?? {};
+  const plugins2 = options.plugins ?? /* @__PURE__ */ new Map();
   const held3 = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
   const again = /* @__PURE__ */ new Map();
@@ -11573,7 +11821,7 @@ function createNotifications(store, options = {}) {
     if ("option" in object2) {
       return Object.hasOwn(store.options.registered(), object2.option) || store.hasBoard() && Object.hasOwn(store.board().options, object2.option);
     }
-    if ("plugin" in object2) return Object.hasOwn(plugins, object2.plugin);
+    if ("plugin" in object2) return plugins2.has(internedRecord(object2.plugin));
     return present(object2);
   }
   const offStore = store.subscribe((change) => {
@@ -11732,19 +11980,15 @@ function createNotifications(store, options = {}) {
   };
   return {
     api: {
-      notify(plugin, notification) {
-        if (typeof plugin !== "string" || plugin === "") {
-          throw new TypeError(
-            `A plugin's notification names the plugin by the id of its class, a non-empty string, not ${JSON.stringify(plugin)}.`
-          );
-        }
+      notify(named4, notification) {
+        const plugin = givenPluginClassId(named4, "A plugin's notification");
         const given = checkRaised(notification);
         if (ended) return nothing;
-        if (!Object.hasOwn(plugins, plugin)) {
-          log.error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`);
+        if (!plugins2.has(plugin)) {
+          log.error(`Core drops a notification that the plugin "${idText(plugin)}" raised, which the app does not run.`);
           return nothing;
         }
-        return notify(sourceModule({ plugin }, packageFromId(plugin)), given);
+        return notify(sourceModule({ plugin }, plugin.package), given);
       },
       get: () => all,
       subscribe(fn) {
@@ -11810,13 +12054,13 @@ function named3(object2) {
   if ("link" in object2) return `the link "${object2.link}"`;
   if ("stack" in object2) return `the stack "${object2.stack}"`;
   if ("option" in object2) return `the board option "${object2.option}"`;
-  return `the plugin "${object2.plugin}"`;
+  return `the plugin "${idText(object2.plugin)}"`;
 }
 function requested(request, module) {
   if (request.type === "evaluate") return "an evaluation";
   if (request.type === "output") return "an output";
   const renderer = request.type === "renderer" ? module.renderer : void 0;
-  return renderer === void 0 ? `the request "${request.name}"` : `the request "${request.name}" of the renderer "${renderer}"`;
+  return renderer === void 0 ? `the request "${request.name}"` : `the request "${request.name}" of the renderer "${idText(renderer)}"`;
 }
 function raiser(object2) {
   return "plugin" in object2 ? named3(object2) : `a module of ${named3(object2)}`;
@@ -12046,7 +12290,7 @@ function start(options) {
     const drawing = options.showMenu === void 0 ? menuModule(loader, boardActionMenu) : Promise.resolve(options.showMenu);
     drawing.catch(() => void 0);
     const store = createStore({ hello: reply, signal: signal5, migration: (id2) => migrations.get(id2) });
-    const notifications = createNotifications(store, { signal: signal5, plugins: reply.plugins });
+    const notifications = createNotifications(store, { signal: signal5, plugins: appPlugins(reply) });
     const { raise } = notifications;
     askReload(raise);
     const commands = createCommands(store, {
@@ -12076,7 +12320,7 @@ function start(options) {
       signal: signal5,
       ...bound === void 0 ? {} : { bound }
     });
-    const { api: core, plugins } = createCore({
+    const { api: core, plugins: plugins2 } = createCore({
       store: {
         ...store,
         open: (given, opts) => reopen(given, controller, opts),
@@ -12093,7 +12337,7 @@ function start(options) {
       blockrOptions,
       randId,
       lock: (first ?? reply).lock,
-      plugins: reply.plugins,
+      plugins: appPlugins(reply),
       options: reply.options,
       notifications,
       signal: signal5,
@@ -12106,7 +12350,7 @@ function start(options) {
     let failure;
     if (later === void 0) {
       const instead = alone ? void 0 : await named4(reply, store, core, signal5, raise, opening2);
-      await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
+      await migrations.prepare(instead?.text ?? reply.board, blockRegistry(reply));
       if (instead === void 0) {
         dropped = await opening2.step("store.open", () => store.open(reply));
       } else {
@@ -12118,17 +12362,17 @@ function start(options) {
             coreNotification(
               "board_open_failed",
               "error",
-              `The board that the storage plugin "${instead.plugin}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
-              { module: sourceModule({ plugin: instead.plugin }, packageFromId(instead.plugin)) }
+              `The board that the storage plugin "${idText(instead.plugin)}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
+              { module: sourceModule({ plugin: instead.plugin }, instead.plugin.package) }
             )
           );
-          await migrations.prepare(reply.board, reply.block_registry);
+          await migrations.prepare(reply.board, blockRegistry(reply));
           dropped = await opening2.step("store.open", () => store.open(reply));
         }
       }
     } else {
       try {
-        await migrations.prepare(later.text, reply.block_registry);
+        await migrations.prepare(later.text, blockRegistry(reply));
         dropped = await opening2.step("store.open", () => store.open(later.text));
       } catch (error) {
         failure = asError(error);
@@ -12151,7 +12395,7 @@ function start(options) {
         scheduler.start();
       }
     } else {
-      const front = plugins.frontend();
+      const front = plugins2.frontend();
       options.frontEnds?.prepare(
         front === void 0 ? { none: NO_FRONTEND } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
         signal5
@@ -12163,18 +12407,18 @@ function start(options) {
         scheduler.start();
       }
     }
-    await plugins.start();
+    await plugins2.start();
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
   async function register(reply, store, commands, boardActions, signal5) {
     const [classes2, options2] = await Promise.all([
-      Promise.all(Object.entries(reply.plugins).map(([id2, entry]) => listed(id2, entry, packageFromId(id2)))),
+      Promise.all([...appPlugins(reply)].map(([id2, entry]) => listed(id2, entry, id2.package))),
       Promise.all(Object.entries(reply.options).map(([id2, entry]) => listed(id2, entry, entry.package)))
     ]);
     if (signal5.aborted) return;
     const failures = [];
-    const refuse = ({ source, pkg }, what, why) => {
+    const refuse2 = ({ source, pkg }, what, why) => {
       failures.push(new ModuleError(source.module, pkg, `defines ${what} that core refuses: ${why}`));
     };
     for (const module of options2) {
@@ -12185,7 +12429,7 @@ function start(options) {
       try {
         store.options.register({ ...module.def, id: module.id });
       } catch (error) {
-        refuse(module, "a board option", errorMessage(error));
+        refuse2(module, "a board option", errorMessage(error));
       }
     }
     for (const module of classes2) {
@@ -12200,18 +12444,18 @@ function start(options) {
         store.plugins.register(cls);
         boardActions.register(id2, cls.boardActions, cls.roles);
       } catch (error) {
-        refuse(module, "a plugin class", errorMessage(error));
+        refuse2(module, "a plugin class", errorMessage(error));
         continue;
       }
       const refused2 = (cls.commands ?? []).flatMap((command2) => {
         try {
-          commands.register(command2);
+          commands.register(id2.package, command2);
           return [];
         } catch (error) {
           return [errorMessage(error)];
         }
       });
-      if (refused2.length > 0) refuse(module, "a plugin class", refused2.join(" "));
+      if (refused2.length > 0) refuse2(module, "a plugin class", refused2.join(" "));
     }
     if (failures.length > 0) throw new Error([...failures.map(({ message }) => message), noBoard(failures.length)].join("\n"));
   }
@@ -12226,19 +12470,19 @@ function start(options) {
   async function named4(reply, store, core, signal5, raise, opening2) {
     if (reply.lock.load) return void 0;
     const classes2 = store.plugins.registered();
-    const plugin = Object.keys(reply.plugins).find((id2) => own(classes2, id2)?.storage !== void 0);
-    const storage = plugin === void 0 ? void 0 : own(classes2, plugin)?.storage;
+    const plugin = [...appPlugins(reply).keys()].find((id2) => classes2.get(id2)?.storage !== void 0);
+    const storage = plugin === void 0 ? void 0 : classes2.get(plugin)?.storage;
     if (plugin === void 0 || storage?.load === void 0) return void 0;
-    const refuse = (error) => {
+    const refuse2 = (error) => {
       log.error(error);
-      raise(coreNotification("board_open_failed", "error", error.message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
+      raise(coreNotification("board_open_failed", "error", error.message, { module: sourceModule({ plugin }, plugin.package) }));
     };
     let text;
     try {
       text = await opening2.step("storage.load", async () => storage.load?.({ core, plugin, signal: signal5 }));
     } catch (error) {
-      refuse(
-        new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
+      refuse2(
+        new Error(`The load() of the storage plugin "${idText(plugin)}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
           cause: error
         })
       );
@@ -12246,9 +12490,9 @@ function start(options) {
     }
     if (text === void 0) return void 0;
     if (typeof text !== "string") {
-      refuse(
+      refuse2(
         new Error(
-          `The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`
+          `The load() of the storage plugin "${idText(plugin)}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`
         )
       );
       return void 0;
@@ -12256,8 +12500,8 @@ function start(options) {
     try {
       JSON.parse(text);
     } catch (error) {
-      refuse(
-        new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`)
+      refuse2(
+        new Error(`The storage plugin "${idText(plugin)}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`)
       );
       return void 0;
     }
@@ -12375,13 +12619,13 @@ function reloadNotification(changed) {
 function droppedNotification(dropped, how) {
   const packages = dropped.flatMap(({ about }) => "package" in about ? [about] : []);
   const blocks = dropped.flatMap(({ about, package: pkg }) => "block" in about ? [{ ...about, package: pkg }] : []);
-  const plugins = dropped.flatMap(({ about }) => "plugin" in about ? [about.plugin] : []);
+  const plugins2 = dropped.flatMap(({ about }) => "plugin" in about ? [idText(about.plugin)] : []);
   const options = dropped.flatMap(({ about, package: pkg }) => "option" in about ? [{ ...about, package: pkg }] : []);
   const versions = (items) => items.map((item) => `${item.package} ${item.version}`);
   const forBlocks = packages.filter((item) => blocks.some((block) => block.package === item.package));
   const forOptions = packages.filter((item) => options.some((option) => option.package === item.package));
   const others = packages.filter((item) => !forBlocks.includes(item) && !forOptions.includes(item));
-  const classes2 = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => block.registry_id);
+  const classes2 = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => idText(block.registry_id));
   const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes2)], "class", "classes")]);
   const lackedOptions = options.filter((option) => forOptions.some((item) => item.package === option.package));
   const otherOptions = options.filter((option) => !lackedOptions.includes(option));
@@ -12393,7 +12637,7 @@ function droppedNotification(dropped, how) {
   };
   const lines = [
     ...went(blocks.map((block) => block.name), "block", "blocks", () => `this app lacks ${lacked}`),
-    ...went(plugins, "state of the plugin", "states of the plugins", (many) => `this app does not run ${many ? "them" : "it"}`),
+    ...went(plugins2, "state of the plugin", "states of the plugins", (many) => `this app does not run ${many ? "them" : "it"}`),
     ...went(
       lackedOptions.map((option) => option.option),
       "value of the board option",

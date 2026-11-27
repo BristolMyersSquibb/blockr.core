@@ -3,6 +3,7 @@
 // The frontend runs its edits with runCommand() of ../../ui.
 
 import { createContext, useContext } from "react";
+import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { InView } from "./demand.ts";
 import type { Sections } from "./plugins.tsx";
@@ -12,7 +13,7 @@ export interface FrontEnd {
   readonly core: CoreApi;
   readonly toasts: Toasts;
   readonly inView: InView;
-  readonly sections: Sections;
+  readonly sections: Sections<PluginClassId>;
   readonly groups: Sections;
 }
 

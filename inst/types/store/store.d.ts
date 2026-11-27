@@ -44,7 +44,7 @@ export interface Store {
     canRedo(): boolean;
     readonly plugins: Plugins;
     readonly options: Options;
-    blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
+    blockRegistry(): ReadonlyMap<RegistryId, RegistryEntry>;
     packages(): Readonly<Record<string, string>>;
     editId(of: {
         readonly block: BlockId;
