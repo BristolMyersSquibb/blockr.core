@@ -35,9 +35,9 @@ import type { BoardAction, Place, PlaceArgs, Target } from "../../actions/index.
 import { Mounted } from "../../card/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { ActionsButton, blockName, notifiedReasons } from "../../ui/index.ts";
+import { ActionsButton, notifiedReasons } from "../../ui/index.ts";
 import type { Refused } from "../../ui/index.ts";
-import { own } from "../../util/index.ts";
+import { blockName, own } from "../../util/index.ts";
 
 // The menus that one table or the bar opens, the places of the advanced
 // actions that they open, and why the store or the command registry refused

@@ -1038,6 +1038,11 @@
   The board option `dark_mode` sets the attribute `data-bk-mode` on the page's root, in place of `data-bc-theme`, and the page's `color-scheme` tag takes `light dark` (#866).
 * The new generic `frontend_theme()` returns a frontend's theme, as `blockr.ui::new_blockr_theme()` makes it, with the values of the theme variables that the frontend wants its own.
   Its method for `frontend_plugin` returns a theme with no values, so a frontend that keeps every default of blockr.ui, as core's basic frontend does, needs no method of its own (#866).
+* Core's React SDK, `@blockr/core/react`, holds what draws nothing: the hooks over the hosts, `reactModule()` and `outputRenderer()`.
+  The component `NotificationList` moves to the new entry `@blockr/core/components`, which holds what core draws, and which the page's import map names beside core's other entries (#869).
+* Core's runtime and the modules of its board options import neither React, blockr.ui's components nor React Aria up front.
+  Core loads each UI that it draws as it first draws it, each from a file of its own beside the file that imports it: its dialog, the forms of its board actions, the card of a block that `serve()` serves alone, and the UIs of `n_rows` and `dark_mode`.
+  So a page loads blockr.ui's components and React Aria only once something draws with them (#869).
 
 # blockr.core 0.1.4
 

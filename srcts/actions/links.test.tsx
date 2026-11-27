@@ -13,6 +13,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { find, labelled, listed, optionFromLabel, optionLabels, picked, selectButton, selectShows, step, type } from "@blockr/ui/stubs";
 import { stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
+import { waitForLoaded } from "../testing/loading.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import type { ShownLevel } from "./quick.ts";
 
@@ -53,10 +54,16 @@ async function edited(s: StubCore, ...edits: [string, Record<string, string>][])
 }
 
 // The form that core's dialog shows, by its name.
-function dialogForm(s: StubCore, name: string): HTMLFormElement {
+function formIn(s: StubCore, name: string): HTMLFormElement {
   const dialog = s.advanced();
   if (dialog === undefined) throw new Error("Core's dialog shows no advanced action.");
   return find(dialog.el, `form[aria-label="${name}"]`, HTMLFormElement);
+}
+
+// The form that core's dialog shows, by its name, once core has loaded the
+// form and drawn it.
+async function dialogForm(s: StubCore, name: string): Promise<HTMLFormElement> {
+  return waitForLoaded(() => formIn(s, name));
 }
 
 // Does what the user does, and lets what it set off run.
@@ -179,7 +186,7 @@ describe("Create link", () => {
     await step(() => {
       void menu.openAdvanced();
     });
-    const form = dialogForm(s, "Add link");
+    const form = await dialogForm(s, "Add link");
     expect(hint(form)).toBe('A link from "Head".');
     expect(() => labelled(form, "From")).toThrow("Found no text field labelled From.");
     expect(labelled(form, "To").value).toBe("Merge");
@@ -214,7 +221,7 @@ describe("Create link", () => {
     });
     expect(menu.closed()).toBe(true);
     expect(s.advanced()).toMatchObject({ id: CREATE_LINK, title: "Create link", target: { board: true } });
-    const form = dialogForm(s, "Add link");
+    const form = await dialogForm(s, "Add link");
     expect([labelled(form, "From").value, labelled(form, "To").value]).toEqual(["", ""]);
 
     // It runs nothing before the user submits it.
@@ -239,7 +246,7 @@ describe("Create link", () => {
     await step(() => {
       void menu.openAdvanced();
     });
-    const form = dialogForm(s, "Add link");
+    const form = await dialogForm(s, "Add link");
     expect(hint(form)).toBe('A link from "Scatter".');
     expect(() => labelled(form, "From")).toThrow("Found no text field labelled From.");
     await step(() => {
@@ -301,7 +308,7 @@ describe("Create link", () => {
     await step(() => {
       void menu.openAdvanced();
     });
-    let form = dialogForm(s, "Add link");
+    let form = await dialogForm(s, "Add link");
     expect(hint(form)).toBe('A link into the input "y" of "Merge".');
     expect(() => labelled(form, "To")).toThrow("Found no text field labelled To.");
     expect(() => selectButton(form, "Input")).toThrow();
@@ -325,7 +332,7 @@ describe("Create link", () => {
     await step(() => {
       unmount = s.core.boardActions.mountAdvanced(room, "add_link_role", { block: "e", input: "" });
     });
-    form = find(room, 'form[aria-label="Add link"]', HTMLFormElement);
+    form = await waitForLoaded(() => find(room, 'form[aria-label="Add link"]', HTMLFormElement));
     expect(hint(form)).toBe('A link into "Bind".');
     expect(() => selectButton(form, "Input")).toThrow();
     expect(await listed(selectButton(form, "Position"), step)).toEqual(["1", "2", "3"]);
@@ -361,7 +368,7 @@ describe("Create link", () => {
       void menu.openAdvanced();
     });
 
-    const form = dialogForm(s, "Add link");
+    const form = await dialogForm(s, "Add link");
     expect(hint(form)).toBe('A link into "Merge".');
     expect(() => labelled(form, "To")).toThrow("Found no text field labelled To.");
     expect(labelled(form, "From").value).toBe("Head");
@@ -456,7 +463,8 @@ describe("Edit link", () => {
       ended = menu.openAdvanced();
     });
     expect(s.advanced()).toMatchObject({ id: EDIT_LINK, title: "Edit link", target: { link: "ac" } });
-    const form = (): HTMLFormElement => dialogForm(s, "Change link");
+    await dialogForm(s, "Change link");
+    const form = (): HTMLFormElement => formIn(s, "Change link");
     expect([labelled(form(), "From").value, labelled(form(), "To").value]).toEqual(["Iris", "Merge"]);
     // The form offers Merge's other input too, which bc feeds, and says that
     // applying it swaps the inputs.
@@ -492,7 +500,8 @@ describe("Edit link", () => {
     await step(() => {
       void menu.openAdvanced();
     });
-    const form = (): HTMLFormElement => dialogForm(s, "Change link");
+    await dialogForm(s, "Change link");
+    const form = (): HTMLFormElement => formIn(s, "Change link");
     expect(() => selectButton(form(), "Input")).toThrow();
     expect(selectShows(selectButton(form(), "Position"))).toBe("2");
 
@@ -520,7 +529,8 @@ describe("Edit link", () => {
     await step(() => {
       void menu.openAdvanced();
     });
-    const form = (): HTMLFormElement => dialogForm(s, "Change link");
+    await dialogForm(s, "Change link");
+    const form = (): HTMLFormElement => formIn(s, "Change link");
     expect(selectShows(selectButton(form(), "Position"))).toBe("1");
 
     await picked(selectButton(form(), "Position"), step, "2");
@@ -542,7 +552,8 @@ describe("Edit link", () => {
     await step(() => {
       void menu.openAdvanced();
     });
-    const form = (): HTMLFormElement => dialogForm(s, "Change link");
+    await dialogForm(s, "Change link");
+    const form = (): HTMLFormElement => formIn(s, "Change link");
     await chosen(form(), "From", "Bind");
 
     // Another edit links Merge to Bind before the user applies the form, so

@@ -58,26 +58,13 @@ import { flushSync } from "react-dom";
 import { Button, ComboBox, Form, GridList, GridListItem, TextField, useDragAndDrop } from "@blockr/ui";
 import { linkFeeding } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
-import { focusFirstInvalid, inputNameError } from "../picker/index.ts";
+import { focusFirstInvalid } from "../picker/index.ts";
 import { useBoard } from "../react/index.ts";
 import type { BlockId, Board, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";
-import {
-  blockItem,
-  blockName,
-  blockRow,
-  blockTexts,
-  classes,
-  classInputs,
-  drawForm,
-  identifier,
-  isVariadicBlock,
-  Refusal,
-  useEdits,
-  useSearch,
-} from "../ui/index.ts";
+import { blockItem, blockRow, blockTexts, classes, drawForm, identifier, Refusal, useEdits, useSearch } from "../ui/index.ts";
 import type { BlockItem, Done } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { blockName, classInputs, inputNameError, isVariadicBlock, own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
 

@@ -12,6 +12,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { chipLabels, find, labelled, openDialog, picked, press, step, type } from "@blockr/ui/stubs";
 import { stubCore } from "../stubs/index.ts";
 import type { StubCore, StubMenu } from "../stubs/index.ts";
+import { waitForLoaded } from "../testing/loading.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import { swatch } from "./icons.ts";
 import type { ShownLevel } from "./quick.ts";
@@ -49,10 +50,16 @@ function added(s: StubCore) {
 }
 
 // The form that core's dialog shows, by its name.
-function dialogForm(s: StubCore, name: string): HTMLFormElement {
+function formIn(s: StubCore, name: string): HTMLFormElement {
   const dialog = s.advanced();
   if (dialog === undefined) throw new Error("Core's dialog shows no advanced action.");
   return find(dialog.el, `form[aria-label="${name}"]`, HTMLFormElement);
+}
+
+// The form that core's dialog shows, by its name, once core has loaded the
+// form and drawn it.
+async function dialogForm(s: StubCore, name: string): Promise<HTMLFormElement> {
+  return waitForLoaded(() => formIn(s, name));
 }
 
 // Opens the form of the board action that the menu's level shows, through its
@@ -151,7 +158,7 @@ describe("Create stack", () => {
     await menu.pick("Create stack");
     await opened(menu);
     expect(s.advanced()).toMatchObject({ id: CREATE_STACK, title: "Create stack", target: { selection: [{ block: "c" }, { block: "f" }] } });
-    const form = dialogForm(s, "Add stack");
+    const form = await dialogForm(s, "Add stack");
     expect(labelled(form, "Name").placeholder).toBe("Stack 1");
     expect(form.querySelector("p")?.textContent).toBe('A stack of the blocks "Merge" and "Scatter".');
     expect(() => labelled(form, "Blocks")).toThrow("Found no text field labelled Blocks.");
@@ -174,13 +181,12 @@ describe("Create stack", () => {
     const menu = s.menu({ block: "c" });
     await menu.pick("Create stack");
     await opened(menu);
-    expect(dialogForm(s, "Add stack").querySelector("p")?.textContent).toBe('A stack of the block "Merge".');
+    expect((await dialogForm(s, "Add stack")).querySelector("p")?.textContent).toBe('A stack of the block "Merge".');
     s.advanced()?.close();
 
     const room = document.createElement("div");
     const unmount = s.core.boardActions.mountAdvanced(room, CREATE_STACK, { board: true });
-    await step(() => undefined);
-    const form = find(room, 'form[aria-label="Add stack"]', HTMLFormElement);
+    const form = await waitForLoaded(() => find(room, 'form[aria-label="Add stack"]', HTMLFormElement));
     expect(form.querySelector("p")).toBeNull();
     expect(chipLabels(labelled(form, "Blocks"))).toEqual([]);
     act(unmount);
@@ -264,7 +270,8 @@ describe("Edit stack", () => {
       ended = menu.openAdvanced();
     });
     expect(s.advanced()).toMatchObject({ id: EDIT_STACK, title: "Edit stack", target: { stack: "s1" } });
-    const form = (): HTMLFormElement => dialogForm(s, "Change stack");
+    await dialogForm(s, "Change stack");
+    const form = (): HTMLFormElement => formIn(s, "Change stack");
     expect(labelled(form(), "Name").value).toBe("Input");
     expect(chipLabels(labelled(form(), "Blocks"))).toEqual(["Iris", "Head"]);
 
@@ -307,7 +314,8 @@ describe("Edit stack", () => {
     await step(() => {
       void menu.openAdvanced();
     });
-    const form = (): HTMLFormElement => dialogForm(s, "Change stack");
+    await dialogForm(s, "Change stack");
+    const form = (): HTMLFormElement => formIn(s, "Change stack");
     expect(labelled(form(), "Name").placeholder).toBe("Input");
     await step(() => {
       type(labelled(form(), "Name"), "  ");

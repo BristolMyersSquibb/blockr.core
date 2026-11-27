@@ -30,6 +30,7 @@ import type { StubAdvanced, StubCoreOptions, StubMenu } from "../../stubs/index.
 import type { HelloReply, Request } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
+import { waitForLoaded } from "../../testing/loading.ts";
 import { logged } from "../../testing/logged.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
@@ -618,6 +619,8 @@ describe("a card", () => {
     const shown = page.advanced();
     expect(shown).toMatchObject({ title: "Prepend block", target: { block: "e" } });
     const form = shown?.el ?? document.body;
+    // Core draws the picker once it has loaded it.
+    await waitForLoaded(() => labelled(form, "Block class"));
     expect(labelled(form, "Block class").value).toBe("data");
     await chosen(form, "Block class", "dataset", "dataset block");
     await step(() => {
@@ -655,7 +658,11 @@ describe("the toolbar", () => {
     // The categories sit in one box, which draws a line between each two.
     const boxes = new Set([...dialog().querySelectorAll("section")].map((section) => section.parentElement));
     expect([...boxes].map((box) => box?.className)).toEqual([expect.stringMatching(/(^| )bc:divide-y( |$)/)]);
-    expect(dialog().textContent).toContain("Preview rows");
+    // Core draws the UIs of its board options once it has loaded them.
+    await waitForLoaded(() => {
+      expect(dialog().textContent).toContain("Preview rows");
+      toggleButton(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode", "Dark");
+    });
 
     await click(toggleButton(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode", "Dark"));
     expect(board().options.dark_mode).toBe("dark");

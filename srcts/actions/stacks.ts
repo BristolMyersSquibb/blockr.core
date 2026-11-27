@@ -11,7 +11,9 @@
 //   stack, while Add to stack, below, puts blocks into a stack that the board
 //   holds.
 //   Its advanced action is the form of a stack (./stack-form.tsx), with the
-//   blocks given, or with none on the board.
+//   blocks given, or with none on the board. Core's runtime loads the form as
+//   it first renders it, as it loads each advanced action of its board actions
+//   (./core.ts).
 // - Edit stack, on a stack. Its quick action offers Colour…, which lists the
 //   stack's colour and the colours of a palette that no other stack has, and
 //   Blocks…, whose choices the user ticks, the stack's blocks and those in no
@@ -34,13 +36,12 @@
 import { suggestedName } from "../commands/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import { blockName } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { blockName, loadedModule, own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { PLUS, swatch } from "./icons.ts";
+import { PALETTE, suggestedColor } from "./palette.ts";
 import { levelItem, nameRow } from "./quick.ts";
 import type { QuickRow } from "./quick.ts";
-import { createStackForm, editStackForm, PALETTE, suggestedColor } from "./stack-form.tsx";
 import { heldBlocks } from "./targets.ts";
 
 const CREATE_STACK = "blockr.core-add_stack_action";
@@ -63,7 +64,7 @@ export function createStackAction(): BoardAction {
       const rows = [nameRow(suggestedName(Object.values(board.stacks)), (name) => newStack(core, blocks, name))];
       return blocks.length === 0 ? { rows } : { title: `New stack of ${blocksLabel(board, blocks)}`, rows };
     },
-    advanced: createStackForm,
+    advanced: loadedModule(async () => (await import("./stack-form.tsx")).createStackForm),
     role: "add_stack_role",
   };
 }
@@ -86,7 +87,7 @@ export function editStackAction(): BoardAction {
         ],
       };
     },
-    advanced: editStackForm,
+    advanced: loadedModule(async () => (await import("./stack-form.tsx")).editStackForm),
     role: "edit_stack_role",
   };
 }

@@ -8,7 +8,7 @@
 // block ID and Add to stack, which are new.
 // - Add block, Append block, Prepend block and Insert block add a block
 //   through a pick in their quick actions, or through the block picker, their
-//   advanced action (./add.tsx).
+//   advanced action (./add.ts).
 // - Create link and Edit link add and change a link, and Create stack and Edit
 //   stack a stack, through their quick actions and their advanced actions,
 //   the forms of a link and of a stack. Add to stack puts blocks into a stack
@@ -34,6 +34,10 @@
 // Each but Copy block ID plays the role named after its id, as Create link,
 // blockr.core-add_link_action, plays add_link_role (./roles.ts). Copy block ID
 // plays none, since it runs no command.
+// Core's runtime loads the form of each advanced action as it first renders
+// it, from a file of the form's own, which core's build bundles apart. So the
+// page loads the components of blockr.ui that a form draws with only once a
+// place shows the form (../util/modules.ts).
 // Copy block ID and those that remove act at once, through their run(). Those
 // that add carry a plus as their icon, in the shape of blockr.ui's `plus`
 // (./icons.ts), and those that remove the bin of a row that destroys
@@ -50,13 +54,11 @@
 import type { Commands } from "../commands/index.ts";
 import type { Board } from "../types/board.ts";
 import type { BlockRegistry } from "../types/core-api.ts";
-import { classInputs } from "../ui/index.ts";
-import { coreNotification, own } from "../util/index.ts";
+import { classInputs, coreNotification, loadedModule, own } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
-import { addingBoardActions } from "./add.tsx";
+import { addingBoardActions } from "./add.ts";
 import { copyText } from "./clipboard.ts";
-import { editInputs } from "./inputs.tsx";
 import { createLinkAction, editLinkAction } from "./links.ts";
 import { nameRow } from "./quick.ts";
 import { addToStackAction, createStackAction, editStackAction } from "./stacks.ts";
@@ -105,7 +107,7 @@ export function coreBoardActions(parts: CoreParts): BoardAction[] {
         const block = blockOf(target);
         return !lock.board && block !== undefined && classInputs(board, parts.blockRegistry(), block).length > 0;
       },
-      advanced: editInputs,
+      advanced: loadedModule(async () => (await import("./inputs.tsx")).editInputs),
       role: "edit_inputs_role",
     },
     editStackAction(),

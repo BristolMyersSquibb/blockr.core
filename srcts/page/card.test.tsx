@@ -3,16 +3,19 @@
 // the block, with a notification about it for each condition of its status, as
 // core holds them, the other notifications that the test raises, and mounts
 // that write what they draw.
+// Core loads the card's code as it first draws the card, so each test waits
+// for showCard() to resolve.
 
 import { act } from "react";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { find, step, texts } from "@blockr/ui/stubs";
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import { READY } from "../stubs/index.ts";
 import type { Block, Board } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
-import { drawCard, OWNER } from "./card.tsx";
+import { logged } from "../testing/logged.ts";
+import { OWNER, showCard } from "./alone.ts";
 import type { CardCore } from "./card.tsx";
 
 const HEAD: Block = { registry_id: "blockr.core-head_block", state: { n: 6, direction: "head" }, name: "Head", locked: null };
@@ -138,13 +141,11 @@ function played(board: Board = createBoard({ b: HEAD }), locked = false) {
   };
 }
 
-function draw(core: CardCore): { el: HTMLElement; controller: AbortController } {
+async function draw(core: CardCore): Promise<{ el: HTMLElement; controller: AbortController }> {
   const el = document.createElement("div");
   document.body.append(el);
   const controller = new AbortController();
-  act(() => {
-    drawCard(el, core, controller.signal);
-  });
+  await act(() => showCard(el, core, controller.signal));
   return { el, controller };
 }
 
@@ -192,9 +193,9 @@ async function click(button: HTMLButtonElement): Promise<void> {
 }
 
 describe("the card of a block that serve() serves alone", () => {
-  test("draws the block's name, its UI and its output, and demands the block, once drawCard() returns", () => {
+  test("draws the block's name, its UI and its output, and demands the block, once showCard() resolves", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
 
     expect(find(el, "article h1").textContent).toBe("Head");
     expect(find(el, '[aria-label="Inputs"]').textContent).toBe("UI of b");
@@ -208,9 +209,9 @@ describe("the card of a block that serve() serves alone", () => {
     expect(output(el).className).toContain("bc:h-0");
   });
 
-  test("mounts no UI where the board lock fixes the block", () => {
+  test("mounts no UI where the board lock fixes the block", async () => {
     const r = played(createBoard({ b: HEAD }), true);
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
 
     expect(el.querySelector('[aria-label="Inputs"]')).toBeNull();
     expect(output(el).textContent).toBe("Output of b");
@@ -218,7 +219,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("shows a ready block's summary in its footer, and below the output's box a pill that counts its warnings and one its messages, each opening its banners", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
 
     await r.set({ summary: "<data.frame> [50 × 5]" });
     expect(summary(el)).toBe("<data.frame> [50 × 5]");
@@ -266,7 +267,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("shows a failed block's pill that reads error, whose banner is open from the start with the whole message", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
 
     await r.set({
       status: "failed",
@@ -291,7 +292,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("counts why a waiting or an invalid block does not run among its messages, and shows it last in their banners", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
 
     await r.set({
       status: "waiting",
@@ -329,7 +330,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("shows the notifications about the block that its status does not hold, as of a module that cannot draw, in its pills and banners, until they are withdrawn", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
     await r.set({ summary: "<data.frame> [6 × 5]", conditions: [condition("warning", "Dropped a column.")] });
 
     const withdraw = await r.raise({
@@ -347,7 +348,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("shows the notifications of the board that concern no block, as core's request to reload the page, since the card is the whole page", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
     await r.raise({
       severity: "warning",
       message: "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.1). Save the board, then reload the page.",
@@ -362,7 +363,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("shows a pill where a notification is about the block before it has a status", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
     await r.raise({
       severity: "error",
       message: "Without the board option \"zoom\", the renderer \"blockr.core-table_output\" cannot draw.",
@@ -377,7 +378,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("dims the footer, the pills and the output while R evaluates the block, and keeps what they show", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
 
     await r.set({ summary: "<data.frame> [6 × 5]", conditions: [condition("warning", "Dropped a column.")] });
     expect(footer(el).className).not.toContain("bc:opacity-50");
@@ -410,7 +411,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("gives the output a height of its own, and its box a footer, from the first time the block reads ready on, and keeps them", async () => {
     const r = played();
-    const { el } = draw(r.core);
+    const { el } = await draw(r.core);
 
     // A block that fails or reads invalid at once has nothing to draw, so the
     // card shows its pills and its banners alone.
@@ -446,7 +447,7 @@ describe("the card of a block that serve() serves alone", () => {
 
   test("ends the card and its mounts, and releases its demand, as the signal aborts", async () => {
     const r = played();
-    const { el, controller } = draw(r.core);
+    const { el, controller } = await draw(r.core);
 
     await step(() => {
       controller.abort();
@@ -458,14 +459,52 @@ describe("the card of a block that serve() serves alone", () => {
     expect(el.textContent).toBe("Loading the board…");
   });
 
-  test("says so in the element where the board holds no block or several", () => {
+  test("says so in the element where the board holds no block or several", async () => {
     const boards: Board["blocks"][] = [{}, { a: HEAD, b: HEAD }];
     for (const blocks of boards) {
       const r = played(createBoard(blocks));
-      const { el } = draw(r.core);
+      const { el } = await draw(r.core);
 
       expect(find(el, '[role="alert"]').textContent).toContain("A block that serve() serves alone comes as a board of one block");
       expect(r.demands).toEqual([]);
+    }
+  });
+
+  test("demands the block while the card's code loads, and draws nothing where the signal aborts before it has loaded", async () => {
+    const r = played();
+    const el = document.createElement("div");
+    el.textContent = "Loading the board…";
+    document.body.append(el);
+    const controller = new AbortController();
+
+    const shown = showCard(el, r.core, controller.signal);
+    expect(r.demands).toEqual([{ owner: OWNER, blocks: ["b"], released: false }]);
+    expect(el.textContent).toBe("Loading the board…");
+    controller.abort();
+    await act(() => shown);
+
+    expect(r.demands[0]?.released).toBe(true);
+    expect(r.events).toEqual([]);
+    expect(el.querySelector("article")).toBeNull();
+    expect(el.textContent).toBe("Loading the board…");
+  });
+
+  test("says why in the element, and logs it, where the card's code fails to load", async () => {
+    const log = logged();
+    vi.doMock("./card.tsx", () => {
+      throw new Error("The network is down.");
+    });
+    try {
+      const r = played();
+      const { el } = await draw(r.core);
+
+      const why = 'Core cannot draw the card of the block "b", since the card\'s code failed to load:';
+      expect(find(el, '[role="alert"]').textContent).toContain(why);
+      expect(r.events).toEqual([]);
+      expect(log.errors().map((line) => line.message)).toEqual([expect.stringContaining(why)]);
+    } finally {
+      vi.doUnmock("./card.tsx");
+      log.restore();
     }
   });
 });

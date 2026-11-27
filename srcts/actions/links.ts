@@ -38,15 +38,12 @@
 import { freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import type { Graph } from "../graph/index.ts";
-import { inputNameError, namesInto } from "../picker/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";
-import { blockName, classInputs, isVariadicBlock } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { blockName, classInputs, inputNameError, isVariadicBlock, loadedModule, namesInto, own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { CoreParts } from "./core.ts";
 import { PLUS } from "./icons.ts";
-import { createLinkForm, editLinkForm } from "./link-form.tsx";
 import { levelItem } from "./quick.ts";
 import type { QuickLevel, QuickRow } from "./quick.ts";
 import { heldBlock, inputOf } from "./targets.ts";
@@ -96,7 +93,7 @@ export function createLinkAction(parts: CoreParts): BoardAction {
       ];
       return rows.length === 0 ? undefined : { filter: true, rows };
     },
-    advanced: createLinkForm,
+    advanced: loadedModule(async () => (await import("./link-form.tsx")).createLinkForm),
     role: "add_link_role",
   };
 }
@@ -129,7 +126,7 @@ export function editLinkAction(parts: CoreParts): BoardAction {
       }
       return rows.length === 0 ? undefined : { rows };
     },
-    advanced: editLinkForm,
+    advanced: loadedModule(async () => (await import("./link-form.tsx")).editLinkForm),
     role: "edit_link_role",
   };
 }

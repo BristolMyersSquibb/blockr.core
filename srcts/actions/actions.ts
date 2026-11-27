@@ -434,7 +434,7 @@ export interface BoardActionsParts {
   // the caller of menu() or trigger() shows nowhere else.
   readonly frontend?: () => Place | undefined;
   // Draws core's dialog, which shows each advanced action that neither the
-  // caller nor the frontend shows (./dialog.tsx).
+  // caller nor the frontend shows (showDialog() in ./advanced.ts).
   readonly dialog: ShowDialog;
   // Ends what CoreApi runs as it aborts, as another board opens: the menu
   // that is open closes, dropping what the user ticked, and none opens later,

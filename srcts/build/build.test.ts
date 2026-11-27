@@ -155,19 +155,21 @@ test("fails where one of core's files would bundle a package from node_modules t
   );
 });
 
-test("builds the SDK, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
+test("builds the SDK, the components, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
   const imports = (up: string) =>
     [
       `import { sdk } from "${up}/react/index.ts";`,
       `import { binding } from "${up}/binding/index.ts";`,
       `import { controls } from "${up}/controls/index.ts";`,
-      "export const all = [sdk, binding, controls];",
+      `import { components } from "${up}/components/index.ts";`,
+      "export const all = [sdk, binding, controls, components];",
       "",
     ].join("\n");
   await write({
     "srcts/react/index.ts": 'import { binding } from "../binding/index.ts";\nexport const sdk = "the sdk " + binding;\n',
     "srcts/binding/index.ts": "export const binding = 'the binding';\n",
     "srcts/controls/index.ts": 'import { sdk } from "../react/index.ts";\nexport const controls = "the controls " + sdk;\n',
+    "srcts/components/index.ts": 'import { sdk } from "../react/index.ts";\nexport const components = "the components " + sdk;\n',
     "srcts/otel/index.ts": "export const otel = 'the otel module';\n",
     "srcts/runtime/index.ts": `${imports("..")}import { trace } from "@opentelemetry/api";\nimport { version } from "react";\nexport const tracer = trace.getTracer("blockr.core", version);\nexport const otel = () => import("../otel/index.ts");\n`,
     "srcts/modules/head-block/index.ts": imports("../.."),
@@ -178,10 +180,10 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   const read = (file: string) => readFile(join(root, "inst/js", file), "utf8");
   for (const file of ["blockr-core.js", "head-block.js"]) {
     const code = await read(file);
-    for (const text of ["the sdk", "the binding", "the controls"]) {
+    for (const text of ["the sdk", "the binding", "the controls", "the components"]) {
       expect(code).not.toContain(text);
     }
-    for (const name of ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls"]) {
+    for (const name of ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls", "@blockr/core/components"]) {
       expect(code).toContain(`from "${name}"`);
     }
   }
@@ -189,9 +191,12 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   expect(await read("blockr-core-react.js")).toContain("the sdk");
   expect(await read("blockr-core-react.js")).toContain('from "@blockr/core/binding"');
   expect(await read("blockr-core-binding.js")).toContain("the binding");
-  // The controls take what they use of the SDK from it.
-  expect(await read("blockr-core-controls.js")).toContain('from "@blockr/core/react"');
-  expect(await read("blockr-core-controls.js")).not.toContain("the sdk");
+  // The controls and the components take what they use of the SDK from it.
+  for (const file of ["blockr-core-controls.js", "blockr-core-components.js"]) {
+    expect(await read(file)).toContain('from "@blockr/core/react"');
+    expect(await read(file)).not.toContain("the sdk");
+  }
+  expect(await read("blockr-core-components.js")).toContain("the components");
   // The runtime imports the OpenTelemetry module by its name, as it loads it,
   // which the build bundles on its own.
   expect(await read("blockr-core.js")).toContain('import("@blockr/core/otel")');
@@ -215,10 +220,72 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   // module is left out, which the runtime imports only as it loads it.
   const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
   expect([...(preload["blockr-core.js"] ?? [])].sort()).toEqual(
-    ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls", OTEL_API, "react"].sort(),
+    ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls", "@blockr/core/components", OTEL_API, "react"].sort(),
   );
   expect(preload["blockr-core-react.js"]).toEqual(["@blockr/core/binding"]);
   expect(Object.keys(preload)).toEqual(Object.keys(preload).sort());
+});
+
+test("bundles a source that core's code imports with import() into a file of its own, named with a hash of its content, which the importing file imports by that name as it loads it", async () => {
+  await write({
+    "srcts/later/index.ts": [
+      'import { version } from "react";',
+      'export const label = "the later code";',
+      "export const react = version;",
+      'export const deeper = () => import("./deeper.ts");',
+      "",
+    ].join("\n"),
+    "srcts/later/deeper.ts": 'export const label = "the deeper code";\n',
+    "srcts/runtime/index.ts": 'export const later = () => import("../later/index.ts");\n',
+    "srcts/modules/head-block/index.ts": 'export const later = () => import("../../later/index.ts");\n',
+  });
+
+  const written = await build(root);
+
+  const out = join(root, "inst/js");
+  const read = (file: string) => readFile(join(out, file), "utf8");
+  const files = (await readdir(out)).filter((file) => file.startsWith("later-"));
+  // One file for each source, named after its path in srcts, however many
+  // files import it.
+  const later = files.find((file) => /^later-[0-9a-f]{8}\.js$/.test(file)) ?? "";
+  const deeper = files.find((file) => /^later-deeper-[0-9a-f]{8}\.js$/.test(file)) ?? "";
+  expect(files.sort()).toEqual([later, deeper].sort());
+  expect(written).toEqual(expect.arrayContaining([`inst/js/${later}`, `inst/js/${deeper}`]));
+
+  // The runtime and the module import the file by its name, as they load it,
+  // and hold none of its code.
+  for (const file of ["blockr-core.js", "head-block.js"]) {
+    const code = await read(file);
+    expect(code).toContain(`import("./${later}")`);
+    expect(code).not.toContain("the later code");
+  }
+  // The file holds the source's code, unminified, and imports React as the
+  // runtime would, and the source that it imports with import() in turn.
+  const code = await read(later);
+  expect(code).toContain('label = "the later code"');
+  expect(code).toContain('from "react"');
+  expect(code).toContain(`import("./${deeper}")`);
+  expect(code).not.toContain("the deeper code");
+  expect(await read(deeper)).toContain("the deeper code");
+
+  // What the file imports up front is listed, and the runtime imports nothing
+  // up front, so that the page loads React only as the runtime loads the file.
+  const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
+  expect(preload[later]).toEqual(["react"]);
+  expect(preload["blockr-core.js"]).toBeUndefined();
+  expect(preload["head-block.js"]).toBeUndefined();
+});
+
+test("fails where a source that core's code imports with import() imports itself so, through other sources", async () => {
+  await write({
+    "srcts/first/index.ts": 'export const second = () => import("../second/index.ts");\n',
+    "srcts/second/index.ts": 'export const first = () => import("../first/index.ts");\n',
+    "srcts/runtime/index.ts": 'export const first = () => import("../first/index.ts");\n',
+  });
+
+  await expect(build(root)).rejects.toThrow(
+    "srcts/first/index.ts imports itself with import(), through srcts/first/index.ts and srcts/second/index.ts, so core's build would bundle it apart without end.",
+  );
 });
 
 test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {

@@ -6,6 +6,12 @@
 // n_rows, the rows of a table output's page, and dark_mode, which switches the
 // theme. Each keeps the label and the category of today's R constructor, and
 // takes its schema from ./schemas.ts and its UI module from ./ui.tsx.
+// Core imports the module of each as every page starts, to register it. So the
+// UI of each imports ./ui.tsx with import() as it first renders, from a file of
+// its own, which core's build bundles apart. A page then loads blockr.ui's
+// components and React Aria, which the UIs draw with, only once something
+// draws one of the UIs, rather than as it starts, even where nothing draws them
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.4#the-bundle).
 //
 // Each default is a function of CoreApi that reads the blockr option of the
 // board option's name, which today's R constructor reads, through
@@ -26,9 +32,8 @@ import type { Option } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { asLogical, asNumber } from "../util/index.ts";
+import { asLogical, asNumber, loadedModule } from "../util/index.ts";
 import { optionSchemas } from "./schemas.ts";
-import { numberUi, toggleButtonGroupUi } from "./ui.tsx";
 
 // What a board option's default reads of CoreApi.
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
@@ -45,7 +50,7 @@ export const nRows: Omit<Option, "id"> = {
     if (value === undefined) return 10;
     return checked("n_rows", takesRows, value, typeof value === "string" ? asNumber(value) : value);
   },
-  ui: numberUi("Preview rows", optionSchemas.n_rows.minimum),
+  ui: loadedModule(async () => (await import("./ui.tsx")).numberUi("Preview rows", optionSchemas.n_rows.minimum)),
 };
 
 // Whether the board shows in its light or its dark theme. Today's fallback is
@@ -64,10 +69,12 @@ export const darkMode: Omit<Option, "id"> = {
     if (typeof logical === "boolean") return logical ? "dark" : "light";
     return checked("dark_mode", takesTheme, value);
   },
-  ui: toggleButtonGroupUi("Light/dark mode", [
-    { id: "light", name: "Light" },
-    { id: "dark", name: "Dark" },
-  ]),
+  ui: loadedModule(async () =>
+    (await import("./ui.tsx")).toggleButtonGroupUi("Light/dark mode", [
+      { id: "light", name: "Light" },
+      { id: "dark", name: "Dark" },
+    ]),
+  ),
   onChange(value) {
     setTheme(value);
   },

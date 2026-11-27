@@ -1,5 +1,5 @@
-// The list of notifications that core's React SDK offers a UI, in the message
-// style of blockr.ui's design system
+// The list of notifications that core offers a UI, in the message style of
+// blockr.ui's design system
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1374-L1377).
 // A UI hands it the notifications as useNotified() gives them.
 // The UI places the list, and wraps it in what it needs, such as a live

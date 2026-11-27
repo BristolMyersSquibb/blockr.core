@@ -2,5 +2,8 @@ export { asError, asLogical, asNumber, errorMessage, frozenCopy, getAt, isObject
 export { checkRaised, coreNotification, givenNotifier, holdsObject, isBoardObject, notifyNothing, raiseNothing, refusedNothing, repliedNothing, sourceModule, } from "./notification.ts";
 export type { Concerns, Notify, Raise, Refused, Replied } from "./notification.ts";
 export { ariaShortcuts, matchesShortcut, onMac, shortcutLabel } from "./shortcuts.ts";
+export { blockClasses, blockName, classInputs, inputNameError, isVariadicBlock, namesInto } from "./blocks.ts";
+export type { ClassItem } from "./blocks.ts";
+export { loadedModule } from "./modules.ts";
 export { compile } from "./validate.ts";
 export type { Validate } from "./validate.ts";

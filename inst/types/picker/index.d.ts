@@ -1,2 +1,2 @@
-export { blockClasses, blockIdError, BlockPicker, focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "./picker.tsx";
-export type { AddMode, ClassItem } from "./picker.tsx";
+export { BlockPicker, blockIdError, drawPicker, focusFirstInvalid, isVariadic, without } from "./picker.tsx";
+export type { AddMode, PickerProps } from "./picker.tsx";

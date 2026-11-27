@@ -10,6 +10,17 @@ function asLogical(text) {
   return void 0;
 }
 
+// srcts/util/modules.ts
+function loadedModule(load) {
+  return {
+    async render(args) {
+      const module = await load();
+      if (args.signal.aborted) return void 0;
+      return module.render(args);
+    }
+  };
+}
+
 // srcts/options/schemas.ts
 var optionSchemas = {
   n_rows: {
@@ -25,23 +36,6 @@ var optionSchemas = {
   }
 };
 
-// srcts/options/ui.tsx
-import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/ui";
-import { reactModule, useValue } from "@blockr/core/react";
-import { jsx } from "react/jsx-runtime";
-function numberUi(label, min) {
-  function NumberUi({ host }) {
-    return /* @__PURE__ */ jsx(NumberField, { bound: useValue(host), label, minValue: min, step: 1 });
-  }
-  return reactModule(NumberUi);
-}
-function toggleButtonGroupUi(label, items) {
-  function ToggleButtonGroupUi({ host }) {
-    return /* @__PURE__ */ jsx(ToggleButtonGroup, { bound: useValue(host), label, disallowEmptySelection: true, children: items.map((item) => /* @__PURE__ */ jsx(ToggleButton, { id: item.id, children: item.name }, item.id)) });
-  }
-  return reactModule(ToggleButtonGroupUi);
-}
-
 // srcts/options/options.ts
 var nRows = {
   label: "Preview rows",
@@ -53,7 +47,7 @@ var nRows = {
     if (value === void 0) return 10;
     return checked("n_rows", takesRows, value, typeof value === "string" ? asNumber(value) : value);
   },
-  ui: numberUi("Preview rows", optionSchemas.n_rows.minimum)
+  ui: loadedModule(async () => (await import("./options-ui-71b069b6.js")).numberUi("Preview rows", optionSchemas.n_rows.minimum))
 };
 var darkMode = {
   label: "Light/dark mode",
@@ -66,10 +60,12 @@ var darkMode = {
     if (typeof logical === "boolean") return logical ? "dark" : "light";
     return checked("dark_mode", takesTheme, value);
   },
-  ui: toggleButtonGroupUi("Light/dark mode", [
-    { id: "light", name: "Light" },
-    { id: "dark", name: "Dark" }
-  ]),
+  ui: loadedModule(
+    async () => (await import("./options-ui-71b069b6.js")).toggleButtonGroupUi("Light/dark mode", [
+      { id: "light", name: "Light" },
+      { id: "dark", name: "Dark" }
+    ])
+  ),
   onChange(value) {
     setTheme(value);
   }

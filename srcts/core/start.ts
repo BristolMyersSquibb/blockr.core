@@ -212,9 +212,10 @@ export interface FrontEnds {
   // action in its dialog.
   advanced?(signal: AbortSignal): Place | undefined;
   // Draws the board's one block in its card, for a block that serve() serves
-  // alone, and returns once the card has mounted the block. The card ends as
-  // the signal aborts, as the next board opens.
-  card?(core: CoreApi, signal: AbortSignal): void;
+  // alone, and returns once the card has mounted the block, or a promise that
+  // resolves then, as for a card whose code loads first. The card ends as the
+  // signal aborts, as the next board opens.
+  card?(core: CoreApi, signal: AbortSignal): Promise<void> | undefined;
 }
 
 // A package that a later reply names at another version than the page loaded.
@@ -672,7 +673,7 @@ export function start(options: StartOptions): Started {
 
     if (alone) {
       try {
-        options.frontEnds?.card?.(core, signal);
+        await options.frontEnds?.card?.(core, signal);
       } finally {
         scheduler.start();
       }

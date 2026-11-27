@@ -1,7 +1,7 @@
 // The kinds of target, which the `on` of a board action and of a role names,
 // and what core's board actions and roles read off a target: the block, the
 // link or the stack that it names, which core's board actions share
-// (./core.ts, ./add.tsx), the input that an input's target names, and the
+// (./core.ts, ./add.ts), the input that an input's target names, and the
 // board objects of a kind that it holds, as Remove on a selection removes them
 // and Create stack takes its blocks.
 

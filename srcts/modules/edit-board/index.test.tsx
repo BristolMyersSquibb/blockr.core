@@ -33,6 +33,7 @@ import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass } from "../../store/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions, StubMenu } from "../../stubs/index.ts";
+import { waitForLoaded } from "../../testing/loading.ts";
 import { held } from "../../testing/notifications.ts";
 import { listedModules } from "../../testing/plugins.ts";
 import { withPlugins } from "../../testing/store.ts";
@@ -101,12 +102,24 @@ async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
     end = stubbed.core.mountPlugin(el, EDIT);
     await stubbed.settled();
   });
+  await drawnParts(el);
   const menu = (): StubMenu => {
     const open = stubbed.menu();
     if (open === undefined) throw new Error("No menu is open.");
     return open;
   };
   return { el, core: stubbed.core, board: () => stubbed.core.store.board(), notes, menu, end };
+}
+
+// Waits until the advanced action in each part of the plugin that adds an
+// object has drawn, since core draws the forms of its board actions once it
+// has loaded them.
+async function drawnParts(el: HTMLElement): Promise<void> {
+  await waitForLoaded(() => {
+    for (const room of el.querySelectorAll('[role="group"][aria-label^="Add a "] > div')) {
+      if (room.firstElementChild === null) throw new Error(`${room.parentElement?.getAttribute("aria-label") ?? "A part"} draws nothing yet.`);
+    }
+  });
 }
 
 // The id of a board action of blockr.test, from its name, as
@@ -179,6 +192,7 @@ async function refusing(): Promise<Omit<Mounted, "notes" | "menu">> {
     end = editBoard.default.ui.render({ el, core, signal: new AbortController().signal });
     await stubbed.settled();
   });
+  await drawnParts(el);
   stops.push(() => {
     act(() => {
       end();

@@ -4,21 +4,25 @@
 // Escape, as the function that it returns runs and as the signal aborts,
 // telling core through close() and giving the keyboard's focus back to the
 // element that the user triggered from.
+// Core loads the dialog's code as it first shows the dialog, so each test
+// waits for the dialog to show.
 
 import { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { find, inert, openDialog, press, step } from "@blockr/ui/stubs";
 import type { Delta } from "../store/index.ts";
+import { waitForLoaded } from "../testing/loading.ts";
+import { logged } from "../testing/logged.ts";
+import { showDialog } from "./advanced.ts";
 import type { PlaceArgs } from "./advanced.ts";
-import { showDialog } from "./dialog.tsx";
 
-// Core's dialog for an advanced action that draws a field, opened from a
-// button that has the keyboard's focus, with a close() that counts its calls.
-// Where `react` is true, the advanced action draws the field in a React root
-// of its own, as core's forms of a link and of a stack do.
-async function drawn(signal?: AbortSignal, react = false) {
+// What core hands its dialog for an advanced action that draws a field,
+// opened from a button that has the keyboard's focus, with a close() that
+// counts its calls. Where `react` is true, the advanced action draws the field
+// in a React root of its own, as core's forms of a link and of a stack do.
+function opened(react = false) {
   const trigger = document.createElement("button");
   trigger.textContent = "Open";
   document.body.append(trigger);
@@ -55,13 +59,21 @@ async function drawn(signal?: AbortSignal, react = false) {
       closed++;
     },
   };
+  return { args, trigger, mounted, unmounted: () => unmounted, closed: () => closed };
+}
+
+// Core's dialog for an advanced action that draws a field, as opened() makes
+// it, once the dialog shows.
+async function drawn(signal?: AbortSignal, react = false) {
+  const { args, ...made } = opened(react);
   let hide: (deltas?: readonly Delta[]) => void = () => undefined;
   await step(() => {
-    hide = showDialog(args, { el: trigger, ...(signal === undefined ? {} : { signal }) });
+    hide = showDialog(args, { el: made.trigger, ...(signal === undefined ? {} : { signal }) });
   });
   hides.push(hide);
+  await waitForLoaded(() => openDialog());
   await settle();
-  return { trigger, mounted, unmounted: () => unmounted, closed: () => closed, hide };
+  return { ...made, hide };
 }
 
 // Waits for what React Aria scheduled, such as moving the focus.
@@ -159,5 +171,46 @@ describe("core's dialog", () => {
     expect(shown()).toBeNull();
     expect(second.unmounted()).toBe(1);
     expect(second.closed()).toBe(1);
+  });
+
+  test("draws nothing, and tells core once that it closed, where it closes before its code has loaded", async () => {
+    const { args, trigger, mounted, closed } = opened();
+
+    await step(() => {
+      showDialog(args, { el: trigger })();
+    });
+    await import("./dialog.tsx");
+    await settle();
+
+    expect(shown()).toBeNull();
+    expect(mounted).toEqual([]);
+    expect(closed()).toBe(1);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  test("closes at once, telling core, and logs why, where its code fails to load", async () => {
+    const log = logged();
+    vi.doMock("./dialog.tsx", () => {
+      throw new Error("The network is down.");
+    });
+    try {
+      const { args, trigger, mounted, closed } = opened();
+      await step(() => {
+        hides.push(showDialog(args, { el: trigger }));
+      });
+      await waitForLoaded(() => {
+        expect(closed()).toBe(1);
+      });
+
+      expect(shown()).toBeNull();
+      expect(mounted).toEqual([]);
+      expect(document.activeElement).toBe(trigger);
+      expect(log.errors().map((line) => line.message)).toEqual([
+        expect.stringContaining('Core\'s dialog failed to load, so it shows no advanced action of the board action "blockr.test-edit_form_action":'),
+      ]);
+    } finally {
+      vi.doUnmock("./dialog.tsx");
+      log.restore();
+    }
   });
 });

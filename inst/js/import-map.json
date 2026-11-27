@@ -3,6 +3,7 @@
     "@blockr/core/react": "blockr-core-react.js",
     "@blockr/core/binding": "blockr-core-binding.js",
     "@blockr/core/controls": "blockr-core-controls.js",
+    "@blockr/core/components": "blockr-core-components.js",
     "@blockr/core/otel": "blockr-core-otel.js",
     "@opentelemetry/api": "opentelemetry-api.js"
   }

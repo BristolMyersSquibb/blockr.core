@@ -9,15 +9,16 @@
 // error as a card's banners do.
 // They draw their text fields with blockr.ui's TextField, and the search of a
 // table with its SearchField.
-// The bundles of core's runtime, which holds the advanced actions, of the
-// basic frontend and of the Edit board plugin each hold a copy of it, as each
-// holds one of srcts/util and srcts/card.
+// The bundles of the basic frontend and of the Edit board plugin each hold a
+// copy of it, as each holds one of srcts/util and srcts/card, and so does the
+// file of each advanced action of core's board actions, which core's runtime
+// loads as it first renders the advanced action (../actions).
 // They follow the board itself through useBoard() of core's React SDK, and
 // draw their selects with blockr.ui's ComboBox, those that find their items by
 // more than their names through useSearch(), and a pick of a few values with
 // its Select.
 
-export { blockItem, blockName, blockRow, blockTexts, classInputs, isVariadicBlock } from "./blocks.tsx";
+export { blockItem, blockRow, blockTexts } from "./blocks.tsx";
 export type { BlockItem } from "./blocks.tsx";
 export { notifiedReasons, runCommand, useEdits } from "./edits.ts";
 export type { Done, Edits, Refused } from "./edits.ts";

@@ -1,6 +1,9 @@
 // The card in which core draws a block that serve() serves alone, in the
 // page's element, since no frontend draws such a block
 // (https://github.com/BristolMyersSquibb/blockr.core/issues/442).
+// Core's runtime loads this file as it first draws the card, through
+// showCard() (./alone.ts), which demands the block and ends the card as the
+// next board opens.
 //
 // The card shows these, top to bottom:
 // - The block's name.
@@ -40,15 +43,10 @@ import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Banners, Footer, Mounted, Pills, useFooter, useSized } from "../card/index.ts";
-import { loadingNote } from "../core/index.ts";
-import { showError } from "../mount/index.ts";
 import { useNotified, useStatus } from "../react/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { own } from "../util/index.ts";
-
-// The owner of the card's demand.
-export const OWNER = "blockr.core";
 
 // What the card reads of CoreApi.
 export type CardCore = Pick<CoreApi, "mountBlock" | "mountOutput"> & {
@@ -57,33 +55,15 @@ export type CardCore = Pick<CoreApi, "mountBlock" | "mountOutput"> & {
   readonly notifications: Pick<CoreApi["notifications"], "get" | "subscribe">;
 };
 
-// Draws the board's one block in its card in the element, and demands it,
-// until the signal aborts, as the next board opens. The element then says that
-// the board is loading, until core draws the next. Where the board holds no
-// block or several, the element says so instead.
-export function drawCard(el: HTMLElement, core: CardCore, signal: AbortSignal): void {
-  if (signal.aborted) return;
-  const ids = Object.keys(core.store.board().blocks);
-  const [id] = ids;
-  if (id === undefined || ids.length > 1) {
-    showError(el, `A block that serve() serves alone comes as a board of one block, and this board holds ${String(ids.length)}.`);
-    return;
-  }
-  const demand = core.scheduler.demand(OWNER, [id]);
-  el.replaceChildren();
+// Draws the card of the block in the element, and returns what unmounts it.
+export function drawCard(el: HTMLElement, core: CardCore, id: BlockId): () => void {
   const root = createRoot(el);
   flushSync(() => {
     root.render(<AloneCard core={core} id={id} />);
   });
-  signal.addEventListener(
-    "abort",
-    () => {
-      demand.release();
-      root.unmount();
-      el.replaceChildren(loadingNote());
-    },
-    { once: true },
-  );
+  return () => {
+    root.unmount();
+  };
 }
 
 function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement {

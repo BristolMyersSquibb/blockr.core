@@ -1,6 +1,7 @@
 // The board's blocks as the forms of core's board actions and the tables of
-// its Edit board plugin show them: by name, with the ID and the class, and
-// what their classes say of their inputs.
+// its Edit board plugin show them: by name, with the ID and the class.
+// A block's name and what its class says of its inputs are in ../util, since
+// core's runtime reads them for its board actions too.
 
 import type { ReactElement } from "react";
 import { ComboBoxItem, Text } from "@blockr/ui";
@@ -37,21 +38,4 @@ export function blockRow(item: BlockItem): ReactElement {
       <Text slot="description">{item.detail}</Text>
     </ComboBoxItem>
   );
-}
-
-// A block's name, or its ID where the board lacks it.
-export function blockName(board: Pick<Board, "blocks">, block: BlockId): string {
-  return own(board.blocks, block)?.name ?? block;
-}
-
-// The inputs of the block's class, in their order, or none where the board or
-// the block registry lacks it.
-export function classInputs(board: Pick<Board, "blocks">, registry: BlockRegistry, block: BlockId): readonly string[] {
-  const held = own(board.blocks, block);
-  return (held === undefined ? undefined : own(registry, held.registry_id)?.inputs) ?? [];
-}
-
-// Whether the block is variadic, taking any number of links in their order.
-export function isVariadicBlock(board: Pick<Board, "blocks">, registry: BlockRegistry, block: BlockId): boolean {
-  return classInputs(board, registry, block).includes("...");
 }
