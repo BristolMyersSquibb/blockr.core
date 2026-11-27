@@ -999,13 +999,26 @@ The module tests run in Vitest with `happy-dom`, through a `vitest.config.ts`.
 Loading `@blockr/core/stubs` makes `happy-dom` measure elements and check numbers as blockr.ui's components need it to, through the stubs of blockr.ui, `@blockr/ui/stubs`, which it loads.
 Those stubs also hold the helpers that act on blockr.ui's components as a user does, such as `type()`, which types into a field, and `picked()`, which picks the rows of a select with the labels given.
 
+The config lists the setup of blockr.ui, `@blockr/ui/stubs/setup`, in `setupFiles`.
+A package lists setup files of its own after it.
+The setup fails a test on an error or a warning that the test prints to the console, such as React's warning of an update outside `act()`.
+Vitest shows what a passing test prints only on request.
+Without the setup, such a message goes unseen.
+
 ```ts
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  test: { environment: "happy-dom" },
+  test: {
+    environment: "happy-dom",
+    setupFiles: ["@blockr/ui/stubs/setup"],
+  },
 });
 ```
+
+A test names an error that it sets off on purpose with `expectedErrors()` of `@blockr/ui/stubs`, and a warning with `expectedWarnings()`.
+Each takes the messages that match its patterns off the console for the rest of the test.
+The section [Failing a test on what it prints](https://bristolmyerssquibb.github.io/blockr.ui/articles/design-system.html#failing-a-test-on-what-it-prints) of blockr.ui's design system describes the setup and both helpers.
 
 The stub of a block's host, `stubBlockHost()` of `@blockr/core/stubs`, takes the fixture file and a state.
 It answers the module's requests from the file, and it refuses a submit of a state that the file does not list.
@@ -1021,8 +1034,6 @@ import type { BlockFixture } from "@blockr/core/stubs";
 import recorded from "../testthat/_snaps/head-block/head_block.json";
 import * as head from "../../srcts/head-block/index.tsx";
 import type { State } from "../../srcts/head-block/state.ts";
-
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const fixture: BlockFixture = recorded;
 
@@ -1053,6 +1064,17 @@ test("marks n above the rows of its input and submits a pick", async () => {
 
 The stub's `setState()` and `setContext()` change the state or the context from outside the module, as undo or a new revision of an input does.
 A module that reaches other packages' modules through its host gets them from the stub's option `modules`, such as `{ "blockr.core-controls": controls }`, with `controls` imported from `@blockr/core/controls`.
+
+The stubs of blockr.ui turn on React's act environment as they load.
+In it, React warns of each update outside `act()`.
+The setup fails the test on that warning.
+A module written without React draws with core's controls.
+A call that makes or changes a control draws the control at once, outside `act()`.
+So each test file of a module written without React turns the act environment off:
+
+```ts
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
+```
 
 ## Porting a block from `new_block()`
 
