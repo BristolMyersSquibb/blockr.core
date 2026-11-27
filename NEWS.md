@@ -1038,6 +1038,10 @@
   The board option `dark_mode` sets the attribute `data-bk-mode` on the page's root, in place of `data-bc-theme`, and the page's `color-scheme` tag takes `light dark` (#866).
 * The new generic `frontend_theme()` returns a frontend's theme, as `blockr.ui::new_blockr_theme()` makes it, with the values of the theme variables that the frontend wants its own.
   Its method for `frontend_plugin` returns a theme with no values, so a frontend that keeps every default of blockr.ui, as core's basic frontend does, needs no method of its own (#866).
+* Core takes its icons from Lucide, through `@blockr/ui/icons`, and draws them with blockr.ui's `Icon`, in place of the icons that it drew itself.
+  Its board actions write theirs as SVG markup with `iconMarkup()`.
+  The board actions that add show what they add: a box for a block, a link for Create link, and layers for Create stack and for Add to stack.
+  Before, each of them showed the same plus, so a block's menu showed no difference between Append block, Create link and Create stack (#871).
 
 # blockr.core 0.1.4
 

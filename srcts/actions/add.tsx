@@ -49,8 +49,9 @@
 // block. Where the keyboard's focus was in the picker as the user added the
 // block, the new picker takes the focus, so that it is ready for the next one.
 //
-// Each carries a plus as its icon, in the shape of blockr.ui's `plus`
-// (./icons.ts).
+// Each carries the icon of a block, Lucide's box, so that a menu tells it
+// apart from Create link and Create stack, which carry the icons of what they
+// add (./icons.ts).
 // Each fails its offers() in these cases:
 // - The board lock is on, since the store refuses what the board action runs.
 // - The board does not hold what the board action acts on.
@@ -73,7 +74,7 @@ import { drawForm } from "../ui/index.ts";
 import { own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { AdvancedModule } from "./advanced.ts";
-import { PLUS } from "./icons.ts";
+import { BLOCK } from "./icons.ts";
 import type { QuickLevel } from "./quick.ts";
 import { heldBlock, inputOf } from "./targets.ts";
 
@@ -91,7 +92,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
     {
       id: "blockr.core-add_block_action",
       label: "Add block",
-      icon: PLUS,
+      icon: BLOCK,
       on: ["board"],
       category: "add",
       offers: (_board, _target, lock) => !lock.board && adds(false),
@@ -102,7 +103,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
     {
       id: "blockr.core-append_block_action",
       label: "Append block",
-      icon: PLUS,
+      icon: BLOCK,
       on: ["block"],
       category: "add",
       offers: (board, target, lock) => !lock.board && heldBlock(board, target) !== undefined && adds(true),
@@ -117,7 +118,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
     {
       id: "blockr.core-prepend_block_action",
       label: "Prepend block",
-      icon: PLUS,
+      icon: BLOCK,
       on: ["block", "input"],
       category: "add",
       offers: (board, target, lock) =>
@@ -141,7 +142,7 @@ export function addingBoardActions(registry: Registry): BoardAction[] {
     {
       id: "blockr.core-insert_block_action",
       label: "Insert block",
-      icon: PLUS,
+      icon: BLOCK,
       on: ["link"],
       category: "add",
       offers: (board, target, lock) => !lock.board && "link" in target && Object.hasOwn(board.links, target.link) && adds(true),

@@ -55,9 +55,10 @@
 import { useState } from "react";
 import type { PointerEvent, ReactElement, ReactNode, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
-import { Button, ComboBox, Form, GridList, GridListItem, TextField, useDragAndDrop } from "@blockr/ui";
+import { Button, ComboBox, Form, GridList, GridListItem, Icon, TextField, useDragAndDrop } from "@blockr/ui";
 import { linkFeeding } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
+import { X } from "../icons/index.ts";
 import { focusFirstInvalid, inputNameError } from "../picker/index.ts";
 import { useBoard } from "../react/index.ts";
 import type { BlockId, Board, LinkId } from "../types/board.ts";
@@ -641,25 +642,16 @@ function AddInput({ sources, onAdd }: Pick<Parts, "sources"> & { onAdd: (from: B
 }
 
 // The button that removes an input or its source, a cross, whose label names
-// what it removes.
+// what it removes. The cross is Lucide's, 10 pixels wide, as blockr.ui's
+// inputs draw the cross of a button that removes.
 function RemoveButton({ label, onPress }: { label: string; onPress: () => void }): ReactElement {
   return (
     <Button variant="quiet" aria-label={label} onPress={onPress} className="bc:size-7 bc:shrink-0 bc:justify-center bc:p-0">
       {/* React Aria's Button takes no title, so the cross carries it. */}
       <span title={label} className="bc:flex bc:size-full bc:items-center bc:justify-center">
-        <Cross />
+        <Icon icon={X} size={10} />
       </span>
     </Button>
-  );
-}
-
-// The cross of a button that removes, as blockr.ui's inputs draw it, in the
-// colour of the text around it.
-function Cross(): ReactElement {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-      <path d="M2.5 2.5l5 5M7.5 2.5l-5 5" />
-    </svg>
   );
 }
 

@@ -35,11 +35,9 @@
 // blockr.core-add_link_action, plays add_link_role (./roles.ts). Copy block ID
 // plays none, since it runs no command.
 // Copy block ID and those that remove act at once, through their run(). Those
-// that add carry a plus as their icon, in the shape of blockr.ui's `plus`
-// (./icons.ts), and those that remove the bin of a row that destroys
-// something, in the shape of blockr.ui's `trash`, since blockr.ui builds on
-// blockr.core
-// (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/trash.svg).
+// that add carry the icon of what they add, a block, a link or a stack, and
+// Add to stack carries the icon of a stack as well. Those that remove carry a
+// bin. Each is an icon of Lucide's (./icons.ts).
 // Under the board lock, every one but Copy block ID fails its offers(), since
 // the store refuses what they run
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.11#three-locks).
@@ -56,6 +54,7 @@ import type { Raise } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { addingBoardActions } from "./add.tsx";
 import { copyText } from "./clipboard.ts";
+import { TRASH } from "./icons.ts";
 import { editInputs } from "./inputs.tsx";
 import { createLinkAction, editLinkAction } from "./links.ts";
 import { nameRow } from "./quick.ts";
@@ -206,8 +205,3 @@ function removals(board: Board, target: Target): CommandCall[] {
     held(board, target, kind).map((id) => ({ id: `blockr.core-remove_${kind}`, args: { id } }));
   return [...removing("link"), ...removing("block"), ...removing("stack")];
 }
-
-// The bin of a row that destroys something, in the shape of blockr.ui's
-// `trash`, in the colour of the text around it.
-const TRASH =
-  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';

@@ -45,7 +45,7 @@ import { blockName, classInputs, isVariadicBlock } from "../ui/index.ts";
 import { own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { CoreParts } from "./core.ts";
-import { PLUS } from "./icons.ts";
+import { LINK } from "./icons.ts";
 import { createLinkForm, editLinkForm } from "./link-form.tsx";
 import { levelItem } from "./quick.ts";
 import type { QuickLevel, QuickRow } from "./quick.ts";
@@ -62,7 +62,7 @@ export function createLinkAction(parts: CoreParts): BoardAction {
   return {
     id: CREATE_LINK,
     label: "Create link",
-    icon: PLUS,
+    icon: LINK,
     on: ["block", "input", "board"],
     category: "add",
     offers(board, target, lock) {

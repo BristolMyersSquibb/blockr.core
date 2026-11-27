@@ -802,11 +802,6 @@
   font-size: .8125rem;
 }
 
-.bc\:leading-none {
-  --tw-leading: 1;
-  line-height: 1;
-}
-
 .bc\:leading-normal {
   --tw-leading: var(--bc-leading-normal);
   line-height: var(--bc-leading-normal);

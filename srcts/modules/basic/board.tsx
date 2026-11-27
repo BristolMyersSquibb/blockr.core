@@ -10,9 +10,10 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import { Button, Text, Toast, ToastContent, ToastRegion } from "@blockr/ui";
+import { Button, Icon, Text, Toast, ToastContent, ToastRegion } from "@blockr/ui";
 import type { QueuedToast } from "@blockr/ui";
 import { MARKS, SeverityIcon } from "../../card/index.ts";
+import { X } from "../../icons/index.ts";
 import { useBoard } from "../../react/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Notification } from "../../types/core-api.ts";
@@ -96,8 +97,9 @@ function Toasts(): ReactElement {
 
 // A toast, blockr.ui's Toast, marked in the colour of its notification's
 // severity at its left: what it concerns, with the package that its source
-// names, its message, and a button that closes it. Where core asks for the
-// page to be reloaded, it also offers to reload it.
+// names, its message, and a button that closes it, which shows Lucide's
+// cross. Where core asks for the page to be reloaded, it also offers to
+// reload it.
 function ToastItem({ toast, title }: { toast: QueuedToast<Notification>; title: string }): ReactElement {
   const notification = toast.content;
   const { severity } = notification;
@@ -130,7 +132,7 @@ function ToastItem({ toast, title }: { toast: QueuedToast<Notification>; title: 
         ) : null}
       </ToastContent>
       <Button slot="close" variant="quiet">
-        <span aria-hidden="true">×</span>
+        <Icon icon={X} />
       </Button>
     </Toast>
   );
