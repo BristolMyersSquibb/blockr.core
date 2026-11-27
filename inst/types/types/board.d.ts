@@ -7,6 +7,7 @@ declare const interned: unique symbol;
 export interface Id<P extends string | null = string> {
     readonly package: P;
     readonly id: string;
+    /** @hidden */
     readonly [interned]: true;
 }
 export type PluginClassId = Id;

@@ -28,9 +28,13 @@ declare const interned: unique symbol;
 // would be another object, from passing for one.
 // The brand exists only for the type checker, so that one serializes as
 // { "package": "blockr.core", "id": "head_block" }.
+// Its tag @hidden keeps it out of the JSON Schema that a build makes from a
+// type that holds an id, such as the state of a package's plugin. So the
+// schema gives the id as JSON holds it.
 export interface Id<P extends string | null = string> {
   readonly package: P;
   readonly id: string;
+  /** @hidden */
   readonly [interned]: true;
 }
 

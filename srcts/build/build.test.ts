@@ -617,6 +617,32 @@ test("writes the schema of a block's state beside its module, allowing no other 
   expect(await read("none-block.schema.json")).toMatchObject({ type: "object", properties: {} });
 }, 60_000);
 
+test("writes an id in a state as JSON holds it, without the brand that only the type checker sees", async () => {
+  const board = join(repo, "srcts", "types", "board.ts");
+  await write({
+    "srcts/modules/notes-plugin/state.ts": [
+      `import type { PluginClassId } from ${JSON.stringify(board)};`,
+      "export type State = Readonly<{",
+      "  about: PluginClassId;",
+      "}>;",
+      "",
+    ].join("\n"),
+  });
+
+  expect(await schemas(root)).toEqual(["inst/js/notes-plugin.schema.json"]);
+
+  const schema = JSON.parse(await readFile(join(root, "inst", "js", "notes-plugin.schema.json"), "utf8")) as {
+    definitions: Record<string, unknown>;
+  };
+  expect(schema).toMatchObject({ properties: { about: { $ref: "#/definitions/PluginClassId" } } });
+  expect(schema.definitions.Id).toEqual({
+    type: "object",
+    properties: { package: { type: "string" }, id: { type: "string" } },
+    required: ["package", "id"],
+    additionalProperties: false,
+  });
+}, 60_000);
+
 test("writes no schemas without the types and modules they come from", async () => {
   expect(await schemas(root)).toEqual([]);
 });
