@@ -2,8 +2,9 @@
 // as core mounts a module, with the stubs of the hosts.
 
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { step } from "@blockr/ui/stubs";
 import { stubOptionHost, stubOutputHost } from "../stubs/index.ts";
-import { mountReact, step } from "../testing/react.ts";
+import { mountReact } from "../testing/react.ts";
 import type { OptionHost } from "../types/hosts.ts";
 import type { TextOutput } from "../types/outputs.ts";
 import { outputRenderer, reactModule } from "./index.ts";

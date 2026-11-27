@@ -1,12 +1,11 @@
 // @vitest-environment node
 
-import { createRequire } from "node:module";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { IMPORTS, OTEL_API, REACT_ENTRIES, importFile } from "../import-map/index.ts";
+import { IMPORTS, OTEL_API, importFile } from "../import-map/index.ts";
 import type { Status } from "../scheduler/index.ts";
 import { build, idWords, licenses, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
 
@@ -48,9 +47,9 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   await build(root);
 
   const out = join(root, "inst/js");
-  // Beside them, the build writes the vendor file, React's entry points, the
-  // import map and the files that a page imports as it starts.
-  expect((await readdir(out)).filter((file) => !/^react|^vendor-|^import-map|^preload/.test(file)).sort()).toEqual([
+  // Beside them, the build writes the vendor file, the import map and the
+  // files that a page imports as it starts.
+  expect((await readdir(out)).filter((file) => !/^vendor-|^import-map|^preload/.test(file)).sort()).toEqual([
     "LICENSES",
     "blockr-core.css",
     "blockr-core.js",
@@ -69,8 +68,8 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   expect(own).not.toMatch(/--bc-[\w-]+:/);
 });
 
-test("writes each of React's entry points as an ES module, exporting what the entry point exports, all on one React", async () => {
-  await write({ "srcts/runtime/index.ts": "export const runtime = 'core';\n" });
+test("writes the runtime, the vendor file, the import map and what each file imports up front, and none of React's files, which are blockr.ui's", async () => {
+  await write({ "srcts/runtime/index.ts": 'import { useState } from "react";\nexport const runtime = useState;\n' });
 
   const written = await build(root);
 
@@ -78,24 +77,17 @@ test("writes each of React's entry points as an ES module, exporting what the en
   const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
   expect(vendor).toHaveLength(1);
   expect(written).toEqual(
-    ["LICENSES", "blockr-core.js", "import-map.json", "preload.json", ...vendor, ...REACT_ENTRIES.map(importFile)]
-      .map((file) => `inst/js/${file}`)
-      .sort(),
+    ["LICENSES", "blockr-core.js", "import-map.json", "preload.json", ...vendor].map((file) => `inst/js/${file}`).sort(),
   );
-  // The vendor file keeps React's license comments.
-  expect(await readFile(join(out, vendor[0] ?? ""), "utf8")).toContain("@license React");
-
-  // Each entry point exports what React's does in production, bar the two
-  // names that its development build alone exports.
-  const installed = createRequire(import.meta.url);
-  for (const name of REACT_ENTRIES) {
-    const module = (await import(pathToFileURL(join(out, importFile(name))).href)) as Record<string, unknown>;
-    const exported = Object.keys(installed(name) as object).filter((key) => !["act", "captureOwnerStack"].includes(key));
-    expect(Object.keys(module).sort()).toEqual([...exported, "default"].sort());
-  }
+  // The runtime imports React by its name, which the page's import map
+  // resolves to blockr.ui's file, and the vendor file holds no React.
+  expect(await readFile(join(out, "blockr-core.js"), "utf8")).toContain('from "react"');
+  expect(await readFile(join(out, vendor[0] ?? ""), "utf8")).not.toContain("@license React");
+  const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { imports: Record<string, string> };
+  expect(Object.keys(map.imports)).not.toContain("react");
 });
 
-test("bundles the packages that core's code imports beside React into the vendor file, minified, which the runtime and the modules import by its name", async () => {
+test("bundles the packages that core's code imports into the vendor file, minified, which the runtime and the modules import by its name", async () => {
   await write({
     "srcts/runtime/index.ts": [
       'import { computed, signal } from "@preact/signals-core";',
@@ -122,12 +114,10 @@ test("bundles the packages that core's code imports beside React into the vendor
   const file = vendor[0] ?? "";
   expect(written).toContain(`inst/js/${file}`);
   const read = (name: string) => readFile(join(out, name), "utf8");
-  // The packages' code, minified, without the paths of its sources, beside
-  // React's.
+  // The packages' code, minified, without the paths of its sources.
   const bundled = await read(file);
   expect(bundled).toContain("Cycle detected");
   expect(bundled).toContain("Instance type");
-  expect(bundled).toContain("@license React");
   expect(bundled).not.toContain("// node_modules/");
   // The runtime and the module hold core's code alone, and import the packages
   // from the vendor file, by its name beside them.
@@ -169,17 +159,15 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   const imports = (up: string) =>
     [
       `import { sdk } from "${up}/react/index.ts";`,
-      `import { input } from "${up}/inputs/index.ts";`,
       `import { binding } from "${up}/binding/index.ts";`,
       `import { controls } from "${up}/controls/index.ts";`,
-      "export const all = [sdk, input, binding, controls];",
+      "export const all = [sdk, binding, controls];",
       "",
     ].join("\n");
   await write({
-    "srcts/react/index.ts": 'import { binding } from "../binding/index.ts";\nexport const sdk = "the sdk " + binding;\nexport { input } from "../inputs/index.ts";\n',
-    "srcts/inputs/index.ts": "export const input = 'the input';\n",
+    "srcts/react/index.ts": 'import { binding } from "../binding/index.ts";\nexport const sdk = "the sdk " + binding;\n',
     "srcts/binding/index.ts": "export const binding = 'the binding';\n",
-    "srcts/controls/index.ts": 'import { input } from "../inputs/index.ts";\nexport const controls = "the controls " + input;\n',
+    "srcts/controls/index.ts": 'import { sdk } from "../react/index.ts";\nexport const controls = "the controls " + sdk;\n',
     "srcts/otel/index.ts": "export const otel = 'the otel module';\n",
     "srcts/runtime/index.ts": `${imports("..")}import { trace } from "@opentelemetry/api";\nimport { version } from "react";\nexport const tracer = trace.getTracer("blockr.core", version);\nexport const otel = () => import("../otel/index.ts");\n`,
     "srcts/modules/head-block/index.ts": imports("../.."),
@@ -190,20 +178,20 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   const read = (file: string) => readFile(join(root, "inst/js", file), "utf8");
   for (const file of ["blockr-core.js", "head-block.js"]) {
     const code = await read(file);
-    for (const text of ["the sdk", "the input", "the binding", "the controls"]) {
+    for (const text of ["the sdk", "the binding", "the controls"]) {
       expect(code).not.toContain(text);
     }
     for (const name of ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls"]) {
       expect(code).toContain(`from "${name}"`);
     }
   }
-  // The SDK holds the inputs, and imports the binding.
-  expect(await read("blockr-core-react.js")).toContain("the input");
+  // The SDK imports the binding.
+  expect(await read("blockr-core-react.js")).toContain("the sdk");
   expect(await read("blockr-core-react.js")).toContain('from "@blockr/core/binding"');
   expect(await read("blockr-core-binding.js")).toContain("the binding");
-  // The controls take the inputs from the SDK.
+  // The controls take what they use of the SDK from it.
   expect(await read("blockr-core-controls.js")).toContain('from "@blockr/core/react"');
-  expect(await read("blockr-core-controls.js")).not.toContain("the input");
+  expect(await read("blockr-core-controls.js")).not.toContain("the sdk");
   // The runtime imports the OpenTelemetry module by its name, as it loads it,
   // which the build bundles on its own.
   expect(await read("blockr-core.js")).toContain('import("@blockr/core/otel")');
@@ -224,15 +212,12 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
 
   // The build lists what each file imports up front: an import by name, and a
   // file beside it by its path. The runtime's import of the OpenTelemetry
-  // module is left out, which the runtime imports only as it loads it, and
-  // each of React's entry points imports the vendor file.
-  const vendor = (await readdir(join(root, "inst/js"))).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
+  // module is left out, which the runtime imports only as it loads it.
   const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
   expect([...(preload["blockr-core.js"] ?? [])].sort()).toEqual(
     ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls", OTEL_API, "react"].sort(),
   );
   expect(preload["blockr-core-react.js"]).toEqual(["@blockr/core/binding"]);
-  for (const name of REACT_ENTRIES) expect(preload[importFile(name)]).toEqual([`./${vendor ?? ""}`]);
   expect(Object.keys(preload)).toEqual(Object.keys(preload).sort());
 });
 
@@ -290,20 +275,14 @@ test("writes the licenses of the code from other projects in its files into LICE
   expect(written).toContain("inst/js/LICENSES");
   const vendor = (await readdir(out)).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file)) ?? "";
   const text = await readFile(join(out, "LICENSES"), "utf8");
-  // React's three packages share their license, whose text follows their lines.
-  const react = await readFile(join(repo, "node_modules/react/LICENSE"), "utf8");
-  expect(text).toContain(
-    [
-      `react ${await version("react")}, in ${vendor}`,
-      `react-dom ${await version("react-dom")}, in ${vendor}`,
-      `scheduler ${await version("scheduler")}, in ${vendor}`,
-      "",
-      react.trimEnd(),
-    ].join("\n"),
-  );
-  // The vendor file holds the packages beside React too.
+  // The vendor file holds the packages that core's code imports, each line
+  // followed by its license, and no React, which is blockr.ui's.
+  // The validator ships no license file, so its license comes from
+  // srcts/build/licenses.
+  const validator = await readFile(join(repo, "srcts/build/licenses/@cfworker/json-schema/LICENSE.md"), "utf8");
+  expect(text).toContain(`@cfworker/json-schema ${await version("@cfworker/json-schema")}, by Jeremy Danyow, in ${vendor}\n\n${validator.trimEnd()}\n`);
   expect(text).toContain(`@preact/signals-core ${await version("@preact/signals-core")}, in ${vendor}\n`);
-  expect(text.split("Copyright (c) Meta Platforms, Inc. and affiliates.")).toHaveLength(2);
+  expect(text).not.toContain("Meta Platforms");
   // Tailwind CSS writes the stylesheet.
   const tailwind = await readFile(join(repo, "node_modules/tailwindcss/LICENSE"), "utf8");
   expect(text).toContain(`tailwindcss ${await version("tailwindcss")}, in blockr-core.css\n\n${tailwind.trimEnd()}\n`);
@@ -386,16 +365,13 @@ test("takes the license of a package that npm installs without one from srcts/bu
 
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {
   await write({
-    "test.css": `@import "${core}";\n@source inline("bc:flex bc:bg-blue-500 flex");\n`,
+    "test.css": `@import "${core}";\n@source inline("bc:flex bc:bg-popover flex");\n`,
   });
 
-  const css = await stylesheet(join(root, "test.css"));
+  const { css } = await stylesheet(join(root, "test.css"));
 
   expect(css).toMatch(/^\.bc\\:flex \{/m);
-  // Tailwind CSS writes a utility in one rule with others of the same
-  // declarations, such as a colour's own with that colour's at an opacity.
-  expect(css).toMatch(/^\.bc\\:bg-blue-500(, [^{]+)? \{\n {2}background-color: var\(--bc-color-blue-500\);/m);
-  expect(css).toMatch(/@layer theme \{\n {2}:root, :host \{\n[^}]*\n {4}--bc-color-blue-500: /);
+  expect(css).toMatch(/^\.bc\\:bg-popover \{/m);
   expect(css).not.toMatch(/^\s*\.flex \{/m);
   expect(css).not.toContain("@layer utilities");
   expect(css).not.toContain("@layer base");
@@ -404,105 +380,51 @@ test("keeps core's utilities under its prefix and outside layers, without Prefli
   expect(css).not.toMatch(/^\s*\*[^{]*\{[^}]*box-sizing/m);
 });
 
-test("names the colors of core's UIs as variables of its theme, which follow the text around them", async () => {
+test("reads blockr.ui's theme variables through the build preset of blockr.ui, and sets none of them itself", async () => {
   await write({
-    "test.css": `@import "${core}";\n@source inline("bc:border-border-default bc:text-text-danger");\n`,
+    "test.css": `@import "${core}";\n@source inline("bc:bg-popover bc:text-muted-foreground bc:shadow-md bc:rounded-lg bc:px-2 bc:font-sans bc:text-sm bc:z-overlay");\n`,
   });
 
-  const css = await stylesheet(join(root, "test.css"));
+  const { css } = await stylesheet(join(root, "test.css"));
 
-  // A utility reads the variable, so that a frontend restyles core by setting it.
-  expect(css).toMatch(/^\.bc\\:border-border-default(, [^{]+)? \{\n {2}border-color: var\(--bc-color-border-default\);/m);
-  expect(css).toContain("--bc-color-border-default: color-mix(in oklab, currentColor 25%, transparent);");
-  // A colour with an accent of its own takes the theme's, which the stylesheet
-  // then holds too.
-  expect(css).toContain("--bc-color-text-danger: var(--bc-color-red-700);");
-  expect(css).toMatch(/--bc-color-red-700: oklch\(/);
+  // A utility reads the theme variable, which blockr.ui's stylesheet sets with
+  // its default and a frontend's theme or an app's theme sets over it.
+  expect(css).toMatch(/^\.bc\\:bg-popover \{\n {2}background-color: var\(--bk-color-popover\);/m);
+  expect(css).toMatch(/^\.bc\\:text-muted-foreground \{\n {2}color: var\(--bk-color-muted-foreground\);/m);
+  expect(css).toMatch(/^\.bc\\:shadow-md \{\n {2}--tw-shadow: var\(--bk-shadow-md\);/m);
+  expect(css).toMatch(/^\.bc\\:rounded-lg \{\n {2}border-radius: var\(--bk-radius\);/m);
+  expect(css).toMatch(/^\.bc\\:px-2 \{\n {2}padding-inline: calc\(var\(--bk-spacing\) \* 2\);/m);
+  expect(css).toMatch(/^\.bc\\:font-sans \{\n {2}font-family: var\(--bk-font-sans\);/m);
+  expect(css).toMatch(/^\.bc\\:text-sm \{\n {2}font-size: var\(--bk-text-sm\);/m);
+  expect(css).toMatch(/^\.bc\\:z-overlay \{\n {2}z-index: var\(--bk-z-index-overlay\);/m);
+  // No variable of blockr.ui's is set here, and none of Tailwind's theme that
+  // the preset maps onto one.
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  expect(rules).not.toMatch(/--bk-[\w-]+:/);
+  expect(rules).not.toMatch(/--bc-(color-(popover|muted-foreground)|shadow-md|radius-lg|spacing|font-sans|text-sm|z-index-overlay):/);
 });
 
-test("draws the danger and the warning texts in shades that reach 4.5:1 under the light theme, and lighter ones under the dark theme", async () => {
-  await write({ "test.css": `@import "${core}";\n@source inline("bc:text-text-danger bc:text-text-warning");\n` });
-
-  const css = await stylesheet(join(root, "test.css"));
-
-  const start = css.indexOf("@layer theme {");
-  const theme = css.slice(start, css.indexOf("\n}\n", start));
-  // Under the light theme, each takes the lightest shade of the theme's red or
-  // amber that reaches 4.5:1 on a card and on the tint of a card's mark.
-  expect(theme).toMatch(/:root, :host \{[^}]*--bc-color-text-danger: var\(--bc-color-red-700\);/);
-  expect(theme).toMatch(/:root, :host \{[^}]*--bc-color-text-warning: var\(--bc-color-amber-800\);/);
-  // Under the dark theme, each takes the value that blockr.ui gives its token
-  // there. The rule sits in the theme's layer, so that a frontend that sets the
-  // variable outside a layer wins over it.
-  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-text-danger: #f87171;/);
-  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-text-warning: #fbbf24;/);
-  expect(css.replace(theme, "")).not.toMatch(/--bc-color-text-(danger|warning):/);
-});
-
-test("fills an error and a warning, and edges them, in variables of its theme, mixed from the danger and the warning borders", async () => {
+test("drops Tailwind's palette, so that a class of it writes nothing, and keys the dark variant on data-bk-mode", async () => {
   await write({
-    "test.css": `@import "${core}";\n@source inline("bc:bg-bg-danger bc:bg-bg-warning bc:border-border-danger-subtle bc:border-border-warning-subtle");\n`,
+    "test.css": `@import "${core}";\n@source inline("bc:bg-blue-600 bc:text-gray-900 bc:dark:bg-card");\n`,
   });
 
-  const css = await stylesheet(join(root, "test.css"));
+  const { css } = await stylesheet(join(root, "test.css"));
 
-  // A utility reads the variable, so that a frontend restyles the fill or the
-  // edge by setting it.
-  expect(css).toMatch(/^\.bc\\:bg-bg-danger \{\n {2}background-color: var\(--bc-color-bg-danger\);/m);
-  expect(css).toMatch(/^\.bc\\:bg-bg-warning \{\n {2}background-color: var\(--bc-color-bg-warning\);/m);
-  expect(css).toMatch(/^\.bc\\:border-border-danger-subtle \{\n {2}border-color: var\(--bc-color-border-danger-subtle\);/m);
-  expect(css).toMatch(/^\.bc\\:border-border-warning-subtle \{\n {2}border-color: var\(--bc-color-border-warning-subtle\);/m);
-  // The defaults mix the borders, which the stylesheet then holds too, all in
-  // the theme's layer, so that a frontend that sets one outside a layer wins
-  // over them.
-  const start = css.indexOf("@layer theme {");
-  const theme = css.slice(start, css.indexOf("\n}\n", start));
-  expect(theme).toContain("--bc-color-bg-danger: color-mix(in oklab, var(--bc-color-border-danger) 10%, transparent);");
-  expect(theme).toContain("--bc-color-bg-warning: color-mix(in oklab, var(--bc-color-border-warning) 10%, transparent);");
-  expect(theme).toContain("--bc-color-border-danger-subtle: color-mix(in oklab, var(--bc-color-border-danger) 35%, transparent);");
-  expect(theme).toContain("--bc-color-border-warning-subtle: color-mix(in oklab, var(--bc-color-border-warning) 45%, transparent);");
-  expect(theme).toContain("--bc-color-border-danger: var(--bc-color-red-500);");
-  expect(theme).toContain("--bc-color-border-warning: var(--bc-color-amber-500);");
-  expect(css.replace(theme, "")).not.toMatch(/--bc-color-(bg-danger|bg-warning|border-danger-subtle|border-warning-subtle):/);
+  expect(css).not.toContain("bg-blue-600");
+  expect(css).not.toContain("text-gray-900");
+  expect(css).not.toMatch(/--bc-color-(blue|gray)-/);
+  expect(css).toMatch(/^\.bc\\:dark\\:bg-card:where\(:root\[data-bk-mode="dark"\], :root\[data-bk-mode="dark"\] \*\) \{\n {2}background-color: var\(--bk-color-card\);/m);
+  expect(css).not.toContain("data-bc-theme");
 });
 
-test("draws what floats over the board on the page's background, which the dark theme lightens, as a variable of its theme", async () => {
-  await write({ "test.css": `@import "${core}";\n@source inline("bc:bg-bg-raised");\n` });
-
-  const css = await stylesheet(join(root, "test.css"));
-
-  expect(css).toMatch(/^\.bc\\:bg-bg-raised(, [^{]+)? \{\n {2}background-color: var\(--bc-color-bg-raised\);/m);
-  // Both of its defaults sit in the theme's layer, so that a frontend that sets
-  // the variable outside a layer wins over them.
-  const start = css.indexOf("@layer theme {");
-  const theme = css.slice(start, css.indexOf("\n}\n", start));
-  expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-bg-raised: Canvas;/);
-  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-bg-raised: color-mix\(in oklab, Canvas, currentColor 10%\);/);
-  expect(css.replace(theme, "")).not.toContain("--bc-color-bg-raised:");
-});
-
-test("stacks the overlays at a z-index of its theme, which a frontend sets, through the utility bc:z-overlay, and the toasts one above", async () => {
-  await write({ "test.css": `@import "${core}";\n@source inline("bc:z-overlay bc:z-[calc(var(--bc-z-index-overlay)+1)]");\n` });
-
-  const css = await stylesheet(join(root, "test.css"));
-
-  expect(css).toMatch(/^\.bc\\:z-overlay \{\n {2}z-index: var\(--bc-z-index-overlay\);/m);
-  expect(css).toMatch(/\{\n {2}z-index: calc\(var\(--bc-z-index-overlay\) \+ 1\);/);
-  // The variable sits in the theme's layer, so that a frontend that sets it
-  // outside a layer wins over it.
-  const start = css.indexOf("@layer theme {");
-  const theme = css.slice(start, css.indexOf("\n}\n", start));
-  expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-z-index-overlay: 1100;/);
-  expect(css.replace(theme, "")).not.toContain("--bc-z-index-overlay:");
-});
-
-test("holds a color for each status of a block, lighter under the dark theme, and for each category of block classes, though no utility uses those", async () => {
+test("holds a colour for each status of a block, lighter in dark mode, and for each category of block classes, though no utility uses those", async () => {
   await write({ "test.css": `@import "${core}";\n` });
 
-  const css = await stylesheet(join(root, "test.css"));
+  const { css } = await stylesheet(join(root, "test.css"));
 
-  // The colors sit in the theme's layer, so that a frontend that sets one
-  // outside a layer wins over them.
+  // The colours sit in the theme's layer, so that a value set outside a layer
+  // wins over them.
   const start = css.indexOf("@layer theme {");
   const theme = css.slice(start, css.indexOf("\n}\n", start));
   expect(css.replace(theme, "")).not.toMatch(/--bc-color-(status|category)-[a-z]+:/);
@@ -510,22 +432,20 @@ test("holds a color for each status of a block, lighter under the dark theme, an
   const statuses: Record<Status, null> = { unevaluated: null, stale: null, waiting: null, invalid: null, ready: null, failed: null };
   for (const status of Object.keys(statuses)) {
     expect(theme).toMatch(new RegExp(`:root, :host \\{[^}]*--bc-color-status-${status}: #`));
-    expect(theme).toMatch(new RegExp(`:root\\[data-bc-theme="dark"\\] \\{[^}]*--bc-color-status-${status}: #`));
+    expect(theme).toMatch(new RegExp(`:root\\[data-bk-mode="dark"\\] \\{[^}]*--bc-color-status-${status}: #`));
   }
-  // No UI of core's draws a category, whose color the dark theme keeps.
+  // No UI of core's draws a category, whose colour dark mode keeps.
   expect(theme).toMatch(/:root, :host \{[^}]*--bc-color-category-uncategorized: #/);
-  expect(theme).not.toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-category-/);
+  expect(theme).not.toMatch(/:root\[data-bk-mode="dark"\] \{[^}]*--bc-color-category-/);
 });
 
-test("takes the face of core's UIs from the theme's sans, which a frontend sets", async () => {
-  await write({ "test.css": `@import "${core}";\n@source inline("bc:font-sans");\n` });
+test("fails where core's code names a colour of Tailwind's palette, through the check of blockr.ui's build preset", async () => {
+  await write({
+    "srcts/runtime/index.ts": "export const banner = 'bc:bg-red-500/10';\n",
+    "srcts/runtime/index.css": `@import "${core}";\n@source "../runtime";\n`,
+  });
 
-  const css = await stylesheet(join(root, "test.css"));
-
-  expect(css).toMatch(/^\.bc\\:font-sans \{\n {2}font-family: var\(--bc-font-sans\);/m);
-  // Its default is Tailwind's stack of sans faces, so that core's UIs draw in
-  // no serif where the page sets no face.
-  expect(css).toMatch(/--bc-font-sans: [^;]*\bsans-serif\b/);
+  await expect(build(root)).rejects.toThrow(/srcts\/runtime\/index\.ts:1: bc:bg-red-500\/10 names red-500 of Tailwind's palette/);
 });
 
 test("finds the output types, each but BlockOutput, by their names", () => {

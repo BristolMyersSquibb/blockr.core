@@ -6,8 +6,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { step } from "@blockr/ui/stubs";
 import { stubOutputHost } from "../../stubs/index.ts";
-import { mountReact, step } from "../../testing/react.ts";
+import { mountReact } from "../../testing/react.ts";
 import type { OutputFixtures, PlotOutput } from "../../types/outputs.ts";
 import * as basicPlot from "./index.tsx";
 

@@ -3,11 +3,10 @@
 // uses them, with no wait for React.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { chipLabels, labelled, listed, notAvailable, picked, press, texts, toggle, type } from "@blockr/ui/stubs";
 import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
-import { press, texts, toggle, type } from "../testing/inputs.ts";
 import { holdRequests } from "../testing/requests.ts";
-import { chipLabels, labelled, listed, notAvailable, picked } from "../testing/select.ts";
 import type { Json } from "../types/json.ts";
 import { controls, PAUSE, strings } from "./index.ts";
 

@@ -5,7 +5,7 @@
 // It is drawn as file dialogs and RStudio's Files pane are, in one frame.
 // A bar at the top holds a button that goes up a directory, and the path from
 // the volume down to the directory, each part of which goes back there.
-// Below it, a Table of core's React SDK lists the directories first, then the
+// Below it, a Table of blockr.ui lists the directories first, then the
 // files, each with its icon, its size where it is a file, and the time it
 // changed last, in the time zone of the user's browser.
 // The block's file shows highlighted.
@@ -22,25 +22,9 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import {
-  Breadcrumb,
-  Breadcrumbs,
-  Button,
-  Cell,
-  Column,
-  reactModule,
-  Row,
-  Select,
-  SelectItem,
-  Stack,
-  Table,
-  TableBody,
-  TableHeader,
-  useRequest,
-  useValue,
-} from "../../react/index.ts";
+import { Breadcrumb, Breadcrumbs, Button, Cell, Column, FormLayout, Row, Select, SelectItem, Table, TableBody, TableHeader } from "@blockr/ui";
+import { reactModule, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { Json } from "../../types/json.ts";
 import { isObject, jsonEqual, own } from "../../util/index.ts";
@@ -89,10 +73,16 @@ interface Entry {
 // list's columns, and of the row of the block's file.
 // The columns of sizes and times keep their widths, so that they stay in
 // place as the user moves from one directory to another.
-const FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised";
-const BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border-default bc:p-1 bc:text-sm";
-const HEAD = "bc:text-xs bc:text-text-muted";
-const CHOSEN = "bc:bg-bg-accent/10 bc:font-semibold";
+const FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border bc:bg-popover";
+const BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border bc:p-1 bc:text-sm";
+const HEAD = "bc:text-xs bc:text-muted-foreground";
+const CHOSEN = "bc:bg-primary/10 bc:font-semibold";
+// The classes of the line below the list that names the block's file, in the
+// colour of secondary text, and of the line that says why the host refused a
+// file, in the colour of an error's text, as blockr.ui draws a field's
+// description and its error.
+const HINT = "bc:m-0 bc:text-sm bc:text-muted-foreground";
+const ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
 
 function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useValue(host, "volumes").value;
@@ -156,7 +146,7 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
 
   const names = Object.keys(volumes);
   return (
-    <Stack>
+    <FormLayout>
       {names.length > 1 && (
         <Select
           label="Volume"
@@ -183,7 +173,7 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
           >
             <Up />
           </Button>
-          <FolderIcon className="bc:shrink-0 bc:text-text-muted" />
+          <FolderIcon className="bc:shrink-0 bc:text-muted-foreground" />
           <nav aria-label="Directory" className="bc:min-w-0">
             <Breadcrumbs
               onAction={(key) => {
@@ -227,27 +217,27 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
               <Row id={entry.id} data-current={entry.current || undefined} className={`bc:cursor-pointer ${entry.current ? CHOSEN : ""}`}>
                 <Cell textValue={entry.name}>
                   <span className="bc:flex bc:items-center bc:gap-2">
-                    {entry.dir ? <FolderIcon className="bc:shrink-0 bc:text-bg-accent" /> : <FileIcon className="bc:shrink-0 bc:text-text-muted" />}
+                    {entry.dir ? <FolderIcon className="bc:shrink-0 bc:text-primary" /> : <FileIcon className="bc:shrink-0 bc:text-muted-foreground" />}
                     {entry.name}
                   </span>
                 </Cell>
                 <Cell className="bc:text-right bc:tabular-nums">
-                  {entry.size === null ? <span className="bc:text-text-muted">—</span> : sizeText(entry.size)}
+                  {entry.size === null ? <span className="bc:text-muted-foreground">—</span> : sizeText(entry.size)}
                 </Cell>
-                <Cell className="bc:tabular-nums bc:text-text-muted">{modifiedText(entry.modified)}</Cell>
+                <Cell className="bc:tabular-nums bc:text-muted-foreground">{modifiedText(entry.modified)}</Cell>
               </Row>
             )}
           </TableBody>
         </Table>
       </div>
       {/* Before a file is chosen, the block's status says what is missing. */}
-      {held !== undefined && <p className={styles.hint}>{`Chosen: ${held}`}</p>}
+      {held !== undefined && <p className={HINT}>{`Chosen: ${held}`}</p>}
       {file.error !== null && (
-        <p role="alert" className={styles.alert}>
+        <p role="alert" className={ALERT}>
           {file.error}
         </p>
       )}
-    </Stack>
+    </FormLayout>
   );
 }
 

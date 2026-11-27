@@ -79,16 +79,19 @@ export const coreOptions: Readonly<Record<OptionId, Omit<Option, "id">>> = {
   dark_mode: darkMode,
 };
 
-// Switches the page to a theme, "light" or "dark",
-// in the attribute data-bc-theme of the page's root element.
-// Like core's utilities and theme variables, the attribute takes core's prefix.
+// Switches the page to a mode, "light" or "dark",
+// in the attribute data-bk-mode of the page's root element
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#light-mode-and-dark-mode).
+// The attribute takes blockr.ui's prefix, since blockr.ui's stylesheet keys
+// the values of the theme variables in each mode on it, and sets the page's
+// color-scheme by it.
+// The dark variant of every package's classes keys on it through blockr.ui's
+// build preset, and so do the colours of a block's statuses in core's
+// stylesheet.
 // The page holds no Bootstrap, so core sets no data-bs-theme.
-// Core reads the attribute in its dark variant, as in `bc:dark:text-gray-100`,
-// in the page's color-scheme and in the dark default of bg-raised.
 // Core also measures an output's info again as the attribute changes.
-// A package that styles the dark theme keys off the attribute as well.
 export function setTheme(theme: Json): void {
-  document.documentElement.setAttribute("data-bc-theme", theme === "dark" ? "dark" : "light");
+  document.documentElement.setAttribute("data-bk-mode", theme === "dark" ? "dark" : "light");
 }
 
 // The theme that the user's system prefers.

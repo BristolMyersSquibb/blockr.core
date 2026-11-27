@@ -75,7 +75,7 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
   function Renderer({ host }: ModuleProps<OutputHost>): ReactElement {
     const now = useOutput(host);
     return (
-      <div className="bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default" aria-busy={now.loading}>
+      <div className="bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:font-sans" aria-busy={now.loading}>
         <Boundary host={host} output={now.output}>
           <div className={`bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`}>
             <Draw

@@ -1,5 +1,6 @@
 // What the stubs of the hosts share.
 
+import { act } from "react";
 import { writingLog } from "../log/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { OptionId } from "../types/board.ts";
@@ -114,4 +115,26 @@ export function lineHolder(pkg: string | null = null): { logged: readonly LogLin
       logged.push(line);
     }),
   };
+}
+
+// Whether React runs what the test does through act(), as a test runner sets
+// it up for React, which then warns of an update outside act().
+function reactActs(): boolean {
+  return (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT === true;
+}
+
+// Does what the test does, and then what a module that draws with React
+// scheduled in turn, and gives what the test's function gave.
+export async function acting<T>(fn: () => T | Promise<T>): Promise<T> {
+  return reactActs() ? await act(async () => await fn()) : await fn();
+}
+
+// Does what the test does, as acting() does, for a step that the test does not
+// wait for, which runs and draws before it returns.
+export function actingNow(fn: () => void): void {
+  if (reactActs()) {
+    act(fn);
+  } else {
+    fn();
+  }
 }

@@ -10,8 +10,9 @@
 // right join.
 
 import type { ReactElement } from "react";
+import { ComboBox, ComboBoxItem, FormLayout, Select, SelectItem, Text } from "@blockr/ui";
 import { strings } from "../../binding/index.ts";
-import { ComboBox, ComboBoxItem, reactModule, Select, SelectItem, Stack, Text, useRequest, useValue } from "../../react/index.ts";
+import { reactModule, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { Json } from "../../types/json.ts";
@@ -49,7 +50,7 @@ function argsOf(id: Json | undefined): Partial<State> {
 function MergeBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useRequest(host, "shared");
   return (
-    <Stack>
+    <FormLayout>
       <ComboBox
         bound={useValue(host, "by")}
         selectionMode="multiple"
@@ -68,7 +69,7 @@ function MergeBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
           </SelectItem>
         )}
       </Select>
-    </Stack>
+    </FormLayout>
   );
 }
 

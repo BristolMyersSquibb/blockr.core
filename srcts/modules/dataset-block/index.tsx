@@ -5,8 +5,9 @@
 // so the select marks no dataset.
 
 import type { ReactElement } from "react";
+import { ComboBox, ComboBoxItem, FormLayout } from "@blockr/ui";
 import { strings } from "../../binding/index.ts";
-import { ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
+import { reactModule, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
@@ -19,7 +20,7 @@ function DatasetBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const pkg = useValue(host, "package").value;
   const datasets = useRequest(host, "datasets", { reads: pkg ?? null });
   return (
-    <Stack>
+    <FormLayout>
       <ComboBox
         bound={useValue(host, "dataset")}
         label="Dataset"
@@ -29,7 +30,7 @@ function DatasetBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
       >
         {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
       </ComboBox>
-    </Stack>
+    </FormLayout>
   );
 }
 

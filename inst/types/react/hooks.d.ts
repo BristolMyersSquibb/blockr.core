@@ -1,3 +1,4 @@
+import type { Bound } from "@blockr/ui";
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
@@ -12,15 +13,6 @@ export interface OutputSnapshot {
     readonly error: Condition | CoreFailure | null;
 }
 export declare function useOutput(host: OutputHost): OutputSnapshot;
-export interface Bound {
-    readonly value: Json | undefined;
-    readonly error: string | null;
-    get(): Json | undefined;
-    commit(value: Json): Promise<boolean>;
-    unset(): Promise<boolean>;
-    type(value: Json | undefined): void;
-    flush(): void;
-}
 export declare function useValue<S extends State>(host: BlockHost<S>, key: Extract<keyof S, string>): Bound;
 export declare function useValue<S extends State>(host: BlockHost<S>, read: (state: S) => Json | undefined, change: (value: Json | undefined, state: S) => Partial<S>): Bound;
 export declare function useValue<V extends Json>(host: OptionHost<V>): Bound;

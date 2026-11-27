@@ -26,7 +26,7 @@ import { createLoader, createMounts, ModuleError, RequestError } from "./index.t
 import type { Measure, Mounts, OnScreenOf, OutputEvent } from "./index.ts";
 
 const TABLE: OutputRenderer = { id: "blockr.core-table_output", module: "blockr.core/basic-table.js?v=b7e2a915" };
-const PREVIEW: OutputRenderer = { id: "blockr.ui-table_preview", module: "blockr.ui/table-preview.js?v=1", css: "blockr.ui/table-preview.css?v=2" };
+const PREVIEW: OutputRenderer = { id: "mypkg-labelled_table", module: "mypkg/labelled-table.js?v=1", css: "mypkg/labelled-table.css?v=2" };
 const TEXT: OutputRenderer = { id: "blockr.core-text_output", module: "blockr.core/basic-text.js?v=3c8f61d0" };
 
 const INFO: OutputInfo = {

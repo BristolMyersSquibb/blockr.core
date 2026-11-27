@@ -62,9 +62,9 @@
 import { useMemo, useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
+import { Button, ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField } from "@blockr/ui";
 import { freeInputs } from "../commands/index.ts";
-import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField, useBoard } from "../react/index.ts";
-import { styles } from "../styles/index.ts";
+import { useBoard } from "../react/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
@@ -264,8 +264,8 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
           )}
         </div>
       ) : null}
-      {link.kind === "fixed" ? <p className={styles.hint}>{link.line}</p> : null}
-      {link.kind === "no_free_inputs" ? <p className={styles.alert}>{link.why}</p> : null}
+      {link.kind === "fixed" ? <p className={classes.hint}>{link.line}</p> : null}
+      {link.kind === "no_free_inputs" ? <p className={classes.alert}>{link.why}</p> : null}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
           label="ID"
@@ -293,9 +293,9 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
         />
       </div>
       <div>
-        <button type="submit" className={classes.primary} disabled={busy || link.kind === "no_free_inputs"}>
+        <Button type="submit" variant="primary" isDisabled={busy || link.kind === "no_free_inputs"}>
           Add block
-        </button>
+        </Button>
       </div>
       <Refusal refusal={edits.refusal} />
     </Form>
@@ -482,7 +482,7 @@ function byCategory(items: readonly ClassItem[]): { readonly id: string; readonl
 }
 
 // The class of a package's badge after a block class's name.
-const BADGE = "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted";
+const BADGE = "bc:ml-auto bc:shrink-0 bc:rounded-sm bc:border bc:border-border bc:px-1 bc:text-xs bc:text-muted-foreground";
 
 // The arg of the name given, where the field holds more than blanks, and none
 // otherwise, so that the command fills it in.

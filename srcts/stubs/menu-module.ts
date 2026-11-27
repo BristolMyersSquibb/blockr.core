@@ -43,7 +43,6 @@
 // - The message of a promise that rejected, and why the check of a text row
 //   refuses its value, show as text on the page.
 
-import { act } from "react";
 import { drawWith, openMenu } from "../actions/index.ts";
 import type { AdvancedModule, BoardAction, CommandCall, DrivenMenu, MenuModule, MenuStart, QuickLevel, QuickRow } from "../actions/index.ts";
 import { log, replaceLogger } from "../log/index.ts";
@@ -53,6 +52,7 @@ import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import { jsonEqual } from "../util/index.ts";
 import { renderable } from "./mount.ts";
+import { acting } from "./util.ts";
 
 // One test of a module that draws the menus of board actions: what it checks,
 // as a test runner names it, and what runs it, which rejects with what the
@@ -350,24 +350,6 @@ function ticked(el: HTMLElement): boolean {
 // What a field holds.
 function valueOf(el: HTMLElement): string {
   return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.value : el.textContent;
-}
-
-// Whether React runs what the test does through act(), as a test runner sets
-// it up for React, which then warns of an update outside act().
-function reactActs(): boolean {
-  return (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT === true;
-}
-
-// Does what the test does, and then what a module that draws with React
-// scheduled in turn.
-async function acting(fn: () => void | Promise<void>): Promise<void> {
-  if (reactActs()) {
-    await act(async () => {
-      await fn();
-    });
-  } else {
-    await fn();
-  }
 }
 
 // Lets the module draw what it scheduled, as React Aria draws the rows of a

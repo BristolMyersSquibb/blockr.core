@@ -106,7 +106,7 @@ export function Footer({ status, shown, settled }: FooterProps): ReactElement {
     <footer
       aria-busy={status?.running === true}
       data-status={shown?.status}
-      className={`bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${
+      className={`bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-muted-foreground bc:transition-opacity ${
         settled ? "" : "bc:opacity-50"
       }`}
     >
@@ -197,33 +197,34 @@ function counted(status: BlockStatus | undefined, notifications: readonly Notifi
 }
 
 // How a card marks a notification of each severity, in its pill and in its
-// banner, as the basic frontend's toasts do: in the theme's danger colour for
-// an error, its warning colour for a warning, and its accent, blue, for a
-// message.
-// The blue of a message is blue-700 under the light theme.
-// The shade blue-600 reaches only 4.25:1 on the tint, below the 4.5:1 that
+// banner, as the basic frontend's toasts do: in the colour of an error,
+// `destructive`, for an error, in that of a warning, `warning`, for a
+// warning, and in the brand colour, `primary`, for a message
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#colours).
+// The colour marks the edge, and tints the fill at 10%.
+// The text takes the colour's `-text`, which reaches 4.5:1 on the tint, as
 // WCAG's level AA asks of text.
 export const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: string; tint: string; border: string }>> = {
   error: {
     label: "Error",
     noun: "error",
-    text: "bc:text-text-danger",
-    tint: "bc:bg-red-500/10",
-    border: "bc:border-border-danger",
+    text: "bc:text-destructive-text",
+    tint: "bc:bg-destructive/10",
+    border: "bc:border-destructive",
   },
   warning: {
     label: "Warning",
     noun: "warning",
-    text: "bc:text-text-warning",
-    tint: "bc:bg-amber-500/10",
-    border: "bc:border-amber-500",
+    text: "bc:text-warning-text",
+    tint: "bc:bg-warning/10",
+    border: "bc:border-warning",
   },
   message: {
     label: "Message",
     noun: "message",
-    text: "bc:text-blue-700 bc:dark:text-blue-400",
-    tint: "bc:bg-blue-500/10",
-    border: "bc:border-border-accent",
+    text: "bc:text-primary-text",
+    tint: "bc:bg-primary/10",
+    border: "bc:border-primary",
   },
 };
 

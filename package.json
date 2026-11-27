@@ -1,20 +1,24 @@
 {
   "name": "blockr.core",
   "private": true,
-  "description": "Builds and checks the client of blockr.core: TypeScript in srcts/, bundled into inst/js.",
+  "description": "Builds and checks the client of blockr.core: TypeScript in srcts/, bundled into inst/js, against the components and the build preset of blockr.ui.",
   "type": "module",
   "engines": {
     "node": "^22.18.0 || >=24"
   },
   "scripts": {
+    "pretypecheck": "node srcts/build/ui-types.ts",
     "typecheck": "tsc -b",
+    "prelint": "node srcts/build/ui-types.ts",
     "lint": "eslint .",
+    "pretest": "node srcts/build/ui-types.ts",
     "test": "vitest run",
+    "prebuild": "node srcts/build/ui-types.ts",
     "build": "node srcts/build/build.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -24,7 +28,10 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "happy-dom": "^21.0.4",
     "postcss": "^8.5.32",
-    "tailwindcss": "^4.3.3",
+    "react": "19.3.1",
+    "react-aria-components": "1.22.1",
+    "react-dom": "19.3.1",
+    "tailwindcss": "4.3.3",
     "ts-json-schema-generator": "^2.9.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
@@ -38,10 +45,7 @@
     "@opentelemetry/resources": "^3.1.1",
     "@opentelemetry/sdk-logs": "^3.1.1",
     "@opentelemetry/sdk-trace": "^3.1.1",
-    "@preact/signals-core": "^1.14.5",
-    "react": "^19.3.1",
-    "react-aria-components": "^1.22.1",
-    "react-dom": "^19.3.1"
+    "@preact/signals-core": "^1.14.5"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

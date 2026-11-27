@@ -154,11 +154,42 @@ served_dir <- function() {
   file.path(tempdir(), "blockr-served")
 }
 
+# The packages whose files the page's import map names, each as the
+# inst/js/import-map.json of the package lists them: blockr.ui, for React's
+# entry points, its components and React Aria's three packages, and core, for
+# its React SDK, its binding, its controls, its OpenTelemetry module and
+# OpenTelemetry's API
+# (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.4#the-bundle).
+import_map_packages <- function() {
+  c("blockr.ui", "blockr.core")
+}
+
+# The entries of the page's import map, each import by its name, such as
+# `react` or `@blockr/core/react`, as the module of the file that its package
+# ships for it.
+page_imports <- function() {
+
+  entries <- lapply(
+    import_map_packages(),
+    function(pkg) {
+      map <- yyjsonr::read_json_file(
+        pkg_file("js", "import-map.json", pkg = pkg)
+      )
+      lapply(
+        map[["imports"]],
+        function(file) js_module(file.path("js", file), package = pkg)
+      )
+    }
+  )
+
+  do.call(c, entries)
+}
+
 # The import map of the page that R serves, as the script tag for the page's
-# head. It gives each import that core's build leaves in a module, such as
-# `react` and `@blockr/core/react`, the URL at which R serves the file that
-# blockr.core ships for it, as inst/js/import-map.json names them.
-# R serves the files that those import in turn, such as the vendor file, as it
+# head. It gives each import that a module's build leaves in a module, such as
+# `react`, `@blockr/ui` and `@blockr/core/react`, the URL at which R serves the
+# file that blockr.ui or blockr.core ships for it (see `page_imports()`).
+# R serves the files that those import in turn, such as a vendor file, as it
 # serves every file beside a package's module.
 # A browser takes an import map only ahead of the page's first module script,
 # so the page puts this tag before any such script.
@@ -166,16 +197,9 @@ served_dir <- function() {
 # takes no other relative URL.
 import_map <- function() {
 
-  map <- yyjsonr::read_json_file(
-    system.file("js", "import-map.json", package = "blockr.core")
-  )
-
   imports <- lapply(
-    map[["imports"]],
-    function(file) {
-      module <- js_module(file.path("js", file), package = "blockr.core")
-      paste0("./", served_url(module))
-    }
+    page_imports(),
+    function(module) paste0("./", served_url(module))
   )
 
   shiny::tags$script(
@@ -247,16 +271,14 @@ preload_links <- function(runtime, modules = list()) {
 # lists it in the preload.json beside the file, and the files that those
 # import in turn, each by its path in its package and by the URL at which the
 # page imports it, in `path` and `url`.
-# An import by name is a file of core's that the import map names, at the URL
-# that the map gives it.
+# An import by name is a file of blockr.ui's or of core's that the import map
+# names, at the URL that the map gives it.
 # An import of a file beside the importing file comes at its path, without a
 # hash, since the browser reads that URL off the import.
 # A file from no package lists nothing.
 imported_files <- function(files) {
 
-  map <- yyjsonr::read_json_file(
-    system.file("js", "import-map.json", package = "blockr.core")
-  )[["imports"]]
+  map <- page_imports()
 
   lists <- new.env(parent = emptyenv())
 
@@ -300,11 +322,12 @@ imported_files <- function(files) {
         )
         url <- url_path(next_file[["package"]], next_file[["path"]])
       } else if (name %in% names(map)) {
+        module <- map[[name]]
         next_file <- list(
-          package = "blockr.core",
-          path = file.path("js", map[[name]])
+          package = module[["package"]],
+          path = module[["path"]]
         )
-        url <- served_url(js_module(next_file[["path"]], "blockr.core"))
+        url <- served_url(module)
       } else {
         next
       }

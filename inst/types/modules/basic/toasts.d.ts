@@ -1,4 +1,4 @@
-import { ToastQueue } from "../../react/index.ts";
+import { ToastQueue } from "@blockr/ui";
 import type { Board, PluginClassId } from "../../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../../types/core-api.ts";
 export declare const SHOWN_FOR = 5000;

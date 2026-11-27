@@ -4,7 +4,7 @@
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { beforeEach, describe, expect, test } from "vitest";
-import { step } from "../testing/react.ts";
+import { step } from "@blockr/ui/stubs";
 import type { Notification, Severity } from "../types/core-api.ts";
 import { NotificationList } from "./index.ts";
 
@@ -52,7 +52,7 @@ describe("NotificationList", () => {
     expect(el.querySelector("b")).toBeNull();
   });
 
-  test("draws an error and a warning in their sets of core's theme, and a message in its neutral colours", async () => {
+  test("draws an error and a warning in the colours of their jobs, and a message in neutral colours", async () => {
     await step(() => {
       root.render(
         <NotificationList
@@ -62,9 +62,9 @@ describe("NotificationList", () => {
     });
 
     const [error, warning, message] = items().map((item) => item.className.split(" "));
-    expect(error).toEqual(expect.arrayContaining(["bc:text-text-danger", "bc:bg-bg-danger", "bc:border-border-danger-subtle"]));
-    expect(warning).toEqual(expect.arrayContaining(["bc:text-text-warning", "bc:bg-bg-warning", "bc:border-border-warning-subtle"]));
-    expect(message).toEqual(expect.arrayContaining(["bc:text-text-default", "bc:bg-bg-subtle", "bc:border-border-default"]));
+    expect(error).toEqual(expect.arrayContaining(["bc:text-destructive-text", "bc:bg-destructive/10", "bc:border-destructive/35"]));
+    expect(warning).toEqual(expect.arrayContaining(["bc:text-warning-text", "bc:bg-warning/10", "bc:border-warning/45"]));
+    expect(message).toEqual(expect.arrayContaining(["bc:bg-muted", "bc:border-border"]));
   });
 
   test("takes its accessible name from its caller", async () => {

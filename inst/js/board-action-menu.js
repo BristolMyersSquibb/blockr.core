@@ -2,9 +2,8 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "./vendor-c5b8952d.js";
-import { TextField } from "@blockr/core/react";
-import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
+import { Autocomplete, Menu, MenuItem, MenuSection, Popover, Text, TextField } from "@blockr/ui";
+import { Input, Separator, TextField as AriaTextField } from "react-aria-components";
 
 // srcts/util/shortcuts.ts
 function matchesShortcut(text, event) {
@@ -278,7 +277,7 @@ function Level({
           ]
         }
       )
-    ] }) : /* @__PURE__ */ jsx("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger", children: level.error })
+    ] }) : /* @__PURE__ */ jsx("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-destructive-text", children: level.error })
   ] });
 }
 function groups(listed) {
@@ -328,7 +327,7 @@ function Item({
         /* @__PURE__ */ jsxs(
           "span",
           {
-            className: `bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${removes ? "bc:group-data-focused:text-text-danger bc:group-data-hovered:text-text-danger" : ""}`,
+            className: `bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${removes ? "bc:group-data-focused:text-destructive-text bc:group-data-hovered:text-destructive-text" : ""}`,
             children: [
               icon === void 0 ? null : /* @__PURE__ */ jsx(
                 "span",
@@ -343,7 +342,7 @@ function Item({
           }
         ),
         detail === void 0 && row.advanced !== true ? null : /* @__PURE__ */ jsxs("span", { className: "bc:-my-1 bc:flex bc:items-center bc:gap-2", children: [
-          detail === void 0 ? null : /* @__PURE__ */ jsx("span", { className: "bc:min-w-0 bc:truncate bc:text-xs bc:text-text-muted", children: detail }),
+          detail === void 0 ? null : /* @__PURE__ */ jsx("span", { className: "bc:min-w-0 bc:truncate bc:text-xs bc:text-muted-foreground", children: detail }),
           row.advanced === true ? /* @__PURE__ */ jsx(
             "span",
             {
@@ -430,17 +429,17 @@ function choiceKey(row, choice) {
 function isFilter(target) {
   return target instanceof HTMLInputElement && target.hasAttribute("data-filter");
 }
-var TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
-var OPEN = "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:focus-visible:ring-2 bc:focus-visible:ring-border-accent";
+var TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-muted-foreground";
+var OPEN = "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border-0 bc:bg-transparent bc:p-0 bc:text-muted-foreground bc:cursor-pointer bc:outline-none bc:hover:bg-accent bc:hover:text-accent-foreground bc:focus-visible:ring-2 bc:focus-visible:ring-ring";
 var OPEN_NAME = "Show all options";
 var OPEN_KEY = "Mod+Enter";
 function openTip(win) {
   return `${OPEN_NAME} (${shortcutLabel(OPEN_KEY, onMac(win)) ?? OPEN_KEY})`;
 }
-var NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";
-var FILTER = "bc:box-border bc:w-full bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-text-default bc:outline-none";
-var DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border-default";
-var REMOVES = "bc:group bc:data-hovered:bg-bg-danger! bc:data-focused:bg-bg-danger!";
+var NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-muted-foreground bc:italic";
+var FILTER = "bc:box-border bc:w-full bc:rounded-sm bc:border bc:border-border bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-inherit bc:outline-none";
+var DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border";
+var REMOVES = "bc:group bc:data-hovered:bg-destructive/10! bc:data-focused:bg-destructive/10!";
 export {
   api,
   board_action_menu_default as default

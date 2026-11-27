@@ -313,9 +313,11 @@ test_that("the import map names the URL at which R serves each import", {
 
   local_served_dir()
 
-  shipped <- yyjsonr::read_json_file(
-    system.file("js", "import-map.json", package = "blockr.core")
-  )
+  shipped <- function(pkg) {
+    yyjsonr::read_json_file(
+      system.file("js", "import-map.json", package = pkg)
+    )[["imports"]]
+  }
 
   tag <- import_map()
 
@@ -324,30 +326,35 @@ test_that("the import map names the URL at which R serves each import", {
   map <- yyjsonr::read_json_str(as.character(tag$children[[1L]]))
 
   expect_named(map, "imports")
+  # The entries of blockr.ui, React's entry points, its components and React
+  # Aria's three packages, and then core's
   expect_named(
     map$imports,
     c(
       "react", "react/jsx-runtime", "react-dom", "react-dom/client",
+      "@blockr/ui", "react-aria-components", "react-aria", "react-stately",
       "@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls",
       "@blockr/core/otel", "@opentelemetry/api"
     )
   )
 
-  for (name in names(shipped$imports)) {
-    file <- shipped$imports[[name]]
-    expect_identical(
-      map$imports[[name]],
-      paste0(
-        "./",
-        served_url(js_module(file.path("js", file), package = "blockr.core"))
+  for (pkg in c("blockr.ui", "blockr.core")) {
+    for (name in names(shipped(pkg))) {
+      file <- shipped(pkg)[[name]]
+      expect_identical(
+        map$imports[[name]],
+        paste0(
+          "./",
+          served_url(js_module(file.path("js", file), package = pkg))
+        )
       )
-    )
-    expect_true(file.exists(served_copy("blockr.core", "js", file)))
+      expect_true(file.exists(served_copy(pkg, "js", file)))
+    }
   }
 
-  # The vendor file, which the entry points of React and core's runtime import,
-  # and the bundle of OpenTelemetry's SDK, which core's OpenTelemetry module
-  # imports, by their names, as files beside them.
+  # Core's vendor file, which core's runtime imports, and the bundle of
+  # OpenTelemetry's SDK, which core's OpenTelemetry module imports, by their
+  # names, as files beside them.
   bundles <- list.files(
     system.file("js", package = "blockr.core"),
     "^(vendor|opentelemetry)-[0-9a-f]{8}\\.js$"
@@ -355,4 +362,13 @@ test_that("the import map names the URL at which R serves each import", {
 
   expect_length(bundles, 2L)
   expect_true(all(file.exists(served_copy("blockr.core", "js", bundles))))
+
+  # React's file, which React's entry points import, beside them in blockr.ui.
+  react <- list.files(
+    system.file("js", package = "blockr.ui"),
+    "^react-[0-9a-f]{8}\\.js$"
+  )
+
+  expect_length(react, 1L)
+  expect_true(file.exists(served_copy("blockr.ui", "js", react)))
 })

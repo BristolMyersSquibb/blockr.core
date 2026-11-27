@@ -10,11 +10,9 @@
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
+import { find, labelled, listed, optionFromLabel, optionLabels, picked, selectButton, selectShows, step, type } from "@blockr/ui/stubs";
 import { stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
-import { find, type } from "../testing/inputs.ts";
-import { step } from "../testing/react.ts";
-import { labelled, listed, optionFromLabel, optionLabels, picked, selectButton, selectShows } from "../testing/select.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import type { ShownLevel } from "./quick.ts";
 

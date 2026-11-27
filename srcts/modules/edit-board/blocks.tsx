@@ -26,10 +26,9 @@
 
 import type { ReactElement } from "react";
 import { useBoard } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { BlockId, Board } from "../../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../../types/core-api.ts";
-import { Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
+import { classes, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
@@ -63,12 +62,12 @@ export function BlocksSection({ core }: { core: CoreApi }): ReactElement {
       ) : null}
       <Part title="Blocks on the board">
         {count === 0 ? (
-          <p className={styles.hint}>The board holds no blocks yet.</p>
+          <p className={classes.hint}>The board holds no blocks yet.</p>
         ) : (
           <>
             <TableSearch label="Search blocks" view={view} />
             {view.found === 0 ? (
-              <p className={styles.hint}>No block matches the search.</p>
+              <p className={classes.hint}>No block matches the search.</p>
             ) : (
               <ObjectsTable
                 core={core}
@@ -83,7 +82,7 @@ export function BlocksSection({ core }: { core: CoreApi }): ReactElement {
                   cells: [
                     { content: <span className="bc:font-medium">{block.name}</span>, className: WRAP },
                     { content: block.id, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
-                    { content: block.cls, className: `${WRAP} bc:text-text-muted` },
+                    { content: block.cls, className: `${WRAP} bc:text-muted-foreground` },
                   ],
                 }))}
               />

@@ -9,7 +9,7 @@
 // those of the other tables, and what else the selection holds.
 
 import { useCallback, useSyncExternalStore } from "react";
-import type { Selection } from "../../aria/index.ts";
+import type { Selection } from "react-aria-components";
 import type { BoardObject, CoreApi } from "../../types/core-api.ts";
 
 // The kinds of board object that the plugin's tables list.

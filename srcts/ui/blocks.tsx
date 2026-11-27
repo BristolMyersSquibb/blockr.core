@@ -3,7 +3,7 @@
 // what their classes say of their inputs.
 
 import type { ReactElement } from "react";
-import { ComboBoxItem, Text } from "../react/index.ts";
+import { ComboBoxItem, Text } from "@blockr/ui";
 import type { BlockId, Board } from "../types/board.ts";
 import type { BlockRegistry } from "../types/core-api.ts";
 import { own } from "../util/index.ts";

@@ -1,6 +1,6 @@
-// The UI of the upload block: a drop zone, the SDK's DropZone, which takes a
+// The UI of the upload block: a drop zone, blockr.ui's DropZone, which takes a
 // file that the user drops on it, and holds a button that picks a file the
-// browser's way, React Aria's FileTrigger with the SDK's Button.
+// browser's way, React Aria's FileTrigger with blockr.ui's Button.
 // The module sends the file to R through the action upload,
 // which keeps the file and answers with its path,
 // which the module then submits as the state arg file_path.
@@ -14,10 +14,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
+import { Button, DropZone, FileTrigger, FormLayout, Text } from "@blockr/ui";
 import { strings } from "../../binding/index.ts";
-import { Button, DropZone, FileTrigger, reactModule, Stack, Text, useValue } from "../../react/index.ts";
+import { reactModule, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
-import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
 
@@ -69,7 +69,7 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   // Before then, the block's status says what is missing.
   const said = uploading !== null ? `Uploading ${uploading}…` : held === undefined ? null : `Uploaded ${basename(held)}`;
   return (
-    <Stack>
+    <FormLayout>
       <DropZone
         isDisabled={busy}
         onDrop={(event) => {
@@ -78,10 +78,10 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
           if (item?.kind === "file") void item.getFile().then(upload);
         }}
       >
-        <Text slot="label" className={styles.label}>
+        <Text slot="label" className={LABEL}>
           Upload data
         </Text>
-        <span className={styles.hint}>Drop a file here, or</span>
+        <span className={HINT}>Drop a file here, or</span>
         {/* FileTrigger forgets the file it picked as the user presses the
             button again, so that picking the same file again uploads it
             again. */}
@@ -96,17 +96,25 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
           </Button>
         </FileTrigger>
       </DropZone>
-      {said !== null && <p className={styles.hint}>{said}</p>}
+      {said !== null && <p className={HINT}>{said}</p>}
       {path.error !== null && (
-        <p role="alert" className={styles.alert}>
+        <p role="alert" className={ALERT}>
           {path.error}
         </p>
       )}
-    </Stack>
+    </FormLayout>
   );
 }
 
 export default reactModule(UploadBlock);
+
+// The classes of the zone's label, of the hints beside the button and below
+// the zone, in the colour of secondary text, and of the line that says why
+// the host refused the path, in the colour of an error's text, as blockr.ui
+// draws a field's label, its description and its error.
+const LABEL = "bc:text-sm bc:font-medium";
+const HINT = "bc:m-0 bc:text-sm bc:text-muted-foreground";
+const ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
 
 function basename(path: string): string {
   return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? path;

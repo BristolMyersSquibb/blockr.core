@@ -1026,6 +1026,18 @@
   The app offers these classes like those of its `blocks`, so that a user can add a block of any class that the board shows.
   A board with a block of a class that nothing registers stops the app, naming the block and the class, so a script registers a class that it defines itself before it serves a board with a block of the class.
   Core lists its static and fixed blocks with their metadata, so that an app offers them unless its `blocks` leaves them out (#666).
+* Core draws its UIs with the components of blockr.ui, which it imports, pinned at `BristolMyersSquibb/blockr.ui@js-state`, and drops its own copy of the kit.
+  Core's React SDK, `@blockr/core/react`, holds the hooks and the helpers alone, and `useValue()` returns blockr.ui's `Bound`.
+  A module imports the inputs, the overlays and the other components from `@blockr/ui`, where `Stack` is `FormLayout`.
+  The entry `@blockr/core/controls` no longer exports `styles`, the classes of core's inputs and buttons, since those are blockr.ui's now.
+  Tests act on the components through the helpers of `@blockr/ui/stubs`, which `@blockr/core/stubs` loads.
+  Core's build preset, `@blockr/core/build`, extends the preset of blockr.ui, so a module's imports of `@blockr/ui` and of React Aria's three packages stay imports too, while `staticImports()` and the vendor check come from `@blockr/ui/build`.
+  Core's stylesheet builds with blockr.ui's preset under the prefix `bc`, so that its classes read blockr.ui's theme variables, and core's Tailwind theme goes, but for the colors of statuses and categories.
+  React, React DOM and React Aria leave core's vendor file for the files of blockr.ui (#866).
+* R puts the entries of blockr.ui into the page's import map beside core's, and blockr.ui's stylesheet on every page ahead of core's.
+  The board option `dark_mode` sets the attribute `data-bk-mode` on the page's root, in place of `data-bc-theme`, and the page's `color-scheme` tag takes `light dark` (#866).
+* The new generic `frontend_theme()` returns a frontend's theme, as `blockr.ui::new_blockr_theme()` makes it, with the values of the theme variables that the frontend wants its own.
+  Its method for `frontend_plugin` returns a theme with no values, so a frontend that keeps every default of blockr.ui, as core's basic frontend does, needs no method of its own (#866).
 
 # blockr.core 0.1.4
 

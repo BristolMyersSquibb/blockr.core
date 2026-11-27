@@ -1,24 +1,8 @@
 // srcts/modules/upload-block/index.tsx
 import { useEffect, useRef, useState } from "react";
+import { Button, DropZone, FileTrigger, FormLayout, Text } from "@blockr/ui";
 import { strings } from "@blockr/core/binding";
-import { Button, DropZone, FileTrigger, reactModule, Stack, Text, useValue } from "@blockr/core/react";
-
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
-  label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
-  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
-};
-
-// srcts/modules/upload-block/index.tsx
+import { reactModule, useValue } from "@blockr/core/react";
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 function UploadBlock({ host }) {
@@ -57,7 +41,7 @@ function UploadBlock({ host }) {
   const held = typeof path.value === "string" && path.value !== "" ? path.value : void 0;
   const busy = uploading !== null;
   const said = uploading !== null ? `Uploading ${uploading}\u2026` : held === void 0 ? null : `Uploaded ${basename(held)}`;
-  return /* @__PURE__ */ jsxs(Stack, { children: [
+  return /* @__PURE__ */ jsxs(FormLayout, { children: [
     /* @__PURE__ */ jsxs(
       DropZone,
       {
@@ -67,8 +51,8 @@ function UploadBlock({ host }) {
           if (item?.kind === "file") void item.getFile().then(upload);
         },
         children: [
-          /* @__PURE__ */ jsx(Text, { slot: "label", className: styles.label, children: "Upload data" }),
-          /* @__PURE__ */ jsx("span", { className: styles.hint, children: "Drop a file here, or" }),
+          /* @__PURE__ */ jsx(Text, { slot: "label", className: LABEL, children: "Upload data" }),
+          /* @__PURE__ */ jsx("span", { className: HINT, children: "Drop a file here, or" }),
           /* @__PURE__ */ jsx(
             FileTrigger,
             {
@@ -82,11 +66,14 @@ function UploadBlock({ host }) {
         ]
       }
     ),
-    said !== null && /* @__PURE__ */ jsx("p", { className: styles.hint, children: said }),
-    path.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: path.error })
+    said !== null && /* @__PURE__ */ jsx("p", { className: HINT, children: said }),
+    path.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: ALERT, children: path.error })
   ] });
 }
 var upload_block_default = reactModule(UploadBlock);
+var LABEL = "bc:text-sm bc:font-medium";
+var HINT = "bc:m-0 bc:text-sm bc:text-muted-foreground";
+var ALERT = "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap";
 function basename(path) {
   return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? path;
 }

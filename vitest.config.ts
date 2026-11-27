@@ -3,8 +3,10 @@ import { defineConfig } from "vitest/config";
 
 // A test that loads a bundle that core builds, such as a block's module in
 // inst/js, resolves the bundle's imports of core's React SDK, its binding, its
-// controls and its OpenTelemetry module to their sources, where the page resolves them through its
-// import map, and its imports of React to the React in node_modules.
+// controls and its OpenTelemetry module to their sources, where the page
+// resolves them through its import map, and its imports of React, of React
+// Aria and of blockr.ui's components to those in node_modules, where
+// srcts/build/ui-types.ts installs `@blockr/ui`.
 const source = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({

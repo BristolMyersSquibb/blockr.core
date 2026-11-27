@@ -4,8 +4,8 @@
 # requests of a plugin that the test sends: an echo of its args, progress,
 # a body of a given size, the size of a body it receives, and the end of the
 # session.
-# The page resolves the imports of core's client, of React and of core's React
-# SDK among them, through the import map that R writes into its head.
+# The page resolves the imports of core's client, of React and of blockr.ui's
+# components among them, through the import map that R writes into its head.
 
 options(shiny.maxRequestSize = 1.5 * 2^20)
 
@@ -80,7 +80,7 @@ handler <- function(session) {
 
 page <- "
 import { createClient, shinyTransport } from './blockr-js/blockr-core.js';
-import { TextField } from '@blockr/core/react';
+import { TextField } from '@blockr/ui';
 import { createRoot } from 'react-dom/client';
 import { jsx } from 'react/jsx-runtime';
 
@@ -142,9 +142,9 @@ async function ask(name, args = {}, body = undefined) {
 window.app = {
   sessions,
   ask,
-  // Draws the SDK's TextField with react-dom/client and gives the value it
+  // Draws blockr.ui's TextField with react-dom/client and gives the value it
   // shows, which its hook gives only where both read the same React.
-  sdkInput: async () => {
+  uiInput: async () => {
     const el = document.createElement('div');
     document.body.append(el);
     const bound = {
