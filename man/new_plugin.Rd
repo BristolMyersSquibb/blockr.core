@@ -15,6 +15,8 @@
 \alias{plugin_options.basic_frontend_plugin}
 \alias{frontend_args}
 \alias{frontend_args.frontend_plugin}
+\alias{frontend_theme}
+\alias{frontend_theme.frontend_plugin}
 \alias{complete_plugin}
 \alias{complete_plugin.plugin}
 \alias{available_plugins}
@@ -47,6 +49,10 @@ plugin_options(x, ...)
 frontend_args(x, ...)
 
 \method{frontend_args}{frontend_plugin}(x, ...)
+
+frontend_theme(x, ...)
+
+\method{frontend_theme}{frontend_plugin}(x, ...)
 
 complete_plugin(x, board, aliases, ...)
 
@@ -85,8 +91,9 @@ The generic \code{plugin_version()} returns a whole number, \code{plugin_options
 a board option constructor, a list of them or \code{NULL}, and
 \code{available_plugins()} a data frame with a row for each plugin class.
 The generic \code{frontend_args()} returns what the frontend reads of the
-arguments, a list by name, and \code{complete_plugin()} the plugin with its state
-completed.
+arguments, a list by name, \code{frontend_theme()} the frontend's theme, an
+object of class \code{blockr_theme}, and \code{complete_plugin()} the plugin with its
+state completed.
 }
 \description{
 A plugin extends a board as a whole, such as a frontend that draws the page,
@@ -185,6 +192,18 @@ list.
 So core's basic frontend refuses every argument, and so does a frontend
 whose class has no method of its own.
 
+The app's frontend gives the values of the theme variables that it wants
+its own, such as the color of its cards, through its class's method of
+\code{frontend_theme()}.
+The method returns the frontend's theme, as \code{\link[blockr.ui:new_blockr_theme]{blockr.ui::new_blockr_theme()}}
+makes it, with the frontend's values for light mode and for dark mode.
+Core's method for \code{frontend_plugin} returns a theme with no values.
+So a frontend that keeps every default of blockr.ui, as core's basic
+frontend does, has no method of its own.
+A frontend's tests compare \code{\link[blockr.ui:unset_variables]{blockr.ui::unset_variables()}} of its theme with
+the defaults that it keeps on purpose, so that a theme variable that a later
+blockr.ui adds fails them until the frontend sets it or keeps its default.
+
 A plugin class may complete the state of its plugins on the board that a
 script builds, through its method of \code{complete_plugin()}.
 Once the board is valid, \code{\link[=new_board]{new_board()}} calls the method on each of the
@@ -230,6 +249,15 @@ frontend_args.grid_plugin <- function(x, ..., title = "Grid") {
   list(title = title)
 }
 
+# In a package whose frontend, of the class grid_plugin, draws its cards in
+# a color of its own, in each mode
+frontend_theme.grid_plugin <- function(x, ...) {
+  blockr.ui::new_blockr_theme(
+    light = list("--bk-color-card" = "#fafafa"),
+    dark = list("--bk-color-card" = "#262626")
+  )
+}
+
 # In a package whose plugin class, notes_plugin, keeps the plugin that its
 # notes are about, which a script may give by a name, as in
 # list(dag = new_dag_plugin(), new_notes_plugin(about = "dag"))
@@ -246,5 +274,7 @@ available_plugins()
 plugin_class_id(new_basic_frontend_plugin())
 
 frontend_args(new_basic_frontend_plugin())
+
+frontend_theme(new_basic_frontend_plugin())
 
 }

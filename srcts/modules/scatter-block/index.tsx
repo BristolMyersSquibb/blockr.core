@@ -5,8 +5,9 @@
 // so the selects mark no column.
 
 import type { ReactElement } from "react";
+import { ComboBox, ComboBoxItem, FormLayout } from "@blockr/ui";
 import { strings } from "../../binding/index.ts";
-import { ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
+import { reactModule, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
@@ -18,14 +19,14 @@ function ScatterBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const items = strings(columns.answer).map((id) => ({ id }));
   const outdated = columns.loading || columns.error !== null;
   return (
-    <Stack>
+    <FormLayout>
       <ComboBox bound={useValue(host, "x")} label="X-axis" placeholder="Choose a column" defaultItems={items} outdated={outdated}>
         {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
       </ComboBox>
       <ComboBox bound={useValue(host, "y")} label="Y-axis" placeholder="Choose a column" defaultItems={items} outdated={outdated}>
         {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
       </ComboBox>
-    </Stack>
+    </FormLayout>
   );
 }
 

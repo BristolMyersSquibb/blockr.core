@@ -3,7 +3,7 @@
 // The blockr option board_action_menu names it by its id, as a module that a
 // package offers others.
 // Core's own menu is such a module, blockr.core-board_action_menu, which draws
-// with the components of core's React SDK, and the blockr option names it
+// with blockr.ui's components, and the blockr option names it
 // unless the app names another (../modules/board-action-menu).
 // So an app that draws with a UI kit other than blockr.ui's draws the menus of
 // board actions with that kit too.

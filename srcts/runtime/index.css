@@ -2,158 +2,51 @@
  * Core's stylesheet, which Tailwind CSS builds into inst/js/blockr-core.css,
  * holds every utility of core's client. Utilities spread over several
  * stylesheets would override each other by the order those load in, so that
- * `bc:hidden` in a later one would beat `bc:md:block` in an earlier one. A
- * module's own stylesheet references this one, with
- * `@reference "../../runtime/index.css";`, to use them in `@apply` without
- * repeating them.
+ * `bc:hidden` in a later one would beat `bc:md:block` in an earlier one.
  *
- * - Utilities take core's prefix, as in `bc:flex`, and so does the theme, whose
- *   variables, such as `--bc-color-blue-500`, a frontend or a UI kit may set to
- *   restyle core.
- * - The colors of core's UIs are variables of the theme by what each is for,
- *   named after blockr.ui's design tokens, as `--bc-color-border-default`
- *   after `--blockr-color-border-default`. Their defaults follow the text
- *   around the element that core draws in, or take the theme's red and blue
- *   or the page's background, so that core suits a light and a dark frontend
- *   alike, and a frontend or a UI kit sets them to restyle core.
- *   The danger and the warning texts take lighter values under the dark theme.
- * - The theme also holds a color for each status of a block and for each
- *   category of block classes, for every plugin that draws them.
- *   Their defaults are blockr.ui's colors, rather than ones that follow the
- *   text, and the statuses take lighter ones under the dark theme.
- * - The face of core's UIs is the theme's sans, `--bc-font-sans`, as that of
- *   their code is its mono, `--bc-font-mono`, rather than the face of the
- *   element they sit in, since core counts on no stylesheet of the page to
- *   set one. A frontend or a UI kit sets them to restyle core.
- * - Preflight, Tailwind's reset of the whole page, is left out, so that nothing
- *   core loads styles another package's elements.
+ * Core builds it with the Tailwind half of blockr.ui's build preset, as every
+ * package that writes classes builds its own
+ * (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.4#the-build-preset):
+ * - Utilities take core's prefix, as in `bc:flex`, since stylesheets built
+ *   apart that share a class override each other by load order.
+ * - The preset maps each name of Tailwind's theme that has a theme variable
+ *   onto that variable, so that core's classes read blockr.ui's variables,
+ *   as `bc:bg-popover` reads `--bk-color-popover`.
+ *   The stylesheet of blockr.ui alone sets those variables, with their
+ *   defaults, and a frontend's theme and an app's theme set values over them.
+ *   So core's UIs take their colours, faces, sizes of text, radii, shadows
+ *   and spacing from the theme variables alone.
+ * - The preset drops Tailwind's palette, so that a class such as
+ *   `bc:bg-blue-600` writes nothing, and the build fails it.
+ * - The preset keys the dark variant on the attribute data-bk-mode of the
+ *   page's root, which the board option dark_mode sets.
+ * - Preflight, Tailwind's reset of the whole page, is left out, so that
+ *   nothing that core loads styles another package's elements.
  * - Utilities sit outside any cascade layer, since a page's other CSS, such as
  *   Bootstrap's, sits outside one too and would win over them otherwise, as its
  *   `label { display: inline-block; }` would over `bc:block`.
- * - The dark variant, as in `bc:dark:text-gray-100`, applies under the dark
- *   theme that the board option dark_mode switches the page to, in the
- *   attribute data-bc-theme of its root element.
- *   A package that styles the dark theme keys off the same attribute.
+ * R puts blockr.ui's stylesheet on the page ahead of this one, so that a class
+ * of core's that core passes to one of blockr.ui's components wins over the
+ * component's own class of the same weight.
  */
 @layer theme;
 @import "tailwindcss/theme.css" layer(theme) prefix(bc);
 @import "tailwindcss/utilities.css" source(none);
-@custom-variant dark (&:where([data-bc-theme="dark"], [data-bc-theme="dark"] *));
-
-/*
- * The browser draws the page's background, form controls and scrollbars in
- * the theme that core switches the page to.
- * It is the one style that core gives an element not its own:
- * the page's root, whose theme core sets.
- */
-:root[data-bc-theme="dark"] {
-  color-scheme: dark;
-}
-:root[data-bc-theme="light"] {
-  color-scheme: light;
-}
+@import "@blockr/ui/preset.css";
 @source "../**/*.{ts,tsx}";
 @source not "../build";
 @source not "../**/*.test.{ts,tsx}";
 
 /*
- * Under the light theme, the danger and the warning texts take red-700 and
- * amber-800.
- * WCAG's level AA asks a contrast of 4.5:1 of text.
- * Core draws these texts on the page, on a card's bg-subtle, and on the tint
- * of a card's mark, which lays red-500 or amber-500 at 10% over the card.
- * The shades red-700 and amber-800 are the lightest that reach 4.5:1 on all
- * three.
- * The shade that blockr.ui takes, amber-700, reaches 4.26:1 on the tint.
- * Under the dark theme, both take lighter values, in the rule that gives the
- * statuses theirs.
- *
- * The list of notifications in core's React SDK draws an error or a warning
- * on a fill, with a subtle edge, in the message style of blockr.ui's design
- * system.
- * The fills, bg-danger and bg-warning, mix the danger or the warning border
- * at 10%.
- * By default, that is the tint of a card's mark, so the texts reach 4.5:1 on
- * the fills too.
- * Core's menu fills a row that removes with bg-danger under the pointer and
- * as the keyboard's row, as the design system fills a destructive row with
- * blockr.ui's --blockr-color-bg-danger.
- * The edges, border-danger-subtle and border-warning-subtle, mix the same
- * borders at 35% and at 45%, as blockr.ui mixes its subtle borders.
- * So a frontend that sets a border changes its fill and its edge with it,
- * unless it sets those as well.
- */
-@theme {
-  --color-text-default: currentColor;
-  --color-text-muted: color-mix(in oklab, currentColor 65%, transparent);
-  --color-text-danger: var(--bc-color-red-700);
-  --color-text-warning: var(--bc-color-amber-800);
-  --color-text-success: var(--bc-color-green-600);
-  --color-text-on-accent: var(--bc-color-white);
-  --color-border-default: color-mix(in oklab, currentColor 25%, transparent);
-  --color-border-danger: var(--bc-color-red-500);
-  --color-border-warning: var(--bc-color-amber-500);
-  --color-border-danger-subtle: color-mix(in oklab, var(--bc-color-border-danger) 35%, transparent);
-  --color-border-warning-subtle: color-mix(in oklab, var(--bc-color-border-warning) 45%, transparent);
-  --color-border-accent: var(--bc-color-blue-500);
-  --color-bg-accent: var(--bc-color-blue-600);
-  --color-bg-danger: color-mix(in oklab, var(--bc-color-border-danger) 10%, transparent);
-  --color-bg-warning: color-mix(in oklab, var(--bc-color-border-warning) 10%, transparent);
-  --color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
-  --color-bg-raised: Canvas;
-}
-
-/*
- * What floats over the board, such as a menu or a dialog, covers what lies
- * below it, so its background, bg-raised, is opaque.
- * Its default is the page's background, the system color Canvas,
- * which the browser draws in the page's theme.
- * Under the dark theme, it mixes in 10% of the text.
- * A menu is then lighter than the card it opens over,
- * whose background lays 5% of the text over the page.
- * The rule sits in the theme's layer, as the theme's variables do,
- * so that a frontend or a UI kit that sets the variable outside a layer
- * wins over it.
- */
-@layer theme {
-  :root[data-bc-theme="dark"] {
-    --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
-  }
-}
-
-/*
- * Every overlay of core's React SDK, such as a modal, a menu, a tooltip or a
- * select's list, sits in React Aria's portal at the end of the page's body, at
- * the z-index that --bc-z-index-overlay gives it, the utility bc:z-overlay
- * (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#react).
- * Overlays at one z-index stack in the order in which they opened, since
- * React Aria opens each in a portal of its own after those already open.
- * So a select's list shows above the modal that holds the select.
- * The toasts of the SDK sit one above the overlays, so that a toast shows
- * above a modal.
- * The overlays stack above everything else on the page:
- * - Core gives no other element of its own a z-index on the page.
- * - Under the dock, blockr.ui's layers reach 1090, for the dock's toasts.
- * - The dockview library, which the dock draws with, gives a floating group
- *   999, and its guides 1099 while the user drags a panel.
- * Only the drop targets of dockview, at 9999, sit higher, while the user
- * drags a panel, and no overlay stays open through a drag: a press outside a
- * menu or a popover closes it, and a tooltip closes as the pointer leaves.
- * The variable sits in the theme's layer, as the colors do, so that a
- * frontend or a UI kit that sets it outside a layer wins over it.
- */
-@theme static {
-  --z-index-overlay: 1100;
-}
-
-/*
- * A color for each status of a block and for each category of block classes.
+ * A colour for each status of a block and for each category of block classes.
  * The categories are those that suggested_categories() lists in R.
+ * Both are core's, so that no theme variable of blockr.ui names a status or a
+ * category (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
  * Every plugin that draws a block's status or the mark of its class reads
  * them, as the dock's cards and the DAG's nodes do, so that all of them draw
- * a status or a category in the same color
+ * a status or a category in the same colour
  * (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
- * Their defaults are the values of blockr.ui's design tokens.
+ * Their defaults are the values of blockr.ui's design tokens on main.
  * Each status takes the value of the token that the table of the dock's
  * status dot names for it, as ready takes that of
  * --blockr-color-border-success
@@ -163,7 +56,7 @@
  * Tailwind writes a variable of @theme into the stylesheet only where a
  * utility uses it, but it writes every variable of @theme static.
  * So a plugin finds each of these variables, even one that no UI of core's
- * uses, such as the color of a category.
+ * uses, such as the colour of a category.
  */
 @theme static {
   --color-status-unevaluated: #6b7280;
@@ -184,23 +77,20 @@
 }
 
 /*
- * Under the dark theme, each status takes the value that blockr.ui gives its
- * token there.
- * So do the danger and the warning texts.
- * Their values under the light theme fall below 4.5:1 on the dark page.
- * The categories keep their colors.
- * The rule sits in the theme's layer, as that of bg-raised does.
+ * In dark mode, each status takes the value that blockr.ui's token takes
+ * there on main.
+ * The categories keep their colours.
+ * The rule sits in the theme's layer, as the variables of @theme do, so that
+ * a value set outside a layer wins over it.
  */
 @layer theme {
-  :root[data-bc-theme="dark"] {
+  :root[data-bk-mode="dark"] {
     --bc-color-status-unevaluated: #8a94a3;
     --bc-color-status-stale: #8a94a3;
     --bc-color-status-waiting: #fbbf24;
     --bc-color-status-invalid: #fbbf24;
     --bc-color-status-ready: #4ade80;
     --bc-color-status-failed: #f87171;
-    --bc-color-text-danger: #f87171;
-    --bc-color-text-warning: #fbbf24;
   }
 }
 
@@ -208,7 +98,7 @@
  * The loading note, which the page shows while core starts, as the page
  * starts and as another board opens, and which R's page holds from the start:
  * a spinner over the line "Loading the board…", in the middle of the window,
- * in the muted color of the text.
+ * in the colour of secondary text, `muted-foreground`.
  * It fades in after a moment, so that a board that opens at once shows none.
  * It takes no clicks, so that it blocks nothing that a frontend draws beside
  * it before render() has returned.
@@ -221,10 +111,10 @@
   place-content: center;
   justify-items: center;
   gap: --spacing(3);
-  font-family: var(--bc-font-sans);
-  font-size: var(--bc-text-sm);
-  line-height: var(--bc-text-sm--line-height);
-  color: var(--bc-color-text-muted);
+  font-family: --theme(--font-sans);
+  font-size: --theme(--text-sm);
+  line-height: --theme(--text-sm--line-height);
+  color: --theme(--color-muted-foreground);
   animation: bc-appear 400ms ease-out 400ms both;
 }
 
@@ -321,63 +211,5 @@
   to {
     --bc-spinner-start: 360deg;
     --bc-spinner-end: 363deg;
-  }
-}
-
-/*
- * The motions of the overlays and the layout of core's React SDK, which their
- * utilities name.
- * - The backdrop of a sheet fades in as the sheet slides in, and a sheet that
- *   another opens over moves back (../overlays/sheet.tsx).
- * - A toast with a timeout fades out in its last 300 milliseconds
- *   (../overlays/toast.tsx).
- * - Part of a progress bar that cannot tell how far its task has come
- *   slides across it (../layout/meter.tsx).
- */
-@keyframes bc-sheet-backdrop {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes bc-sheet-scale-back {
-  to {
-    transform: translateZ(-120px);
-  }
-}
-
-@keyframes bc-toast-fade {
-  to {
-    opacity: 0;
-  }
-}
-
-/*
- * The fade of a toast with a timeout, in its last 300 milliseconds, from the
- * delay that the toast's --bc-toast-fade-at gives.
- * The toast pauses it while React Aria pauses the timeout, through
- * animation-play-state, so the fade sets each part of the animation on its
- * own, since the shorthand `animation` would set animation-play-state back
- * to running.
- */
-@utility toast-fade {
-  @media (prefers-reduced-motion: no-preference) {
-    animation-name: bc-toast-fade;
-    animation-duration: 300ms;
-    animation-timing-function: ease-in;
-    animation-delay: var(--bc-toast-fade-at);
-    animation-fill-mode: forwards;
-  }
-}
-
-@keyframes bc-progress-slide {
-  from {
-    translate: -100% 0;
-  }
-  to {
-    translate: 250% 0;
   }
 }

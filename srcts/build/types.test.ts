@@ -5,8 +5,11 @@
 // against and of the stubs of the hosts, the stubs bundled for a test runner,
 // the React SDK, its binding and the build preset bundled for a package's build,
 // and the package.json that names them.
-// That package.json names React and OpenTelemetry's API as its peers,
-// and the packages that core's code imports beside React as its dependencies.
+// That package.json names React, React Aria's components and OpenTelemetry's
+// API as its peers, and the packages that core's code imports as its
+// dependencies.
+// Its bundles leave blockr.ui an import, which a package installs beside
+// `@blockr/core` from the R package blockr.ui.
 // The controls go there as the SDK does.
 
 import { copyFile, cp, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -50,13 +53,18 @@ async function write(files: Record<string, string>): Promise<void> {
 // Through a link to `inst/types`, the types would find React in the
 // node_modules of core's repo, which a package does not have.
 // The test would then pass where a package's type check fails.
-// With them come OpenTelemetry's API, which npm installs as their peer, as
-// the types of `@blockr/core` name it, and React Aria and
-// @internationalized/date, which npm installs as their dependencies, whose
-// types the SDK's declarations name.
+// Beside them comes `@blockr/ui`, as a copy too, which
+// blockr.core::install_js_types() installs from the R package blockr.ui, since
+// core imports blockr.ui.
+// With them come OpenTelemetry's API and React Aria's three packages, which
+// npm installs as their peers, as the types of `@blockr/core` and of
+// `@blockr/ui` name them, and Lucide and @internationalized/date, which npm
+// installs as the dependencies of `@blockr/ui`, whose declarations name their
+// types.
 async function installTypes(): Promise<void> {
   await cp(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), { recursive: true });
-  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria", "@internationalized/date"]) {
+  await cp(join(repo, "node_modules", "@blockr", "ui"), join(root, "node_modules", "@blockr", "ui"), { recursive: true });
+  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria", "react-stately", "@internationalized/date", "lucide"]) {
     await mkdir(dirname(join(root, "node_modules", name)), { recursive: true });
     await symlink(join(repo, "node_modules", name), join(root, "node_modules", name), "dir");
   }
@@ -158,18 +166,20 @@ test("what a package's tests load imports no package but those that `@blockr/cor
   expect(manifest.peerDependencies).toEqual({
     react: (installed("react/package.json") as { version: string }).version,
     "react-dom": (installed("react-dom/package.json") as { version: string }).version,
+    "react-aria-components": await installedVersion("react-aria-components"),
     "@opentelemetry/api": await installedVersion("@opentelemetry/api"),
   });
   expect(manifest.dependencies).toEqual({
     "@preact/signals-core": await installedVersion("@preact/signals-core"),
     "@cfworker/json-schema": await installedVersion("@cfworker/json-schema"),
-    "react-aria-components": await installedVersion("react-aria-components"),
-    "@internationalized/date": await installedVersion("@internationalized/date"),
   });
 
-  // The stubs draw core's UIs, the board options' among them, with React.
-  expect(await importedPackages("stubs")).toContain("react");
-  const named = { ...manifest.peerDependencies, ...manifest.dependencies };
+  // The stubs draw core's UIs, the board options' among them, with React and
+  // blockr.ui's components.
+  expect(await importedPackages("stubs")).toEqual(expect.arrayContaining(["react", "@blockr/ui"]));
+  // Beside the packages that the package.json names, the bundles import
+  // blockr.ui, which a package installs beside `@blockr/core`.
+  const named = { ...manifest.peerDependencies, ...manifest.dependencies, "@blockr/ui": "" };
   for (const name of ["stubs", "react", "binding", "controls"]) {
     expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(named, pkg))).toEqual([]);
   }
@@ -377,6 +387,15 @@ test.each(["bundler", "nodenext"] as const)(
   "a package's modules and their test type-check against what core ships, as %s resolution finds it",
   async (resolution) => {
     await installTypes();
+    // Core's stubs load the stubs of blockr.ui, which make happy-dom do as a
+    // browser does where blockr.ui's components need it.
+    // Their declarations name React's types, so a package's test that mounts
+    // on core's stubs type-checks with React and its types, as npm installs
+    // React as the peer of `@blockr/core`.
+    for (const name of ["react", "@types/react"]) {
+      await mkdir(dirname(join(root, "node_modules", name)), { recursive: true });
+      await symlink(join(repo, "node_modules", name), join(root, "node_modules", name), "dir");
+    }
     await write({
       "package.json": JSON.stringify({ name: "blockr.test", private: true, type: "module" }),
       "src/head-block.ts": headModule,
@@ -440,9 +459,10 @@ test("a package's module mounts on the stubs that core ships, which answer from 
 });
 
 // A renderer and a block's UI written in React on the React SDK that core
-// ships, a block's UI that picks a colour with the SDK's colours, a block's UI
-// in plain TypeScript on its binding, and the build script that bundles them
-// with its build preset, as a package writes them.
+// ships and on blockr.ui's components, a block's UI that picks a colour with
+// blockr.ui's colours, a block's UI in plain TypeScript on core's binding,
+// and the build script that bundles them with core's build preset, as a
+// package writes them.
 // A plugin's component follows the board, a block's status and the
 // notifications about the block through the SDK, as the DAG's nodes do.
 // Another shows the block's errors in the SDK's list of notifications, as the
@@ -456,8 +476,9 @@ export const api = 1;
 export default outputRenderer<TextOutput>(({ output }) => <pre>{output.text}</pre>);
 `,
   "src/head-block.tsx": `import type { BlockHost } from "@blockr/core";
-import { Checkbox, NumberField, reactModule, Stack, useValue } from "@blockr/core/react";
+import { reactModule, useValue } from "@blockr/core/react";
 import type { ModuleProps } from "@blockr/core/react";
+import { Checkbox, FormLayout, NumberField } from "@blockr/ui";
 import type { ReactElement } from "react";
 
 type HeadState = { n: number; direction: "head" | "tail" };
@@ -469,10 +490,10 @@ function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
     (value) => ({ direction: value === true ? "tail" : "head" }),
   );
   return (
-    <Stack>
+    <FormLayout>
       <NumberField bound={useValue(host, "n")} label="Rows" minValue={1} step={1} />
       <Checkbox bound={tail}>From the end</Checkbox>
-    </Stack>
+    </FormLayout>
   );
 }
 
@@ -481,8 +502,10 @@ export const api = 1;
 export default reactModule(Head);
 `,
   "src/fill-block.tsx": `import type { BlockHost } from "@blockr/core";
-import { ColorArea, ColorField, ColorPicker, ColorSlider, ColorSwatchPicker, ColorSwatchPickerItem, reactModule, useValue } from "@blockr/core/react";
-import type { Color, ModuleProps } from "@blockr/core/react";
+import { reactModule, useValue } from "@blockr/core/react";
+import type { ModuleProps } from "@blockr/core/react";
+import { ColorArea, ColorField, ColorPicker, ColorSlider, ColorSwatchPicker, ColorSwatchPickerItem } from "@blockr/ui";
+import type { Color } from "@blockr/ui";
 import type { ReactElement } from "react";
 
 type FillState = { fill: string };
@@ -593,8 +616,8 @@ test.each(["bundler", "nodenext"] as const)(
       Object.keys(sdkFiles).map((file) => join(root, file)),
       {
         target: ts.ScriptTarget.ES2022,
-        // The declarations of React Aria, which those of the SDK name, use the
-        // types of Intl that ES2023 adds.
+        // The declarations of React Aria, which those of blockr.ui's
+        // components name, use the types of Intl that ES2023 adds.
         lib: ["lib.es2023.d.ts", "lib.dom.d.ts"],
         module: resolution === "bundler" ? ts.ModuleKind.Preserve : ts.ModuleKind.NodeNext,
         moduleResolution: resolution === "bundler" ? ts.ModuleResolutionKind.Bundler : ts.ModuleResolutionKind.NodeNext,

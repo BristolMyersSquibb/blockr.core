@@ -105,7 +105,7 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
   return (
     <article
       aria-label={name}
-      className="bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100"
+      className="bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border bc:bg-card bc:p-3 bc:font-sans bc:text-card-foreground"
     >
       <header>
         <h1 className="bc:m-0 bc:font-sans bc:text-base bc:font-semibold">{name}</h1>

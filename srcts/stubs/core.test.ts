@@ -2,11 +2,14 @@
 // the board of the fixture hello, with R played from the protocol's fixtures,
 // as a frontend or a plugin would use it.
 
-import { act } from "react";
-import { describe, expect, test } from "vitest";
+import { act, createElement } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { describe, expect, test, vi } from "vitest";
+import { find } from "@blockr/ui/stubs";
 import type { Condition } from "../protocol/index.ts";
+import { outputRenderer } from "../react/index.ts";
 import type { Option } from "../store/index.ts";
-import { find } from "../testing/inputs.ts";
 import { logged } from "../testing/logged.ts";
 import { concerning, held } from "../testing/notifications.ts";
 import { classModule, optionModule } from "../testing/plugins.ts";
@@ -19,6 +22,25 @@ import type { Json } from "../types/json.ts";
 import { HELLO, INFO, stubCore } from "./index.ts";
 
 const TABLE = "blockr.core/basic-table.js?v=b7e2a915";
+
+// The warnings of an update outside act() that React logged as `fn` ran, in
+// its act() environment, which blockr.ui's stubs set up for a package's tests.
+async function actWarnings(fn: () => unknown): Promise<string[]> {
+  const lines: string[] = [];
+  const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+    lines.push(args.map(String).join(" "));
+  });
+  try {
+    await fn();
+  } finally {
+    spy.mockRestore();
+  }
+  return lines.filter((line) => line.includes("not wrapped in act"));
+}
+
+// A renderer drawn with React through core's React SDK, as a package draws its
+// own, which shows the id of the renderer that R names in the output.
+const REACT_RENDERER = { api: 1, default: outputRenderer(({ output }) => createElement("p", null, output.renderer.id)) };
 
 // A renderer that keeps the hosts it is mounted with.
 function renderer() {
@@ -207,6 +229,40 @@ describe("the CoreApi for tests", () => {
     // The value that the board of the fixture hello holds.
     expect(el.textContent).toContain("Preview rows");
     expect(find(el, "input", HTMLInputElement).value).toBe("50");
+  });
+
+  test("waits for R's replies inside React's act(), so that a module drawn with React draws what they bring without a warning", async () => {
+    const { core, settled } = await stubCore({ modules: { [TABLE]: REACT_RENDERER } });
+    const el = document.createElement("div");
+    core.scheduler.demand("test", ["b"]);
+    core.mountOutput(el, "b");
+
+    expect(await actWarnings(settled)).toEqual([]);
+    expect(el.textContent).toContain("blockr.core-table_output");
+  });
+
+  test("starts and stops core inside React's act(), so that a frontend drawn with React draws the board and unmounts without a warning", async () => {
+    const el = document.createElement("div");
+    const frontend = {
+      render({ el: at }: { el: HTMLElement }) {
+        const root = createRoot(at);
+        flushSync(() => {
+          root.render(createElement("p", null, "Drawn with React"));
+        });
+        return () => {
+          root.unmount();
+        };
+      },
+    };
+    let stop = (): void => undefined;
+    const warnings = await actWarnings(async () => {
+      ({ stop } = await stubCore({ el, modules: { "blockr.core-basic_frontend_plugin": classModule({ frontend }) } }));
+    });
+
+    expect(warnings).toEqual([]);
+    expect(el.textContent).toBe("Drawn with React");
+    expect(await actWarnings(stop)).toEqual([]);
+    expect(el.textContent).not.toContain("Drawn with React");
   });
 
   test("registers the board options that the reply names before the board opens, and calls a board option's onChange", async () => {

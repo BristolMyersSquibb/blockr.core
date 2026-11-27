@@ -16,7 +16,7 @@
 // The props are the select's, so that it takes them all at once.
 
 import { useState } from "react";
-import { useFilter } from "../aria/index.ts";
+import { useFilter } from "@blockr/ui";
 
 export interface Search<T> {
   readonly items: readonly T[];

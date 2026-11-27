@@ -4,6 +4,7 @@ import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
 import { useCallback as useCallback6, useMemo as useMemo2, useState as useState8 } from "react";
+import { Button as Button4, Text as Text3, Toast, ToastContent, ToastRegion } from "@blockr/ui";
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
@@ -36,7 +37,7 @@ function Footer({ status, shown, settled }) {
     {
       "aria-busy": status?.running === true,
       "data-status": shown?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled ? "" : "bc:opacity-50"}`,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-muted-foreground bc:transition-opacity ${settled ? "" : "bc:opacity-50"}`,
       children: shown?.status === "ready" ? shown.summary : null
     }
   );
@@ -106,23 +107,23 @@ var MARKS = {
   error: {
     label: "Error",
     noun: "error",
-    text: "bc:text-text-danger",
-    tint: "bc:bg-red-500/10",
-    border: "bc:border-border-danger"
+    text: "bc:text-destructive-text",
+    tint: "bc:bg-destructive/10",
+    border: "bc:border-destructive"
   },
   warning: {
     label: "Warning",
     noun: "warning",
-    text: "bc:text-text-warning",
-    tint: "bc:bg-amber-500/10",
-    border: "bc:border-amber-500"
+    text: "bc:text-warning-text",
+    tint: "bc:bg-warning/10",
+    border: "bc:border-warning"
   },
   message: {
     label: "Message",
     noun: "message",
-    text: "bc:text-blue-700 bc:dark:text-blue-400",
-    tint: "bc:bg-blue-500/10",
-    border: "bc:border-border-accent"
+    text: "bc:text-primary-text",
+    tint: "bc:bg-primary/10",
+    border: "bc:border-primary"
   }
 };
 function Banner({ severity, message }) {
@@ -204,31 +205,10 @@ function useSized(status) {
 }
 
 // srcts/modules/basic/board.tsx
-import { Button as Button2, Text as Text3, Toast, ToastContent, ToastRegion, useBoard as useBoard2 } from "@blockr/core/react";
-
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
-  label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
-  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
-};
-var buttons = {
-  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
-  secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
-  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
-  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
-};
+import { useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/ui/blocks.tsx
-import { ComboBoxItem, Text } from "@blockr/core/react";
+import { ComboBoxItem, Text } from "@blockr/ui";
 
 // srcts/util/util.ts
 function own(record, key) {
@@ -333,30 +313,41 @@ function useHistory(core) {
 
 // srcts/ui/search.ts
 import { useState as useState4 } from "react";
+import { useFilter } from "@blockr/ui";
 
 // srcts/ui/table.tsx
-import { useState as useState6 } from "react";
-import { SearchField } from "@blockr/core/react";
+import { useState as useState5 } from "react";
+import { Button, SearchField } from "@blockr/ui";
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 
 // srcts/ui/ui.tsx
-import { useRef as useRef2, useState as useState5 } from "react";
+import { useRef as useRef2, useState as useState6 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Button, TextField } from "@blockr/core/react";
-import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import { Button as Button2, TextField } from "@blockr/ui";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 var classes = {
-  button: buttons.secondary,
-  primary: buttons.primary,
-  quiet: buttons.quiet,
-  // The board's page, which draws no background of its own, so that the
-  // page's, which the browser draws in the page's theme, shows to its edges.
-  page: "bc:text-gray-900 bc:dark:text-gray-100",
-  // What sits over the board, as a dialog or a menu does,
-  // on the background that core's theme gives it, bg-raised.
-  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
-  card: "bc:bg-bg-subtle",
+  // The board's page, in the page's colour and the colour of its text,
+  // `background` and `foreground`
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#the-defaults).
+  page: "bc:bg-background bc:text-foreground",
+  // What sits over the board, as a dialog or a menu does, in the colours of
+  // every overlay, `popover`.
+  surface: "bc:bg-popover bc:text-popover-foreground",
+  // A card on the page, in the colours of a card, `card`.
+  card: "bc:bg-card bc:text-card-foreground",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
-  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
+  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0",
+  // A hint beside the fields of a form or in place of a list, in the colour
+  // of secondary text, as blockr.ui draws a field's description.
+  hint: "bc:m-0 bc:text-sm bc:text-muted-foreground",
+  // A line that says why something cannot happen, in the colour of an error's
+  // text, as blockr.ui draws a field's error.
+  alert: "bc:m-0 bc:text-sm bc:text-destructive-text bc:whitespace-pre-wrap",
+  // A group of controls under a legend, which takes the look of a field's
+  // label, as blockr.ui draws it.
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans",
+  legend: "bc:mb-1 bc:p-0 bc:text-sm bc:font-medium"
 };
 function NameField({
   label,
@@ -364,7 +355,7 @@ function NameField({
   onSubmit,
   onDone
 }) {
-  const [text, setText] = useState5(name);
+  const [text, setText] = useState6(name);
   const done = useRef2(false);
   function finish(submit) {
     if (done.current) return;
@@ -373,7 +364,7 @@ function NameField({
     if (submit && trimmed !== "" && trimmed !== name) onSubmit(trimmed);
     onDone();
   }
-  return /* @__PURE__ */ jsx4(
+  return /* @__PURE__ */ jsx5(
     TextField,
     {
       "aria-label": label,
@@ -401,15 +392,13 @@ function ActionsButton({
   label,
   onPress
 }) {
-  return /* @__PURE__ */ jsx4(Button, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx4("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
+  return /* @__PURE__ */ jsx5(Button2, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx5("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
 }
-
-// srcts/ui/table.tsx
-import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 
 // srcts/modules/basic/card.tsx
 import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef3, useSyncExternalStore as useSyncExternalStore2 } from "react";
-import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "@blockr/core/react";
+import { Disclosure, DisclosureHeader, DisclosurePanel } from "@blockr/ui";
+import { useNotified, useStatus } from "@blockr/core/react";
 
 // srcts/modules/basic/context.ts
 import { createContext, useContext } from "react";
@@ -449,13 +438,13 @@ var BlockCard = memo(function BlockCard2({ id, block }) {
     {
       ref,
       "aria-label": block.name,
-      className: `${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:p-3`,
+      className: `${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border bc:p-3`,
       onPointerDown: focus,
       onFocus: focus,
       children: [
         /* @__PURE__ */ jsxs5("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
           /* @__PURE__ */ jsx6("h3", { className: classes.heading, children: block.name }),
-          /* @__PURE__ */ jsx6("span", { className: "bc:text-xs bc:text-text-muted", children: entry?.name ?? block.registry_id }),
+          /* @__PURE__ */ jsx6("span", { className: "bc:text-xs bc:text-muted-foreground", children: entry?.name ?? block.registry_id }),
           /* @__PURE__ */ jsx6(StatusBadge, { status }),
           offered ? /* @__PURE__ */ jsx6("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx6(
             ActionsButton,
@@ -502,7 +491,7 @@ function StackGroup({ id, stack, children }) {
     "section",
     {
       "aria-label": stack.name,
-      className: "bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3",
+      className: "bc:rounded-xl bc:border-2 bc:border-border bc:p-3",
       style: color === void 0 ? void 0 : { borderColor: color },
       children: /* @__PURE__ */ jsxs5(
         Disclosure,
@@ -535,7 +524,7 @@ function StatusBadge({ status }) {
     {
       "data-status": status.status,
       "aria-busy": status.running,
-      className: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:px-2 bc:py-0.5 bc:text-xs bc:text-text-muted",
+      className: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border bc:px-2 bc:py-0.5 bc:text-xs bc:text-muted-foreground",
       children: [
         /* @__PURE__ */ jsx6(
           "span",
@@ -581,7 +570,7 @@ import { useCallback as useCallback4 } from "react";
 import { useBoard } from "@blockr/core/react";
 
 // srcts/modules/basic/ui.tsx
-import { Dialog as SdkDialog, Heading, Modal } from "@blockr/core/react";
+import { Button as Button3, Dialog as SdkDialog, Heading, Modal } from "@blockr/ui";
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 function Dialog({
   title,
@@ -598,7 +587,7 @@ function Dialog({
       children: /* @__PURE__ */ jsx7(SdkDialog, { children: /* @__PURE__ */ jsxs6("div", { className: "bc:grid bc:gap-3", children: [
         /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
           /* @__PURE__ */ jsx7(Heading, { slot: "title", className: classes.heading, children: title }),
-          /* @__PURE__ */ jsx7("button", { type: "button", className: classes.button, onClick: onClose, children: "Close" })
+          /* @__PURE__ */ jsx7(Button3, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
         children
       ] }) })
@@ -618,8 +607,8 @@ function OptionsDialog({ onClose }) {
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id]);
   }
-  return /* @__PURE__ */ jsx8(Dialog, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx8("div", { className: "bc:grid bc:divide-y bc:divide-border-default", children: [...categories].map(([category, ids]) => /* @__PURE__ */ jsxs7("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
-    /* @__PURE__ */ jsx8("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
+  return /* @__PURE__ */ jsx8(Dialog, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx8("p", { className: classes.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx8("div", { className: "bc:grid bc:divide-y bc:divide-border", children: [...categories].map(([category, ids]) => /* @__PURE__ */ jsxs7("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
+    /* @__PURE__ */ jsx8("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-muted-foreground", children: category }),
     ids.map((id) => /* @__PURE__ */ jsx8(OptionUi, { id }, id))
   ] }, category)) }) });
 }
@@ -631,7 +620,8 @@ function OptionUi({ id }) {
 
 // srcts/modules/basic/plugins.tsx
 import { useCallback as useCallback5, useLayoutEffect as useLayoutEffect3, useRef as useRef4, useSyncExternalStore as useSyncExternalStore3 } from "react";
-import { Disclosure as Disclosure2, DisclosureHeader as DisclosureHeader2, DisclosurePanel as DisclosurePanel2, useNotified as useNotified2 } from "@blockr/core/react";
+import { Disclosure as Disclosure2, DisclosureHeader as DisclosureHeader2, DisclosurePanel as DisclosurePanel2 } from "@blockr/ui";
+import { useNotified as useNotified2 } from "@blockr/core/react";
 import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 function createSections() {
   const collapsed = /* @__PURE__ */ new Set();
@@ -689,7 +679,7 @@ function PluginSection({ id, plugin }) {
     "section",
     {
       "aria-label": plugin.name,
-      className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`,
+      className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border bc:p-3`,
       children: /* @__PURE__ */ jsxs8(
         Disclosure2,
         {
@@ -714,7 +704,7 @@ function PluginSection({ id, plugin }) {
 }
 
 // srcts/modules/basic/toasts.ts
-import { ToastQueue } from "@blockr/core/react";
+import { ToastQueue } from "@blockr/ui";
 var SHOWN_FOR = 5e3;
 function createToasts(notifications, sectioned) {
   const queue = new ToastQueue();
@@ -792,7 +782,7 @@ import {
   Toolbar as SdkToolbar,
   Tooltip,
   TooltipTrigger
-} from "@blockr/core/react";
+} from "@blockr/ui";
 
 // srcts/modules/basic/storage.ts
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -855,7 +845,7 @@ function Toolbar({ board, showOptions }) {
     } catch {
     }
   }
-  return /* @__PURE__ */ jsxs9("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border-default bc:pb-3", children: [
+  return /* @__PURE__ */ jsxs9("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border bc:pb-3", children: [
     renaming ? /* @__PURE__ */ jsx10(
       NameField,
       {
@@ -870,12 +860,11 @@ function Toolbar({ board, showOptions }) {
       }
     ) : /* @__PURE__ */ jsx10("h1", { className: "bc:m-0 bc:font-sans bc:text-lg bc:font-semibold", children: board.name }),
     locked || renaming ? null : /* @__PURE__ */ jsx10(
-      "button",
+      SdkButton,
       {
-        type: "button",
-        className: classes.quiet,
+        variant: "quiet",
         "aria-label": "Rename board",
-        onClick: () => {
+        onPress: () => {
           setRenaming(true);
         },
         children: "Rename"
@@ -942,7 +931,7 @@ function StorageControls() {
   if (drawn2 === void 0 || !drawn2.failed && drawn2.controls.length === 0) return null;
   return /* @__PURE__ */ jsxs9(Fragment2, { children: [
     /* @__PURE__ */ jsx10(Separator, { orientation: "vertical" }),
-    drawn2.failed ? /* @__PURE__ */ jsx10("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-text-danger", children: /* @__PURE__ */ jsx10(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn2.controls.map((control) => /* @__PURE__ */ jsx10(Control, { control }, control.id))
+    drawn2.failed ? /* @__PURE__ */ jsx10("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-destructive-text", children: /* @__PURE__ */ jsx10(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn2.controls.map((control) => /* @__PURE__ */ jsx10(Control, { control }, control.id))
   ] });
 }
 function Control({ control }) {
@@ -952,7 +941,7 @@ function Control({ control }) {
     case "menu":
       return /* @__PURE__ */ jsx10(StorageMenu, { label: control.label, items: control.items });
     case "status":
-      return /* @__PURE__ */ jsx10("span", { role: "status", className: "bc:font-sans bc:text-sm bc:text-text-muted", children: /* @__PURE__ */ jsx10(Tipped, { tooltip: control.tooltip, children: control.text }) });
+      return /* @__PURE__ */ jsx10("span", { role: "status", className: "bc:font-sans bc:text-sm bc:text-muted-foreground", children: /* @__PURE__ */ jsx10(Tipped, { tooltip: control.tooltip, children: control.text }) });
   }
 }
 function StorageButton({ button }) {
@@ -976,7 +965,7 @@ function StorageButton({ button }) {
   if (off) {
     return /* @__PURE__ */ jsxs9(Fragment2, { children: [
       drawn2,
-      /* @__PURE__ */ jsx10("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-text-muted", children: button.tooltip })
+      /* @__PURE__ */ jsx10("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-muted-foreground", children: button.tooltip })
     ] });
   }
   return /* @__PURE__ */ jsxs9(TooltipTrigger, { children: [
@@ -987,7 +976,7 @@ function StorageButton({ button }) {
 function Tipped({ tooltip, children }) {
   if (tooltip === void 0) return /* @__PURE__ */ jsx10(Fragment2, { children });
   return /* @__PURE__ */ jsxs9(TooltipTrigger, { children: [
-    /* @__PURE__ */ jsx10(Focusable, { children: /* @__PURE__ */ jsx10("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-border-accent", children }) }),
+    /* @__PURE__ */ jsx10(Focusable, { children: /* @__PURE__ */ jsx10("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded-sm bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-ring", children }) }),
     /* @__PURE__ */ jsx10(Tooltip, { children: tooltip })
   ] });
 }
@@ -1063,12 +1052,12 @@ function Page() {
     /* @__PURE__ */ jsxs10("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
       /* @__PURE__ */ jsx11(Plugins, {}),
       /* @__PURE__ */ jsxs10("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
-        items.length === 0 ? /* @__PURE__ */ jsx11("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
+        items.length === 0 ? /* @__PURE__ */ jsx11("p", { className: classes.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item) => {
           if ("block" in item) return card(item.block);
           const stack = board.stacks[item.stack];
           if (stack === void 0) return null;
-          return /* @__PURE__ */ jsx11(StackGroup, { id: item.stack, stack, children: item.blocks.length === 0 ? /* @__PURE__ */ jsx11("p", { className: styles.hint, children: "The stack holds no blocks." }) : item.blocks.map(card) }, `stack-${item.stack}`);
+          return /* @__PURE__ */ jsx11(StackGroup, { id: item.stack, stack, children: item.blocks.length === 0 ? /* @__PURE__ */ jsx11("p", { className: classes.hint, children: "The stack holds no blocks." }) : item.blocks.map(card) }, `stack-${item.stack}`);
         })
       ] })
     ] }),
@@ -1091,14 +1080,14 @@ function ToastItem({ toast, title }) {
     /* @__PURE__ */ jsxs10(ToastContent, { role: severity === "message" ? "status" : void 0, className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1", children: [
       /* @__PURE__ */ jsxs10(Text3, { slot: "title", elementType: "p", className: "bc:m-0 bc:text-xs bc:font-semibold", children: [
         title,
-        pkg === void 0 ? null : /* @__PURE__ */ jsxs10("span", { className: "bc:font-normal bc:text-text-muted", children: [
+        pkg === void 0 ? null : /* @__PURE__ */ jsxs10("span", { className: "bc:font-normal bc:text-muted-foreground", children: [
           " \xB7 ",
           pkg
         ] })
       ] }),
       /* @__PURE__ */ jsx11(Text3, { slot: "description", elementType: "p", className: "bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap", children: notification.message }),
       isReload(notification) ? /* @__PURE__ */ jsx11("div", { children: /* @__PURE__ */ jsx11(
-        Button2,
+        Button4,
         {
           variant: "secondary",
           onPress: () => {
@@ -1108,13 +1097,13 @@ function ToastItem({ toast, title }) {
         }
       ) }) : null
     ] }),
-    /* @__PURE__ */ jsx11(Button2, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx11("span", { "aria-hidden": "true", children: "\xD7" }) })
+    /* @__PURE__ */ jsx11(Button4, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx11("span", { "aria-hidden": "true", children: "\xD7" }) })
   ] });
 }
 var LEFT = {
-  error: "bc:border-l-border-danger",
-  warning: "bc:border-l-amber-500",
-  message: "bc:border-l-border-accent"
+  error: "bc:border-l-destructive",
+  warning: "bc:border-l-warning",
+  message: "bc:border-l-primary"
 };
 
 // srcts/modules/basic/demand.ts

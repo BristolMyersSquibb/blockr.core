@@ -25,3 +25,5 @@ export declare function lineHolder(pkg?: string | null): {
     logged: readonly LogLine[];
     log: Log;
 };
+export declare function acting<T>(fn: () => T | Promise<T>): Promise<T>;
+export declare function actingNow(fn: () => void): void;

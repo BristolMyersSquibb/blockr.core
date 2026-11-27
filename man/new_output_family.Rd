@@ -53,9 +53,8 @@ their values with every output request.
 Every renderer of the family's outputs reads their values through its host,
 whichever renderer a deployment draws them with.
 A deployment draws a family's outputs with another renderer by naming it in
-the blockr option \code{renderers} under the family's class, as
-\code{options(blockr.renderers = list(table_output = blockr.ui::table_preview()))}
-does (see \code{\link[=blockr_option]{blockr_option()}}).
+the blockr option \code{renderers} under the family's class, such as
+\code{table_output} (see \code{\link[=new_renderer]{new_renderer()}} and \code{\link[=blockr_option]{blockr_option()}}).
 R reads what a family holds from the family as its package defines it now:
 the one bound under the name of its class where its function was defined.
 So a block class of a package that was built against an older version of

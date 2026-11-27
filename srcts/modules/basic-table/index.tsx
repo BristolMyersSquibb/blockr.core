@@ -3,7 +3,7 @@
 // blockr option `renderers`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers).
 // It draws the page of rows that the output holds under the table's columns,
-// in the Table of core's React SDK, and pages and sorts through the output's
+// in blockr.ui's Table, and pages and sorts through the output's
 // parameters, which it sets through its host, so that R makes the page asked
 // for. It reads no board option:
 // the output holds the page and the page size, by which it draws its pager,
@@ -15,8 +15,9 @@
 
 import { useEffect, useRef } from "react";
 import type { ReactElement } from "react";
-import type { SortDescriptor } from "../../aria/index.ts";
-import { Cell, Column, outputRenderer, Row, Table as SdkTable, TableBody, TableHeader } from "../../react/index.ts";
+import { Cell, Column, Row, Table as SdkTable, TableBody, TableHeader } from "@blockr/ui";
+import type { SortDescriptor } from "react-aria-components";
+import { outputRenderer } from "../../react/index.ts";
 import type { OutputProps } from "../../react/index.ts";
 import type { TableColumn, TableOutput, TableParams } from "../../types/outputs.ts";
 import {
@@ -89,7 +90,7 @@ function Table({ output, params, error, host }: OutputProps<TableOutput, TablePa
                 const text = cellText(row[j] ?? null);
                 return (
                   <Cell key={j} textValue={text ?? "NA"} className={isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}>
-                    {text ?? <span className="bc:italic bc:text-text-muted">NA</span>}
+                    {text ?? <span className="bc:italic bc:text-muted-foreground">NA</span>}
                   </Cell>
                 );
               })}
@@ -124,7 +125,7 @@ function Heading({ column }: { column: TableColumn }): ReactElement {
   return (
     <span className={`bc:flex bc:flex-col ${isNumber(column) ? "bc:items-end" : ""}`}>
       <span className="bc:max-w-full bc:truncate bc:font-medium">{column.name}</span>
-      <span className="bc:max-w-full bc:truncate bc:text-xs bc:font-normal bc:text-text-muted">{column.class}</span>
+      <span className="bc:max-w-full bc:truncate bc:text-xs bc:font-normal bc:text-muted-foreground">{column.class}</span>
     </span>
   );
 }
@@ -134,7 +135,7 @@ function Heading({ column }: { column: TableColumn }): ReactElement {
 // A few pixels above the pager set it off from the table's last row.
 function Pager({ table, page, onPage }: { table: TableOutput; page: Page; onPage: (page: number) => void }): ReactElement {
   return (
-    <div className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:pt-1 bc:text-xs bc:text-text-muted">
+    <div className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:pt-1 bc:text-xs bc:text-muted-foreground">
       <span>{rowsText(table, page)}</span>
       {(page.page > 1 || page.more) && (
         <div className="bc:flex bc:items-center bc:gap-2">
@@ -163,7 +164,7 @@ function PageButton({ text, disabled, onClick }: { text: string; disabled: boole
   return (
     <button
       type="button"
-      className="bc:cursor-pointer bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-inherit bc:[font:inherit] bc:disabled:cursor-default bc:disabled:opacity-40"
+      className="bc:cursor-pointer bc:rounded-sm bc:border bc:border-border bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-inherit bc:[font:inherit] bc:disabled:cursor-default bc:disabled:opacity-40"
       disabled={disabled}
       onClick={onClick}
     >

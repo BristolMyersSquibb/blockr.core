@@ -17,13 +17,14 @@ export interface Measure {
 }
 
 // The colours that the element takes where the page gives it none, as on a
-// page without a stylesheet: black text on white, and as the accent the blue
-// that core's theme takes as its accent, Tailwind's blue-600.
-const FALLBACK = { bg: "#ffffff", fg: "#000000", accent: "#155dfc" } as const;
+// page without a stylesheet: black text on white, and as the accent the brand
+// colour that blockr.ui's stylesheet gives `primary` in light mode.
+const FALLBACK = { bg: "#ffffff", fg: "#000000", accent: "#2563eb" } as const;
 
-// The variable of core's theme that holds its accent, which a frontend or a
-// UI kit may set to restyle core.
-const ACCENT = "--bc-color-bg-accent";
+// The theme variable of the brand colour, `primary`, which an output takes as
+// its accent, and which a frontend's theme or an app's theme may set
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.2#colours).
+const ACCENT = "--bk-color-primary";
 
 // Measures elements on the page, through the DOM.
 export function domMeasure(): Measure {
@@ -58,13 +59,13 @@ export function domMeasure(): Measure {
       }
 
       // A theme switches through the attributes of the page's root element,
-      // as the board option dark_mode sets data-bc-theme.
+      // as the board option dark_mode sets data-bk-mode.
       const themed = new MutationObserver(() => {
         fn();
       });
       themed.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-bc-theme", "class", "style"],
+        attributeFilter: ["data-bk-mode", "class", "style"],
       });
       stops.push(() => {
         themed.disconnect();

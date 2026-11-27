@@ -18,8 +18,13 @@
 // A test file's afterEach() runs before this file's, so a test file must not
 // empty the page.
 // Once the page is empty, a root whose overlay is still open fails to unmount.
-// It makes happy-dom do as a browser does where the components of core's
-// React SDK need it, as the stubs do for the tests of packages (./dom.ts).
+// It makes happy-dom do as a browser does where core's basic frontend needs
+// it, as the stubs do for the tests of packages (./dom.ts).
+// What blockr.ui's components need of happy-dom, `@blockr/ui/stubs` does as a
+// test file loads it, or core's stubs, which load it.
+// It loads neither here, since both load React DOM, which reads the hook of
+// React's developer tools as it loads, and a test sets the hook first to
+// count React's commits.
 
 import "./dom.ts";
 import { act } from "react";

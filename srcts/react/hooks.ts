@@ -10,6 +10,13 @@
 // Core's own frontend and cards follow them through these hooks too.
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+// The interface through which an input of blockr.ui takes the value that it
+// shows and submits, which useValue() returns
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.7.3#the-interface-bound).
+// It is a type alone, so this file loads nothing of blockr.ui, and a UI that
+// binds its values with these hooks but draws with another kit loads no React
+// Aria.
+import type { Bound } from "@blockr/ui";
 import { bind, follow } from "../binding/index.ts";
 import type { Binding } from "../binding/index.ts";
 import type { Condition } from "../protocol/index.ts";
@@ -59,23 +66,10 @@ function outputSnapshot(host: OutputHost): OutputSnapshot {
   return next;
 }
 
-// A value that a component shows and edits:
-// the value as the binding last showed it,
-// why the host refused the last submit, if it did,
-// which the component shows, as core's inputs do below themselves,
-// and what reads and submits the value, as a Binding does.
-export interface Bound {
-  readonly value: Json | undefined;
-  readonly error: string | null;
-  get(): Json | undefined;
-  commit(value: Json): Promise<boolean>;
-  unset(): Promise<boolean>;
-  type(value: Json | undefined): void;
-  flush(): void;
-}
-
 // Binds a block's state arg by its name, or a board option's value,
 // for as long as the component is mounted.
+// It gives the input that shows the value a Bound, the interface that
+// blockr.ui defines.
 // Given two functions in place of the name, it binds the value that the
 // first reads from the block's state, and submits the change that the
 // second builds, as bind() does with them, for an input that sets several

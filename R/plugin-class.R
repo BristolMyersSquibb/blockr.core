@@ -96,6 +96,18 @@
 #' So core's basic frontend refuses every argument, and so does a frontend
 #' whose class has no method of its own.
 #'
+#' The app's frontend gives the values of the theme variables that it wants
+#' its own, such as the color of its cards, through its class's method of
+#' `frontend_theme()`.
+#' The method returns the frontend's theme, as [blockr.ui::new_blockr_theme()]
+#' makes it, with the frontend's values for light mode and for dark mode.
+#' Core's method for `frontend_plugin` returns a theme with no values.
+#' So a frontend that keeps every default of blockr.ui, as core's basic
+#' frontend does, has no method of its own.
+#' A frontend's tests compare [blockr.ui::unset_variables()] of its theme with
+#' the defaults that it keeps on purpose, so that a theme variable that a later
+#' blockr.ui adds fails them until the frontend sets it or keeps its default.
+#'
 #' A plugin class may complete the state of its plugins on the board that a
 #' script builds, through its method of `complete_plugin()`.
 #' Once the board is valid, [new_board()] calls the method on each of the
@@ -155,6 +167,15 @@
 #'   list(title = title)
 #' }
 #'
+#' # In a package whose frontend, of the class grid_plugin, draws its cards in
+#' # a color of its own, in each mode
+#' frontend_theme.grid_plugin <- function(x, ...) {
+#'   blockr.ui::new_blockr_theme(
+#'     light = list("--bk-color-card" = "#fafafa"),
+#'     dark = list("--bk-color-card" = "#262626")
+#'   )
+#' }
+#'
 #' # In a package whose plugin class, notes_plugin, keeps the plugin that its
 #' # notes are about, which a script may give by a name, as in
 #' # list(dag = new_dag_plugin(), new_notes_plugin(about = "dag"))
@@ -172,6 +193,8 @@
 #'
 #' frontend_args(new_basic_frontend_plugin())
 #'
+#' frontend_theme(new_basic_frontend_plugin())
+#'
 #' @return The constructors `new_plugin()`, `new_basic_frontend_plugin()`,
 #' `new_file_storage_plugin()` and `new_edit_board_plugin()` return a `plugin`
 #' object, and `is_plugin()` a scalar logical.
@@ -181,8 +204,9 @@
 #' a board option constructor, a list of them or `NULL`, and
 #' `available_plugins()` a data frame with a row for each plugin class.
 #' The generic `frontend_args()` returns what the frontend reads of the
-#' arguments, a list by name, and `complete_plugin()` the plugin with its state
-#' completed.
+#' arguments, a list by name, `frontend_theme()` the frontend's theme, an
+#' object of class `blockr_theme`, and `complete_plugin()` the plugin with its
+#' state completed.
 #'
 #' @export
 new_plugin <- function(state = list(), id, class = id) {
@@ -364,6 +388,18 @@ frontend_args.frontend_plugin <- function(x, ...) {
   }
 
   list()
+}
+
+#' @rdname new_plugin
+#' @export
+frontend_theme <- function(x, ...) {
+  UseMethod("frontend_theme")
+}
+
+#' @rdname new_plugin
+#' @export
+frontend_theme.frontend_plugin <- function(x, ...) {
+  blockr.ui::new_blockr_theme()
 }
 
 #' @rdname new_plugin

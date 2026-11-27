@@ -4,6 +4,7 @@
 // of their host.
 
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { labelled, press, step, toggleButton, toggles, type } from "@blockr/ui/stubs";
 import type { Option } from "../store/index.ts";
 import { createStore } from "../store/index.ts";
 import { PAUSE } from "../binding/index.ts";
@@ -13,9 +14,7 @@ import darkModeModule, * as darkModeExports from "../modules/dark-mode-option/in
 // eslint-disable-next-line no-restricted-imports
 import nRowsModule, * as nRowsExports from "../modules/n-rows-option/index.ts";
 import { stubOptionHost } from "../stubs/index.ts";
-import { press, toggleButton, toggles, type } from "../testing/inputs.ts";
-import { mountReact, step } from "../testing/react.ts";
-import { labelled } from "../testing/select.ts";
+import { mountReact } from "../testing/react.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { coreOptions, darkMode, nRows, optionSchemas, setTheme } from "./index.ts";
@@ -50,7 +49,7 @@ function prefers(theme: "light" | "dark"): void {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
-  document.documentElement.removeAttribute("data-bc-theme");
+  document.documentElement.removeAttribute("data-bk-mode");
 });
 
 describe("core's board options", () => {
@@ -158,13 +157,13 @@ describe("dark_mode", () => {
     const notify = (): (() => void) => () => undefined;
 
     darkMode.onChange?.("dark", core, notify);
-    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-bk-mode")).toBe("dark");
     darkMode.onChange?.("light", core, notify);
-    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("light");
+    expect(document.documentElement.getAttribute("data-bk-mode")).toBe("light");
 
     setTheme("dark");
     setTheme(null);
-    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("light");
+    expect(document.documentElement.getAttribute("data-bk-mode")).toBe("light");
   });
 
   test("leaves n_rows without anything to do on the page", () => {
