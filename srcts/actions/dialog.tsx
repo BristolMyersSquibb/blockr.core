@@ -42,10 +42,12 @@ export function drawDialog(el: HTMLElement, args: PlaceArgs, onClose: () => void
 }
 
 // The modal dialog, with the board action's label as its title, a Close
-// button, and the element in which core renders the advanced action. Core
-// unmounts the advanced action once React has finished closing the dialog, so
-// that an advanced action written in React unmounts its own root before core
-// empties the element, as a card's module does.
+// button, and the element in which core renders the advanced action.
+// Core renders the advanced action once React has finished drawing the dialog,
+// since a form of core's draws with flushSync() (../card/mounted.tsx).
+// Core unmounts the advanced action once React has finished closing the
+// dialog, so that an advanced action written in React unmounts its own root
+// before core empties the element, as a card's module does.
 function CoreDialog({ args, onClose }: { args: PlaceArgs; onClose: () => void }): ReactElement {
   const { mount } = args;
   return (
@@ -66,7 +68,7 @@ function CoreDialog({ args, onClose }: { args: PlaceArgs; onClose: () => void })
               Close
             </Button>
           </div>
-          <Mounted mount={mount} className="bc:min-w-0" />
+          <Mounted mount={mount} deferred className="bc:min-w-0" />
         </div>
       </Dialog>
     </Modal>

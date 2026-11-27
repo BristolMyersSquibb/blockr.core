@@ -1,5 +1,5 @@
 {
-  "actions-dialog-51a03414.js": [
+  "actions-dialog-556f581a.js": [
     "react-dom",
     "react-dom/client",
     "@blockr/ui",
@@ -159,7 +159,7 @@
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
-  "page-card-a69ff8f3.js": [
+  "page-card-3631f908.js": [
     "react",
     "react-dom",
     "react-dom/client",

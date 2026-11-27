@@ -62,17 +62,27 @@ function Mounted({
   mount,
   label,
   className,
-  data
+  data,
+  deferred = false
 }) {
   const ref = useRef(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (el === null) return;
-    const cleanup = mount(el);
-    return () => {
-      queueMicrotask(cleanup);
+    let cleanup;
+    let gone = false;
+    const start = () => {
+      if (!gone) cleanup = mount(el);
     };
-  }, [mount]);
+    if (deferred) queueMicrotask(start);
+    else start();
+    return () => {
+      gone = true;
+      queueMicrotask(() => {
+        cleanup?.();
+      });
+    };
+  }, [mount, deferred]);
   return /* @__PURE__ */ jsx2("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
 }
 
@@ -364,7 +374,7 @@ function PlaceForm({ args, onClose }) {
   }, [onClose]);
   return /* @__PURE__ */ jsxs5("div", { ref: box, role: "group", "aria-label": args.title, className: "bc:grid bc:gap-2 bc:py-1 bc:whitespace-normal", ...KEPT, children: [
     /* @__PURE__ */ jsx6(TakesKeys, {}),
-    /* @__PURE__ */ jsx6(Mounted, { mount, className: "bc:min-w-0" }),
+    /* @__PURE__ */ jsx6(Mounted, { mount, deferred: true, className: "bc:min-w-0" }),
     /* @__PURE__ */ jsx6("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx6(Button3, { variant: "secondary", onPress: onClose, children: "Close" }) })
   ] });
 }
@@ -910,7 +920,7 @@ function offers(core, role, target) {
 function Advanced({ core, role, target }) {
   const key = JSON.stringify(target);
   const mount = useCallback5((el) => core.boardActions.mountAdvanced(el, role, JSON.parse(key)), [core, role, key]);
-  return /* @__PURE__ */ jsx10(Mounted, { mount, className: "bc:min-w-0" });
+  return /* @__PURE__ */ jsx10(Mounted, { mount, deferred: true, className: "bc:min-w-0" });
 }
 
 // srcts/modules/edit-board/index.tsx

@@ -117,6 +117,9 @@ export function ActionsButton({
 // Draws a form in the element, in a React root of its own, before it returns,
 // until the function that it returns runs, as an advanced action's render()
 // does.
+// Within React's work, flushSync() flushes nothing, so core's dialog and the
+// Edit board plugin mount an advanced action only once React has finished its
+// work (../card/mounted.tsx).
 export function drawForm(el: HTMLElement, form: ReactNode): () => void {
   const root = createRoot(el);
   flushSync(() => {

@@ -8007,7 +8007,7 @@ var showDialog = (args, at) => {
     const active = doc.activeElement;
     if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
   }
-  import("./actions-dialog-51a03414.js").then(
+  import("./actions-dialog-556f581a.js").then(
     ({ drawDialog }) => {
       if (open) unmount = drawDialog(host, args, hide);
     },
@@ -10958,7 +10958,7 @@ async function showCard(el, core, signal5) {
     },
     { once: true }
   );
-  await import("./page-card-a69ff8f3.js").then(
+  await import("./page-card-3631f908.js").then(
     ({ drawCard }) => {
       if (signal5.aborted) return;
       el.replaceChildren();

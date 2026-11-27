@@ -173,17 +173,27 @@ function Mounted({
   mount,
   label,
   className,
-  data
+  data,
+  deferred = false
 }) {
   const ref = useRef(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (el === null) return;
-    const cleanup = mount(el);
-    return () => {
-      queueMicrotask(cleanup);
+    let cleanup;
+    let gone = false;
+    const start = () => {
+      if (!gone) cleanup = mount(el);
     };
-  }, [mount]);
+    if (deferred) queueMicrotask(start);
+    else start();
+    return () => {
+      gone = true;
+      queueMicrotask(() => {
+        cleanup?.();
+      });
+    };
+  }, [mount, deferred]);
   return /* @__PURE__ */ jsx2("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
 }
 
