@@ -9,7 +9,7 @@ test_that("registry", {
   expect_null(entry$package)
   expect_identical(entry$id, "head_block")
   expect_true(lists_block("head_block"))
-  expect_identical(get_registry_entry(pkg_ref(NULL, "head_block")), entry)
+  expect_identical(get_registry_entry(pkg_id(NULL, "head_block")), entry)
 
   expect_identical(entry$block_class, head_class)
   expect_identical(entry$inputs, "data")
@@ -62,7 +62,7 @@ test_that("registry", {
   )
 
   expect_identical(
-    get_registry_entry(pkg_ref(NULL, "head_block"))$description,
+    get_registry_entry(pkg_id(NULL, "head_block"))$description,
     "Last rows"
   )
 
@@ -350,7 +350,7 @@ test_that("a registry entry's board options are those its requests read", {
   expect_identical(names(board_options(entry)), "n_rows")
 
   expect_identical(
-    run_block_request(pkg_ref(NULL, "opts_block"), "page",
+    run_block_request(pkg_id(NULL, "opts_block"), "page",
                       list(data = datasets::iris),
                       options = list(n_rows = 2L)),
     utils::head(datasets::iris, 2L)
@@ -473,7 +473,7 @@ test_that("an app offers the block classes that `blocks` gives", {
   # takes that class's place
   register_block(new_head_block, "First rows", "The script's head block")
 
-  core_head <- pkg_ref("blockr.core", "head_block")
+  core_head <- pkg_id("blockr.core", "head_block")
 
   expect_identical(
     get_registry_entry(core_head, app_block_registry(rows)),
@@ -591,7 +591,7 @@ test_that("an app offers the classes of a package that load_all() loads", {
 
   expect_identical(
     get_registry_entry(
-      pkg_ref("regprobe", "probe_block"),
+      pkg_id("regprobe", "probe_block"),
       app_block_registry(probe)
     )$name,
     "Probe"
@@ -611,18 +611,18 @@ test_that("an app offers the classes that a package registers as it loads", {
   expect_identical(nrow(merge(available_blocks(), probe)), 1L)
 
   # An app offers it where its rows hold it, as a class that a file lists
-  ref <- pkg_ref("regprobe", "probe_block")
+  id <- pkg_id("regprobe", "probe_block")
 
   expect_identical(
-    get_registry_entry(ref, app_block_registry(probe))$name,
+    get_registry_entry(id, app_block_registry(probe))$name,
     "Probe"
   )
-  expect_null(registry_entry(ref, app_block_registry(core_block_rows())))
+  expect_null(registry_entry(id, app_block_registry(core_block_rows())))
 
   file <- withr::local_tempfile(fileext = ".yml")
   writeLines("- regprobe", file)
 
-  expect_false(is.null(registry_entry(ref, app_block_registry(file))))
+  expect_false(is.null(registry_entry(id, app_block_registry(file))))
 
   # An id that neither a file nor the process registry holds
   expect_error(

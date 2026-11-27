@@ -1,6 +1,6 @@
 // The one object for each pair of a package and an id, the ids of block
 // classes, plugin classes, renderers, modules, commands and board actions
-// (Interned, ../types/board.ts).
+// (Id, ../types/board.ts).
 // A table holds each object that interned() made, by package and then by id,
 // so that it gives the same object for the same pair, as interning does: as
 // Java interns strings, and as the TC39 proposal for composites makes
@@ -13,19 +13,19 @@
 // The table holds one object for each pair that the page has met, a few
 // hundred, and frees none.
 // The page has one table, in core's runtime, which packages reach through
-// CoreApi, since a copy of this module would make objects of its own, which
-// would never be === to core's.
+// CoreApi's id(), since a copy of this module would make objects of its own,
+// which would never be === to core's.
 
-import type { Interned } from "../types/board.ts";
+import type { Id } from "../types/board.ts";
 import { isPackageName } from "./util.ts";
 
-const made = new Map<string | null, Map<string, Interned<string | null>>>();
+const made = new Map<string | null, Map<string, Id<string | null>>>();
 
 // The id of `id` in `pkg`, the same object for the same pair, or for a pkg of
 // null, the id of what an app script defines.
 // It throws a TypeError for a package that is not named as R names one and
 // for an id that is no string or is empty.
-export function interned<P extends string | null>(pkg: P, id: string): Interned<P> {
+export function interned<P extends string | null>(pkg: P, id: string): Id<P> {
   if (pkg !== null && !isPackageName(pkg)) {
     throw new TypeError(`The package ${JSON.stringify(pkg)} is not named as R names a package.`);
   }
@@ -39,10 +39,10 @@ export function interned<P extends string | null>(pkg: P, id: string): Interned<
   }
   let found = ids.get(id);
   if (found === undefined) {
-    found = Object.freeze({ package: pkg, id }) as unknown as Interned<string | null>;
+    found = Object.freeze({ package: pkg, id }) as unknown as Id<string | null>;
     ids.set(id, found);
   }
-  return found as Interned<P>;
+  return found as Id<P>;
 }
 
 // Whether `x` holds a package and an id as an id does, as JSON gives one: an
@@ -60,7 +60,7 @@ export function isIdRecord(x: unknown, nullable = false): boolean {
 
 // The id that a record holds, as interned() makes it, where JSON gave the
 // record, which is no object of the table.
-export function internedRecord<P extends string | null>(record: { readonly package: P; readonly id: string }): Interned<P> {
+export function internedRecord<P extends string | null>(record: { readonly package: P; readonly id: string }): Id<P> {
   return interned(record.package, record.id);
 }
 
@@ -72,9 +72,9 @@ export function idText(x: { readonly package: string | null; readonly id: string
 
 // A number for each id, the same for the same pair, for what needs a string or
 // a number for it, such as a React key.
-const numbers = new Map<Interned<string | null>, number>();
+const numbers = new Map<Id<string | null>, number>();
 
-export function idNumber(x: Interned<string | null>): number {
+export function idNumber(x: Id<string | null>): number {
   let number = numbers.get(x);
   if (number === undefined) {
     number = numbers.size;
@@ -86,21 +86,21 @@ export function idNumber(x: Interned<string | null>): number {
 // The entries of a record by package and then by id, as a board holds the
 // state of its plugins and R's reply to `hello` the modules that packages
 // offer, each under its id as interned() makes it, in the record's order.
-export function nestedEntries<T>(record: Readonly<Record<string, Readonly<Record<string, T>>>>): [Interned, T][] {
+export function nestedEntries<T>(record: Readonly<Record<string, Readonly<Record<string, T>>>>): [Id, T][] {
   return Object.entries(record).flatMap(([pkg, byId]) =>
-    Object.entries(byId).map(([id, value]): [Interned, T] => [interned(pkg, id), value]),
+    Object.entries(byId).map(([id, value]): [Id, T] => [interned(pkg, id), value]),
   );
 }
 
 // What a record by package and then by id holds under the id, or undefined
 // where it holds nothing there.
-export function nestedValue<T>(record: Readonly<Record<string, Readonly<Record<string, T>>>>, id: Interned): T | undefined {
+export function nestedValue<T>(record: Readonly<Record<string, Readonly<Record<string, T>>>>, id: Id): T | undefined {
   const byId = Object.hasOwn(record, id.package) ? record[id.package] : undefined;
   return byId !== undefined && Object.hasOwn(byId, id.id) ? byId[id.id] : undefined;
 }
 
 // A record by package and then by id of the entries, in their order.
-export function nestedRecord<T>(entries: Iterable<readonly [Interned, T]>): Record<string, Record<string, T>> {
+export function nestedRecord<T>(entries: Iterable<readonly [Id, T]>): Record<string, Record<string, T>> {
   const record: Record<string, Record<string, T>> = {};
   for (const [id, value] of entries) {
     (record[id.package] ??= {})[id.id] = value;
@@ -122,7 +122,7 @@ export function idAttributes(of: string, x: { readonly package: string | null; r
 // The id of a plugin's class that a caller gives, as core's table holds it, so
 // that core finds the plugin under it whoever made the record, or a TypeError
 // that names the call for what holds no package and id.
-export function givenPluginClassId(given: unknown, call: string): Interned {
+export function givenPluginClassId(given: unknown, call: string): Id {
   if (!isIdRecord(given)) {
     throw new TypeError(
       `${call} names a plugin by the id of its class, a package and an id, as { package: "blockr.dag", id: "dag_plugin" }, not by ${JSON.stringify(given)}.`,
@@ -134,7 +134,7 @@ export function givenPluginClassId(given: unknown, call: string): Interned {
 // The id of a module that a package offers, as a caller gives it, as core's
 // table holds it, or a TypeError for what holds no package and id, as a caller
 // in plain JS may give.
-export function givenModuleId(given: unknown): Interned {
+export function givenModuleId(given: unknown): Id {
   if (!isIdRecord(given)) {
     throw new TypeError(
       `Core loads a module that a package offers by its package and id, as { package: "blockr.core", id: "controls" }, not by ${JSON.stringify(given)}.`,

@@ -13,7 +13,7 @@ import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Delta, Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, BoardActionId, LinkId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
+import type { BlockId, BoardActionId, Id, LinkId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
@@ -307,6 +307,18 @@ export interface CoreApi {
   // condition of R's reply, ok or error, raises a notification about the
   // plugin, unless the request's notifier takes them.
   request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
+  // The id of what a package defines, by the package and the id within it, as
+  // id("blockr.dock", "dock_plugin").
+  // Core makes one object for each pair, and every id that core gives for the
+  // pair is that object. So === compares two ids, and a Set or a Map finds an
+  // id among those that core gives (Id, ./board.ts).
+  // The package is null only for what an app script defines: a block class,
+  // or a renderer whose module the script serves.
+  // It throws a TypeError for a package that is not named as R names one, and
+  // for an id that is not a non-empty string.
+  // A package makes its ids here, not with a copy of core's helpers in its own
+  // bundle. A copy makes objects of its own, which are never === to core's.
+  id<P extends string | null>(pkg: P, id: string): Id<P>;
   // A module another package offers, by its package and its id within it, as
   // { package: "blockr.core", id: "controls" }, which a caller writes as it is.
   module<T = unknown>(id: { readonly package: string; readonly id: string }): Promise<T>;

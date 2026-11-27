@@ -222,7 +222,7 @@ as_block_class <- function(x, registry = block_registry) {
     return(x)
   }
 
-  if (!is_pkg_ref(x)) {
+  if (!is_pkg_id(x)) {
     blockr_abort(
       "Expecting a block class or a registry id, a list of a package and an ",
       "id, as `registry_id_from_block()` gives it.",

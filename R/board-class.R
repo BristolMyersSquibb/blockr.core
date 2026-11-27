@@ -180,8 +180,8 @@ plugin_aliases <- function(x) {
 # A board holds one plugin of each class, so two of one class are refused.
 plugins_by_class <- function(x) {
 
-  refs <- lapply(unname(x), plugin_class_id)
-  twice <- unique(chr_ply(refs[duplicated(refs)], pkg_ref_label))
+  ids <- lapply(unname(x), plugin_class_id)
+  twice <- unique(chr_ply(ids[duplicated(ids)], pkg_id_label))
 
   if (length(twice)) {
     blockr_abort(
@@ -193,15 +193,15 @@ plugins_by_class <- function(x) {
 
   res <- set_names(list(), character())
 
-  for (i in seq_along(refs)) {
+  for (i in seq_along(ids)) {
 
-    pkg <- refs[[i]][["package"]]
+    pkg <- ids[[i]][["package"]]
 
     if (is.null(res[[pkg]])) {
       res[[pkg]] <- set_names(list(), character())
     }
 
-    res[[pkg]][[refs[[i]][["id"]]]] <- x[[i]]
+    res[[pkg]][[ids[[i]][["id"]]]] <- x[[i]]
   }
 
   res
@@ -219,12 +219,12 @@ complete_board_plugins <- function(board, aliases) {
     for (id in names(plugins[[pkg]])) {
 
       res <- complete_plugin(plugins[[pkg]][[id]], board, aliases)
-      ref <- pkg_ref(pkg, id)
+      class_id <- pkg_id(pkg, id)
 
-      if (!is_plugin(res) || !same_pkg_ref(plugin_class_id(res), ref)) {
+      if (!is_plugin(res) || !same_pkg_id(plugin_class_id(res), class_id)) {
         blockr_abort(
           "The method of `complete_plugin()` for plugin class ",
-          "{pkg_ref_label(ref)} returns no plugin of that class.",
+          "{pkg_id_label(class_id)} returns no plugin of that class.",
           class = "plugin_complete_invalid"
         )
       }
@@ -265,7 +265,7 @@ validate_board_plugins <- function(plugins) {
   for (pkg in names(plugins)) {
     for (id in names(plugins[[pkg]])) {
       held <- plugin_class_id(plugins[[pkg]][[id]])
-      if (!same_pkg_ref(held, pkg_ref(pkg, id))) {
+      if (!same_pkg_id(held, pkg_id(pkg, id))) {
         blockr_abort(
           "A board holds each plugin under the package and the id of its ",
           "class.",

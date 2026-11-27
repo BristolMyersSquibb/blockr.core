@@ -223,7 +223,7 @@ new_plugin <- function(state = list(), id, class = id) {
 
   structure(
     set_names(state, coal(names(state), character(), fail_all = FALSE)),
-    class_id = pkg_ref(package, id),
+    class_id = pkg_id(package, id),
     class = unique(c(class, "plugin"))
   )
 }
@@ -362,7 +362,7 @@ frontend_args.frontend_plugin <- function(x, ...) {
 
   if (length(nms)) {
     blockr_abort(
-      "The app's frontend, {pkg_ref_label(plugin_class_id(x))}, takes no ",
+      "The app's frontend, {pkg_id_label(plugin_class_id(x))}, takes no ",
       "argument of `serve()`, and was given {arg_labels(nms)}.",
       class = "frontend_args_invalid"
     )
@@ -416,15 +416,15 @@ available_plugin_classes <- function() {
   Filter(length, lapply(set_names(nm = pkgs), listed_plugin_classes))
 }
 
-# The plugin class that the reference `ref` names among those of `available`,
+# The plugin class that the id `id` names among those of `available`,
 # as `available_plugin_classes()` gives them, or `NULL` where none is.
-plugin_class_entry <- function(ref, available = available_plugin_classes()) {
+plugin_class_entry <- function(id, available = available_plugin_classes()) {
 
-  if (!is_pkg_ref(ref) || is.null(ref[["package"]])) {
+  if (!is_pkg_id(id) || is.null(id[["package"]])) {
     return(NULL)
   }
 
-  available[[ref[["package"]]]][[ref[["id"]]]]
+  available[[id[["package"]]]][[id[["id"]]]]
 }
 
 # The plugin classes that package `pkg` lists in the `plugins` of its
@@ -504,18 +504,18 @@ plugin_listing_faults <- function(entries) {
   )
 }
 
-# The plugin that the constructor of the plugin class that the reference `ref`
-# names makes when called without args, on which R calls the class's methods,
+# The plugin that the constructor of the plugin class that the id `id` names
+# makes when called without args, on which R calls the class's methods,
 # such as that of `frontend_args()`, since the class is known by its package
 # and its id alone.
 # The class is one that an available package lists.
-plugin_of_class <- function(ref, available = available_plugin_classes()) {
+plugin_of_class <- function(id, available = available_plugin_classes()) {
 
-  cls <- plugin_class_entry(ref, available)
+  cls <- plugin_class_entry(id, available)
 
   if (is.null(cls)) {
     blockr_abort(
-      "No available package lists the plugin class {pkg_ref_label(ref)} ",
+      "No available package lists the plugin class {pkg_id_label(id)} ",
       "(see `available_plugins()`).",
       class = "plugin_class_unknown"
     )
@@ -524,11 +524,11 @@ plugin_of_class <- function(ref, available = available_plugin_classes()) {
   cls[["constructor"]]()
 }
 
-# The version of the plugin class that the reference `ref` names: what the
+# The version of the plugin class that the id `id` names: what the
 # method of `plugin_version()` for the class returns, called on the plugin
 # that the class's constructor makes.
-plugin_class_version <- function(ref, available = available_plugin_classes()) {
-  checked_plugin_version(plugin_of_class(ref, available))
+plugin_class_version <- function(id, available = available_plugin_classes()) {
+  checked_plugin_version(plugin_of_class(id, available))
 }
 
 # The version that the class of the plugin `x` gives, through its method of
@@ -540,7 +540,7 @@ checked_plugin_version <- function(x) {
   if (!is_count(version, allow_zero = FALSE)) {
     blockr_abort(
       "The method of `plugin_version()` for plugin class ",
-      "{pkg_ref_label(plugin_class_id(x))} returns no whole number of 1 or ",
+      "{pkg_id_label(plugin_class_id(x))} returns no whole number of 1 or ",
       "more.",
       class = "plugin_version_invalid"
     )
@@ -559,7 +559,7 @@ checked_plugin_requests <- function(x) {
         !has_unique_names(reqs)) {
     blockr_abort(
       "The method of `plugin_requests()` for plugin class ",
-      "{pkg_ref_label(plugin_class_id(x))} returns no list of functions by ",
+      "{pkg_id_label(plugin_class_id(x))} returns no list of functions by ",
       "name.",
       class = "plugin_requests_invalid"
     )
@@ -576,7 +576,7 @@ checked_plugin_options <- function(x) {
       plugin_options(x),
       paste0(
         "The method of `plugin_options()` for plugin class ",
-        "{pkg_ref_label(plugin_class_id(x))} returns no board option ",
+        "{pkg_id_label(plugin_class_id(x))} returns no board option ",
         "constructor, nor a list of them."
       ),
       "plugin_options_invalid"
@@ -603,9 +603,9 @@ checked_plugin_options <- function(x) {
 app_plugins <- function(rows, available = available_plugin_classes()) {
 
   rows <- plugin_rows(rows, available)
-  refs <- unname(Map(pkg_ref, rows[["package"]], rows[["id"]]))
+  ids <- unname(Map(pkg_id, rows[["package"]], rows[["id"]]))
 
-  twice <- unique(chr_ply(refs[duplicated(refs)], pkg_ref_label))
+  twice <- unique(chr_ply(ids[duplicated(ids)], pkg_id_label))
 
   if (length(twice)) {
     blockr_abort(
@@ -615,29 +615,29 @@ app_plugins <- function(rows, available = available_plugin_classes()) {
     )
   }
 
-  classes <- lapply(refs, plugin_class_entry, available)
+  classes <- lapply(ids, plugin_class_entry, available)
   plugins <- lapply(classes, function(cls) cls[["constructor"]]())
 
   roles <- list(
     list(
       test = is_frontend_plugin,
-      core = pkg_ref("blockr.core", "basic_frontend_plugin"),
+      core = pkg_id("blockr.core", "basic_frontend_plugin"),
       what = "frontend"
     ),
     list(
       test = is_storage_plugin,
-      core = pkg_ref("blockr.core", "file_storage_plugin"),
+      core = pkg_id("blockr.core", "file_storage_plugin"),
       what = "storage plugin"
     )
   )
 
-  keep <- rep(TRUE, length(refs))
+  keep <- rep(TRUE, length(ids))
   held <- list()
 
   for (role in roles) {
 
     of_role <- which(keep & lgl_ply(plugins, role$test))
-    others <- of_role[!lgl_ply(refs[of_role], same_pkg_ref, role$core)]
+    others <- of_role[!lgl_ply(ids[of_role], same_pkg_id, role$core)]
 
     if (length(others)) {
       keep[setdiff(of_role, others)] <- FALSE
@@ -658,7 +658,7 @@ app_plugins <- function(rows, available = available_plugin_classes()) {
 
   for (role in roles) {
 
-    of_role <- chr_ply(refs[held[[role$what]]], pkg_ref_label)
+    of_role <- chr_ply(ids[held[[role$what]]], pkg_id_label)
 
     if (length(of_role) > 1L) {
       blockr_abort(
@@ -737,7 +737,7 @@ check_plugin_packages <- function(packages, listed) {
 #' @export
 format.plugin <- function(x, ...) {
   c(
-    paste0("<", class(x)[1L], "> ", pkg_ref_label(plugin_class_id(x))),
+    paste0("<", class(x)[1L], "> ", pkg_id_label(plugin_class_id(x))),
     format_state(plugin_state(x))
   )
 }
@@ -750,7 +750,7 @@ print.plugin <- function(x, ...) {
 
 #' @export
 str_value.plugin <- function(x, ...) {
-  paste0("<", class(x)[1L], "> ", pkg_ref_label(plugin_class_id(x)))
+  paste0("<", class(x)[1L], "> ", pkg_id_label(plugin_class_id(x)))
 }
 
 #' @export

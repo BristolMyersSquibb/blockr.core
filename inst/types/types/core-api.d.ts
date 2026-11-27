@@ -3,7 +3,7 @@ import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Delta, Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, BoardActionId, LinkId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
+import type { BlockId, BoardActionId, Id, LinkId, OptionId, PluginClassId, RegistryId, RendererId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
@@ -70,6 +70,7 @@ export interface CoreApi {
         readonly plugin: PluginClassId;
     }): Promise<void>;
     request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
+    id<P extends string | null>(pkg: P, id: string): Id<P>;
     module<T = unknown>(id: {
         readonly package: string;
         readonly id: string;

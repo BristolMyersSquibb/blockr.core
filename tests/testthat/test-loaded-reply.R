@@ -93,7 +93,7 @@ test_that("an entry holds its class's package and id, and no block class", {
   entry <- reply_entry(declared_fields()$block_registry, "letters_block")
 
   # The package of a class that an app script defines is null
-  expect_identical(entry[c("package", "id")], pkg_ref(NULL, "letters_block"))
+  expect_identical(entry[c("package", "id")], pkg_id(NULL, "letters_block"))
   expect_match(json(entry), "^\\{\"package\":null,\"id\":\"letters_block\",")
 
   expect_length(
@@ -103,9 +103,9 @@ test_that("an entry holds its class's package and id, and no block class", {
 
   local_fixture_renderer_urls()
 
-  head <- registry_entry_reply(get_registry_entry(core_head_ref()))
+  head <- registry_entry_reply(get_registry_entry(core_head_id()))
 
-  expect_identical(head[c("package", "id")], core_head_ref())
+  expect_identical(head[c("package", "id")], core_head_id())
 })
 
 test_that("an entry names a new block as R's constructors do", {
@@ -265,7 +265,7 @@ test_that("an entry names the renderers of its class's outputs", {
 
   local_fixture_renderer_urls()
 
-  head <- get_registry_entry(core_head_ref())
+  head <- get_registry_entry(core_head_id())
 
   expect_identical(
     json(registry_entry_reply(head)$renderers),
@@ -276,7 +276,7 @@ test_that("an entry names the renderers of its class's outputs", {
   )
 
   # A class that names no output family shows its results as text
-  upload <- get_registry_entry(pkg_ref("blockr.core", "upload_block"))
+  upload <- get_registry_entry(pkg_id("blockr.core", "upload_block"))
 
   expect_identical(
     renderer_labels(entry_renderers(upload)),
@@ -320,7 +320,7 @@ test_that("an entry names the renderers of its class's outputs", {
 
 test_that("an entry names the board options that its class's UI module reads", {
 
-  head <- get_registry_entry(core_head_ref())
+  head <- get_registry_entry(core_head_id())
 
   expect_identical(json(registry_entry_reply(head)$options), "[]")
 
@@ -337,8 +337,8 @@ test_that("an entry names the board options that its class's UI module reads", {
 
 test_that("an entry names the board options that its class's outputs read", {
 
-  head <- get_registry_entry(core_head_ref())
-  upload <- get_registry_entry(pkg_ref("blockr.core", "upload_block"))
+  head <- get_registry_entry(core_head_id())
+  upload <- get_registry_entry(pkg_id("blockr.core", "upload_block"))
 
   expect_identical(
     json(registry_entry_reply(head)$output_options),
@@ -369,7 +369,7 @@ test_that("an entry of a class whose family is open names every listed one", {
     families = TRUE
   )
 
-  head <- get_registry_entry(core_head_ref())
+  head <- get_registry_entry(core_head_id())
   head$block_class$output <- any_output
 
   # The renderers and the board options of the families that core and
@@ -412,7 +412,7 @@ test_that("the renderer the deployment names for a family is in the entry", {
   )
   local_reset_logging()
 
-  head <- get_registry_entry(core_head_ref())
+  head <- get_registry_entry(core_head_id())
 
   expect_identical(entry_renderers(head), list(preview))
 

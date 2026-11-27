@@ -13840,6 +13840,7 @@ function createCore(parts) {
       return parts.show(shown2);
     },
     request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ plugins: plugins2, scheduler, replied: notifications.replied }, plugin, name2, args, opts),
+    id: interned,
     module: (id2) => loader.module(givenModuleId(id2)),
     blockrOption: (name2) => blockrOptions.read(name2),
     mintId: (taken) => mintId(taken, randId),

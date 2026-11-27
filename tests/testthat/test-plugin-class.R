@@ -202,14 +202,14 @@ test_that("a plugin class's method gives its version, or it is at version 1", {
   local_plugin_classes(Notes = notes)
 
   expect_identical(plugin_version(notes()), 1L)
-  ref <- pkg_ref("blockr.test", "notes_plugin")
+  id <- pkg_id("blockr.test", "notes_plugin")
 
-  expect_identical(plugin_class_version(ref), 1L)
+  expect_identical(plugin_class_version(id), 1L)
 
   local_plugin_version("notes_plugin", 2L)
 
   expect_identical(plugin_version(notes()), 2L)
-  expect_identical(plugin_class_version(ref), 2L)
+  expect_identical(plugin_class_version(id), 2L)
 
   # R calls the method on the plugin that the class's constructor makes, so
   # that the method of a class that it extends counts
@@ -219,7 +219,7 @@ test_that("a plugin class's method gives its version, or it is at version 1", {
   local_plugin_classes(Dock = dock)
 
   expect_identical(
-    plugin_class_version(pkg_ref("blockr.test", "dock_plugin")),
+    plugin_class_version(pkg_id("blockr.test", "dock_plugin")),
     5L
   )
 
@@ -228,13 +228,13 @@ test_that("a plugin class's method gives its version, or it is at version 1", {
   local_plugin_version("bad_plugin", "two")
 
   expect_error(
-    plugin_class_version(pkg_ref("blockr.test", "bad_plugin")),
+    plugin_class_version(pkg_id("blockr.test", "bad_plugin")),
     class = "plugin_version_invalid"
   )
 
   # A class that no available package lists has no version
   expect_error(
-    plugin_class_version(pkg_ref("blockr.test", "gone_plugin")),
+    plugin_class_version(pkg_id("blockr.test", "gone_plugin")),
     "gone_plugin of blockr.test",
     class = "plugin_class_unknown"
   )

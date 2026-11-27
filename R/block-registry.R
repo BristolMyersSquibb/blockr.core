@@ -257,11 +257,11 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
   }
 
   cls <- constructor_class(ctor)
-  ref <- registry_id_from_block(cls)
+  id <- registry_id_from_block(cls)
 
-  if (not_null(registry_entry(ref, registry)) && !isTRUE(overwrite)) {
+  if (not_null(registry_entry(id, registry)) && !isTRUE(overwrite)) {
     blockr_abort(
-      "Block class {pkg_ref_label(ref)} is registered already. Set ",
+      "Block class {pkg_id_label(id)} is registered already. Set ",
       "`overwrite = TRUE` to replace it, or remove it first with ",
       "`unregister_blocks()`.",
       class = "block_already_in_registry"
@@ -396,7 +396,7 @@ is_registry_entry <- function(x) inherits(x, "block_registry_entry")
 #' @export
 format.block_registry_entry <- function(x, ...) {
   c(
-    paste0("<block_registry_entry> ", pkg_ref_label(x)),
+    paste0("<block_registry_entry> ", pkg_id_label(x)),
     paste0("Name: \"", x[["name"]], "\""),
     paste0("Description: \"", x[["description"]], "\""),
     paste0("Category: ", x[["category"]]),
@@ -450,7 +450,7 @@ registry_id_from_block <- function(block) {
     )
   }
 
-  pkg_ref(cls[["package"]], cls[["id"]])
+  pkg_id(cls[["package"]], cls[["id"]])
 }
 
 #' @param blocks The block classes to remove, as rows with each class's package
@@ -460,8 +460,8 @@ registry_id_from_block <- function(block) {
 #' @export
 unregister_blocks <- function(blocks = list_blocks()) {
 
-  for (ref in class_refs(blocks)) {
-    drop_registry_entry(ref, block_registry)
+  for (id in registry_ids(blocks)) {
+    drop_registry_entry(id, block_registry)
   }
 
   invisible()
@@ -470,10 +470,10 @@ unregister_blocks <- function(blocks = list_blocks()) {
 # The registry ids that `x` gives: rows with a `package` and an `id`, as
 # `list_blocks()` gives them, or one registry id, as
 # `registry_id_from_block()` gives it.
-class_refs <- function(x) {
+registry_ids <- function(x) {
 
-  if (is_pkg_ref(x)) {
-    return(list(pkg_ref(x[["package"]], x[["id"]])))
+  if (is_pkg_id(x)) {
+    return(list(pkg_id(x[["package"]], x[["id"]])))
   }
 
   if (!is.data.frame(x) || !all(c("package", "id") %in% names(x))) {
@@ -486,7 +486,7 @@ class_refs <- function(x) {
   }
 
   unname(
-    Map(pkg_ref, as.character(x[["package"]]), as.character(x[["id"]]))
+    Map(pkg_id, as.character(x[["package"]]), as.character(x[["id"]]))
   )
 }
 
@@ -512,16 +512,16 @@ register_blocks <- function(...) {
   )
 }
 
-# The entry of the block class whose registry id is `ref` in `registry`, which
+# The entry of the block class whose registry id is `id` in `registry`, which
 # stops where the registry holds none.
-get_registry_entry <- function(ref, registry = block_registry) {
+get_registry_entry <- function(id, registry = block_registry) {
 
-  res <- registry_entry(ref, registry)
+  res <- registry_entry(id, registry)
 
   if (is.null(res)) {
     blockr_abort(
       "No block class is registered under the registry id ",
-      "{pkg_ref_label(ref)}.",
+      "{pkg_id_label(id)}.",
       class = "registry_id_unknown"
     )
   }
@@ -529,21 +529,21 @@ get_registry_entry <- function(ref, registry = block_registry) {
   res
 }
 
-# The entry of the block class whose registry id is `ref` in `registry`, or
-# `NULL` where the registry holds none, as for a `ref` that is no registry id.
-registry_entry <- function(ref, registry = block_registry) {
+# The entry of the block class whose registry id is `id` in `registry`, or
+# `NULL` where the registry holds none, as for an `id` that is no registry id.
+registry_entry <- function(id, registry = block_registry) {
 
-  if (!is_pkg_ref(ref)) {
+  if (!is_pkg_id(id)) {
     return(NULL)
   }
 
-  part <- registry_part(registry, ref[["package"]])
+  part <- registry_part(registry, id[["package"]])
 
   if (is.null(part)) {
     return(NULL)
   }
 
-  res <- get0(ref[["id"]], envir = part, inherits = FALSE)
+  res <- get0(id[["id"]], envir = part, inherits = FALSE)
 
   if (is_registry_entry(res)) res
 }
@@ -578,14 +578,14 @@ put_registry_entry <- function(x, registry) {
   invisible(x)
 }
 
-# Removes the entry of the block class whose registry id is `ref` from
+# Removes the entry of the block class whose registry id is `id` from
 # `registry`, where the registry holds one.
-drop_registry_entry <- function(ref, registry) {
+drop_registry_entry <- function(id, registry) {
 
-  part <- registry_part(registry, ref[["package"]])
+  part <- registry_part(registry, id[["package"]])
 
-  if (not_null(part) && exists(ref[["id"]], envir = part, inherits = FALSE)) {
-    rm(list = ref[["id"]], envir = part, inherits = FALSE)
+  if (not_null(part) && exists(id[["id"]], envir = part, inherits = FALSE)) {
+    rm(list = id[["id"]], envir = part, inherits = FALSE)
   }
 
   invisible()
@@ -643,7 +643,7 @@ block_rows <- function(package = character(), id = character()) {
 #' @rdname register_block
 #' @export
 create_block <- function(id, ..., package = NULL) {
-  entry <- get_registry_entry(pkg_ref(package, id))
+  entry <- get_registry_entry(pkg_id(package, id))
   block_constructor(entry[["block_class"]])(...)
 }
 
@@ -1011,17 +1011,17 @@ register_listed_blocks <- function(package, registry, ids = NULL) {
 # classes give one registry id, since the second would replace the first.
 check_package_registry_ids <- function(ctors, package) {
 
-  refs <- lapply(lapply(ctors, constructor_class), registry_id_from_block)
-  twice <- refs[duplicated(refs)]
+  ids <- lapply(lapply(ctors, constructor_class), registry_id_from_block)
+  twice <- ids[duplicated(ids)]
 
   same <- if (length(twice)) {
-    names(ctors)[lgl_ply(refs, same_pkg_ref, twice[[1L]])]
+    names(ctors)[lgl_ply(ids, same_pkg_id, twice[[1L]])]
   }
 
   if (length(same)) {
     blockr_abort(
       "Package {package} declares block constructors {same}, whose classes ",
-      "give one registry id, {pkg_ref_label(twice[[1L]])}.",
+      "give one registry id, {pkg_id_label(twice[[1L]])}.",
       class = "package_blocks_invalid"
     )
   }

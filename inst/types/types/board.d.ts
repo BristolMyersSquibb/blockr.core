@@ -4,17 +4,17 @@ export type LinkId = string;
 export type StackId = string;
 export type OptionId = string;
 declare const interned: unique symbol;
-export interface Interned<P extends string | null = string> {
+export interface Id<P extends string | null = string> {
     readonly package: P;
     readonly id: string;
     readonly [interned]: true;
 }
-export type PluginClassId = Interned;
-export type RegistryId = Interned<string | null>;
-export type RendererId = Interned<string | null>;
-export type ModuleId = Interned;
-export type CommandId = Interned;
-export type BoardActionId = Interned;
+export type PluginClassId = Id;
+export type RegistryId = Id<string | null>;
+export type RendererId = Id<string | null>;
+export type ModuleId = Id;
+export type CommandId = Id;
+export type BoardActionId = Id;
 export interface Board {
     readonly id: string;
     readonly name: string;

@@ -23,11 +23,12 @@ declare const interned: unique symbol;
 // Core makes one object for each pair (interned(), ../util/ids.ts), so two that
 // name the same are the same object, which ===, a Set and a Map compare as they
 // compare strings.
-// The brand, which only interned() gives, keeps a record written by hand, which
+// A package gets that object from CoreApi's id().
+// The brand, which only core gives, keeps a record written by hand, which
 // would be another object, from passing for one.
 // The brand exists only for the type checker, so that one serializes as
 // { "package": "blockr.core", "id": "head_block" }.
-export interface Interned<P extends string | null = string> {
+export interface Id<P extends string | null = string> {
   readonly package: P;
   readonly id: string;
   readonly [interned]: true;
@@ -38,31 +39,31 @@ export interface Interned<P extends string | null = string> {
 // as { package: "blockr.dag", id: "dag_plugin" }.
 // An app runs at most one plugin of each class, so the id of its class
 // identifies a plugin.
-export type PluginClassId = Interned;
+export type PluginClassId = Id;
 
 // A block class's id in the block registry: the package that defines the
 // class, or null for one that an app script defines, and the id that
 // `new_block_class()` takes, as { package: "blockr.core", id: "head_block" }.
-export type RegistryId = Interned<string | null>;
+export type RegistryId = Id<string | null>;
 
 // A renderer's id: the package of its module, or null for one whose module an
 // app script serves, and the name that `new_renderer()` takes, as
 // { package: "blockr.core", id: "table_output" }.
-export type RendererId = Interned<string | null>;
+export type RendererId = Id<string | null>;
 
 // The id of a module that a package offers other packages' UIs, as core's
 // controls: the package and the module's id within it, as
 // { package: "blockr.core", id: "controls" }.
-export type ModuleId = Interned;
+export type ModuleId = Id;
 
 // A command's id: the package that registered it and its id within the
 // package, as { package: "blockr.core", id: "remove_block" }.
-export type CommandId = Interned;
+export type CommandId = Id;
 
 // A board action's id: the package of the plugin class that lists it, or
 // blockr.core for core's own, and its id within the package, as
 // { package: "blockr.core", id: "rename_action" }.
-export type BoardActionId = Interned;
+export type BoardActionId = Id;
 
 // A board has no class of its own. What a package adds to a board, such as the
 // dock's views, is the state of one of its plugins, under the package and the

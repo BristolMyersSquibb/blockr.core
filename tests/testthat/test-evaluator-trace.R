@@ -119,7 +119,7 @@ test_that("R's span of a message without a valid traceparent is a root span", {
 test_that("R marks the spans of a failed evaluation and its phase as failed", {
 
   failing <- list(
-    registry_id = pkg_ref("blockr.core", "static_block"),
+    registry_id = pkg_id("blockr.core", "static_block"),
     state = list(expression = "stop('No data.')"),
     inputs = list()
   )
@@ -223,7 +223,7 @@ test_that("R's span of a request names the request and what it belongs to", {
             id = "4",
             kind = "request",
             type = "plugin",
-            plugin = pkg_ref("blockr.notes", "notes_plugin"),
+            plugin = pkg_id("blockr.notes", "notes_plugin"),
             name = "x",
             args = obj(),
             reads = list()
@@ -307,7 +307,7 @@ test_that("R records no span of a hello or of reading blockr options", {
 test_that("the lines R logs as it handles a message name the session", {
 
   failing <- list(
-    registry_id = pkg_ref("blockr.core", "static_block"),
+    registry_id = pkg_id("blockr.core", "static_block"),
     state = list(expression = "stop('No data.')"),
     inputs = list()
   )

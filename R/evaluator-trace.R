@@ -134,13 +134,13 @@ request_attributes <- function(req, read) {
 }
 
 # The attributes of a span that name a block's class by its registry id,
-# `ref`: the class's package, where it records one, and its id.
-registry_id_attributes <- function(ref) {
+# `id`: the class's package, where it records one, and its id.
+registry_id_attributes <- function(id) {
   c(
-    if (not_null(ref[["package"]])) {
-      list(blockr.block.package = ref[["package"]])
+    if (not_null(id[["package"]])) {
+      list(blockr.block.package = id[["package"]])
     },
-    list(blockr.block.registry_id = ref[["id"]])
+    list(blockr.block.registry_id = id[["id"]])
   )
 }
 

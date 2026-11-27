@@ -128,11 +128,15 @@ check_lockable_blocks <- function(blocks, registry) {
   for (id in names(blocks)) {
 
     blk <- blocks[[id]]
-    ref <- blk[["registry_id"]]
-    entry <- registry_entry(ref, registry)
+    registry_id <- blk[["registry_id"]]
+    entry <- registry_entry(registry_id, registry)
 
     if (is.null(entry)) {
-      label <- if (is_pkg_ref(ref)) pkg_ref_label(ref) else "given"
+      label <- if (is_pkg_id(registry_id)) {
+        pkg_id_label(registry_id)
+      } else {
+        "given"
+      }
       failures <- c(
         failures,
         paste0(

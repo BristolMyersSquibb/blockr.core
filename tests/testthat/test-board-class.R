@@ -282,7 +282,7 @@ test_that("each plugin completes its state on the board, by the names", {
   notes <- plugin_ctor(function(about = "") NULL, "notes_plugin")
   grid <- plugin_ctor(function(blocks = character()) NULL, "grid_plugin")
 
-  refs <- list(
+  class_ids <- list(
     notes = list(package = "blockr.test", id = "notes_plugin"),
     grid = list(package = "blockr.test", id = "grid_plugin")
   )
@@ -321,7 +321,7 @@ test_that("each plugin completes its state on the board, by the names", {
 
   expect_identical(
     plugin_state(plugins[[ids[["notes"]]]]),
-    list(about = refs[["grid"]])
+    list(about = class_ids[["grid"]])
   )
   expect_identical(
     plugin_state(plugins[[ids[["grid"]]]]),
@@ -332,7 +332,7 @@ test_that("each plugin completes its state on the board, by the names", {
   # state, so the grid's method, which runs second, sees the notes as given
   for (key in names(ids)) {
 
-    expect_identical(seen[[key]][["aliases"]], list(main = refs[["grid"]]))
+    expect_identical(seen[[key]][["aliases"]], list(main = class_ids[["grid"]]))
 
     before <- board_plugins(seen[[key]][["board"]])[["blockr.test"]]
 

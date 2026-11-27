@@ -159,7 +159,7 @@ protocol_r_values <- function() {
               name = "Quick wren",
               blocks = obj(
                 tidy_crab = proto_block(
-                  pkg_ref("blockr.core", "head_block"),
+                  pkg_id("blockr.core", "head_block"),
                   obj(n = 6L, direction = "head"),
                   "Head"
                 )
@@ -1005,28 +1005,28 @@ proto_board <- function() {
       name = "Iris review",
       blocks = obj(
         a = proto_block(
-          pkg_ref("blockr.core", "dataset_block"),
+          pkg_id("blockr.core", "dataset_block"),
           obj(dataset = "iris", package = "datasets"),
           "Iris"
         ),
         b = proto_block(
-          pkg_ref("blockr.core", "head_block"),
+          pkg_id("blockr.core", "head_block"),
           obj(n = 6L, direction = "head"),
           "Head"
         ),
         c = proto_block(
-          pkg_ref("blockr.core", "merge_block"),
+          pkg_id("blockr.core", "merge_block"),
           obj(by = I("Species"), all_x = FALSE, all_y = FALSE),
           "Merge"
         ),
         d = proto_block(
-          pkg_ref("blockr.core", "subset_block"),
+          pkg_id("blockr.core", "subset_block"),
           obj(subset = "log(Sepal.Width - 3) > 0", select = ""),
           "Wide sepals"
         ),
-        e = proto_block(pkg_ref("blockr.core", "rbind_block"), obj(), "Bind"),
+        e = proto_block(pkg_id("blockr.core", "rbind_block"), obj(), "Bind"),
         f = proto_block(
-          pkg_ref("blockr.core", "scatter_block"),
+          pkg_id("blockr.core", "scatter_block"),
           obj(x = "Sepal.Length", y = "Sepal.Width"),
           "Scatter"
         )
@@ -1056,12 +1056,12 @@ proto_locked_board <- function() {
       name = "Iris report",
       blocks = obj(
         a = proto_block(
-          pkg_ref("blockr.core", "dataset_block"),
+          pkg_id("blockr.core", "dataset_block"),
           obj(dataset = "iris", package = "datasets"),
           "Iris"
         ),
         b = proto_block(
-          pkg_ref("blockr.core", "head_block"),
+          pkg_id("blockr.core", "head_block"),
           obj(n = 6L, direction = "head"),
           "Head",
           locked = FALSE
@@ -1084,12 +1084,12 @@ proto_served_file <- function() {
       name = "Cars",
       blocks = obj(
         a = proto_block(
-          pkg_ref("blockr.core", "dataset_block"),
+          pkg_id("blockr.core", "dataset_block"),
           obj(dataset = "mtcars", package = "datasets"),
           "Cars"
         ),
         b = proto_block(
-          pkg_ref("blockr.core", "subset_block"),
+          pkg_id("blockr.core", "subset_block"),
           obj(subset = "cyl == 6", select = "mpg"),
           "Six cylinders"
         )

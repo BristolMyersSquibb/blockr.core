@@ -30,7 +30,7 @@ test_that("a registered class is evaluated by its registry id", {
 
   register_block(new_class_head_block, "Head", "First rows")
 
-  res <- evaluate_block(pkg_ref(NULL, "head_block"), list(n = 2L),
+  res <- evaluate_block(pkg_id(NULL, "head_block"), list(n = 2L),
                         list(data = "a"), list(a = datasets::iris))
 
   expect_identical(res$status, "ok")

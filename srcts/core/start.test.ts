@@ -573,6 +573,27 @@ describe("starting the page", () => {
     expect(core.mintId((id) => Object.hasOwn(core.store.board().blocks, id))).toMatch(uuid);
   });
 
+  test("has CoreApi's id() give the one object for a pair, which is the id that core gives for it", async () => {
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports });
+    s.r.session();
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+
+    const frontend = core.id("blockr.core", "basic_frontend_plugin");
+    expect(frontend).toBe(core.id("blockr.core", "basic_frontend_plugin"));
+    expect(frontend).toStrictEqual({ package: "blockr.core", id: "basic_frontend_plugin" });
+    expect(Object.isFrozen(frontend)).toBe(true);
+    // The maps that core gives find it, since their keys are the same objects.
+    expect(core.plugins.appPlugins().has(frontend)).toBe(true);
+    expect(core.blockRegistry().has(core.id("blockr.core", "head_block"))).toBe(true);
+    // A null package names what an app script defines.
+    expect(core.id(null, "my_block")).toBe(core.id(null, "my_block"));
+    expect(() => core.id("not a package", "x")).toThrow(TypeError);
+    expect(() => core.id("blockr.core", "")).toThrow(TypeError);
+  });
+
   test("imports the module of each of the app's plugin classes and board options before it opens the board, once for the page", async () => {
     const held = gate();
     const basic = frontEnd();

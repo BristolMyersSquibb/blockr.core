@@ -493,11 +493,11 @@ core_runtime <- function() {
   js_module("js/blockr-core.js", package = "blockr.core")
 }
 
-# The JSON Schema of the state of the plugins of the class that the reference
-# `ref` names, beside the module that the class's package lists for it, or
+# The JSON Schema of the state of the plugins of the class that the id `id`
+# names, beside the module that the class's package lists for it, or
 # `NULL` where none lists the class or its module ships none.
-plugin_class_schema <- function(ref, classes = available_plugin_classes()) {
-  module_schema(plugin_class_entry(ref, classes)[["module"]])
+plugin_class_schema <- function(id, classes = available_plugin_classes()) {
+  module_schema(plugin_class_entry(id, classes)[["module"]])
 }
 
 # The JSON Schema of the value of the board option with the ID `id`, beside the

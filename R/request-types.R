@@ -186,12 +186,12 @@ request_call.option_request <- function(x, reads, options = list(), ...) {
 #' @export
 request_call.plugin_request <- function(x, reads, plugins = list(), ...) {
 
-  plugin <- find_pkg_ref(plugins, x[["plugin"]])
+  plugin <- find_pkg_id(plugins, x[["plugin"]])
   name <- x[["name"]]
 
   if (is.null(plugin)) {
     blockr_abort(
-      "The app runs no plugin of class {pkg_ref_label(x[['plugin']])}, so R ",
+      "The app runs no plugin of class {pkg_id_label(x[['plugin']])}, so R ",
       "has no request {name} of it.",
       class = "plugin_request_unknown"
     )
@@ -201,7 +201,7 @@ request_call.plugin_request <- function(x, reads, plugins = list(), ...) {
 
   if (!is.function(fun)) {
     blockr_abort(
-      "Plugin class {pkg_ref_label(x[['plugin']])} has no request {name}.",
+      "Plugin class {pkg_id_label(x[['plugin']])} has no request {name}.",
       class = "plugin_request_unknown"
     )
   }
@@ -269,10 +269,10 @@ output_read_call <- function(x, reads, renderer) {
 
     drawn <- held[["renderer"]]
 
-    if (!same_pkg_ref(renderer_ref(drawn), renderer)) {
+    if (!same_pkg_id(renderer_id(drawn), renderer)) {
       blockr_abort(
-        "Renderer {pkg_ref_label(renderer)} drew no output of block ",
-        "{out$block}, which renderer {pkg_ref_label(renderer_ref(drawn))} ",
+        "Renderer {pkg_id_label(renderer)} drew no output of block ",
+        "{out$block}, which renderer {pkg_id_label(renderer_id(drawn))} ",
         "drew.",
         class = "renderer_class_mismatch"
       )

@@ -105,7 +105,7 @@ new_renderer <- function(name, module, requests = list()) {
   if (!is.list(requests) || !all(lgl_ply(requests, is.function)) ||
         !has_unique_names(requests)) {
     blockr_abort(
-      "The requests of renderer {pkg_ref_label(pkg_ref(package, name))} are ",
+      "The requests of renderer {pkg_id_label(pkg_id(package, name))} are ",
       "expected to be a list of functions with unique names.",
       class = "renderer_requests_invalid"
     )
@@ -122,10 +122,10 @@ new_renderer <- function(name, module, requests = list()) {
   )
 }
 
-# The reference that names the renderer `x`: the package of its module and its
+# The id that names the renderer `x`: the package of its module and its
 # name, as R sends it to the client.
-renderer_ref <- function(x) {
-  pkg_ref(x[["package"]], x[["name"]])
+renderer_id <- function(x) {
+  pkg_id(x[["package"]], x[["name"]])
 }
 
 is_renderer <- function(x) {
@@ -135,7 +135,7 @@ is_renderer <- function(x) {
 #' @export
 format.renderer <- function(x, ...) {
   c(
-    paste0("<renderer> ", pkg_ref_label(renderer_ref(x))),
+    paste0("<renderer> ", pkg_id_label(renderer_id(x))),
     if (length(x[["requests"]])) {
       paste0("Requests: ", paste_enum(names(x[["requests"]]), quotes = "\""))
     }
@@ -229,7 +229,7 @@ renderer_request <- function(renderer, name) {
 
   if (!is.function(fun)) {
     blockr_abort(
-      "Renderer {pkg_ref_label(renderer_ref(renderer))} has no request ",
+      "Renderer {pkg_id_label(renderer_id(renderer))} has no request ",
       "{name}.",
       class = "renderer_request_unknown"
     )

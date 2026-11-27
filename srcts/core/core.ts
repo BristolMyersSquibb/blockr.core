@@ -69,6 +69,7 @@ import {
   givenModuleId,
   holdsObject,
   idText,
+  interned,
   internedObject,
   internedRecord,
   isBoardObject,
@@ -321,6 +322,7 @@ export function createCore(parts: CoreParts): Core {
     },
     request: <T = Json>(plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
       pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name, args, opts) as Promise<T | Blob>,
+    id: interned,
     module: <T = unknown>(id: { readonly package: string; readonly id: string }) => loader.module(givenModuleId(id)) as Promise<T>,
     blockrOption: (name) => blockrOptions.read(name),
     mintId: (taken) => mintId(taken, randId),

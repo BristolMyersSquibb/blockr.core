@@ -201,5 +201,5 @@ option_entry_reply <- function(x) {
 # module and its name as the id, which a request of its own names, and where R
 # serves its module.
 output_renderer_reply <- function(x) {
-  c(renderer_ref(x), served_module(x[["module"]]))
+  c(renderer_id(x), served_module(x[["module"]]))
 }

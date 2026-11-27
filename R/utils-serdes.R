@@ -160,7 +160,7 @@ blockr_ser.block <- function(x, ...) {
   cls <- block_class(x)
 
   list(
-    registry_id = pkg_ref(cls[["package"]], cls[["id"]]),
+    registry_id = pkg_id(cls[["package"]], cls[["id"]]),
     version = cls[["version"]],
     state = plain_value(
       block_state(x),
@@ -227,7 +227,7 @@ blockr_ser.plugin <- function(x, ...) {
         plugin_state(x),
         paste0(
           "The state of the plugin of class ",
-          pkg_ref_label(plugin_class_id(x))
+          pkg_id_label(plugin_class_id(x))
         )
       )
     ),
@@ -360,7 +360,7 @@ shape_json_board <- function(x, classes, options = available_options()) {
         as_json_object(
           Map(
             function(state, id) {
-              shape_plugin_state(state, pkg_ref(pkg, id), classes)
+              shape_plugin_state(state, pkg_id(pkg, id), classes)
             },
             states,
             names(states)
@@ -437,12 +437,12 @@ shape_option_values <- function(x, options = available_options()) {
 }
 
 # A plugin as a JSON board holds it, under the package and the id of the
-# plugin's class, which the reference `ref` names, with its state shaped by the
+# plugin's class, which the id `id` names, with its state shaped by the
 # schema of the class's state, if any, among the plugin classes listed in
 # `classes`.
-shape_plugin_state <- function(x, ref, classes = available_plugin_classes()) {
+shape_plugin_state <- function(x, id, classes = available_plugin_classes()) {
 
-  schema <- plugin_class_schema(ref, classes)
+  schema <- plugin_class_schema(id, classes)
 
   if (is.null(schema)) {
     return(x)

@@ -40,7 +40,7 @@ test_that("a renderer holds its name, its module and its own requests", {
   expect_identical(drawn$name, "preview")
   expect_identical(drawn$package, "blockr.ui")
   expect_identical(
-    renderer_ref(drawn),
+    renderer_id(drawn),
     list(package = "blockr.ui", id = "preview")
   )
   expect_named(drawn$requests, "labels")
@@ -233,7 +233,7 @@ test_that("a request is the drawing renderer's own or else its class's", {
   )
   expect_error(
     run_output_class_request(out, "first", letters,
-                             renderer = renderer_ref(labels)),
+                             renderer = renderer_id(labels)),
     class = "output_class_request_unknown"
   )
 })
@@ -247,14 +247,14 @@ test_that("a renderer is its name in the package of its module", {
   drawn <- make()
 
   expect_identical(
-    renderer_ref(drawn),
+    renderer_id(drawn),
     list(package = "blockr.core", id = "pkg")
   )
 
   # A renderer beside an app script comes from no package
   script <- new_renderer("chart", js_module("chart.js", package = NULL))
 
-  expect_identical(renderer_ref(script), list(package = NULL, id = "chart"))
+  expect_identical(renderer_id(script), list(package = NULL, id = "chart"))
 })
 
 test_that("a renderer's construction is checked", {

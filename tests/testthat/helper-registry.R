@@ -47,7 +47,7 @@ lists_block <- function(id, package = NA_character_) {
 # The app's plugin whose class is `id` of `package`, among `plugins`, as
 # `app_plugins()` gives them, or `NULL` where none is.
 app_plugin <- function(plugins, package, id) {
-  find_pkg_ref(plugins, pkg_ref(package, id))
+  find_pkg_id(plugins, pkg_id(package, id))
 }
 
 # The classes of `plugins`, as `app_plugins()` gives them, as rows with each
@@ -62,22 +62,22 @@ plugin_class_rows <- function(plugins) {
 # The entry of the block class `id` of `package` in `registry`, an array of
 # entries as R's reply to `hello` gives it in `block_registry`, or `NULL`.
 reply_entry <- function(registry, id, package = NULL) {
-  find_pkg_ref(registry, pkg_ref(package, id))
+  find_pkg_id(registry, pkg_id(package, id))
 }
 
 # The registry id of core's head block.
-core_head_ref <- function() {
-  pkg_ref("blockr.core", "head_block")
+core_head_id <- function() {
+  pkg_id("blockr.core", "head_block")
 }
 
 # How a message names each of the renderers `x`, by the package of its module
 # and its name.
 renderer_labels <- function(x) {
-  chr_ply(unname(x), function(r) pkg_ref_label(renderer_ref(r)))
+  chr_ply(unname(x), function(r) pkg_id_label(renderer_id(r)))
 }
 
 # How a message names each of `x`, a list of entries that each hold a
 # `package` and an `id`, such as the entries of a block registry.
 ref_labels <- function(x) {
-  chr_ply(unname(x), pkg_ref_label)
+  chr_ply(unname(x), pkg_id_label)
 }

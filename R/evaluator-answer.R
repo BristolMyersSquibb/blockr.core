@@ -118,7 +118,7 @@ answer_evaluate <- function(ev, job) {
         revision = req[["fields"]][["revision"]],
         result = res[["result"]],
         expr = res[["expr"]],
-        registry_id = pkg_ref(entry[["package"]], entry[["id"]])
+        registry_id = pkg_id(entry[["package"]], entry[["id"]])
       ),
       envir = ev$results
     )

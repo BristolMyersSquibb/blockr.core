@@ -107,7 +107,7 @@ function path(name: string): string {
 // fixtures' messages as JSON gives them, under their names in messages.ts.
 // Each id that core interns, as the registry id of a recipe or the class that a
 // plugin's request names, is there the record of its package and its id, since
-// the brand of an id exists for the type checker alone (Interned,
+// the brand of an id exists for the type checker alone (Id,
 // ../types/board.ts).
 // The compiler finds a module that its imports name only in a directory that
 // exists, so this one sits beside messages.ts.
@@ -116,10 +116,10 @@ const serialized = join(root, "srcts", "protocol", "__serialized__.ts");
 function serializedModule(): string {
   const names = [...new Set(Object.values(types).join(" ").match(/\b[A-Z]\w*/g))].filter((name) => name !== "Fixture");
   return [
-    `import type { Interned } from ${JSON.stringify(board)};`,
+    `import type { Id } from ${JSON.stringify(board)};`,
     `import type { Json } from ${JSON.stringify(jsonTypes)};`,
     `import type * as messages from ${JSON.stringify(messages)};`,
-    "type Serialized<T> = T extends Interned<infer P> ? { package: P; id: string } : T extends Json ? T : T extends object ? { [K in keyof T]: Serialized<T[K]> } : T;",
+    "type Serialized<T> = T extends Id<infer P> ? { package: P; id: string } : T extends Json ? T : T extends object ? { [K in keyof T]: Serialized<T[K]> } : T;",
     "export type Fixture<C extends messages.ClientMessage, R extends messages.RMessage[]> = Serialized<messages.Fixture<C, R>>;",
     `export type { ${names.join(", ")} } from ${JSON.stringify(messages)};`,
   ].join("\n");

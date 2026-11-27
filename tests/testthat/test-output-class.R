@@ -360,7 +360,7 @@ test_that("R reads a family as its package defines it now", {
   expect_identical(current_family(stale), table_output)
   expect_identical(family_option_ids(stale), "n_rows")
   expect_identical(
-    renderer_ref(family_renderers(stale)$table_output),
+    renderer_id(family_renderers(stale)$table_output),
     list(package = "blockr.core", id = "table_output")
   )
 

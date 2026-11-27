@@ -190,7 +190,7 @@ block_request_call <- function(x, name, inputs, args, options, file = NULL,
 
   req <- cls[["requests"]][[name]]
 
-  bound <- if (is_pkg_ref(x)) {
+  bound <- if (is_pkg_id(x)) {
     get_registry_entry(x, registry)[["requests"]][[name]][["options"]]
   } else {
     request_option_ids(req)

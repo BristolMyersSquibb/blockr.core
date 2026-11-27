@@ -269,8 +269,8 @@ serve.block <- function(x, ..., data = list()) {
 check_board_plugins <- function(board, plugins) {
 
   held <- lapply(flat_by_package(board_plugins(board)), plugin_class_id)
-  run <- lgl_ply(held, function(ref) not_null(find_pkg_ref(plugins, ref)))
-  unknown <- chr_ply(held[!run], pkg_ref_label)
+  run <- lgl_ply(held, function(id) not_null(find_pkg_id(plugins, id)))
+  unknown <- chr_ply(held[!run], pkg_id_label)
 
   if (length(unknown)) {
     blockr_abort(
@@ -299,7 +299,7 @@ frontend_reply <- function(..., plugins) {
   available <- available_plugin_classes()
   plugins <- lapply(
     plugins,
-    function(x) plugin_of_class(pkg_ref(x[["package"]], x[["id"]]), available)
+    function(x) plugin_of_class(pkg_id(x[["package"]], x[["id"]]), available)
   )
 
   front <- plugins[lgl_ply(plugins, is_frontend_plugin)][[1L]]
@@ -308,7 +308,7 @@ frontend_reply <- function(..., plugins) {
   if (!is.list(args) || is.object(args) || !has_unique_names(args)) {
     blockr_abort(
       "The method of `frontend_args()` for the frontend ",
-      "{pkg_ref_label(plugin_class_id(front))} returns no list by name, ",
+      "{pkg_id_label(plugin_class_id(front))} returns no list by name, ",
       "which R writes as a JSON object.",
       class = "frontend_args_invalid"
     )
@@ -319,7 +319,7 @@ frontend_reply <- function(..., plugins) {
     error = function(e) {
       blockr_abort(
         "The method of `frontend_args()` for the frontend ",
-        "{pkg_ref_label(plugin_class_id(front))} returns a list that R cannot ",
+        "{pkg_id_label(plugin_class_id(front))} returns a list that R cannot ",
         "write as JSON: {conditionMessage(e)}",
         class = "frontend_args_invalid"
       )
@@ -351,20 +351,20 @@ register_board_classes <- function(board, registry) {
   for (blk in names(classes)) {
 
     cls <- classes[[blk]]
-    ref <- registry_id_from_block(cls)
+    id <- registry_id_from_block(cls)
 
-    held <- not_null(registry_entry(ref, registry)) ||
+    held <- not_null(registry_entry(id, registry)) ||
       register_class(cls, registry)
 
     if (!held) {
       unregistered <- c(
         unregistered,
-        paste0(blk, " (", pkg_ref_label(ref), ")")
+        paste0(blk, " (", pkg_id_label(id), ")")
       )
       next
     }
 
-    old <- get_registry_entry(ref, registry)
+    old <- get_registry_entry(id, registry)
 
     if (is.null(cls[["package"]]) && !identical(old[["block_class"]], cls)) {
       put_registry_entry(class_entry(cls, entry_metadata(old)), registry)
@@ -543,7 +543,7 @@ component_options <- function(registry, plugins, families) {
     entries,
     function(x) {
       reqs <- x[["requests"]]
-      id <- pkg_ref_label(x)
+      id <- pkg_id_label(x)
       c(
         set_names(
           list(option_ctor_ids(x[["block_class"]][["options"]])),
@@ -567,7 +567,7 @@ component_options <- function(registry, plugins, families) {
     ),
     set_names(
       lst_xtr(unname(plugins), "options"),
-      sprintf("The plugin of class %s", chr_ply(plugins, pkg_ref_label))
+      sprintf("The plugin of class %s", chr_ply(plugins, pkg_id_label))
     )
   )
 }
@@ -639,8 +639,8 @@ page_modules <- function(board, registry, plugins = list(),
   json <- if (inherits(board, "json")) board else encode_message(board)
   blocks <- decode_message(json)[["board"]][["blocks"]]
 
-  refs <- unique(unname(lst_xtr(blocks, "registry_id")))
-  entries <- Filter(not_null, lapply(refs, registry_entry, registry))
+  ids <- unique(unname(lst_xtr(blocks, "registry_id")))
+  entries <- Filter(not_null, lapply(ids, registry_entry, registry))
   renderers <- unlist(
     lapply(entries, entry_renderers, families),
     recursive = FALSE
@@ -667,38 +667,38 @@ page_modules <- function(board, registry, plugins = list(),
 # client then opens no board and says why.
 menu_module <- function(offered = offered_modules()) {
 
-  ref <- tryCatch(
-    option_pkg_ref(
+  id <- tryCatch(
+    option_pkg_id(
       blockr_option(
         "board_action_menu",
-        pkg_ref("blockr.core", "board_action_menu")
+        pkg_id("blockr.core", "board_action_menu")
       )
     ),
     error = function(e) NULL
   )
 
-  if (is.null(ref) || is.null(ref[["package"]])) {
+  if (is.null(id) || is.null(id[["package"]])) {
     return(NULL)
   }
 
-  offered[[ref[["package"]]]][[ref[["id"]]]]
+  offered[[id[["package"]]]][[id[["id"]]]]
 }
 
-# The package and the id that a blockr option names, as a reference: a list of
+# The package and the id that a blockr option names, as an id: a list of
 # them, as an R option gives it, or their JSON, as an environment variable
 # gives it, as `{"package": "mykit", "id": "menu"}`.
 # It is `NULL` for anything else.
-option_pkg_ref <- function(x) {
+option_pkg_id <- function(x) {
 
   if (is_string(x)) {
     x <- tryCatch(decode_message(x), error = function(e) NULL)
   }
 
-  if (!is_pkg_ref(x)) {
+  if (!is_pkg_id(x)) {
     return(NULL)
   }
 
-  pkg_ref(x[["package"]], x[["id"]])
+  pkg_id(x[["package"]], x[["id"]])
 }
 
 # The value of the board option `dark_mode` that the opening board given as

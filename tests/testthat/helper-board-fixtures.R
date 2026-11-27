@@ -113,18 +113,18 @@ local_plugin_classes <- function(..., modules = list(),
 
   classes <- Map(
     function(ctor, name) {
-      ref <- plugin_class_id(ctor())
+      id <- plugin_class_id(ctor())
       path <- coal(
         modules[[name]],
-        paste0("js/", ref$id, ".js"),
+        paste0("js/", id$id, ".js"),
         fail_all = FALSE
       )
       list(
-        package = ref$package,
-        id = ref$id,
+        package = id$package,
+        id = id$id,
         name = name,
         constructor = ctor,
-        module = js_module(path, package = ref$package)
+        module = js_module(path, package = id$package)
       )
     },
     given,

@@ -63,7 +63,7 @@ test_that("R names the inputs it binds itself for a block served alone", {
         "b",
         1L,
         list(
-          registry_id = pkg_ref("blockr.core", "head_block"),
+          registry_id = pkg_id("blockr.core", "head_block"),
           state = list(n = 6L, direction = "head"),
           inputs = list(list(input = "data"))
         )
@@ -72,7 +72,7 @@ test_that("R names the inputs it binds itself for a block served alone", {
         id = "3",
         kind = "request",
         type = "block_class",
-        registry_id = pkg_ref("blockr.core", "head_block"),
+        registry_id = pkg_id("blockr.core", "head_block"),
         block = "b",
         name = "n_max",
         args = obj(),
@@ -381,7 +381,7 @@ test_that("a summary that is no string replies ok, and R keeps the result", {
       evaluate_request(
         "2", "k", 1L,
         list(
-          registry_id = pkg_ref(NULL, "odd_block"),
+          registry_id = pkg_id(NULL, "odd_block"),
           state = obj(),
           inputs = list()
         )
@@ -412,7 +412,7 @@ test_that("R replies error where it cannot evaluate a recipe", {
       evaluate_request(
         "2", "z", 1L,
         list(
-          registry_id = pkg_ref("nopkg", "no_block"),
+          registry_id = pkg_id("nopkg", "no_block"),
           state = obj(),
           inputs = list()
         )
@@ -442,7 +442,7 @@ test_that("R sends every condition and all output of an evaluation", {
   session <- local_evaluator()
 
   loud <- list(
-    registry_id = pkg_ref("blockr.core", "static_block"),
+    registry_id = pkg_id("blockr.core", "static_block"),
     state = list(
       expression = paste(
         "{ cat('out\\n'); cat('err\\n', file = stderr());",
@@ -493,14 +493,14 @@ test_that("R logs every condition that it sends, naming what it concerns", {
   hold_result(
     session, "k", 14L,
     recipe = list(
-      registry_id = pkg_ref(NULL, "list_block"),
+      registry_id = pkg_id(NULL, "list_block"),
       state = obj(),
       inputs = list()
     )
   )
 
   noisy <- list(
-    registry_id = pkg_ref("blockr.core", "static_block"),
+    registry_id = pkg_id("blockr.core", "static_block"),
     state = list(expression = "{ message('m'); warning('w'); stop('e') }"),
     inputs = list()
   )
@@ -513,7 +513,7 @@ test_that("R logs every condition that it sends, naming what it concerns", {
         id = "4",
         kind = "request",
         type = "plugin",
-        plugin = pkg_ref("blockr.notes", "notes_plugin"),
+        plugin = pkg_id("blockr.notes", "notes_plugin"),
         name = "x",
         args = obj(),
         reads = list()
@@ -602,7 +602,7 @@ test_that("an output that fails replies error with the phase output", {
   hold_result(
     session, "k", 14L,
     recipe = list(
-      registry_id = pkg_ref(NULL, "list_block"),
+      registry_id = pkg_id(NULL, "list_block"),
       state = obj(),
       inputs = list()
     )
@@ -636,7 +636,7 @@ test_that("an output that warns replies ok with the warning, which R logs", {
   hold_result(
     session, "n", 3L,
     recipe = list(
-      registry_id = pkg_ref(NULL, "count_block"),
+      registry_id = pkg_id(NULL, "count_block"),
       state = obj(),
       inputs = list()
     )
@@ -704,7 +704,7 @@ test_that("R draws an open family's outputs by the families the app read", {
 
   hold_result(
     session, "t", 1L,
-    recipe = list(registry_id = pkg_ref(NULL, "table_any_block"), state = obj(),
+    recipe = list(registry_id = pkg_id(NULL, "table_any_block"), state = obj(),
                   inputs = list())
   )
 
@@ -724,7 +724,7 @@ test_that("R draws an open family's outputs by the families the app read", {
   # A text output, which no family that the app read draws, fails
   hold_result(
     session, "x", 1L,
-    recipe = list(registry_id = pkg_ref(NULL, "text_any_block"), state = obj(),
+    recipe = list(registry_id = pkg_id(NULL, "text_any_block"), state = obj(),
                   inputs = list())
   )
 
@@ -748,7 +748,7 @@ test_that("R shows a result as text where its class names no output", {
   hold_result(
     session, "u", 1L,
     recipe = list(
-      registry_id = pkg_ref("blockr.core", "upload_block"),
+      registry_id = pkg_id("blockr.core", "upload_block"),
       state = list(file_path = "sales.csv"),
       inputs = list()
     )
@@ -805,7 +805,7 @@ test_that("a request that succeeds replies ok with what its function raised", {
         id = "2",
         kind = "request",
         type = "block_class",
-        registry_id = pkg_ref(NULL, "count_block"),
+        registry_id = pkg_id(NULL, "count_block"),
         block = "n",
         name = "counts",
         args = obj(),
@@ -894,7 +894,7 @@ test_that("R refuses a body for a request that names no argument for one", {
       id = "2",
       kind = "request",
       type = "block_class",
-      registry_id = pkg_ref(NULL, "peek_block"),
+      registry_id = pkg_id(NULL, "peek_block"),
       block = "p",
       name = "peek",
       args = obj(),
@@ -980,7 +980,7 @@ test_that("R answers a plugin's request with the function it holds", {
 
   # R refuses a request of a plugin class that the app does not run, which an
   # available package lists all the same
-  session$receive(list(ping("2", pkg_ref("blockr.code", "code_plugin"))))
+  session$receive(list(ping("2", pkg_id("blockr.code", "code_plugin"))))
   session$run()
 
   expect_identical(
@@ -992,7 +992,7 @@ test_that("R answers a plugin's request with the function it holds", {
   # with the function that the app holds, as here, where it finds none
   testthat::local_mocked_bindings(available_plugin_classes = function() list())
 
-  session$receive(list(ping("3", pkg_ref("blockr.notes", "notes_plugin"))))
+  session$receive(list(ping("3", pkg_id("blockr.notes", "notes_plugin"))))
   session$run()
 
   expect_identical(last_reply(session)$status, "ok")
@@ -1068,7 +1068,7 @@ test_that("R answers the requests of an output class and of a renderer", {
   hold_result(
     session, "h", 9L,
     recipe = list(
-      registry_id = pkg_ref(NULL, "chart_block"),
+      registry_id = pkg_id(NULL, "chart_block"),
       state = obj(),
       inputs = list(recipe_input("a", 2L, "data"))
     )
@@ -1094,7 +1094,7 @@ test_that("R answers the requests of an output class and of a renderer", {
   hold_result(
     session, "a", 3L,
     recipe = list(
-      registry_id = pkg_ref(NULL, "adsl_block"),
+      registry_id = pkg_id(NULL, "adsl_block"),
       state = obj(),
       inputs = list()
     )
@@ -1115,7 +1115,7 @@ test_that("R resolves an output's request by an output it made", {
   hold_result(
     session, "h", 9L,
     recipe = list(
-      registry_id = pkg_ref(NULL, "chart_block"),
+      registry_id = pkg_id(NULL, "chart_block"),
       state = obj(),
       inputs = list(recipe_input("a", 2L, "data"))
     )
@@ -1152,7 +1152,7 @@ test_that("R answers an output's requests by those given for the output", {
   hold_result(
     session, "h", 9L,
     recipe = list(
-      registry_id = pkg_ref(NULL, "chart_block"),
+      registry_id = pkg_id(NULL, "chart_block"),
       state = obj(),
       inputs = list(recipe_input("a", 2L, "data"))
     )
@@ -1194,7 +1194,7 @@ test_that("an output fails where its class gives no named list of requests", {
   hold_result(
     session, "h", 9L,
     recipe = list(
-      registry_id = pkg_ref(NULL, "chart_block"),
+      registry_id = pkg_id(NULL, "chart_block"),
       state = obj(),
       inputs = list(recipe_input("a", 2L, "data"))
     )
@@ -1221,7 +1221,7 @@ test_that("a request names its failures by phase, and lacking results", {
       id = id,
       kind = "request",
       type = "block_class",
-      registry_id = pkg_ref("blockr.core", "head_block"),
+      registry_id = pkg_id("blockr.core", "head_block"),
       block = "b",
       name = name,
       args = args,
@@ -1690,7 +1690,7 @@ test_that("the page hears why R sent no reply too large for a message", {
   ev <- new_evaluator(board = list(blocks = list()))
 
   loud <- list(
-    registry_id = pkg_ref("blockr.core", "static_block"),
+    registry_id = pkg_id("blockr.core", "static_block"),
     state = list(expression = "{ cat(strrep('x', 50000)); 1 }"),
     inputs = list()
   )
@@ -1765,7 +1765,7 @@ test_that("R calls a plugin's request with its args, reads and body", {
       id = "2",
       kind = "request",
       type = "plugin",
-      plugin = pkg_ref("blockr.notes", "notes_plugin"),
+      plugin = pkg_id("blockr.notes", "notes_plugin"),
       name = "save",
       args = list(text = "hello"),
       reads = list(list(block = "a", revision = 2L)),
@@ -1798,7 +1798,7 @@ test_that("R calls a plugin's request with its args, reads and body", {
         id = "3",
         kind = "request",
         type = "plugin",
-        plugin = pkg_ref("blockr.notes", "notes_plugin"),
+        plugin = pkg_id("blockr.notes", "notes_plugin"),
         name = "count",
         args = list(a = 1L, b = 2L),
         reads = list(list(block = "a", revision = 2L))
@@ -1807,7 +1807,7 @@ test_that("R calls a plugin's request with its args, reads and body", {
         id = "4",
         kind = "request",
         type = "plugin",
-        plugin = pkg_ref("blockr.notes", "notes_plugin"),
+        plugin = pkg_id("blockr.notes", "notes_plugin"),
         name = "save",
         args = list(text = "hello", reads = list())
       )
@@ -1839,7 +1839,7 @@ test_that("R checks what a request of any type reads, and forgets it", {
       id = id,
       kind = "request",
       type = "plugin",
-      plugin = pkg_ref("blockr.code", "code_plugin"),
+      plugin = pkg_id("blockr.code", "code_plugin"),
       name = "script",
       reads = list(list(block = "a", revision = revision))
     )
@@ -1877,7 +1877,7 @@ test_that("R replies error to a type that is not core's", {
 
   session$receive(
     list(
-      plugin("2", pkg_ref("blockr.notes", "notes_plugin")),
+      plugin("2", pkg_id("blockr.notes", "notes_plugin")),
       list(id = "3", kind = "request", type = "option", option = "data_dir",
            name = "list_dir", args = obj()),
       list(id = "4", kind = "request", type = "code", name = "x"),
@@ -1886,9 +1886,9 @@ test_that("R replies error to a type that is not core's", {
       # class of core's own, by an id that does not end in `_plugin`, or
       # without a package
       plugin("6", "blockr.notes-notes_plugin"),
-      plugin("7", pkg_ref("blockr.notes", "frontend_plugin")),
-      plugin("8", pkg_ref("blockr.notes", "notes")),
-      plugin("9", pkg_ref(NULL, "notes_plugin"))
+      plugin("7", pkg_id("blockr.notes", "frontend_plugin")),
+      plugin("8", pkg_id("blockr.notes", "notes")),
+      plugin("9", pkg_id(NULL, "notes_plugin"))
     )
   )
 

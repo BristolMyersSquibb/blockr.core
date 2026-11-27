@@ -426,7 +426,7 @@ test_that("R reads the schema that a module ships beside it", {
 
   # Core's plugin classes keep no state, so they ship no schema
   expect_null(
-    plugin_class_schema(pkg_ref("blockr.core", "basic_frontend_plugin"))
+    plugin_class_schema(pkg_id("blockr.core", "basic_frontend_plugin"))
   )
-  expect_null(plugin_class_schema(pkg_ref("blockr.none", "none_plugin")))
+  expect_null(plugin_class_schema(pkg_id("blockr.none", "none_plugin")))
 })

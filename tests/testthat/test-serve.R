@@ -41,7 +41,7 @@ test_that("serve() registers the board's classes from their registrations", {
   local_declared(block_registry)
 
   # So that core's listing gives the static block's class
-  unregister_blocks(pkg_ref("blockr.core", "static_block"))
+  unregister_blocks(pkg_id("blockr.core", "static_block"))
 
   cls <- test_block_class(
     "note_block",
@@ -69,7 +69,7 @@ test_that("serve() registers the board's classes from their registrations", {
   register_block(block_constructor(cls), "Note", "A note")
 
   labels <- c("note_block", "static_block of blockr.core")
-  head <- get_registry_entry(core_head_ref())
+  head <- get_registry_entry(core_head_id())
   rows <- core_block_rows()
 
   app <- serve(board, blocks = rows[rows[["id"]] == "head_block", ])
@@ -84,18 +84,18 @@ test_that("serve() registers the board's classes from their registrations", {
   )
   expect_false(lists_block("static_block", "blockr.core"))
   expect_identical(
-    get_registry_entry(pkg_ref(NULL, "note_block"), registry)$name,
+    get_registry_entry(pkg_id(NULL, "note_block"), registry)$name,
     "Note"
   )
 
-  static <- get_registry_entry(pkg_ref("blockr.core", "static_block"), registry)
+  static <- get_registry_entry(pkg_id("blockr.core", "static_block"), registry)
 
   expect_identical(static$block_class$package, "blockr.core")
   expect_identical(static$name, "static block")
   expect_identical(static$description, "Evaluate an R expression")
 
   # A class that the block registry holds keeps its entry
-  expect_identical(get_registry_entry(core_head_ref(), registry), head)
+  expect_identical(get_registry_entry(core_head_id(), registry), head)
 
   # The reply to `hello` sends each of them, so that the client offers the
   # static block too, by the name that its registration gives
@@ -193,7 +193,7 @@ test_that("an app's sessions read the block registry that serve() built", {
       evaluate_request("2", "a", 1L, sample_recipe("a")),
       list(
         id = "3", kind = "request", type = "block_class",
-        registry_id = core_head_ref(), block = "b", name = "n_max",
+        registry_id = core_head_id(), block = "b", name = "n_max",
         args = obj(), reads = list(recipe_input("a", 1L, "data"))
       ),
       output_request("4", "a", 1L, params = list(page_size = 5L))
@@ -280,7 +280,7 @@ test_that("blocks and plugins read their rows alike, and plugins no file", {
 test_that("serve() registers the class of a block that it serves alone", {
 
   local_declared(block_registry)
-  unregister_blocks(pkg_ref("blockr.core", "static_block"))
+  unregister_blocks(pkg_id("blockr.core", "static_block"))
   register_block(new_class_head_block, "Head", "First rows")
 
   app <- serve(new_static_block("datasets::BOD"))
@@ -294,7 +294,7 @@ test_that("serve() registers the class of a block that it serves alone", {
   )
   expect_false(lists_block("static_block", "blockr.core"))
   expect_identical(
-    get_registry_entry(pkg_ref("blockr.core", "static_block"), registry)$name,
+    get_registry_entry(pkg_id("blockr.core", "static_block"), registry)$name,
     "static block"
   )
 
@@ -333,7 +333,7 @@ test_that("serve() replaces a class from outside a package that differs", {
 
   registry <- served_registry(serve(new_board(c(a = block_constructor(new)()))))
 
-  note <- pkg_ref(NULL, "note_block")
+  note <- pkg_id(NULL, "note_block")
 
   expect_identical(get_registry_entry(note, registry)$block_class, new)
   expect_identical(get_registry_entry(note, registry)$name, "Note")
@@ -347,7 +347,7 @@ test_that("serve() replaces a class from outside a package that differs", {
   other <- block_constructor(note_class(TRUE, "blockr.core"))
   registry <- served_registry(serve(new_board(c(a = other()))))
 
-  note <- pkg_ref("blockr.core", "note_block")
+  note <- pkg_id("blockr.core", "note_block")
 
   expect_identical(get_registry_entry(note, registry)$block_class, held)
 
@@ -369,7 +369,7 @@ test_that("serve() replaces a class from outside a package that differs", {
     )
   )
 
-  probe <- pkg_ref("regprobe", "probe_block")
+  probe <- pkg_id("regprobe", "probe_block")
 
   expect_identical(
     get_registry_entry(probe, registry)$block_class,
@@ -685,7 +685,7 @@ test_that("serve() reads the opening board for the locks as it is called", {
       id = "older",
       name = "Older",
       blocks = obj(
-        a = proto_block(pkg_ref("blockr.foo", "bar_block"), obj(), "Bar")
+        a = proto_block(pkg_id("blockr.foo", "bar_block"), obj(), "Bar")
       ),
       links = obj(),
       stacks = obj(),
@@ -720,7 +720,7 @@ test_that("serve() reads the opening board for the locks as it is called", {
           "a",
           1L,
           list(
-            registry_id = pkg_ref("blockr.core", "dataset_block"),
+            registry_id = pkg_id("blockr.core", "dataset_block"),
             state = list(dataset = "iris", package = "datasets"),
             inputs = list()
           )
@@ -766,7 +766,7 @@ test_that("serve() serves a block alone, binding its data by input", {
   blocks <- reply$board$board$blocks
 
   expect_length(blocks, 1L)
-  expect_identical(blocks[[1L]]$registry_id, core_head_ref())
+  expect_identical(blocks[[1L]]$registry_id, core_head_id())
   expect_identical(blocks[[1L]]$name, "Head")
   expect_identical(reply$bound, "data")
 
@@ -781,7 +781,7 @@ test_that("serve() serves a block alone, binding its data by input", {
         names(blocks),
         1L,
         list(
-          registry_id = core_head_ref(),
+          registry_id = core_head_id(),
           state = list(n = 3L, direction = "head"),
           inputs = list(list(input = "data"))
         )
@@ -1307,7 +1307,7 @@ test_that("serve() warns of a key of `renderers` that names no family", {
   # anyway
   expect_s3_class(app, "shiny.appobj")
   expect_identical(
-    renderer_ref(family_renderers(table_output)[["table_output"]]),
+    renderer_id(family_renderers(table_output)[["table_output"]]),
     list(package = "blockr.core", id = "table_output")
   )
 

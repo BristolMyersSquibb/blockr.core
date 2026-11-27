@@ -11337,6 +11337,7 @@ function createCore(parts) {
       return parts.show(shown2);
     },
     request: (plugin, name3, args = {}, opts = {}) => pluginRequest({ plugins: plugins2, scheduler, replied: notifications.replied }, plugin, name3, args, opts),
+    id: interned,
     module: (id2) => loader.module(givenModuleId(id2)),
     blockrOption: (name3) => blockrOptions.read(name3),
     mintId: (taken) => mintId(taken, randId),
