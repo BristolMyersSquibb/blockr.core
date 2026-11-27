@@ -4,8 +4,10 @@
 // and for its directory data.
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { ArrowUp, File, Folder } from "@blockr/ui/icons";
 import { find, listed, picked, pressAndRelease, rows, selectButton, selectShows, step, texts } from "@blockr/ui/stubs";
 import { stubBlockHost } from "../../stubs/index.ts";
+import { shownIcon } from "../../testing/icons.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { holdRequests } from "../../testing/requests.ts";
 import * as browser from "./index.tsx";
@@ -94,9 +96,14 @@ test("lists the directories first, then the files, each with its size where it i
     ["data", "—", browser.modifiedText("2026-11-02T09:14:00Z")],
     ["notes.txt", "6 B", browser.modifiedText("2026-11-19T16:51:00Z")],
   ]);
-  // A directory shows its icon in the accent colour, a file in the muted one.
-  expect(entry(view.el, "data").querySelector("svg")?.getAttribute("class")).toContain("bc:text-primary");
-  expect(entry(view.el, "notes.txt").querySelector("svg")?.getAttribute("class")).toContain("bc:text-muted-foreground");
+  // A directory shows Lucide's folder in the accent colour, a file Lucide's
+  // file in the muted one, and the button that goes up a directory Lucide's
+  // arrow up.
+  expect(shownIcon(entry(view.el, "data"))).toEqual(Folder);
+  expect(shownIcon(entry(view.el, "notes.txt"))).toEqual(File);
+  expect(entry(view.el, "data").querySelector("svg")?.parentElement?.getAttribute("class")).toContain("bc:text-primary");
+  expect(entry(view.el, "notes.txt").querySelector("svg")?.parentElement?.getAttribute("class")).toContain("bc:text-muted-foreground");
+  expect(shownIcon(up(view.el))).toEqual(ArrowUp);
 });
 
 test("draws a picker of the volumes where there are several, and lists the root of the volume the user picks", async () => {

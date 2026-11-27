@@ -9,7 +9,7 @@
 // (a to f), and its stack s1, Input, holds a and b.
 
 import { act } from "react";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 import {
   chipLabels,
   find,
@@ -238,9 +238,11 @@ function names(el: HTMLElement, title: "Blocks" | "Stacks"): string[] {
 }
 
 // The text of each cell of a row that shows its object, after its checkbox
-// and before its "…".
+// and before the cell of its "…" button, which opens the row's menu.
 function cells(tr: HTMLElement): string[] {
-  return [...tr.querySelectorAll('[role="rowheader"], [role="gridcell"]')].slice(1).flatMap((cell) => (cell.textContent === "⋯" ? [] : [cell.textContent]));
+  return [...tr.querySelectorAll('[role="rowheader"], [role="gridcell"]')]
+    .slice(1)
+    .flatMap((cell) => (cell.querySelector('button[aria-haspopup="menu"]') === null ? [cell.textContent] : []));
 }
 
 // The ticked rows of the section's table, by the ids of their objects.
@@ -1076,6 +1078,19 @@ describe("the forms that add a block, a link and a stack", () => {
     expect(section(el, "Stacks").querySelector('[role="group"][aria-label="Add a stack"]')).toBeNull();
     expect([...block.renders, ...link.renders, ...stack.renders]).toEqual([]);
   });
+
+  test("are mounted once React has drawn the plugin, since core's forms draw with flushSync(), so that React logs no error", async () => {
+    const error = vi.spyOn(console, "error");
+    onTestFinished(() => {
+      error.mockRestore();
+    });
+    const { el } = await mounted();
+
+    for (const title of ["Blocks", "Links", "Stacks"] as const) {
+      expect(form(section(el, title), CORE_FORMS[title])).toBeDefined();
+    }
+    expect(error).not.toHaveBeenCalledWith(expect.stringMatching(/^flushSync was called/));
+  });
 });
 
 describe("the selection", () => {
@@ -1520,6 +1535,20 @@ describe("a form in a row", () => {
     // The row's checkbox still ticks it.
     await click(rowCheckbox(row(stacks, "s1")));
     expect(m.core.selection.get()).toEqual([{ stack: "s1" }]);
+  });
+
+  test("is mounted once React has drawn the row, since core's forms draw with flushSync(), so that React logs no error", async () => {
+    const m = await mounted();
+    const error = vi.spyOn(console, "error");
+    onTestFinished(() => {
+      error.mockRestore();
+    });
+    const menu = await openMenu(m, "Actions of the link from Iris to Merge");
+    await pick(menu, "Edit link");
+    await openAdvanced(menu);
+
+    expect(row(section(m.el, "Links"), "ac").contains(form(m.el, "Change link"))).toBe(true);
+    expect(error).not.toHaveBeenCalledWith(expect.stringMatching(/^flushSync was called/));
   });
 });
 

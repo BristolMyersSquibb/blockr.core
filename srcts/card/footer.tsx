@@ -42,6 +42,9 @@
 
 import { useCallback, useId, useState } from "react";
 import type { ReactElement } from "react";
+import { Icon } from "@blockr/ui";
+import { CircleX, Info, TriangleExclamationPoint } from "../icons/index.ts";
+import type { IconNode } from "../icons/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { Notification, Severity } from "../types/core-api.ts";
 
@@ -248,35 +251,18 @@ function Banner({ severity, message }: { severity: Severity; message: string }):
   );
 }
 
-// The icon of a severity, drawn in the colour of the text around it: a cross in
-// a circle for an error, an exclamation mark in a triangle for a warning, and
-// an i in a circle for a message.
+// The icon of a severity, Lucide's, 12 pixels wide and drawn in the colour of
+// the text around it: a cross in a circle for an error, an exclamation mark in
+// a triangle for a warning, and an i in a circle for a message.
 export function SeverityIcon({ severity }: { severity: Severity }): ReactElement {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      className="bc:size-3 bc:shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {severity === "warning" ? (
-        <>
-          <path d="M8 1.8 14.6 13.6H1.4Z" />
-          <path d="M8 6.2v3.2M8 11.6v.1" />
-        </>
-      ) : (
-        <>
-          <circle cx="8" cy="8" r="6.4" />
-          <path d={severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1"} />
-        </>
-      )}
-    </svg>
-  );
+  return <Icon icon={SEVERITY_ICONS[severity]} size={12} />;
 }
+
+const SEVERITY_ICONS: Readonly<Record<Severity, IconNode>> = {
+  error: CircleX,
+  warning: TriangleExclamationPoint,
+  message: Info,
+};
 
 // The status that the footer and the pills show: the block's, where it has a
 // line of its own, and otherwise the last that had one.

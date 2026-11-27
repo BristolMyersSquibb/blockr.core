@@ -287,13 +287,16 @@ export function offers(core: CoreApi, role: string, target: Target): boolean {
 }
 
 // The advanced action of the board action that plays the role with the id
-// given, on the target. The plugin mounts it in room of its own through
-// mountAdvanced() by the role's id, until the component goes or its target
-// changes. Core renders it again once its done() has run a batch, so that a
-// form that adds is ready for the next edit, and leaves the element empty once
-// the board no longer holds what the target names.
+// given, on the target.
+// The plugin mounts it in room of its own through mountAdvanced() by the
+// role's id, until the component goes or its target changes.
+// The mount waits until React has finished its work, since a form of core's
+// draws with flushSync() (../../card/mounted.tsx).
+// Core renders it again once its done() has run a batch, so that a form that
+// adds is ready for the next edit, and leaves the element empty once the board
+// no longer holds what the target names.
 export function Advanced({ core, role, target }: { core: CoreApi; role: string; target: Target }): ReactElement {
   const key = JSON.stringify(target);
   const mount = useCallback((el: HTMLElement) => core.boardActions.mountAdvanced(el, role, JSON.parse(key) as Target), [core, role, key]);
-  return <Mounted mount={mount} className="bc:min-w-0" />;
+  return <Mounted mount={mount} deferred className="bc:min-w-0" />;
 }

@@ -63,14 +63,16 @@ export interface Link {
 export interface Stack {
   readonly name: string;
   readonly blocks: readonly BlockId[];
-  // The colour that frontends draw the stack in, a hex colour of six digits
-  // such as "#66c2a5", or null for none.
-  // A frontend draws a stack without a colour in a default of its own.
-  // The pattern is the store's HEX_COLOR, by which the store checks a stack,
-  // and a test holds the two to each other.
   /**
    * @pattern ^#[0-9a-fA-F]{6}$
    */
+  // The colour that frontends draw the stack in, a hex colour of six digits
+  // such as "#66c2a5", or null for none.
+  // A frontend draws a stack without a colour in a default of its own.
+  // The pattern above is the store's HEX_COLOR, by which the store checks a
+  // stack, and a test holds the two to each other.
+  // The pattern comes first, since TypeDoc, which writes this comment into the
+  // TypeScript reference, garbles lines of comment that a block follows.
   readonly color: string | null;
 }
 
