@@ -1,8 +1,8 @@
 // The helpers that make a module or a renderer from a React component, mounted
 // as core mounts a module, with the stubs of the hosts.
 
-import { afterEach, describe, expect, test, vi } from "vitest";
-import { step } from "@blockr/ui/stubs";
+import { describe, expect, test } from "vitest";
+import { expectedErrors, step } from "@blockr/ui/stubs";
 import { stubOptionHost, stubOutputHost } from "../stubs/index.ts";
 import { mountReact } from "../testing/react.ts";
 import type { OptionHost } from "../types/hosts.ts";
@@ -13,10 +13,6 @@ import type { ModuleProps, OutputProps } from "./index.ts";
 const text = (value: string): TextOutput => ({
   renderer: { id: "blockr.core-text_output", module: "blockr.core/js/basic-text.js" },
   text: value,
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
 });
 
 describe("reactModule()", () => {
@@ -94,7 +90,8 @@ describe("outputRenderer()", () => {
   });
 
   test("draws nothing in place of a component that throws, raises why through the host and logs it there, and draws it again once another output comes", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // React prints each error that the renderer's boundary catches.
+    expectedErrors(/^Error: cannot show bad (one|two)\n/);
     const renderer = outputRenderer<TextOutput>(({ output }) => {
       if (output.text.startsWith("bad")) throw new Error(`cannot show ${output.text}`);
       return <pre>{output.text}</pre>;
@@ -131,7 +128,8 @@ describe("outputRenderer()", () => {
   });
 
   test("raises one notification where its component throws on an output that comes later, which holds until the renderer is unmounted", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // React prints the error that the renderer's boundary catches.
+    expectedErrors(/^Error: no text to show\n/);
     const renderer = outputRenderer<TextOutput>(({ output }) => {
       if (output.text === "bad") throw new Error("no text to show");
       return <pre>{output.text}</pre>;

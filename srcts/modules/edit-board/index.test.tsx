@@ -872,7 +872,9 @@ describe("the stacks", () => {
 
     // The blocks of no stack come first, and those of another stack apart.
     const blocks = labelled(add(), "Blocks");
-    blocks.focus();
+    await step(() => {
+      blocks.focus();
+    });
     await step(() => {
       blocks.click();
     });

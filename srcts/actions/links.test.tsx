@@ -343,7 +343,9 @@ describe("Create link", () => {
     expect(into.slice(1)).toEqual(["be", "de"]);
     expect(s.core.store.board().links[into[0] ?? ""]).toEqual({ from: "f", to: "e", input: "plotted" });
     // One undo takes back the link and its move.
-    s.core.store.undo();
+    await step(() => {
+      s.core.store.undo();
+    });
     expect(s.core.store.board()).toEqual(board);
     await step(() => {
       unmount();

@@ -25,8 +25,13 @@ export default defineConfig({
     // draws, takes a second or two alone, and longer while the other test files
     // run beside it.
     testTimeout: 15_000,
-    // Fails a test that logs an error that it does not capture.
-    setupFiles: ["./srcts/testing/setup.ts"],
+    // The setup that blockr.ui offers packages fails a test on an error or a
+    // warning that the test prints to the console.
+    // Core's own fails a test on an error that the test logs and does not
+    // capture.
+    // The setup of blockr.ui comes first, so that its check after each test
+    // runs last.
+    setupFiles: ["@blockr/ui/stubs/setup", "./srcts/testing/setup.ts"],
     // Every run measures the coverage of the tests, `npm test` included.
     // The typescript job of blockr.ci uploads coverage/lcov.info to Codecov.
     // The lcov reporter writes that file, and an HTML report beside it in
