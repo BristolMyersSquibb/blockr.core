@@ -181,6 +181,18 @@ local_method <- function(generic, class, value, package, frame) {
   invisible()
 }
 
+# The frontend Sheet of the package blockr.test, whose method of
+# `frontend_theme()` returns `theme`, until `frame` ends.
+local_sheet_frontend <- function(theme, frame = parent.frame()) {
+
+  local_plugin_classes(
+    Sheet = plugin_ctor(function() NULL, c("sheet_plugin", "frontend_plugin")),
+    frame = frame
+  )
+  local_versions(blockr.test = "0.1.0", frame = frame)
+  local_method("frontend_theme", "sheet_plugin", theme, "blockr.test", frame)
+}
+
 # The plugin constructors of the package blockr.test of the fixtures, whose
 # classes it defines in JavaScript: a frontend, of the class grid_plugin, the
 # notes of the class notes_plugin, and the tools of the class tools_plugin,

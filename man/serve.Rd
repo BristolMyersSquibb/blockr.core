@@ -9,11 +9,28 @@
 \usage{
 serve(x, ...)
 
-\method{serve}{board}(x, ..., blocks = available_blocks(), plugins = available_plugins())
+\method{serve}{board}(
+  x,
+  ...,
+  blocks = available_blocks(),
+  plugins = available_plugins(),
+  theme = blockr_option("theme", blockr.ui::new_blockr_theme())
+)
 
-\method{serve}{character}(x, ..., blocks = available_blocks(), plugins = available_plugins())
+\method{serve}{character}(
+  x,
+  ...,
+  blocks = available_blocks(),
+  plugins = available_plugins(),
+  theme = blockr_option("theme", blockr.ui::new_blockr_theme())
+)
 
-\method{serve}{block}(x, ..., data = list())
+\method{serve}{block}(
+  x,
+  ...,
+  data = list(),
+  theme = blockr_option("theme", blockr.ui::new_blockr_theme())
+)
 }
 \arguments{
 \item{x}{A board, the path of a JSON board, or a block}
@@ -31,6 +48,8 @@ class's package in \code{package} and its id in \code{id}, such as those of
 \item{plugins}{The plugins that the app runs, as rows with the package of
 each plugin's class in \code{package} and the class's id in \code{id}, such as those
 of \code{\link[=available_plugins]{available_plugins()}}}
+
+\item{theme}{The app's theme, as \code{\link[blockr.ui:new_blockr_theme]{blockr.ui::new_blockr_theme()}} makes it}
 
 \item{data}{The block's data, a list by input}
 }
@@ -93,6 +112,38 @@ Core's basic frontend knows none, so an app that runs it and passes
 \code{navbar} fails as \code{serve()} is called.
 R sends what the method returns in its reply to \code{hello}, so that every
 board that the app opens gets the same.
+
+An app gives the page a theme of its own in \code{theme}, as
+\code{\link[blockr.ui:new_blockr_theme]{blockr.ui::new_blockr_theme()}} makes it.
+A theme sets values of the theme variables, in light mode and in dark mode.
+Each method takes the app's theme, so that a block that \code{serve()} serves
+alone draws in it too.
+The argument defaults to the blockr option \code{theme}.
+Where nothing sets that option, it falls back on a theme with no values.
+A site-wide R profile can set the option for every app that runs on its
+installation of R, and an app's script overrides it.
+Only an R option sets it, as \code{options(blockr.theme = theme)} does.
+An environment variable gives a string, which is no theme.
+Each method refuses a \code{theme} that is not a theme, naming what it got.
+
+The frontend gives the values that it wants its own as a theme too.
+The methods for a board and for a path call the method of
+\code{\link[=frontend_theme]{frontend_theme()}} for the class of the app's frontend as \code{serve()} is
+called, and a method that returns anything but a theme stops the app,
+naming the frontend.
+R writes the rules of the frontend's theme and then those of the app's theme
+into the page's head, after the stylesheet of blockr.ui.
+So the page draws in them from the first paint, its loading note included.
+A value of the app's theme wins over the frontend's, and both win over the
+defaults of blockr.ui.
+A theme with no values writes no rules.
+For each font of the two themes, R serves the font's file and writes the
+font's face with \verb{@font-face}.
+R also names the file in the page's head, so that the browser fetches it as
+the page loads.
+Until the file has loaded, the text draws in the next face of the stack.
+A font that gives no family or no file stops the app, and so does a font
+whose file does not exist.
 
 For a board, R writes the board's JSON once, as \code{serve()} is called, and
 sends it to the client as each session starts.
