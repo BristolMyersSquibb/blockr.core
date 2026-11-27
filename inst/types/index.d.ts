@@ -1,5 +1,5 @@
 export type { Json, JsonSchema } from "./types/json.ts";
-export type { Block, BlockId, Board, JsonBlock, JsonOption, JsonPlugin, JsonBoard, Link, LinkId, OptionId, PluginClassId, RegistryId, Stack, StackId, } from "./types/board.ts";
+export type { Block, BlockId, Board, BoardActionId, CommandId, Id, JsonBlock, JsonOption, JsonPlugin, JsonBoard, Link, LinkId, ModuleId, OptionId, PluginClassId, RegistryId, RendererId, Stack, StackId, } from "./types/board.ts";
 export type { RegistryEntry } from "./types/registry.ts";
 export type { Log, LogLevel, LogLine } from "./types/log.ts";
 export type { BlockOutput, OutputFixture, OutputFixtures, OutputRenderer, PlotOutput, TableColumn, TableOutput, TableParams, TextOutput, } from "./types/outputs.ts";
