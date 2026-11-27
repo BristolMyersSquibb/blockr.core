@@ -1,10 +1,11 @@
 // @vitest-environment node
 
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
+import { Pin, TriangleAlert } from "@blockr/ui/icons";
 import { IMPORTS, OTEL_API, importFile } from "../import-map/index.ts";
 import type { Status } from "../scheduler/index.ts";
 import { build, idWords, licenses, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
@@ -141,6 +142,57 @@ test("bundles the packages that core's code imports into the vendor file, minifi
   // The vendor file sits beside the runtime, where R serves it as a file
   // beside a module, so the import map names it nowhere.
   expect(await read("import-map.json")).not.toContain(file);
+});
+
+test("bundles into the vendor file the icons that core's code imports from @blockr/ui/icons, and no others, which the files that draw them import by its name", async () => {
+  await write({
+    "srcts/runtime/index.ts": 'import { Pin } from "@blockr/ui/icons";\nimport type { IconNode } from "@blockr/ui/icons";\nexport const shape: IconNode = Pin;\n',
+    // An icon under another name of Lucide's, imported under a name of the
+    // module's own.
+    "srcts/modules/note/index.ts": 'import { TriangleAlert as Alert } from "@blockr/ui/icons";\nexport const shape = Alert;\n',
+    // A test is no code that the build bundles.
+    "srcts/modules/note/index.test.ts": 'import { X } from "@blockr/ui/icons";\nexport const shape = X;\n',
+  });
+
+  await build(root);
+
+  const out = join(root, "inst/js");
+  const file = (await readdir(out)).find((name) => /^vendor-[0-9a-f]{8}\.js$/.test(name)) ?? "";
+  const vendor = (await import(pathToFileURL(join(out, file)).href)) as Record<string, unknown>;
+  expect([vendor.Pin, vendor.TriangleAlert]).toEqual([Pin, TriangleAlert]);
+  expect(["X" in vendor, "Trash" in vendor]).toEqual([false, false]);
+  // The runtime and the module import the icons from the vendor file, by its
+  // name beside them, and run on them there.
+  for (const name of ["blockr-core.js", "note.js"]) {
+    expect(await readFile(join(out, name), "utf8")).toContain(`from "./${file}"`);
+  }
+  const runtime = (await import(pathToFileURL(join(out, "blockr-core.js")).href)) as { shape: unknown };
+  expect(runtime.shape).toEqual(Pin);
+});
+
+test("fails where core's code imports @blockr/ui/icons without naming the icons that it takes, since the vendor file holds those that it names alone", async () => {
+  await write({
+    "srcts/runtime/index.ts": 'import * as icons from "@blockr/ui/icons";\nexport const shape = icons.Pin;\n',
+  });
+
+  await expect(build(root)).rejects.toThrow(
+    'srcts/runtime/index.ts imports @blockr/ui/icons without naming the icons that it takes. Import each icon by its name, as in import { Pin } from "@blockr/ui/icons".',
+  );
+});
+
+test("fails where core's code imports @blockr/ui/icons with import(), through the vendor check, since the build cannot tell which icons such an import takes", async () => {
+  await write({
+    "srcts/runtime/index.ts": 'import { Pin } from "@blockr/ui/icons";\nexport const shape = Pin;\nexport const later = async () => (await import("@blockr/ui/icons")).X;\n',
+  });
+  // The preset resolves such an import from the code's own directory, as in
+  // core's repo, whose node_modules holds blockr.ui's entries and Lucide.
+  await mkdir(join(root, "node_modules/@blockr"), { recursive: true });
+  await symlink(join(repo, "node_modules/@blockr/ui"), join(root, "node_modules/@blockr/ui"));
+  await symlink(join(repo, "node_modules/lucide"), join(root, "node_modules/lucide"));
+
+  await expect(build(root)).rejects.toThrow(
+    "The build put icons of @blockr/ui/icons into inst/js/blockr-core.js. Bundle the icons that the package imports into its vendor file instead, and import them from there.",
+  );
 });
 
 test("fails where one of core's files would bundle a package from node_modules that the vendor file does not hold, through the vendor check", async () => {
