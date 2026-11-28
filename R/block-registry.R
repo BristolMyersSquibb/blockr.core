@@ -1,4 +1,17 @@
-block_registry <- new.env()
+# A block registry holds block classes by package, each package's by the id
+# of its class, in `packages`, and the classes that an app script defines,
+# which record no package, by id, in `script`.
+new_block_registry <- function() {
+  list2env(
+    list(
+      packages = new.env(parent = emptyenv()),
+      script = new.env(parent = emptyenv())
+    ),
+    parent = emptyenv()
+  )
+}
+
+block_registry <- new_block_registry()
 
 #' Block registry
 #'
@@ -11,11 +24,11 @@ block_registry <- new.env()
 #' class.
 #'
 #' A block class's registry id comes from the class alone.
-#' It is `{pkg}-{id}`, such as `blockr.core-head_block`,
-#' where `{pkg}` is the package whose code defines the class
-#' and `{id}` is the class's id (see [new_block_class()]).
-#' A class that an app script defines records no package,
-#' and its registry id is its id alone.
+#' It holds the package whose code defines the class and the class's id (see
+#' [new_block_class()]), as two parts of their own, as
+#' `list(package = "blockr.core", id = "head_block")`.
+#' A class that an app script defines records no package, so the package of
+#' its registry id is `NULL`.
 #' So renaming a constructor leaves the registry id as it is,
 #' while changing a class's id changes it.
 #' The `registry_id_from_block()` function reads the registry id from a
@@ -113,11 +126,17 @@ block_registry <- new.env()
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be
 #' vector-valued, while de-registration (or removal) is handled via
-#' `unregister_blocks()`, all in the block registry of the process. The
-#' registry IDs of the registered classes come from `list_blocks()`, while
-#' `available_blocks()` lists the block classes of the available packages,
-#' which an app may offer. Finally, block construction via a registry ID is
-#' available as `create_block()`.
+#' `unregister_blocks()`, all in the block registry of the process.
+#' The registered classes come from `list_blocks()`, as rows with each class's
+#' package in `package` and its id in `id`, the package `NA` for a class that
+#' an app script defines.
+#' The function `unregister_blocks()` takes such rows, or the registry id of
+#' one class, as `registry_id_from_block()` gives it.
+#' The function `available_blocks()` lists the block classes of the available
+#' packages, which an app may offer, as rows in the same shape.
+#' Finally, block construction via a registry id is available as
+#' `create_block()`, which takes the class's id, and its package in `package`
+#' for a class that a package defines.
 #'
 #' @param ctor Block constructor, made by [block_constructor()]
 #' @param name,description Metadata describing the block
@@ -141,26 +160,27 @@ block_registry <- new.env()
 #'   )
 #' )
 #'
-#' blks <- list_blocks()
 #' register_block(new_identity_block, "Identity", "Returns its input")
 #'
-#' new <- setdiff(list_blocks(), blks)
-#' new
+#' subset(list_blocks(), id == "identity_block")
 #'
-#' registry_id_from_block(new_identity_block())
+#' id <- registry_id_from_block(new_identity_block())
+#' id
 #'
-#' unregister_blocks(new)
-#' setequal(list_blocks(), blks)
+#' create_block("identity_block")
+#'
+#' unregister_blocks(id)
+#' subset(list_blocks(), id == "identity_block")
 #'
 #' @return `register_block()` and `register_blocks()` are invoked for their side
 #' effects and return `block_registry_entry` object(s) invisibly, while
 #' `unregister_blocks()` returns `NULL` (invisibly).
-#' Listing via `list_blocks()` returns a character vector, and
-#' `available_blocks()` a data frame of `package` and `id` with a row for each
-#' class. Block
-#' construction via `create_block()` returns a newly instantiated `block`
+#' Listing via `list_blocks()` and `available_blocks()` returns a data frame of
+#' `package` and `id` with a row for each class.
+#' Block construction via `create_block()` returns a newly instantiated `block`
 #' object, and the lookup `registry_id_from_block()` returns the registry id
-#' that a block's class gives, a string.
+#' that a block's class gives, a list of its `package`, a string or `NULL`, and
+#' its `id`, a string.
 #' The categories that registration expects a class to name come from
 #' `suggested_categories()`, as a character vector.
 #'
@@ -237,12 +257,13 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
   }
 
   cls <- constructor_class(ctor)
-  id <- class_registry_id(cls)
+  id <- registry_id_from_block(cls)
 
-  if (exists(id, envir = registry, inherits = FALSE) && !isTRUE(overwrite)) {
+  if (not_null(registry_entry(id, registry)) && !isTRUE(overwrite)) {
     blockr_abort(
-      "Block {id} already exists. Set `overwrite = TRUE` to replace it, ",
-      "or remove it first with `unregister_blocks(\"{id}\")`.",
+      "Block class {pkg_id_label(id)} is registered already. Set ",
+      "`overwrite = TRUE` to replace it, or remove it first with ",
+      "`unregister_blocks()`.",
       class = "block_already_in_registry"
     )
   }
@@ -260,7 +281,7 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
     )
   )
 
-  assign(id, entry, envir = registry)
+  put_registry_entry(entry, registry)
 
   invisible(entry)
 }
@@ -283,7 +304,7 @@ class_entry <- function(cls, meta) {
   do.call(
     new_registry_entry,
     c(
-      list(id = class_registry_id(cls)),
+      list(package = cls[["package"]], id = cls[["id"]]),
       meta,
       list(
         block_class = cls,
@@ -302,21 +323,6 @@ class_entry <- function(cls, meta) {
 entry_metadata <- function(x) {
   x[c("name", "description", "link", "guidance", "keywords", "category",
       "icon")]
-}
-
-# A block class's registry id, `{pkg}-{id}`, from the package that the class
-# records and the class's id, or the id alone for a class that records no
-# package, as one that an app script defines.
-class_registry_id <- function(cls) {
-
-  id <- cls[["id"]]
-  package <- cls[["package"]]
-
-  if (is.null(package)) {
-    return(id)
-  }
-
-  paste0(package, "-", id)
 }
 
 class_schema <- function(cls) {
@@ -390,7 +396,7 @@ is_registry_entry <- function(x) inherits(x, "block_registry_entry")
 #' @export
 format.block_registry_entry <- function(x, ...) {
   c(
-    paste0("<block_registry_entry> ", x[["id"]]),
+    paste0("<block_registry_entry> ", pkg_id_label(x)),
     paste0("Name: \"", x[["name"]], "\""),
     paste0("Description: \"", x[["description"]], "\""),
     paste0("Category: ", x[["category"]]),
@@ -412,7 +418,22 @@ board_options.block_registry_entry <- function(x, ...) {
 #' @rdname register_block
 #' @export
 list_blocks <- function() {
-  ls(envir = block_registry)
+  registry_rows(block_registry)
+}
+
+# The block classes of a block registry, as rows of `list_blocks()`, in the
+# order of `registry_entries()`.
+registry_rows <- function(registry) {
+
+  entries <- registry_entries(registry)
+
+  block_rows(
+    package = chr_ply(
+      entries,
+      function(x) coal(x[["package"]], NA_character_, fail_all = FALSE)
+    ),
+    id = chr_xtr(entries, "id")
+  )
 }
 
 #' @param block A block or a block class
@@ -429,15 +450,44 @@ registry_id_from_block <- function(block) {
     )
   }
 
-  class_registry_id(cls)
+  pkg_id(cls[["package"]], cls[["id"]])
 }
 
-#' @param uid Registry ids of the entries to remove
+#' @param blocks The block classes to remove, as rows with each class's package
+#'   in `package` and its id in `id`, as `list_blocks()` gives them, or the
+#'   registry id of one class, as `registry_id_from_block()` gives it
 #' @rdname register_block
 #' @export
-unregister_blocks <- function(uid = list_blocks()) {
-  rm(list = uid, envir = block_registry, inherits = FALSE)
+unregister_blocks <- function(blocks = list_blocks()) {
+
+  for (id in registry_ids(blocks)) {
+    drop_registry_entry(id, block_registry)
+  }
+
   invisible()
+}
+
+# The registry ids that `x` gives: rows with a `package` and an `id`, as
+# `list_blocks()` gives them, or one registry id, as
+# `registry_id_from_block()` gives it.
+registry_ids <- function(x) {
+
+  if (is_pkg_id(x)) {
+    return(list(pkg_id(x[["package"]], x[["id"]])))
+  }
+
+  if (!is.data.frame(x) || !all(c("package", "id") %in% names(x))) {
+    blockr_abort(
+      "Expecting block classes as rows with a `package` and an `id`, as ",
+      "`list_blocks()` gives them, or the registry id of one class, as ",
+      "`registry_id_from_block()` gives it.",
+      class = "block_classes_invalid"
+    )
+  }
+
+  unname(
+    Map(pkg_id, as.character(x[["package"]]), as.character(x[["id"]]))
+  )
 }
 
 #' @param ... For `register_blocks()`, arguments forwarded to
@@ -462,18 +512,83 @@ register_blocks <- function(...) {
   )
 }
 
-get_registry_entry <- function(uid, registry = block_registry) {
+# The entry of the block class whose registry id is `id` in `registry`, which
+# stops where the registry holds none.
+get_registry_entry <- function(id, registry = block_registry) {
 
-  res <- if (is_string(uid)) get0(uid, envir = registry, inherits = FALSE)
+  res <- registry_entry(id, registry)
 
-  if (!is_registry_entry(res)) {
+  if (is.null(res)) {
     blockr_abort(
-      "No block class is registered under the registry id {uid}.",
+      "No block class is registered under the registry id ",
+      "{pkg_id_label(id)}.",
       class = "registry_id_unknown"
     )
   }
 
   res
+}
+
+# The entry of the block class whose registry id is `id` in `registry`, or
+# `NULL` where the registry holds none, as for an `id` that is no registry id.
+registry_entry <- function(id, registry = block_registry) {
+
+  if (!is_pkg_id(id)) {
+    return(NULL)
+  }
+
+  part <- registry_part(registry, id[["package"]])
+
+  if (is.null(part)) {
+    return(NULL)
+  }
+
+  res <- get0(id[["id"]], envir = part, inherits = FALSE)
+
+  if (is_registry_entry(res)) res
+}
+
+# The environment of `registry` that holds the block classes of `package` by
+# id, or those that an app script defines for `NULL`, or `NULL` where the
+# registry holds no class of the package, unless `add` has it make one.
+registry_part <- function(registry, package, add = FALSE) {
+
+  if (is.null(package)) {
+    return(registry[["script"]])
+  }
+
+  packages <- registry[["packages"]]
+  part <- get0(package, envir = packages, inherits = FALSE)
+
+  if (is.null(part) && add) {
+    part <- new.env(parent = emptyenv())
+    assign(package, part, envir = packages)
+  }
+
+  part
+}
+
+# Puts the entry `x` into `registry`, under the package and the id of its
+# class, in place of an entry that the registry holds there.
+put_registry_entry <- function(x, registry) {
+
+  part <- registry_part(registry, x[["package"]], add = TRUE)
+  assign(x[["id"]], x, envir = part)
+
+  invisible(x)
+}
+
+# Removes the entry of the block class whose registry id is `id` from
+# `registry`, where the registry holds one.
+drop_registry_entry <- function(id, registry) {
+
+  part <- registry_part(registry, id[["package"]])
+
+  if (not_null(part) && exists(id[["id"]], envir = part, inherits = FALSE)) {
+    rm(list = id[["id"]], envir = part, inherits = FALSE)
+  }
+
+  invisible()
 }
 
 #' @rdname register_block
@@ -505,9 +620,9 @@ registered_block_rows <- function() {
   )
 }
 
-# The entries of the block registry of the process, by registry id, whose
-# classes record `package`, or for `NULL`, those of the classes that an app
-# script defined itself, which record none.
+# The entries of the block registry of the process whose classes record
+# `package`, or for `NULL`, those of the classes that an app script defined
+# itself, which record none.
 process_entries <- function(package = NULL) {
   Filter(
     function(x) identical(x[["block_class"]][["package"]], package),
@@ -521,16 +636,34 @@ block_rows <- function(package = character(), id = character()) {
   data.frame(package = package, id = id)
 }
 
-#' @param id Block ID as reported by `list_blocks()`
+#' @param id The id of the block class, as `list_blocks()` gives it in `id`
+#' @param package For `create_block()`, the package of the block class, as
+#'   `list_blocks()` gives it in `package`, or `NULL` for a class that an app
+#'   script defines
 #' @rdname register_block
 #' @export
-create_block <- function(id, ...) {
-  block_constructor(get_registry_entry(id)[["block_class"]])(...)
+create_block <- function(id, ..., package = NULL) {
+  entry <- get_registry_entry(pkg_id(package, id))
+  block_constructor(entry[["block_class"]])(...)
 }
 
-# The entries of a block registry by registry id, the process's by default.
+# The entries of a block registry, the process's by default: those of each
+# package, in the order of the packages' names, each package's in the order
+# of their ids, and then those of the classes that an app script defines, in
+# the order of their ids.
 registry_entries <- function(registry = block_registry) {
-  lapply(set_names(nm = ls(envir = registry)), get_registry_entry, registry)
+
+  packages <- registry[["packages"]]
+
+  # Sorted as the C locale sorts, so that the order is the same everywhere
+  ids <- function(env) sort(ls(envir = env), method = "radix")
+
+  parts <- c(
+    lapply(ids(packages), get, envir = packages),
+    list(registry[["script"]])
+  )
+
+  unlst(lapply(parts, function(part) lapply(ids(part), get, envir = part)))
 }
 
 # The block classes that a package lists, as rows of `available_blocks()`.
@@ -631,14 +764,16 @@ check_listed_blocks <- function(entries, package) {
 app_block_registry <- function(blocks = available_blocks()) {
 
   offered <- offered_block_classes(blocks)
-  registry <- new.env(parent = emptyenv())
+  registry <- new_block_registry()
 
   # Reading a package's listing loads the package
   for (pkg in names(offered)) {
     register_offered_classes(pkg, registry, offered[[pkg]])
   }
 
-  list2env(process_entries(), registry)
+  for (entry in process_entries()) {
+    put_registry_entry(entry, registry)
+  }
 
   registry
 }
@@ -780,7 +915,10 @@ register_offered_classes <- function(package, registry, ids = NULL) {
   }
 
   register_listed_blocks(package, registry, ids)
-  list2env(held, registry)
+
+  for (entry in held) {
+    put_registry_entry(entry, registry)
+  }
 
   invisible()
 }
@@ -794,11 +932,10 @@ register_offered_classes <- function(package, registry, ids = NULL) {
 # register, or one that its package does not list.
 register_class <- function(cls, registry) {
 
-  id <- class_registry_id(cls)
-  held <- get0(id, envir = block_registry, inherits = FALSE)
+  held <- registry_entry(registry_id_from_block(cls), block_registry)
 
-  if (is_registry_entry(held)) {
-    assign(id, held, envir = registry)
+  if (not_null(held)) {
+    put_registry_entry(held, registry)
     return(TRUE)
   }
 
@@ -874,14 +1011,17 @@ register_listed_blocks <- function(package, registry, ids = NULL) {
 # classes give one registry id, since the second would replace the first.
 check_package_registry_ids <- function(ctors, package) {
 
-  ids <- chr_ply(lapply(ctors, constructor_class), class_registry_id)
-  id <- ids[duplicated(ids)][1L]
-  same <- names(ctors)[ids %in% id]
+  ids <- lapply(lapply(ctors, constructor_class), registry_id_from_block)
+  twice <- ids[duplicated(ids)]
+
+  same <- if (length(twice)) {
+    names(ctors)[lgl_ply(ids, same_pkg_id, twice[[1L]])]
+  }
 
   if (length(same)) {
     blockr_abort(
       "Package {package} declares block constructors {same}, whose classes ",
-      "give one registry id, {id}.",
+      "give one registry id, {pkg_id_label(twice[[1L]])}.",
       class = "package_blocks_invalid"
     )
   }

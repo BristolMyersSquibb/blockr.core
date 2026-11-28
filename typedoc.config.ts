@@ -40,7 +40,20 @@ const reference: Record<string, readonly Page[]> = {
       description: "The board that the client holds, as plain data, and the ids by which it names its objects.",
       members: {
         Objects: ["Board", "Block", "Link", "Stack", "Lock"],
-        Ids: ["BoardObject", "BlockId", "LinkId", "StackId", "OptionId", "PluginClassId", "RegistryId"],
+        Ids: [
+          "BoardObject",
+          "BlockId",
+          "LinkId",
+          "StackId",
+          "OptionId",
+          "Id",
+          "PluginClassId",
+          "RegistryId",
+          "RendererId",
+          "ModuleId",
+          "CommandId",
+          "BoardActionId",
+        ],
       },
     },
     {

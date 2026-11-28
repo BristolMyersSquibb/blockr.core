@@ -22,6 +22,7 @@ import { recordSpans } from "../testing/spans.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { coreOptions, reply as fixtureReply, hello, withPlugins } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
+import { interned } from "../util/index.ts";
 import { createScheduler } from "./index.ts";
 import type { BlockStatus, Scheduler, SchedulerOptions } from "./index.ts";
 import { counter } from "./revisions.ts";
@@ -168,10 +169,10 @@ describe("revisions", () => {
     const { store, scheduler } = await setup(
       {},
       {
-        reply: withPlugins({ "test.pkg-zoom_plugin": { name: "Zoom", state: { zoom: 1 } } }),
+        reply: withPlugins({ "test.pkg": { zoom_plugin: { name: "Zoom", state: { zoom: 1 } } } }),
         prepare: (store) =>
           store.plugins.register({
-            id: "test.pkg-zoom_plugin",
+            id: interned("test.pkg", "zoom_plugin"),
             state: { schema: { type: "object", properties: { zoom: { type: "number" } } }, default: { zoom: 1 } },
           }),
       },
@@ -189,7 +190,7 @@ describe("revisions", () => {
     store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } });
     store.apply({ options: { set: { n_rows: 20 } } });
     store.apply({ name: "Renamed" });
-    store.apply({ patches: [{ op: "replace", path: "/plugins/test.pkg-zoom_plugin/zoom", value: 2 }] });
+    store.apply({ patches: [{ op: "replace", path: "/plugins/test.pkg/zoom_plugin/zoom", value: 2 }] });
 
     expect(blockRevisions(scheduler)).toEqual(before);
   });
@@ -525,7 +526,7 @@ describe("demand and scheduling", () => {
       revision: blockStatus(scheduler, "c").revision,
       locked: null,
       recipe: {
-        registry_id: "blockr.core-merge_block",
+        registry_id: { package: "blockr.core", id: "merge_block" },
         state: { by: ["Species"], all_x: false, all_y: false },
         inputs: [
           { input: "x", block: "a", revision: blockStatus(scheduler, "a").revision },
@@ -1159,7 +1160,7 @@ describe("requests", () => {
     r.reply({
       id: sent?.id ?? "",
       status: "ok",
-      output: { renderer: { id: "blockr.core-table_output", module: "blockr.core/js/basic-table.js" } },
+      output: { renderer: { package: "blockr.core", id: "table_output", module: "blockr.core/js/basic-table.js" } },
       conditions: [],
     });
     await expect(asking).resolves.toMatchObject({ reply: { status: "ok" } });
@@ -1212,7 +1213,7 @@ describe("requests", () => {
       scheduler.request({
         kind: "request",
         type: "block_class",
-        registry_id: "blockr.core-head_block",
+        registry_id: interned("blockr.core", "head_block"),
         block: "b",
         name: "n_max",
         args: {},
@@ -1223,14 +1224,14 @@ describe("requests", () => {
       scheduler.request({
         kind: "request",
         type: "block_class",
-        registry_id: "blockr.core-upload_block",
+        registry_id: interned("blockr.core", "upload_block"),
         block: "b",
         name: "upload",
         args: {},
         reads: [],
       }),
       scheduler.request({ kind: "request", type: "option", option: "data_dir", name: "list_dir", args: {} }),
-      scheduler.request({ kind: "request", type: "plugin", plugin: "blockr.code-code_plugin", name: "script", args: {}, reads: [] }),
+      scheduler.request({ kind: "request", type: "plugin", plugin: interned("blockr.code", "code_plugin"), name: "script", args: {}, reads: [] }),
     ];
     // The ids of the outputs and requests sent, in order.
     const asked = () =>
@@ -1262,7 +1263,7 @@ describe("spans", () => {
     await evaluateAll(r);
 
     // The edit changes b's recipe, and so the recipe of c, which b feeds.
-    const edit = trace.getTracer("blockr.test").startSpan("command blockr.test-edit");
+    const edit = trace.getTracer("blockr.test").startSpan("command edit");
     context.with(trace.setSpan(context.active(), edit), () => {
       store.apply({ blocks: { mod: { b: { state: { n: 10 } } } } });
     });
@@ -1315,7 +1316,8 @@ describe("spans", () => {
     expect(outputs).toHaveLength(2);
     for (const span of outputs) {
       expect(span.parentSpanContext?.spanId).toBe(caller.spanContext().spanId);
-      expect(span.attributes["blockr.block.registry_id"]).toBe("blockr.core-dataset_block");
+      expect(span.attributes["blockr.block.registry_id"]).toBe("dataset_block");
+      expect(span.attributes["blockr.block.package"]).toBe("blockr.core");
     }
     recorded.restore();
   });

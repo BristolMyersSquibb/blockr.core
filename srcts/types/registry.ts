@@ -1,14 +1,18 @@
 // The block registry's entries, which R sends the client with its reply to
-// `hello`: each block class by registry id, with what the client cannot read
-// off a class that stays in R.
+// `hello`: each block class with its package and its id, with what the client
+// cannot read off a class that stays in R.
 // They are read-only, for neither side to edit.
 
-import type { OptionId, RegistryId } from "./board.ts";
+import type { OptionId } from "./board.ts";
 import type { Json, JsonSchema } from "./json.ts";
 import type { OutputRenderer } from "./outputs.ts";
 
 export interface RegistryEntry {
-  readonly id: RegistryId;
+  // The package that defines the class, or null for a class that an app
+  // script defines, and the class's id within it, which together are the
+  // class's registry id.
+  readonly package: string | null;
+  readonly id: string;
   // The metadata that registration gives: name, description, url (the link
   // that `register_block()` takes), guidance, keywords, category and icon, the
   // icon as SVG markup.

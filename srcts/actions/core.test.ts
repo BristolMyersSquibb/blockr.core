@@ -12,31 +12,40 @@ import { Box, Layers, Link, Trash } from "@blockr/ui/icons";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
 import type { CoreApi } from "../types/core-api.ts";
+import { interned } from "../util/index.ts";
 import type { BoardAction, Target } from "./actions.ts";
 
-const ADD = "blockr.core-add_block_action";
-const APPEND = "blockr.core-append_block_action";
-const PREPEND = "blockr.core-prepend_block_action";
-const INSERT = "blockr.core-insert_block_action";
-const CREATE_LINK = "blockr.core-add_link_action";
-const CREATE_STACK = "blockr.core-add_stack_action";
-const RENAME = "blockr.core-rename_action";
-const EDIT_LINK = "blockr.core-edit_link_action";
-const EDIT_INPUTS = "blockr.core-edit_inputs_action";
-const EDIT_STACK = "blockr.core-edit_stack_action";
-const ADD_TO_STACK = "blockr.core-add_to_stack_action";
-const COPY = "blockr.core-copy_block_id_action";
-const REMOVE_BLOCK = "blockr.core-remove_block_action";
-const REMOVE_LINK = "blockr.core-remove_link_action";
-const REMOVE_STACK = "blockr.core-remove_stack_action";
-const REMOVE_SELECTED = "blockr.core-remove_selected_action";
+// Core's board actions, each by its id, as a caller names one.
+const core = (id: string) => interned("blockr.core", id);
+const ADD = core("add_block_action");
+const APPEND = core("append_block_action");
+const PREPEND = core("prepend_block_action");
+const INSERT = core("insert_block_action");
+const CREATE_LINK = core("add_link_action");
+const CREATE_STACK = core("add_stack_action");
+const RENAME = core("rename_action");
+const EDIT_LINK = core("edit_link_action");
+const EDIT_INPUTS = core("edit_inputs_action");
+const EDIT_STACK = core("edit_stack_action");
+const ADD_TO_STACK = core("add_to_stack_action");
+const COPY = core("copy_block_id_action");
+const REMOVE_BLOCK = core("remove_block_action");
+const REMOVE_LINK = core("remove_link_action");
+const REMOVE_STACK = core("remove_stack_action");
+const REMOVE_SELECTED = core("remove_selected_action");
 
 // The element that the user triggers from, which a trigger() needs.
 const el = document.body;
 
-// Each board action's id, label and category, as a menu shows them.
-function rows(actions: readonly BoardAction[]): [string, string, string][] {
-  return actions.map(({ id, label, category }) => [id, label, category]);
+// Each board action's package and id, label and category, as a menu shows
+// them.
+function rows(actions: readonly BoardAction[]): [{ package: string; id: string }, string, string][] {
+  return actions.map((action) => [{ package: action.package, id: action.id }, action.label, action.category]);
+}
+
+// Whether the board action is the one with the package and the id given.
+function is(action: BoardAction, named: { readonly package: string; readonly id: string }): boolean {
+  return action.package === named.package && action.id === named.id;
 }
 
 // The ids of the board's blocks, links and stacks.
@@ -106,7 +115,7 @@ describe("core's board actions", () => {
     ]);
     // Edit inputs applies to a block whose class has inputs, a variadic one
     // among them, and to none whose class has none, as Iris's dataset block.
-    const editing = (block: string) => on({ block }).some(({ id }) => id === EDIT_INPUTS);
+    const editing = (block: string) => on({ block }).some((action) => is(action, EDIT_INPUTS));
     expect(["a", "b", "c", "e"].map(editing)).toEqual([false, true, true, true]);
     expect(rows(on({ link: "ab" }))).toEqual([
       [INSERT, "Insert block", "add"],
@@ -128,10 +137,10 @@ describe("core's board actions", () => {
       [REMOVE_SELECTED, "Remove", "remove"],
     ]);
     expect(on({ option: "n_rows" })).toEqual([]);
-    expect(on({ plugin: "blockr.core-edit_board_plugin" })).toEqual([]);
+    expect(on({ plugin: interned("blockr.core", "edit_board_plugin") })).toEqual([]);
 
     // Copy block ID's row shows the block's id.
-    const copy = on({ block: "b" }).find(({ id }) => id === COPY);
+    const copy = on({ block: "b" }).find((action) => is(action, COPY));
     expect(copy?.detail?.(s.core.store.board(), { block: "b" })).toBe("b");
     // Those that add carry Lucide's icon of what they add: a block, a link or
     // a stack. Add to stack carries the icon of a stack as well, those that
@@ -159,7 +168,7 @@ describe("core's board actions", () => {
     expect(on({ link: "nowhere" })).toEqual([]);
     expect(on({ stack: "nowhere" })).toEqual([]);
     expect(on({ selection: [] })).toEqual([]);
-    expect(on({ selection: [{ block: "nowhere" }, { option: "n_rows" }, { plugin: "blockr.core-edit_board_plugin" }] })).toEqual([]);
+    expect(on({ selection: [{ block: "nowhere" }, { option: "n_rows" }, { plugin: interned("blockr.core", "edit_board_plugin") }] })).toEqual([]);
     s.stop();
   });
 

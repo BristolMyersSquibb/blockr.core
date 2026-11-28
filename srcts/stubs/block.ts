@@ -10,12 +10,12 @@
 // answers a request that R recorded with that file.
 
 import type { BlockStatus } from "../scheduler/index.ts";
-import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
+import type { BlockId, OptionId } from "../types/board.ts";
 import type { Raised } from "../types/core-api.ts";
 import type { BlockHost, HostRequestOpts, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
-import { asError, isObject, jsonEqual, own, packageFromId, without } from "../util/index.ts";
+import { asError, interned, isObject, jsonEqual, nestedValue, own, without } from "../util/index.ts";
 import { announcer, lineHolder, raisedHolder, stubBlockContext } from "./util.ts";
 import type { StubContext } from "./util.ts";
 
@@ -39,17 +39,19 @@ export interface BlockFixture {
 export interface StubBlockHostOptions<S extends State = State> {
   // The block's state, the first that the fixture lists unless given.
   readonly state?: S;
-  // The block's id and its class, "block" and "stub" unless given.
+  // The block's id and its class, "block" and { package: null, id: "stub" }
+  // unless given.
   readonly block?: BlockId;
-  readonly class?: RegistryId;
+  readonly class?: { readonly package: string | null; readonly id: string };
   // What the context holds, a ready block with no linked inputs and no board
   // options unless given.
   readonly context?: StubContext;
   // What evaluate() resolves with, the status that the context holds unless
   // given.
   readonly evaluate?: (params: Record<string, Json>) => BlockStatus | Promise<BlockStatus>;
-  // The modules that other packages offer, by id.
-  readonly modules?: Readonly<Record<string, unknown>>;
+  // The modules that other packages offer, by package and then by id, as
+  // { "blockr.core": { controls: … } }.
+  readonly modules?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
 export interface StubBlockHost<S extends State = State> extends BlockHost<S> {
@@ -92,11 +94,13 @@ export function stubBlockHost<S extends State = State>(
   const evaluated: Record<string, Json>[] = [];
   const on = announcer(["state", "context"] as const);
   const { notified, notify } = raisedHolder();
-  const { logged, log } = lineHolder(packageFromId(options.class ?? "stub"));
+  const cls = interned(options.class?.package ?? null, options.class?.id ?? "stub");
+  const { logged, log } = lineHolder(cls.package);
 
   return {
     block: options.block ?? "block",
-    class: options.class ?? "stub",
+    class: cls,
+    id: interned,
     state: () => state,
     context: () => context,
     on: on.listen,
@@ -160,11 +164,11 @@ export function stubBlockHost<S extends State = State>(
       evaluated.push(params);
       return options.evaluate === undefined ? context.status : await options.evaluate(params);
     },
-    module<T = unknown>(id: string): Promise<T> {
-      const modules = options.modules ?? {};
-      return Object.hasOwn(modules, id)
-        ? Promise.resolve(modules[id] as T)
-        : Promise.reject(new Error(`No package offers a module "${id}".`));
+    module<T = unknown>(id: { readonly package: string; readonly id: string }): Promise<T> {
+      const offered = nestedValue(options.modules ?? {}, interned(id.package, id.id));
+      return offered === undefined
+        ? Promise.reject(new Error(`${id.package} offers no module "${id.id}".`))
+        : Promise.resolve(offered as T);
     },
     setState(next) {
       state = next;

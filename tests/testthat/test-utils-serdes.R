@@ -34,14 +34,14 @@ test_that("a board is written as a JSON board", {
         "name": "Q3 numbers",
         "blocks": {
           "a": {
-            "registry_id": "head_block",
+            "registry_id": { "package": null, "id": "head_block" },
             "version": 1,
             "state": { "n": 10, "direction": "head" },
             "name": "Ten",
             "locked": true
           },
           "b": {
-            "registry_id": "head_block",
+            "registry_id": { "package": null, "id": "head_block" },
             "version": 1,
             "state": { "n": 6, "direction": "tail" },
             "name": "Head",
@@ -190,6 +190,46 @@ test_that("a block's state is written by the schema its class's UI ships", {
   )
 })
 
+test_that("a block's state keeps the shape of its schema beside plugins", {
+
+  local_declared(block_registry)
+
+  merge <- outside_class(
+    "join_block",
+    function(by = character()) bbquote(merge(.(x), .(y), by = .(by))),
+    withr::local_tempdir(),
+    schema = '{
+      "type": "object",
+      "properties": {
+        "by": { "type": "array", "items": { "type": "string" } }
+      }
+    }',
+    inputs = c("x", "y")
+  )
+
+  local_versions(blockr.test = "0.1.0")
+  grid <- plugin_ctor(function(cols = "a") NULL, "grid_plugin")
+  local_plugin_classes(Grid = grid, modules = list(Grid = "js/grid.js"))
+
+  board <- new_board(
+    blocks = c(a = block_constructor(merge)(by = "Time")),
+    plugins = list(grid())
+  )
+
+  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
+
+  # The classes of the plugins that hold state leave the classes of the
+  # blocks, by whose schemas R writes each block's state, as they are
+  expect_identical(
+    res$blocks$a$state,
+    read_json_strictly('{ "by": ["Time"] }')
+  )
+  expect_identical(
+    res$plugins[["blockr.test"]][["grid_plugin"]]$state,
+    read_json_strictly('{ "cols": "a" }')
+  )
+})
+
 test_that("writing a board reads each block's class and registers none", {
 
   local_declared(block_registry)
@@ -204,8 +244,11 @@ test_that("writing a board reads each block's class and registers none", {
 
   res <- blockr_ser(new_board(c(a = new_note_block("Hi"))))$board
 
-  expect_identical(res$blocks$a$registry_id, "note_block")
-  expect_false("note_block" %in% list_blocks())
+  expect_identical(
+    res$blocks$a$registry_id,
+    list(package = NULL, id = "note_block")
+  )
+  expect_false(lists_block("note_block"))
 
   # The block's own class gives the version and the schema of its state, not
   # the class that the block registry holds under the block's registry id
@@ -231,7 +274,7 @@ test_that("writing a board reads each block's class and registers none", {
     res$blocks$a,
     read_json_strictly(
       '{
-        "registry_id": "note_block",
+        "registry_id": { "package": null, "id": "note_block" },
         "version": 2,
         "state": { "tags": ["x"] },
         "name": "Note",
@@ -285,7 +328,7 @@ test_that("a board that the format cannot hold fails as it is written", {
 
   expect_error(
     blockr_ser(new_board(plugins = notes(identity))),
-    "The state of the plugin of class blockr.test-notes_plugin holds a",
+    "The state of the plugin of class notes_plugin of blockr.test holds a",
     class = "board_value_invalid"
   )
 })
@@ -392,11 +435,12 @@ test_that("a plugin's state is written by the schema of its class", {
     id = "grid"
   )
 
-  # A plugin's state is written under its class's id, with the version of the
-  # class's state, by the schema of the class's state, what the schema leaves
-  # out keeps the shape that R's writer gives it, and the state of a class that
-  # no package gives a schema is bare, while a board option's value is shaped
-  # by its schema before it is recorded with its version
+  # A plugin's state is written under its class's package and then its class's
+  # id, with the version of the class's state, by the schema of the class's
+  # state, what the schema leaves out keeps the shape that R's writer gives it,
+  # and the state of a class that no package gives a schema is bare, while a
+  # board option's value is shaped by its schema before it is recorded with its
+  # version
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board)))$board,
     read_json_strictly(
@@ -410,19 +454,21 @@ test_that("a plugin's state is written by the schema of its class", {
           "tags": { "value": ["draft"], "version": 2, "package": "blockr.test" }
         },
         "plugins": {
-          "blockr.test-notes_plugin": {
-            "state": {
-              "notes": {
-                "n1": { "text": "To check", "blocks": ["a"] },
-                "n2": {}
+          "blockr.test": {
+            "notes_plugin": {
+              "state": {
+                "notes": {
+                  "n1": { "text": "To check", "blocks": ["a"] },
+                  "n2": {}
+                },
+                "flags": { "starred": ["a"], "note": "x" },
+                "pinned": "n1",
+                "counts": []
               },
-              "flags": { "starred": ["a"], "note": "x" },
-              "pinned": "n1",
-              "counts": []
+              "version": 1
             },
-            "version": 1
-          },
-          "blockr.test-grid_plugin": { "state": { "cols": "a" }, "version": 1 }
+            "grid_plugin": { "state": { "cols": "a" }, "version": 1 }
+          }
         }
       }'
     )
@@ -433,7 +479,7 @@ test_that("a plugin's state is written by the schema of its class", {
   res <- read_json_strictly(encode_message(res))
 
   expect_identical(
-    res$board$plugins[["blockr.test-notes_plugin"]]$state,
+    res$board$plugins[["blockr.test"]][["notes_plugin"]]$state,
     read_json_strictly(
       '{ "notes": {}, "flags": {}, "pinned": "", "counts": [] }'
     )
@@ -444,7 +490,8 @@ test_that("a plugin's state is written by the schema of its class", {
   empty <- plugin_ctor(function() NULL, "empty_plugin")
   res <- blockr_ser(new_board(plugins = list(empty(), grid())))
 
-  expect_named(res$board$plugins, "blockr.test-grid_plugin")
+  expect_named(res$board$plugins, "blockr.test")
+  expect_named(res$board$plugins[["blockr.test"]], "grid_plugin")
 
   res <- blockr_ser(new_board(plugins = empty()))
 
@@ -520,11 +567,11 @@ test_that("R finds a schema beside the module that a package lists", {
   res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
   expect_identical(
-    res$plugins[["blockr.one-views_plugin"]]$state,
+    res$plugins[["blockr.one"]][["views_plugin"]]$state,
     read_json_strictly('{ "views": ["main"] }')
   )
   expect_identical(
-    res$plugins[["blockr.three-views_plugin"]]$state,
+    res$plugins[["blockr.three"]][["views_plugin"]]$state,
     read_json_strictly('{ "views": "main" }')
   )
 
@@ -561,8 +608,7 @@ test_that("a JSON board records the package and version of each plugin class", {
 
   res <- blockr_ser(board)
 
-  # The package that the id of each plugin's class names, beside that of each
-  # block's class
+  # The package of each plugin's class, beside that of each block's class
   expect_identical(
     res$packages,
     list(blockr.core = core, blockr.one = "1.2.0", blockr.two = "0.3.0")
@@ -571,18 +617,19 @@ test_that("a JSON board records the package and version of each plugin class", {
   # The version of each plugin class, beside the state of its plugin, which is
   # 1 for a class without a method of plugin_version()
   expect_identical(
-    lst_xtr(res$board$plugins, "version"),
-    list(`blockr.one-dag_plugin` = 3L, `blockr.two-md_plugin` = 1L)
+    res$board$plugins[["blockr.one"]][["dag_plugin"]]$version,
+    3L
   )
+  expect_identical(res$board$plugins[["blockr.two"]][["md_plugin"]]$version, 1L)
 
-  # The package of a block's class is the one its registry id names, and the
-  # id of a class that an app script defines names none
+  # The package of a block's class is the one that its registry id holds, and
+  # that of a class that an app script defines is none
   blocks <- list(
-    a = list(registry_id = "blockr.two-tag_block"),
-    b = list(registry_id = "note_block")
+    a = list(registry_id = list(package = "blockr.two", id = "tag_block")),
+    b = list(registry_id = list(package = NULL, id = "note_block"))
   )
 
-  plugins <- list(`blockr.one-dag_plugin` = list(positions = list()))
+  plugins <- list(blockr.one = list(dag_plugin = list(positions = list())))
 
   expect_identical(
     board_packages(list(blocks = blocks, plugins = plugins)),

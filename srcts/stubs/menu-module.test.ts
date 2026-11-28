@@ -188,7 +188,7 @@ describe("the tests of a module that draws the menus of board actions", () => {
     [
       "shownIndex",
       ["draws the rows", "runs the batch of the item", "says whether each item", "shows the next level", "opens the advanced action from an item's"],
-      'A click on the row Remove block runs the board action Remove block, but core ran [{"action":"blockr.test-add_block_action","batch":[{"id":"blockr.test-add"}]}].',
+      'A click on the row Remove block runs the board action Remove block, but core ran [{"action":"add_block_action","batch":[{"id":{"package":"blockr.test","id":"add"}}]}].',
     ],
     [
       "leaky",

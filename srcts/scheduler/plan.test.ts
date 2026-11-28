@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from "vitest";
 import { createGraph } from "../graph/index.ts";
+import { blockRegistry } from "../protocol/index.ts";
 import { sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
@@ -16,7 +17,7 @@ import { blockStatuses } from "./status.ts";
 import type { Outcome } from "./status.ts";
 
 const graph = createGraph(sample);
-const inputs = inputsByBlock(sample, graph, hello.block_registry, new Set());
+const inputs = inputsByBlock(sample, graph, blockRegistry(hello), new Set());
 // The revisions of the sample board as it opens: a 1, b 2, d 3, f 4, c 5, e 6.
 const revisions = opening(graph, counter());
 const now = 100_000;

@@ -10,7 +10,10 @@ test_that("subset block constructor", {
   expect_error(new_subset_block(select = "a +"), "unexpected")
   expect_error(new_subset_block(select = "a; b"), "not of length one")
 
-  expect_identical(registry_id_from_block(blk), "blockr.core-subset_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "subset_block")
+  )
 })
 
 test_that("a subset block puts its expressions in its block expression", {

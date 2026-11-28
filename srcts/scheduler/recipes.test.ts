@@ -4,13 +4,14 @@
 
 import { describe, expect, test } from "vitest";
 import { createGraph } from "../graph/index.ts";
+import { blockRegistry } from "../protocol/index.ts";
 import { createBoard, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import { inputsByBlock } from "./recipes.ts";
 
 function inputs(board: Board, bound: string[] = []) {
-  return inputsByBlock(board, createGraph(board), hello.block_registry, new Set(bound));
+  return inputsByBlock(board, createGraph(board), blockRegistry(hello), new Set(bound));
 }
 
 describe("a block's inputs", () => {

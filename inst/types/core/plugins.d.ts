@@ -11,7 +11,7 @@ export interface Frontend {
     readonly added: Promise<readonly string[]>;
 }
 export interface RunningPlugins {
-    appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
+    appPlugins(): ReadonlyMap<PluginClassId, Plugin>;
     pluginClass(plugin: PluginClassId): PluginClass;
     storage(): Storage | undefined;
     mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
@@ -22,7 +22,7 @@ export interface RunningDeps {
     readonly store: Store;
     readonly keepOptions: Mounts["keepOptions"];
     readonly core: () => CoreApi;
-    readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
+    readonly plugins: ReadonlyMap<PluginClassId, PluginEntry>;
     readonly raise: Raise;
     readonly uis: WeakMap<Element, PluginClassId>;
     readonly signal?: AbortSignal;

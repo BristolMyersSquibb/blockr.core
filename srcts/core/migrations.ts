@@ -20,7 +20,7 @@ import type { Migration } from "../store/index.ts";
 import type { RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { log } from "../log/index.ts";
-import { asError, isObject, own, packageFromId } from "../util/index.ts";
+import { asError, internedRecord, isIdRecord, isObject } from "../util/index.ts";
 
 export interface Migrations {
   // The migration of the class with the registry id, which the store reads as
@@ -30,7 +30,7 @@ export interface Migrations {
   // its text, holds a block below the class's version in the block registry
   // given, and resolves once each has loaded or failed. A text that holds no
   // JSON board needs none, since the store refuses it.
-  prepare(board: unknown, registry: Readonly<Record<RegistryId, RegistryEntry>>): Promise<void>;
+  prepare(board: unknown, registry: ReadonlyMap<RegistryId, RegistryEntry>): Promise<void>;
 }
 
 export function createMigrations(loader: Loader): Migrations {
@@ -39,7 +39,7 @@ export function createMigrations(loader: Loader): Migrations {
   const known = new Map<RegistryId, { readonly module: string; readonly migration: Migration | undefined }>();
 
   async function load(registryId: RegistryId, module: string): Promise<void> {
-    const pkg = packageFromId(registryId);
+    const pkg = registryId.package;
     let migration: Migration | undefined;
     try {
       migration = migrationFromExports(await loader.load({ module }, pkg), module, pkg);
@@ -54,7 +54,7 @@ export function createMigrations(loader: Loader): Migrations {
     async prepare(board, registry) {
       const needed = new Map<RegistryId, string>();
       for (const block of olderBlocks(board, registry)) {
-        const entry = own(registry, block);
+        const entry = registry.get(block);
         if (entry === undefined || known.get(block)?.module === entry.module) continue;
         needed.set(block, entry.module);
       }
@@ -65,7 +65,7 @@ export function createMigrations(loader: Loader): Migrations {
 
 // The registry ids of the classes of which the board holds a block whose
 // version is below its class's.
-function olderBlocks(given: unknown, registry: Readonly<Record<RegistryId, RegistryEntry>>): Set<RegistryId> {
+function olderBlocks(given: unknown, registry: ReadonlyMap<RegistryId, RegistryEntry>): Set<RegistryId> {
   let json = given;
   if (typeof given === "string") {
     try {
@@ -78,9 +78,10 @@ function olderBlocks(given: unknown, registry: Readonly<Record<RegistryId, Regis
   const older = new Set<RegistryId>();
   if (!isObject(blocks)) return older;
   for (const block of Object.values(blocks)) {
-    if (!isObject(block) || typeof block.registry_id !== "string" || typeof block.version !== "number") continue;
-    const version = own(registry, block.registry_id)?.version;
-    if (version !== undefined && block.version < version) older.add(block.registry_id);
+    if (!isObject(block) || !isIdRecord(block.registry_id, true) || typeof block.version !== "number") continue;
+    const registryId = internedRecord(block.registry_id);
+    const version = registry.get(registryId)?.version;
+    if (version !== undefined && block.version < version) older.add(registryId);
   }
   return older;
 }

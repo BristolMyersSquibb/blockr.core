@@ -53,7 +53,7 @@ import type { Store } from "../store/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreApi, EvaluatePhase, Notification, NotificationSource, Notifier, RRequest, SourceModule } from "../types/core-api.ts";
 import { log } from "../log/index.ts";
-import { asError, checkRaised, jsonEqual, packageFromId, sourceModule } from "../util/index.ts";
+import { asError, checkRaised, givenPluginClassId, idText, internedRecord, jsonEqual, sourceModule } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 
 export interface Holder {
@@ -87,7 +87,7 @@ export interface HolderOptions {
   readonly signal?: AbortSignal;
   // The app's plugins, by the ids of their classes, as R's reply to `hello`
   // names them. A plugin that is none of them raises nothing.
-  readonly plugins?: Readonly<Record<PluginClassId, unknown>>;
+  readonly plugins?: ReadonlyMap<PluginClassId, unknown>;
 }
 
 // The phases of a block's evaluation, which R's condition there names.
@@ -107,7 +107,7 @@ export function createNotifications(
   options: HolderOptions = {},
 ): Holder {
   const { signal } = options;
-  const plugins = options.plugins ?? {};
+  const plugins: ReadonlyMap<PluginClassId, unknown> = options.plugins ?? new Map();
   // Every notification that holds, by id, in the order they came.
   const held = new Map<string, Notification>();
   // The raises that hold each of core's notifications, by its id.
@@ -155,7 +155,7 @@ export function createNotifications(
         (store.hasBoard() && Object.hasOwn(store.board().options, object.option))
       );
     }
-    if ("plugin" in object) return Object.hasOwn(plugins, object.plugin);
+    if ("plugin" in object) return plugins.has(internedRecord(object.plugin));
     return present(object);
   }
 
@@ -330,19 +330,15 @@ export function createNotifications(
 
   return {
     api: {
-      notify(plugin, notification) {
-        if (typeof plugin !== "string" || plugin === "") {
-          throw new TypeError(
-            `A plugin's notification names the plugin by the id of its class, a non-empty string, not ${JSON.stringify(plugin)}.`,
-          );
-        }
+      notify(named, notification) {
+        const plugin = givenPluginClassId(named, "A plugin's notification");
         const given = checkRaised(notification);
         if (ended) return nothing;
-        if (!Object.hasOwn(plugins, plugin)) {
-          log.error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`);
+        if (!plugins.has(plugin)) {
+          log.error(`Core drops a notification that the plugin "${idText(plugin)}" raised, which the app does not run.`);
           return nothing;
         }
-        return notify(sourceModule({ plugin }, packageFromId(plugin)), given);
+        return notify(sourceModule({ plugin }, plugin.package), given);
       },
       get: () => all,
       subscribe(fn) {
@@ -423,7 +419,7 @@ function named(object: BoardObject): string {
   if ("link" in object) return `the link "${object.link}"`;
   if ("stack" in object) return `the stack "${object.stack}"`;
   if ("option" in object) return `the board option "${object.option}"`;
-  return `the plugin "${object.plugin}"`;
+  return `the plugin "${idText(object.plugin)}"`;
 }
 
 // What core asked of R, as a message names it, with the renderer, from the
@@ -432,7 +428,7 @@ function requested(request: RRequest, module: SourceModule): string {
   if (request.type === "evaluate") return "an evaluation";
   if (request.type === "output") return "an output";
   const renderer = request.type === "renderer" ? module.renderer : undefined;
-  return renderer === undefined ? `the request "${request.name}"` : `the request "${request.name}" of the renderer "${renderer}"`;
+  return renderer === undefined ? `the request "${request.name}"` : `the request "${request.name}" of the renderer "${idText(renderer)}"`;
 }
 
 // Who raised a notification of a package's module, as a message names them.
@@ -488,10 +484,13 @@ function objectCopy(object: BoardObject): BoardObject {
   return moduleObjectCopy(object);
 }
 
+// A plugin's board object holds the id of the plugin's class as core's table
+// holds it, whatever record the module gave, so that === compares it with
+// core's ids.
 function moduleObjectCopy(object: SourceModule["object"]): SourceModule["object"] {
   if ("block" in object) return { block: object.block };
   if ("option" in object) return { option: object.option };
-  return { plugin: object.plugin };
+  return { plugin: internedRecord(object.plugin) };
 }
 
 function deepFrozen<T>(value: T): T {

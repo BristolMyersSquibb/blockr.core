@@ -10,7 +10,10 @@ test_that("scatter block constructor", {
     list(x = "Time", y = "demand")
   )
 
-  expect_identical(registry_id_from_block(blk), "blockr.core-scatter_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "scatter_block")
+  )
 })
 
 test_that("a scatter block captures the plot it draws", {

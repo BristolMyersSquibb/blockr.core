@@ -56,7 +56,7 @@ import { useState } from "react";
 import type { PointerEvent, ReactElement, ReactNode, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { Button, ComboBox, Form, GridList, GridListItem, Icon, TextField, useDragAndDrop } from "@blockr/ui";
-import { linkFeeding } from "../commands/index.ts";
+import { CORE, linkFeeding } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { X } from "../icons/index.ts";
 import { focusFirstInvalid, inputNameError } from "../picker/index.ts";
@@ -78,13 +78,13 @@ import {
   useSearch,
 } from "../ui/index.ts";
 import type { BlockItem, Done } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { interned, own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
 
-const ADD_LINK = "blockr.core-add_link";
-const CHANGE_LINK = "blockr.core-change_link";
-const REMOVE_LINK = "blockr.core-remove_link";
+const ADD_LINK = interned(CORE, "add_link");
+const CHANGE_LINK = interned(CORE, "change_link");
+const REMOVE_LINK = interned(CORE, "remove_link");
 
 // Renders the advanced action for the block that the target names, the one
 // kind of target that core hands Edit inputs, and draws it before it returns.

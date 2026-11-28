@@ -1,15 +1,15 @@
 test_that("registry", {
 
-  curr <- list_blocks()
-  withr::defer(unregister_blocks(setdiff(list_blocks(), curr)))
+  local_block_registry()
 
   entry <- register_block(new_class_head_block, "Head", "First rows",
                           category = "transform")
 
   expect_s3_class(entry, "block_registry_entry")
+  expect_null(entry$package)
   expect_identical(entry$id, "head_block")
-  expect_true("head_block" %in% list_blocks())
-  expect_identical(get_registry_entry("head_block"), entry)
+  expect_true(lists_block("head_block"))
+  expect_identical(get_registry_entry(pkg_id(NULL, "head_block")), entry)
 
   expect_identical(entry$block_class, head_class)
   expect_identical(entry$inputs, "data")
@@ -24,14 +24,24 @@ test_that("registry", {
     )
   )
 
-  expect_identical(registry_id_from_block(new_class_head_block()), "head_block")
-  expect_identical(registry_id_from_block(head_class), "head_block")
+  expect_identical(
+    registry_id_from_block(new_class_head_block()),
+    list(package = NULL, id = "head_block")
+  )
+  expect_identical(
+    registry_id_from_block(head_class),
+    list(package = NULL, id = "head_block")
+  )
 
   # The class gives the id, whether or not the block registry holds it
-  expect_identical(registry_id_from_block(new_class_merge_block()),
-                   "merge_block")
-  expect_identical(registry_id_from_block(new_static_block()),
-                   "blockr.core-static_block")
+  expect_identical(
+    registry_id_from_block(new_class_merge_block()),
+    list(package = NULL, id = "merge_block")
+  )
+  expect_identical(
+    registry_id_from_block(new_static_block()),
+    list(package = "blockr.core", id = "static_block")
+  )
 
   expect_error(registry_id_from_block(list()), class = "block_class_invalid")
 
@@ -51,7 +61,10 @@ test_that("registry", {
     "block_registry_entry"
   )
 
-  expect_identical(get_registry_entry("head_block")$description, "Last rows")
+  expect_identical(
+    get_registry_entry(pkg_id(NULL, "head_block"))$description,
+    "Last rows"
+  )
 
   expect_error(
     register_block(function() NULL, "Head", "First rows"),
@@ -101,13 +114,21 @@ test_that("registry", {
     class = "block_icon_invalid"
   )
 
-  unregister_blocks("head_block")
+  unregister_blocks(registry_id_from_block(new_class_head_block()))
 
-  expect_false("head_block" %in% list_blocks())
-  expect_identical(registry_id_from_block(new_class_head_block()), "head_block")
+  expect_false(lists_block("head_block"))
+  expect_identical(
+    registry_id_from_block(new_class_head_block()),
+    list(package = NULL, id = "head_block")
+  )
 
   expect_error(create_block("head_block"), class = "registry_id_unknown")
   expect_error(create_block(1), class = "registry_id_unknown")
+  expect_error(
+    create_block("head_block", package = "blockr.absent"),
+    "under the registry id head_block of blockr.absent",
+    class = "registry_id_unknown"
+  )
 
   icon <- default_icon(default_category())
 
@@ -119,8 +140,7 @@ test_that("registry", {
 
 test_that("registration lets bsicons validate icon names", {
 
-  curr <- list_blocks()
-  withr::defer(unregister_blocks(setdiff(list_blocks(), curr)))
+  local_block_registry()
 
   for (icon in c("arrow up", "Table", "Database", "file earmark")) {
     expect_s3_class(
@@ -168,6 +188,7 @@ test_that("registration lets bsicons validate icon names", {
 test_that("a block class's registry id comes from the class alone", {
 
   local_declared(block_registry)
+  empty_block_registry()
 
   expr <- function(n = 1L) bbquote(seq_len(.(n)))
   ui <- js_module("count-block.js", package = NULL)
@@ -179,14 +200,22 @@ test_that("a block class's registry id comes from the class alone", {
   expect_identical(pkg$package, "blockr.pkg")
   expect_null(script$package)
 
-  # The package that defines the class names it, so a class of one id gives
-  # another registry id in each package, and its id alone outside a package
-  expect_identical(registry_id_from_block(pkg), "blockr.pkg-count_block")
-  expect_identical(registry_id_from_block(script), "count_block")
+  # The package that defines the class is part of its registry id, so a class
+  # of one id gives another registry id in each package, and one without a
+  # package outside a package
+  expect_identical(
+    registry_id_from_block(pkg),
+    list(package = "blockr.pkg", id = "count_block")
+  )
+  expect_identical(
+    registry_id_from_block(script),
+    list(package = NULL, id = "count_block")
+  )
 
   entry <- register_block(block_constructor(pkg), "Count", "Counts up")
 
-  expect_identical(entry$id, "blockr.pkg-count_block")
+  expect_identical(entry$package, "blockr.pkg")
+  expect_identical(entry$id, "count_block")
 
   # Another constructor of the class takes the same id, whatever its name
   new_counter_block <- block_constructor(pkg)
@@ -196,9 +225,23 @@ test_that("a block class's registry id comes from the class alone", {
     class = "block_already_in_registry"
   )
 
+  script_entry <- register_block(block_constructor(script), "Count", "Up")
+
+  expect_null(script_entry$package)
+  expect_identical(script_entry$id, "count_block")
+
+  # Both registry ids name a class of their own, whose ids may hold a `-`,
+  # since no part of a registry id is read out of another
+  dashed <- test_block_class("count-block", expr = expr, ui = ui,
+                             package = "blockr.pkg")
+  register_block(block_constructor(dashed), "Dashed", "Counts up")
+
   expect_identical(
-    register_block(block_constructor(script), "Count", "Counts up")$id,
-    "count_block"
+    list_blocks(),
+    data.frame(
+      package = c("blockr.pkg", "blockr.pkg", NA),
+      id = c("count-block", "count_block", "count_block")
+    )
   )
 })
 
@@ -230,7 +273,7 @@ test_that("a package's constructors give one registry id each", {
       "blockr.pkg"
     ),
     class = "package_blocks_invalid",
-    regexp = "new_note_block and new_text_block.+blockr.pkg-note_block"
+    regexp = "new_note_block and new_text_block.+note_block of blockr.pkg"
   )
 })
 
@@ -254,7 +297,7 @@ test_that("registration reads the schema the module ships", {
     ui = js_module(file.path(dir, "head.js"), package = NULL)
   )
 
-  withr::defer(unregister_blocks(intersect("schema_block", list_blocks())))
+  local_block_registry()
 
   entry <- register_block(block_constructor(cls), "Schema", "With a schema")
 
@@ -299,7 +342,7 @@ test_that("a registry entry's board options are those its requests read", {
     )
   )
 
-  withr::defer(unregister_blocks("opts_block"))
+  local_block_registry()
 
   entry <- register_block(block_constructor(cls), "Opts", "With options")
 
@@ -307,7 +350,8 @@ test_that("a registry entry's board options are those its requests read", {
   expect_identical(names(board_options(entry)), "n_rows")
 
   expect_identical(
-    run_block_request("opts_block", "page", list(data = datasets::iris),
+    run_block_request(pkg_id(NULL, "opts_block"), "page",
+                      list(data = datasets::iris),
                       options = list(n_rows = 2L)),
     utils::head(datasets::iris, 2L)
   )
@@ -315,7 +359,7 @@ test_that("a registry entry's board options are those its requests read", {
 
 test_that("registry entries print", {
 
-  withr::defer(unregister_blocks("head_block"))
+  local_block_registry()
 
   expect_snapshot(
     print(register_block(new_class_head_block, "Head", "First rows"))
@@ -329,7 +373,7 @@ test_that("loading core registers none of its block classes", {
   # The load hook declares core's modules again.
   .onLoad("", "blockr.core")
 
-  expect_identical(list_blocks(), character())
+  expect_identical(list_blocks(), block_rows())
 })
 
 test_that("available_blocks() lists the classes of the available packages", {
@@ -354,25 +398,27 @@ test_that("an app offers the block classes that `blocks` gives", {
   local_declared(block_registry)
   unregister_blocks()
 
-  ids <- paste0(
-    "blockr.core-",
-    c("csv_block", "dataset_block", "filebrowser_block", "fixed_block",
-      "glue_block", "head_block", "merge_block", "rbind_block",
-      "scatter_block", "static_block", "subset_block", "upload_block")
+  ids <- c(
+    "csv_block", "dataset_block", "filebrowser_block", "fixed_block",
+    "glue_block", "head_block", "merge_block", "rbind_block",
+    "scatter_block", "static_block", "subset_block", "upload_block"
   )
 
   registry <- app_block_registry(core_block_rows())
 
-  expect_setequal(ls(registry), ids)
+  expect_identical(
+    registry_rows(registry),
+    data.frame(package = "blockr.core", id = ids)
+  )
 
-  entries <- registry_entries(registry)[ids]
+  entries <- set_names(registry_entries(registry), ids)
 
   expect_identical(
     unique(chr_xtr(lst_xtr(entries, "block_class"), "package")),
     "blockr.core"
   )
 
-  head <- entries[["blockr.core-head_block"]]
+  head <- entries[["head_block"]]
 
   expect_identical(head[["block_class"]], head_block)
   expect_identical(
@@ -393,19 +439,16 @@ test_that("an app offers the block classes that `blocks` gives", {
 
   # Core lists its static and fixed blocks as it lists its other classes, with
   # the name and the description that their registration gives
-  static <- entries[["blockr.core-static_block"]]
+  static <- entries[["static_block"]]
 
   expect_identical(static[["name"]], "static block")
   expect_identical(static[["description"]], "Evaluate an R expression")
   expect_identical(static[["category"]], "input")
-  expect_identical(
-    entries[["blockr.core-fixed_block"]][["category"]],
-    "transform"
-  )
+  expect_identical(entries[["fixed_block"]][["category"]], "transform")
 
   # Each app holds a registry of its own, and the block registry of the
   # process none of its classes
-  expect_length(list_blocks(), 0L)
+  expect_identical(nrow(list_blocks()), 0L)
 
   # Rows narrow them, whatever else they hold, while the classes that the
   # script registers in the block registry of the process join them
@@ -414,32 +457,42 @@ test_that("an app offers the block classes that `blocks` gives", {
   rows <- core_block_rows()
   rows <- rows[rows[["id"]] %in% c("dataset_block", "head_block"), ]
 
-  expect_setequal(
-    ls(app_block_registry(rbind(rows, rows))),
-    c("blockr.core-dataset_block", "blockr.core-head_block", "head_block")
+  expect_identical(
+    registry_rows(app_block_registry(rbind(rows, rows))),
+    data.frame(
+      package = c("blockr.core", "blockr.core", NA),
+      id = c("dataset_block", "head_block", "head_block")
+    )
   )
-  expect_identical(list_blocks(), "head_block")
+  expect_identical(
+    list_blocks(),
+    data.frame(package = NA_character_, id = "head_block")
+  )
 
   # A class that the script registers under the registry id of a row's class
   # takes that class's place
   register_block(new_head_block, "First rows", "The script's head block")
 
+  core_head <- pkg_id("blockr.core", "head_block")
+
   expect_identical(
-    get_registry_entry("blockr.core-head_block", app_block_registry(rows)),
-    get_registry_entry("blockr.core-head_block")
+    get_registry_entry(core_head, app_block_registry(rows)),
+    get_registry_entry(core_head)
   )
 
   # Only where the rows hold that class, as for a class that its package lists,
   # and the class stays one row of `available_blocks()`
-  expect_false(
-    "blockr.core-head_block" %in%
-      ls(app_block_registry(rows[rows[["id"]] != "head_block", ]))
+  expect_null(
+    registry_entry(
+      core_head,
+      app_block_registry(rows[rows[["id"]] != "head_block", ])
+    )
   )
 
   head <- data.frame(package = "blockr.core", id = "head_block")
   expect_identical(nrow(merge(available_blocks(), head)), 1L)
 
-  unregister_blocks("blockr.core-head_block")
+  unregister_blocks(head)
 
   # A YAML file lists packages, each with the ids of its classes to offer, or
   # alone for all of them, and a package that it leaves out offers nothing
@@ -447,18 +500,30 @@ test_that("an app offers the block classes that `blocks` gives", {
 
   writeLines(c("- blockr.core:", "  - glue_block"), file)
 
-  expect_setequal(
-    ls(app_block_registry(file)),
-    c("blockr.core-glue_block", "head_block")
+  expect_identical(
+    registry_rows(app_block_registry(file)),
+    data.frame(
+      package = c("blockr.core", NA),
+      id = c("glue_block", "head_block")
+    )
   )
 
   writeLines("- blockr.core", file)
 
-  expect_setequal(ls(app_block_registry(file)), c(ids, "head_block"))
+  expect_identical(
+    registry_rows(app_block_registry(file)),
+    data.frame(
+      package = c(rep("blockr.core", length(ids)), NA),
+      id = c(ids, "head_block")
+    )
+  )
 
   writeLines(character(), file)
 
-  expect_identical(ls(app_block_registry(file)), "head_block")
+  expect_identical(
+    registry_rows(app_block_registry(file)),
+    data.frame(package = NA_character_, id = "head_block")
+  )
 })
 
 test_that("a block class that no available package lists stops the app", {
@@ -525,7 +590,10 @@ test_that("an app offers the classes of a package that load_all() loads", {
   expect_identical(probe[["id"]], "probe_block")
 
   expect_identical(
-    get_registry_entry("regprobe-probe_block", app_block_registry(probe))$name,
+    get_registry_entry(
+      pkg_id("regprobe", "probe_block"),
+      app_block_registry(probe)
+    )$name,
     "Probe"
   )
 })
@@ -539,22 +607,22 @@ test_that("an app offers the classes that a package registers as it loads", {
 
   # The package ships no file, so the block registry of the process alone
   # makes its class a row of `available_blocks()`
-  expect_true("regprobe-probe_block" %in% list_blocks())
+  expect_true(lists_block("probe_block", "regprobe"))
   expect_identical(nrow(merge(available_blocks(), probe)), 1L)
 
   # An app offers it where its rows hold it, as a class that a file lists
+  id <- pkg_id("regprobe", "probe_block")
+
   expect_identical(
-    get_registry_entry("regprobe-probe_block", app_block_registry(probe))$name,
+    get_registry_entry(id, app_block_registry(probe))$name,
     "Probe"
   )
-  expect_false(
-    "regprobe-probe_block" %in% ls(app_block_registry(core_block_rows()))
-  )
+  expect_null(registry_entry(id, app_block_registry(core_block_rows())))
 
   file <- withr::local_tempfile(fileext = ".yml")
   writeLines("- regprobe", file)
 
-  expect_true("regprobe-probe_block" %in% ls(app_block_registry(file)))
+  expect_false(is.null(registry_entry(id, app_block_registry(file))))
 
   # An id that neither a file nor the process registry holds
   expect_error(

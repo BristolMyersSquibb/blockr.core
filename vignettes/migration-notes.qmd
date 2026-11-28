@@ -182,7 +182,7 @@ serve(
 
 A script of version 0.1 that hides classes with `unregister_blocks()` narrows the rows in the same way.
 In version 0.2, that call hides nothing from an app.
-Core registers no class as it loads, and the registry ids of its classes name the package, as `blockr.core-subset_block`.
+Core registers no class as it loads, and the registry id of each of its classes holds the package beside the class's id, as `list(package = "blockr.core", id = "subset_block")`.
 Each app builds a block registry of its own from its rows instead:
 
 ```{r, eval = FALSE}
@@ -347,8 +347,10 @@ A stack takes a `color` of its own, as `new_stack(c("a", "b"), "Inputs", color =
 A block class that a script defines with `new_block()`, or with one of its specializations such as `new_transform_block()`, is ported to `new_block_class()`.
 The section [Porting a block from `new_block()`](create-block.html#porting-a-block-from-new_block) of the guide for block class authors gives each step.
 
-The class's registry id is the id that `new_block_class()` takes, alone, since a class that a script defines records no package.
-That id holds no `-`, since a registry id splits at its first `-`.
+The class's registry id holds the id that `new_block_class()` takes, with a package of `NULL`, since a class that a script defines records no package.
+In version 0.1, a registry id was one string.
+In version 0.2, `registry_id_from_block()` gives a list of the class's `package` and its `id`, and `list_blocks()` gives the classes that the block registry of the process holds as rows of `package` and `id`, as `available_blocks()` does.
+The function `unregister_blocks()` takes such rows, or one registry id, and `create_block()` takes the class's id with its package in `package`, as `create_block("head_block", package = "blockr.core")`, where the package is left out for a class that a script defines.
 The function `register_block()` takes the constructor that `block_constructor()` makes, and no longer the name of a constructor.
 It takes neither `uid` nor `package` nor `classes`.
 It takes no `details` either, since nothing shows them.
@@ -384,7 +386,7 @@ register_block(
 ```
 
 ```{r, include = FALSE}
-unregister_blocks("identity_block")
+unregister_blocks(registry_id_from_block(new_identity_block()))
 ```
 
 A script registers each class that it defines before it serves a board with a block of the class.

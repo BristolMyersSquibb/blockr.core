@@ -22,7 +22,7 @@ export interface CoreParts {
     readonly blockrOptions: BlockrOptions;
     readonly randId?: Json | undefined;
     readonly lock: Lock;
-    readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
+    readonly plugins: ReadonlyMap<PluginClassId, PluginEntry>;
     readonly options: Readonly<Record<OptionId, OptionEntry>>;
     readonly notifications: Holder;
     readonly measure?: Measure;

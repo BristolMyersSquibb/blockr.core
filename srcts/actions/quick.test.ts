@@ -13,17 +13,19 @@ import type { Json } from "../types/json.ts";
 import type { BoardAction, CommandCall } from "./actions.ts";
 import { inMenuOrder, openMenu } from "./quick.ts";
 import type { MenuParts, MenuStart, QuickLevel, QuickRow } from "./quick.ts";
+import { interned } from "../util/index.ts";
 
 const BOARD = { name: "Board" } as unknown as Board;
 const CORE = {} as CoreApi;
 
-// A board action of blockr.test on blocks, labelled by its name.
+// A board action of blockr.test on blocks, labelled by its name, as core
+// registers it, with its package.
 function action(name: string, more: Partial<BoardAction> = {}): BoardAction {
-  return { id: `blockr.test-${name}_action`, label: name, on: ["block"], category: "test", ...more };
+  return { package: "blockr.test", id: `${name}_action`, label: name, on: ["block"], category: "test", ...more };
 }
 
 // A batch that renames block a.
-const rename = (name: string): CommandCall[] => [{ id: "blockr.core-change_block", args: { id: "a", name } }];
+const rename = (name: string): CommandCall[] => [{ id: interned("blockr.core", "change_block"), args: { id: "a", name } }];
 
 // An item that picks what it is given.
 function item(label: string, picked: () => ReturnType<Extract<QuickRow, { kind: "item" }>["pick"]>, more = {}): QuickRow {
@@ -57,7 +59,7 @@ function opened(start: MenuStart, more: Partial<MenuParts> = {}) {
     applies: () => true,
     run(batch, by) {
       ran.push([batch, by.id]);
-      return batch.some((call) => call.id === "refused") ? Promise.reject(new Error("Refused.")) : Promise.resolve();
+      return batch.some((call) => call.id.id === "refused") ? Promise.reject(new Error("Refused.")) : Promise.resolve();
     },
     trigger(by) {
       triggered.push(by.id);
@@ -134,7 +136,7 @@ describe("the menu of a target", () => {
       { kind: "item", label: "broken", category: "test" },
     ]);
     expect(got).toEqual([[BOARD, { block: "a" }]]);
-    expect(reported.errors().map((line) => line.message)).toEqual(['The detail of the board action "blockr.test-broken_action" failed: boom']);
+    expect(reported.errors().map((line) => line.message)).toEqual(['The detail of the board action "broken_action of blockr.test" failed: boom']);
   });
 
   test("closes at once as the user picks the row of a board action with run, which its parts trigger within the pick, as trigger() does", async () => {
@@ -237,7 +239,7 @@ describe("a quick action", () => {
   });
 
   test("rejects a pick with the refusal of its batch, once the menu has closed", async () => {
-    const asks = asking({ rows: [item("refused", () => [{ id: "refused" }])] });
+    const asks = asking({ rows: [item("refused", () => [{ id: interned("blockr.test", "refused") }])] });
     const { menu, closings } = opened({ action: asks });
 
     await expect(menu.pick(0)).rejects.toThrow("Refused.");
@@ -261,7 +263,7 @@ describe("a quick action", () => {
     reported.restore();
     expect(menu.get()).toMatchObject({ loading: false, error: "No columns.", back: true, rows: [] });
     expect(reported.errors().map((line) => line.message)).toEqual([
-      'A row of the quick action of the board action "blockr.test-asks_action" failed: No columns.',
+      'A row of the quick action of the board action "asks_action of blockr.test" failed: No columns.',
     ]);
 
     menu.escape();
@@ -305,7 +307,7 @@ describe("a quick action", () => {
       ],
       apply(picked) {
         applied.push(picked);
-        return [{ id: "blockr.core-change_stack", args: { id: "s", blocks: [...picked] } }];
+        return [{ id: interned("blockr.core", "change_stack"), args: { id: "s", blocks: [...picked] } }];
       },
     };
     const asks = asking({ rows: [multi] });
@@ -329,7 +331,7 @@ describe("a quick action", () => {
     ticking.menu.tick(0, "z");
     await ticking.menu.close();
     expect(applied).toEqual([["b", "c"]]);
-    expect(ticking.ran).toEqual([[[{ id: "blockr.core-change_stack", args: { id: "s", blocks: ["b", "c"] } }], asks.id]]);
+    expect(ticking.ran).toEqual([[[{ id: interned("blockr.core", "change_stack"), args: { id: "s", blocks: ["b", "c"] } }], asks.id]]);
 
     const unchanged = opened({ action: asks });
     unchanged.menu.tick(0, "b");
@@ -369,10 +371,10 @@ describe("a quick action", () => {
 
     expect(ran).toEqual([[rename("Works"), asks.id]]);
     expect(failures).toEqual([
-      [asks.id, 'A row of the quick action of the board action "blockr.test-asks_action" failed: boom'],
+      [asks.id, 'A row of the quick action of the board action "asks_action of blockr.test" failed: boom'],
       [
         asks.id,
-        'A row of the quick action of the board action "blockr.test-asks_action" failed: It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].',
+        'A row of the quick action of the board action "asks_action of blockr.test" failed: It gave no batch of commands, as [{ id: core.id("blockr.core", "remove_block"), args: { id: "a" } }].',
       ],
     ]);
   });
@@ -484,10 +486,10 @@ describe("a quick action", () => {
     expect(thrown).toBe("bang");
     expect(picks.menu.get().error).toBe("It gave neither a batch of commands nor a level of rows.");
     expect(reported.errors().map((line) => line.message)).toEqual([
-      'The quick action of the board action "blockr.test-asks_action" failed: boom',
-      'The quick action of the board action "blockr.test-asks_action" failed: It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
-      'A row of the quick action of the board action "blockr.test-asks_action" failed: bang',
-      'A row of the quick action of the board action "blockr.test-asks_action" failed: It gave neither a batch of commands nor a level of rows.',
+      'The quick action of the board action "asks_action of blockr.test" failed: boom',
+      'The quick action of the board action "asks_action of blockr.test" failed: It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
+      'A row of the quick action of the board action "asks_action of blockr.test" failed: bang',
+      'A row of the quick action of the board action "asks_action of blockr.test" failed: It gave neither a batch of commands nor a level of rows.',
     ]);
   });
 
@@ -508,8 +510,8 @@ describe("a quick action", () => {
     const why = "It gave no level for the target, and the board action has no advanced action to open in its place.";
     expect(shown).toEqual([why, why]);
     expect(reported.errors().map((line) => line.message)).toEqual([
-      `The quick action of the board action "blockr.test-none_action" failed: ${why}`,
-      `The quick action of the board action "blockr.test-later_action" failed: ${why}`,
+      `The quick action of the board action "none_action of blockr.test" failed: ${why}`,
+      `The quick action of the board action "later_action of blockr.test" failed: ${why}`,
     ]);
   });
 });

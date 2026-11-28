@@ -16,9 +16,10 @@
         "protocol": "1.0",
         "capabilities": ["cancel", "progress"],
         "packages": { "blockr.core": "0.2.0" },
-        "block_registry": {
-          "blockr.core-dataset_block": {
-            "id": "blockr.core-dataset_block",
+        "block_registry": [
+          {
+            "package": "blockr.core",
+            "id": "dataset_block",
             "name": "dataset block",
             "description": "Choose a dataset from a package",
             "keywords": ["dataset", "data", "import", "package", "source"],
@@ -55,13 +56,15 @@
             "output_options": ["n_rows"],
             "renderers": [
               {
-                "id": "blockr.core-table_output",
+                "package": "blockr.core",
+                "id": "table_output",
                 "module": "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
-          "blockr.core-head_block": {
-            "id": "blockr.core-head_block",
+          {
+            "package": "blockr.core",
+            "id": "head_block",
             "name": "head/tail block",
             "description": "Data head/tail",
             "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",
@@ -98,41 +101,50 @@
             "output_options": ["n_rows"],
             "renderers": [
               {
-                "id": "blockr.core-table_output",
+                "package": "blockr.core",
+                "id": "table_output",
                 "module": "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           }
-        },
+        ],
         "modules": {
-          "blockr.core-controls": {
-            "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
-          },
-          "blockr.core-board_action_menu": {
-            "module": "blockr.core/board-action-menu.js?v=e3a7c05b"
+          "blockr.core": {
+            "controls": {
+              "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
+            },
+            "board_action_menu": {
+              "module": "blockr.core/board-action-menu.js?v=e3a7c05b"
+            }
           }
         },
-        "plugins": {
-          "blockr.core-basic_frontend_plugin": {
+        "plugins": [
+          {
+            "package": "blockr.core",
+            "id": "basic_frontend_plugin",
             "name": "Basic frontend",
             "version": 1,
             "options": ["dark_mode"],
             "module": "blockr.core/basic.js?v=0f3d8e21",
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           },
-          "blockr.core-file_storage_plugin": {
+          {
+            "package": "blockr.core",
+            "id": "file_storage_plugin",
             "name": "File storage",
             "version": 1,
             "options": [],
             "module": "blockr.core/file-storage.js?v=8e1f0b2d"
           },
-          "blockr.core-edit_board_plugin": {
+          {
+            "package": "blockr.core",
+            "id": "edit_board_plugin",
             "name": "Edit board",
             "version": 1,
             "options": [],
             "module": "blockr.core/edit-board.js?v=5c1e7a39"
           }
-        },
+        ],
         "frontend": {},
         "options": {
           "n_rows": {
@@ -155,14 +167,14 @@
             "name": "Iris report",
             "blocks": {
               "a": {
-                "registry_id": "blockr.core-dataset_block",
+                "registry_id": { "package": "blockr.core", "id": "dataset_block" },
                 "version": 1,
                 "state": { "dataset": "iris", "package": "datasets" },
                 "name": "Iris",
                 "locked": null
               },
               "b": {
-                "registry_id": "blockr.core-head_block",
+                "registry_id": { "package": "blockr.core", "id": "head_block" },
                 "version": 1,
                 "state": { "n": 6, "direction": "head" },
                 "name": "Head",

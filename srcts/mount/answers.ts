@@ -230,7 +230,7 @@ function requestKey(request: Ask["request"]): string {
     return JSON.stringify(
       sorted([
         request.type,
-        request.registry_id,
+        { package: request.registry_id.package, id: request.registry_id.id },
         request.name,
         request.args,
         request.options ?? {},
@@ -241,7 +241,7 @@ function requestKey(request: Ask["request"]): string {
   return JSON.stringify(
     sorted([
       request.type,
-      request.type === "renderer" ? request.renderer : null,
+      request.type === "renderer" ? { package: request.renderer.package, id: request.renderer.id } : null,
       request.output as unknown as Json,
       request.name,
       request.args,

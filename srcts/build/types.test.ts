@@ -210,8 +210,9 @@ test("what core ships for a package's tests and build holds core's own code alon
 // package writes them.
 // The module types its block's state, and the class types the state of its
 // plugin with `type`, so that the state is assignable to `Json`, which the
-// board holds under the id of the plugin's class.
-const headModule = `import type { BlockModule, Board, Json, PluginClass } from "@blockr/core";
+// board holds under the package and the id of the plugin's class.
+// The class leaves out its id, which core sets as it registers the class.
+const headModule = `import type { BlockModule, Board, Json, PluginClass, PluginClassId } from "@blockr/core";
 
 type ViewsState = { readonly views: Readonly<Record<string, { readonly name: string }>> };
 
@@ -238,23 +239,22 @@ const head: BlockModule<HeadState> = {
 
 export default head;
 
-export function pluginViews(board: Board, plugin: string): ViewsState["views"] {
-  const state = board.plugins[plugin] as ViewsState | undefined;
+export function pluginViews(board: Board, plugin: PluginClassId): ViewsState["views"] {
+  const state = board.plugins[plugin.package]?.[plugin.id] as ViewsState | undefined;
   return state?.views ?? {};
 }
 
 const initial: ViewsState = { views: {} };
 const json: Json = initial;
 
-export const viewsPlugin: PluginClass = {
-  id: "blockr.views-views_plugin",
+export const viewsPlugin: Omit<PluginClass, "id"> = {
   state: {
     schema: { type: "object" },
     default: json,
     update: (delta, board, plugin) =>
       (delta.blocks?.rm ?? [])
         .filter((id) => Object.hasOwn(pluginViews(board, plugin), id))
-        .map((id) => ({ op: "remove", path: "/plugins/" + plugin + "/views/" + id })),
+        .map((id) => ({ op: "remove", path: "/plugins/" + plugin.package + "/" + plugin.id + "/views/" + id })),
   },
   start: ({ signal }) => {
     signal.addEventListener("abort", () => undefined);
@@ -323,10 +323,10 @@ export const api = 1;
 const notes: PluginModule = {
   render({ el, core, plugin, signal }) {
     const draw = (): void => {
-      el.textContent = core.plugins.appPlugins()[plugin]?.name ?? "";
+      el.textContent = core.plugins.appPlugins().get(plugin)?.name ?? "";
     };
     draw();
-    const others = Object.keys(core.plugins.appPlugins()).filter(
+    const others = [...core.plugins.appPlugins().keys()].filter(
       (id) => id !== plugin && core.plugins.pluginClass(id).ui !== undefined,
     );
     const ends = others.map((id) => core.mountPlugin(el.appendChild(document.createElement("section")), id));

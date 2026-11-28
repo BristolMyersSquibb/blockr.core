@@ -1,9 +1,11 @@
 # What R tells the client about the app's packages, in its reply to `hello`,
 # for neither side to edit: the entries of the app's block registry,
-# `registry`, each with the renderers of its class's outputs, where R serves the
-# modules that the available packages offer each other, `modules`, as
-# `offered_modules()` gives them, the app's plugins, `plugins`, each under the
-# ID of its class with the class's name and version, and where R serves the
+# `registry`, as an array, each with the package and the id of its class and
+# the renderers of its class's outputs, where R serves the modules that the
+# available packages offer each other, `modules`, by package and then by name,
+# as `offered_modules()` gives them, the app's plugins, `plugins`, as an array
+# in the order of the rows that `serve()` takes, each with the package and the
+# id of its class, the class's name and version, and where R serves the
 # class's module, as `app_plugins()` gives them, what the app's frontend reads
 # of the arguments of `serve()`, `frontend`, as `frontend_reply()` writes it,
 # the app's board options, `options`, each with its package, where R serves
@@ -30,30 +32,29 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
   drawn <- lapply(entries, entry_renderers, families)
 
   # The packages that the reply's parts come from, whose versions it names
-  sources <- c(
-    unlst(
-      lapply(
-        list(lst_xtr(entries, "block_class"), modules, options,
-             unlist(drawn, recursive = FALSE, use.names = FALSE)),
-        lst_xtr,
-        "package"
-      ),
-      recursive = TRUE
+  sources <- unlst(
+    lapply(
+      list(lst_xtr(entries, "block_class"), flat_by_package(modules), options,
+           unlist(drawn, recursive = FALSE, use.names = FALSE), plugins),
+      lst_xtr,
+      "package"
     ),
-    id_package(names(plugins))
+    recursive = TRUE
   )
 
   list(
     packages = package_versions(sources),
-    block_registry = as_json_object(
+    block_registry = unname(
       Map(
         function(x, renderers) registry_entry_reply(x, renderers, families),
         entries,
         drawn
       )
     ),
-    modules = as_json_object(lapply(modules, served_module)),
-    plugins = as_json_object(lapply(plugins, plugin_entry_reply)),
+    modules = as_json_object(
+      lapply(modules, function(x) as_json_object(lapply(x, served_module)))
+    ),
+    plugins = lapply(unname(plugins), plugin_entry_reply),
     frontend = frontend,
     options = as_json_object(lapply(options, option_entry_reply))
   )
@@ -73,11 +74,13 @@ package_versions <- function(packages) {
 }
 
 # A block class's entry in the block registry as the client gets it, the
-# `RegistryEntry` of srcts/types/registry.ts: the metadata that registration
-# gives, with `register_block()`'s `link` as `url`, and what the client cannot
-# read off a class that stays in R. Those are its data inputs, where R serves
-# its UI module, the schema of its state that the module ships, the name a new
-# block gets where its constructor gets none, the state a new block starts
+# `RegistryEntry` of srcts/types/registry.ts: the package of the class, `null`
+# for one that an app script defines, and its id, the metadata that
+# registration gives, with `register_block()`'s `link` as `url`, and what the
+# client cannot read off a class that stays in R.
+# Those are its data inputs, where R serves its UI module, the schema of its
+# state that the module ships, the name a new block gets where its
+# constructor gets none, the state a new block starts
 # with, the board options that its UI module reads itself,
 # its requests, the board options that its output family reads and the
 # renderers of its outputs, `renderers` from `entry_renderers()`. A class whose
@@ -89,6 +92,7 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x, families),
                                  families = app_families()) {
   c(
     list(
+      package = x[["package"]],
       id = x[["id"]],
       name = x[["name"]],
       description = x[["description"]]
@@ -166,11 +170,14 @@ request_entry_reply <- function(x) {
 }
 
 # One of the app's plugins as the client gets it, the `PluginEntry` of
-# srcts/protocol/messages.ts: its class's name and version, the IDs of the
-# board options that its plugin reads, and where R serves the class's module.
+# srcts/protocol/messages.ts: the package and the id of its class, the class's
+# name and version, the IDs of the board options that its plugin reads, and
+# where R serves the class's module.
 plugin_entry_reply <- function(x) {
   c(
     list(
+      package = x[["package"]],
+      id = x[["id"]],
       name = x[["name"]],
       version = x[["version"]],
       options = I(x[["options"]])
@@ -190,8 +197,9 @@ option_entry_reply <- function(x) {
   )
 }
 
-# The renderer of an output as R sends it in the output: its ID, which a
-# request of its own names, and where R serves its module.
+# The renderer of an output as R sends it in the output: the package of its
+# module and its name as the id, which a request of its own names, and where R
+# serves its module.
 output_renderer_reply <- function(x) {
-  c(list(id = x[["id"]]), served_module(x[["module"]]))
+  c(renderer_id(x), served_module(x[["module"]]))
 }

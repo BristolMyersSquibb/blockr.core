@@ -15,7 +15,10 @@ test_that("upload block constructor", {
 
   expect_s3_class(blk, "upload_block")
   expect_identical(block_state(blk), set_names(list(), character()))
-  expect_identical(registry_id_from_block(blk), "blockr.core-upload_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "upload_block")
+  )
 })
 
 test_that("an upload keeps the file and answers with its path", {

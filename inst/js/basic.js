@@ -227,6 +227,20 @@ function quoted(items) {
   return listing(items.map((item) => `"${item}"`));
 }
 
+// srcts/util/ids.ts
+function idText(x) {
+  return x.package === null ? x.id : `${x.id} of ${x.package}`;
+}
+var numbers = /* @__PURE__ */ new Map();
+function idNumber(x) {
+  let number = numbers.get(x);
+  if (number === void 0) {
+    number = numbers.size;
+    numbers.set(x, number);
+  }
+  return number;
+}
+
 // srcts/util/shortcuts.ts
 function matchesShortcut(text, event) {
   const shortcut = readShortcut(text);
@@ -289,11 +303,14 @@ import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 // srcts/ui/edits.ts
 import { useMemo, useState as useState3 } from "react";
 function runCommand(core, target, args) {
-  const running = typeof target === "string" ? core.commands.run(target, args) : core.commands.run(target);
+  const running = isCommandName(target) ? core.commands.run(target, args) : core.commands.run(target);
   return running.then(
     () => true,
     () => false
   );
+}
+function isCommandName(target) {
+  return !Array.isArray(target);
 }
 
 // srcts/ui/hooks.ts
@@ -430,7 +447,7 @@ var BlockCard = memo(function BlockCard2({ id, block }) {
     if (core.focus.get() !== id) core.focus.set(id);
   }, [core, id]);
   const inputs = !core.store.locked(id);
-  const entry = own(core.blockRegistry(), block.registry_id);
+  const entry = core.blockRegistry().get(block.registry_id);
   const ready = status?.status === "ready";
   const offered = core.boardActions.on({ block: id }).length > 0;
   return /* @__PURE__ */ jsxs5(
@@ -444,7 +461,7 @@ var BlockCard = memo(function BlockCard2({ id, block }) {
       children: [
         /* @__PURE__ */ jsxs5("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
           /* @__PURE__ */ jsx6("h3", { className: classes.heading, children: block.name }),
-          /* @__PURE__ */ jsx6("span", { className: "bc:text-xs bc:text-muted-foreground", children: entry?.name ?? block.registry_id }),
+          /* @__PURE__ */ jsx6("span", { className: "bc:text-xs bc:text-muted-foreground", children: entry?.name ?? idText(block.registry_id) }),
           /* @__PURE__ */ jsx6(StatusBadge, { status }),
           offered ? /* @__PURE__ */ jsx6("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx6(
             ActionsButton,
@@ -646,10 +663,10 @@ function createSections() {
   };
 }
 function hasSection(core, plugin) {
-  return Object.hasOwn(core.plugins.appPlugins(), plugin) && core.plugins.pluginClass(plugin).ui !== void 0;
+  return core.plugins.appPlugins().has(plugin) && core.plugins.pluginClass(plugin).ui !== void 0;
 }
 function placed(core) {
-  return Object.entries(core.plugins.appPlugins()).filter(([id]) => hasSection(core, id));
+  return [...core.plugins.appPlugins()].filter(([id]) => hasSection(core, id));
 }
 function Plugins() {
   const { core } = useFrontEnd();
@@ -660,7 +677,7 @@ function Plugins() {
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown.map(([id, plugin]) => /* @__PURE__ */ jsx9(PluginSection, { id, plugin }, id))
+      children: shown.map(([id, plugin]) => /* @__PURE__ */ jsx9(PluginSection, { id, plugin }, idNumber(id)))
     }
   );
 }
@@ -753,7 +770,7 @@ function shownElsewhere(notification, sectioned) {
 function concerned(about, core, board) {
   if (about === void 0) return "Board";
   if ("option" in about) return `Board option "${own(core.options.registered(), about.option)?.label ?? about.option}"`;
-  if ("plugin" in about) return `Plugin "${own(core.plugins.appPlugins(), about.plugin)?.name ?? about.plugin}"`;
+  if ("plugin" in about) return `Plugin "${core.plugins.appPlugins().get(about.plugin)?.name ?? idText(about.plugin)}"`;
   if ("stack" in about) return `Stack "${own(board.stacks, about.stack)?.name ?? about.stack}"`;
   const block = (id) => `"${own(board.blocks, id)?.name ?? id}"`;
   if ("block" in about) return `Block ${block(about.block)}`;
@@ -790,7 +807,7 @@ import { ChevronDown } from "./vendor-64fbb1b0.js";
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
 function drawnControls(core) {
   const storage = core.plugins.storage();
-  const plugin = storage === void 0 ? void 0 : Object.keys(core.plugins.appPlugins()).find((id) => core.plugins.pluginClass(id).storage === storage);
+  const plugin = storage === void 0 ? void 0 : [...core.plugins.appPlugins().keys()].find((id) => core.plugins.pluginClass(id).storage === storage);
   if (storage === void 0 || plugin === void 0) return void 0;
   try {
     const twice = /* @__PURE__ */ new Set();
@@ -854,7 +871,7 @@ function Toolbar({ board, showOptions }) {
         label: "Board name",
         name: board.name,
         onSubmit: (name) => {
-          void runCommand(core, "blockr.core-change_board", { name });
+          void runCommand(core, core.id("blockr.core", "change_board"), { name });
         },
         onDone: () => {
           setRenaming(false);
@@ -1109,7 +1126,7 @@ var LEFT = {
 };
 
 // srcts/modules/basic/demand.ts
-var OWNER = "blockr.core-basic";
+var OWNER = "blockr.core";
 var SHOWN = 1;
 var IN_VIEW = 2;
 function demandShown(core, view = window) {

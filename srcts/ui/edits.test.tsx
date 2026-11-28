@@ -15,8 +15,12 @@ import { held } from "../testing/notifications.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { notifiedReasons, Refusal, useEdits } from "./index.ts";
 import type { Done } from "./index.ts";
+import { interned } from "../util/index.ts";
 
 const stops: (() => void)[] = [];
+
+// Core's command that removes a block, by its package and its id.
+const removeBlock = interned("blockr.core", "remove_block");
 
 afterEach(() => {
   for (const stop of stops.splice(0)) stop();
@@ -28,16 +32,16 @@ afterEach(() => {
 function Control({ core, done }: { core: Pick<CoreApi, "commands">; done?: Done }): ReactElement {
   const edits = useEdits(core);
   const runs: Record<string, () => Promise<boolean>> = {
-    "Remove Head": () => edits.run('Could not remove the block "Head".', "blockr.core-remove_block", { id: "b" }),
-    "Remove nowhere": () => edits.run('Could not remove the block "nowhere".', "blockr.core-remove_block", { id: "nowhere" }),
+    "Remove Head": () => edits.run('Could not remove the block "Head".', removeBlock, { id: "b" }),
+    "Remove nowhere": () => edits.run('Could not remove the block "nowhere".', removeBlock, { id: "nowhere" }),
     "Remove Iris and nowhere": () =>
       edits.run('Could not remove the blocks "Iris" and "nowhere".', [
-        { id: "blockr.core-remove_block", args: { id: "a" } },
-        { id: "blockr.core-remove_block", args: { id: "nowhere" } },
+        { id: removeBlock, args: { id: "a" } },
+        { id: removeBlock, args: { id: "nowhere" } },
       ]),
-    "Remove Head through done": () => edits.run('Could not remove the block "Head".', [{ id: "blockr.core-remove_block", args: { id: "b" } }], done),
+    "Remove Head through done": () => edits.run('Could not remove the block "Head".', [{ id: removeBlock, args: { id: "b" } }], done),
     "Remove nowhere through done": () =>
-      edits.run('Could not remove the block "nowhere".', [{ id: "blockr.core-remove_block", args: { id: "nowhere" } }], done),
+      edits.run('Could not remove the block "nowhere".', [{ id: removeBlock, args: { id: "nowhere" } }], done),
   };
   return (
     <div>
@@ -139,8 +143,8 @@ describe("an edit that the command registry or the store refuses", () => {
     expect(refusals(el)).toEqual([]);
     expect(Object.keys(core.store.board().blocks)).not.toContain("b");
     expect(batches).toEqual([
-      [{ id: "blockr.core-remove_block", args: { id: "nowhere" } }],
-      [{ id: "blockr.core-remove_block", args: { id: "b" } }],
+      [{ id: interned("blockr.core", "remove_block"), args: { id: "nowhere" } }],
+      [{ id: interned("blockr.core", "remove_block"), args: { id: "b" } }],
     ]);
   });
 });
@@ -155,11 +159,11 @@ test("an edit that fails with an error that lists no reasons says what the error
 describe("the reasons that notifications give", () => {
   test("are the failures of a refusal, without the line that heads them, and the message as it stands where it lists none", () => {
     const refused = {
-      message: ['The batch was refused at command 1, "blockr.core-remove_block"', '- No block "x" is on the board.', "- The board lock refuses it."].join("\n"),
+      message: ['The batch was refused at command 1, "remove_block of blockr.core"', '- No block "x" is on the board.', "- The board lock refuses it."].join("\n"),
     };
     expect(notifiedReasons([refused])).toEqual(['No block "x" is on the board.', "The board lock refuses it."]);
-    expect(notifiedReasons([{ message: 'The board action "blockr.test-paste_action" failed: The clipboard is refused.' }])).toEqual([
-      'The board action "blockr.test-paste_action" failed: The clipboard is refused.',
+    expect(notifiedReasons([{ message: 'The board action "paste_action of blockr.test" failed: The clipboard is refused.' }])).toEqual([
+      'The board action "paste_action of blockr.test" failed: The clipboard is refused.',
     ]);
     // A message whose lines after the first are not all failures stands as it
     // is, and each notification gives its own reasons.

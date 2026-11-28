@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, an array that holds the entry of every class registered, each with the package and the id of its class, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, each with the package of its module and its name as its id, where the modules that core offers other packages' UIs are served, by package and then by name, the app's plugins, an array in the order of the rows that serve() takes, core's basic frontend, its storage plugin and its Edit board plugin, each with the package and the id of its class, its class's name and version, the board options that it reads, dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   "client": [
     {
       "id": "1",
@@ -16,9 +16,10 @@
         "protocol": "1.0",
         "capabilities": ["cancel", "progress"],
         "packages": { "blockr.core": "0.2.0" },
-        "block_registry": {
-          "blockr.core-dataset_block": {
-            "id": "blockr.core-dataset_block",
+        "block_registry": [
+          {
+            "package": "blockr.core",
+            "id": "dataset_block",
             "name": "dataset block",
             "description": "Choose a dataset from a package",
             "keywords": ["dataset", "data", "import", "package", "source"],
@@ -55,13 +56,15 @@
             "output_options": ["n_rows"],
             "renderers": [
               {
-                "id": "blockr.core-table_output",
+                "package": "blockr.core",
+                "id": "table_output",
                 "module": "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
-          "blockr.core-head_block": {
-            "id": "blockr.core-head_block",
+          {
+            "package": "blockr.core",
+            "id": "head_block",
             "name": "head/tail block",
             "description": "Data head/tail",
             "url": "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",
@@ -98,13 +101,15 @@
             "output_options": ["n_rows"],
             "renderers": [
               {
-                "id": "blockr.core-table_output",
+                "package": "blockr.core",
+                "id": "table_output",
                 "module": "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
-          "blockr.core-merge_block": {
-            "id": "blockr.core-merge_block",
+          {
+            "package": "blockr.core",
+            "id": "merge_block",
             "name": "merge block",
             "description": "Joining or merging datasets",
             "keywords": [
@@ -153,57 +158,15 @@
             "output_options": ["n_rows"],
             "renderers": [
               {
-                "id": "blockr.core-table_output",
+                "package": "blockr.core",
+                "id": "table_output",
                 "module": "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
-          "blockr.core-subset_block": {
-            "id": "blockr.core-subset_block",
-            "name": "subset block",
-            "description": "Row and column subsetting",
-            "keywords": [
-              "filter",
-              "subset",
-              "select",
-              "rows",
-              "columns",
-              "where"
-            ],
-            "category": "transform",
-            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-funnel\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
-            "inputs": ["data"],
-            "module": "blockr.core/subset-block.js?v=2b6f04d9",
-            "version": 1,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "subset": {
-                  "type": "string",
-                  "description": "Logical row-filter expression, as a string."
-                },
-                "select": {
-                  "type": "string",
-                  "description": "Column-selection expression, as a string."
-                }
-              },
-              "required": ["subset", "select"],
-              "additionalProperties": false
-            },
-            "block_name": "Subset",
-            "state": { "subset": "", "select": "" },
-            "options": [],
-            "requests": {},
-            "output_options": ["n_rows"],
-            "renderers": [
-              {
-                "id": "blockr.core-table_output",
-                "module": "blockr.core/basic-table.js?v=b7e2a915"
-              }
-            ]
-          },
-          "blockr.core-rbind_block": {
-            "id": "blockr.core-rbind_block",
+          {
+            "package": "blockr.core",
+            "id": "rbind_block",
             "name": "rbind block",
             "description": "Row-binding of datasets",
             "keywords": [
@@ -231,13 +194,15 @@
             "output_options": ["n_rows"],
             "renderers": [
               {
-                "id": "blockr.core-table_output",
+                "package": "blockr.core",
+                "id": "table_output",
                 "module": "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
-          "blockr.core-scatter_block": {
-            "id": "blockr.core-scatter_block",
+          {
+            "package": "blockr.core",
+            "id": "scatter_block",
             "name": "scatter plot block",
             "description": "Scatter plotting",
             "keywords": [
@@ -279,13 +244,61 @@
             "output_options": [],
             "renderers": [
               {
-                "id": "blockr.core-plot_output",
+                "package": "blockr.core",
+                "id": "plot_output",
                 "module": "blockr.core/basic-plot.js?v=f19d4a73"
               }
             ]
           },
-          "blockr.core-upload_block": {
-            "id": "blockr.core-upload_block",
+          {
+            "package": "blockr.core",
+            "id": "subset_block",
+            "name": "subset block",
+            "description": "Row and column subsetting",
+            "keywords": [
+              "filter",
+              "subset",
+              "select",
+              "rows",
+              "columns",
+              "where"
+            ],
+            "category": "transform",
+            "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" class=\"bi bi-funnel\" aria-hidden=\"true\" role=\"img\"><path d=\"M2 2h12v12H2z\"></path></svg>",
+            "inputs": ["data"],
+            "module": "blockr.core/subset-block.js?v=2b6f04d9",
+            "version": 1,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "subset": {
+                  "type": "string",
+                  "description": "Logical row-filter expression, as a string."
+                },
+                "select": {
+                  "type": "string",
+                  "description": "Column-selection expression, as a string."
+                }
+              },
+              "required": ["subset", "select"],
+              "additionalProperties": false
+            },
+            "block_name": "Subset",
+            "state": { "subset": "", "select": "" },
+            "options": [],
+            "requests": {},
+            "output_options": ["n_rows"],
+            "renderers": [
+              {
+                "package": "blockr.core",
+                "id": "table_output",
+                "module": "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
+          },
+          {
+            "package": "blockr.core",
+            "id": "upload_block",
             "name": "data upload block",
             "description": "Upload data",
             "keywords": ["upload", "file", "import", "data", "session"],
@@ -314,41 +327,50 @@
             "output_options": [],
             "renderers": [
               {
-                "id": "blockr.core-text_output",
+                "package": "blockr.core",
+                "id": "text_output",
                 "module": "blockr.core/basic-text.js?v=3c8f61d0"
               }
             ]
           }
-        },
+        ],
         "modules": {
-          "blockr.core-controls": {
-            "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
-          },
-          "blockr.core-board_action_menu": {
-            "module": "blockr.core/board-action-menu.js?v=e3a7c05b"
+          "blockr.core": {
+            "controls": {
+              "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
+            },
+            "board_action_menu": {
+              "module": "blockr.core/board-action-menu.js?v=e3a7c05b"
+            }
           }
         },
-        "plugins": {
-          "blockr.core-basic_frontend_plugin": {
+        "plugins": [
+          {
+            "package": "blockr.core",
+            "id": "basic_frontend_plugin",
             "name": "Basic frontend",
             "version": 1,
             "options": ["dark_mode"],
             "module": "blockr.core/basic.js?v=0f3d8e21",
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           },
-          "blockr.core-file_storage_plugin": {
+          {
+            "package": "blockr.core",
+            "id": "file_storage_plugin",
             "name": "File storage",
             "version": 1,
             "options": [],
             "module": "blockr.core/file-storage.js?v=8e1f0b2d"
           },
-          "blockr.core-edit_board_plugin": {
+          {
+            "package": "blockr.core",
+            "id": "edit_board_plugin",
             "name": "Edit board",
             "version": 1,
             "options": [],
             "module": "blockr.core/edit-board.js?v=5c1e7a39"
           }
-        },
+        ],
         "frontend": {},
         "options": {
           "n_rows": {
@@ -371,28 +393,28 @@
             "name": "Iris review",
             "blocks": {
               "a": {
-                "registry_id": "blockr.core-dataset_block",
+                "registry_id": { "package": "blockr.core", "id": "dataset_block" },
                 "version": 1,
                 "state": { "dataset": "iris", "package": "datasets" },
                 "name": "Iris",
                 "locked": null
               },
               "b": {
-                "registry_id": "blockr.core-head_block",
+                "registry_id": { "package": "blockr.core", "id": "head_block" },
                 "version": 1,
                 "state": { "n": 6, "direction": "head" },
                 "name": "Head",
                 "locked": null
               },
               "c": {
-                "registry_id": "blockr.core-merge_block",
+                "registry_id": { "package": "blockr.core", "id": "merge_block" },
                 "version": 1,
                 "state": { "by": ["Species"], "all_x": false, "all_y": false },
                 "name": "Merge",
                 "locked": null
               },
               "d": {
-                "registry_id": "blockr.core-subset_block",
+                "registry_id": { "package": "blockr.core", "id": "subset_block" },
                 "version": 1,
                 "state": {
                   "subset": "log(Sepal.Width - 3) > 0",
@@ -402,14 +424,14 @@
                 "locked": null
               },
               "e": {
-                "registry_id": "blockr.core-rbind_block",
+                "registry_id": { "package": "blockr.core", "id": "rbind_block" },
                 "version": 1,
                 "state": {},
                 "name": "Bind",
                 "locked": null
               },
               "f": {
-                "registry_id": "blockr.core-scatter_block",
+                "registry_id": { "package": "blockr.core", "id": "scatter_block" },
                 "version": 1,
                 "state": { "x": "Sepal.Length", "y": "Sepal.Width" },
                 "name": "Scatter",

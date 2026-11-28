@@ -11,7 +11,7 @@
 
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
-import type { BlockId, OptionId, RegistryId } from "./board.ts";
+import type { BlockId, Id, ModuleId, OptionId, RegistryId } from "./board.ts";
 import type { CoreFailure, Notification, Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
@@ -78,8 +78,13 @@ export interface BlockHost<S extends State = State> {
   // A one-time evaluation of the block with parameters, which its
   // block_eval() method reads, such as a save button's `{ save: true }`.
   evaluate(params: Record<string, Json>): Promise<BlockStatus>;
-  // A module another package offers, by id, such as "blockr.dplyr-filter".
-  module<T = unknown>(id: string): Promise<T>;
+  // The id of what a package defines, as CoreApi's id() gives it
+  // (./core-api.ts), for the module's calls that take one, as
+  // module(host.id("blockr.dplyr", "filter")).
+  id<P extends string | null>(pkg: P, id: string): Id<P>;
+  // A module another package offers, by its id, as
+  // id("blockr.dplyr", "filter") gives it.
+  module<T = unknown>(id: ModuleId): Promise<T>;
   // Raises a notification of the module's, which concerns the block unless it
   // names another board object, and holds until the function that it returns
   // runs or the mount ends, as CoreApi's notify() raises a plugin's

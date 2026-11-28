@@ -9,7 +9,7 @@
       "locked": null,
       "traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
       "recipe": {
-        "registry_id": "blockr.core-merge_block",
+        "registry_id": { "package": "blockr.core", "id": "merge_block" },
         "state": { "by": ["Species"], "all_x": false, "all_y": false },
         "inputs": [
           { "input": "x", "block": "a", "revision": 2 },

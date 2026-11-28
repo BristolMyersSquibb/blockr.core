@@ -15,8 +15,11 @@ test_that("a package's constructor makes a plugin of its class", {
     list(positions = list(a = list(x = 1, y = 2)))
   )
 
-  # The id of its class joins the class to the package its constructor lives in
-  expect_identical(plugin_class_id(plugin), "blockr.dag-dag_plugin")
+  # Its class is the id that it gives, in the package its constructor lives in
+  expect_identical(
+    plugin_class_id(plugin),
+    list(package = "blockr.dag", id = "dag_plugin")
+  )
 
   # A class extends core's frontend_plugin or storage_plugin, or plugin itself
   dock <- plugin_ctor(function() NULL, c("dock_plugin", "frontend_plugin"))
@@ -54,13 +57,15 @@ test_that("a plugin's class vector defaults to its id and serves dispatch", {
     c("notes_plugin", "storage_plugin", "plugin"),
     exact = TRUE
   )
-  expect_identical(plugin_class_id(plugin), "blockr.test-notes_plugin")
+  notes <- list(package = "blockr.test", id = "notes_plugin")
+
+  expect_identical(plugin_class_id(plugin), notes)
 
   # The id alone identifies the class, whatever its class vector
   other <- ctor("notes_plugin", c("my_notes_plugin", "notes_plugin"))
 
   expect_s3_class(other, c("my_notes_plugin", "notes_plugin", "plugin"))
-  expect_identical(plugin_class_id(other), "blockr.test-notes_plugin")
+  expect_identical(plugin_class_id(other), notes)
 })
 
 test_that("core's own plugins keep no state", {
@@ -74,7 +79,7 @@ test_that("core's own plugins keep no state", {
   )
   expect_identical(
     plugin_class_id(frontend),
-    "blockr.core-basic_frontend_plugin"
+    list(package = "blockr.core", id = "basic_frontend_plugin")
   )
   expect_length(plugin_state(frontend), 0L)
 
@@ -85,7 +90,10 @@ test_that("core's own plugins keep no state", {
     c("file_storage_plugin", "storage_plugin", "plugin"),
     exact = TRUE
   )
-  expect_identical(plugin_class_id(storage), "blockr.core-file_storage_plugin")
+  expect_identical(
+    plugin_class_id(storage),
+    list(package = "blockr.core", id = "file_storage_plugin")
+  )
   expect_length(plugin_state(storage), 0L)
 
   # The Edit board plugin is neither a frontend nor a storage plugin, so an
@@ -93,7 +101,10 @@ test_that("core's own plugins keep no state", {
   edit <- new_edit_board_plugin()
 
   expect_s3_class(edit, c("edit_board_plugin", "plugin"), exact = TRUE)
-  expect_identical(plugin_class_id(edit), "blockr.core-edit_board_plugin")
+  expect_identical(
+    plugin_class_id(edit),
+    list(package = "blockr.core", id = "edit_board_plugin")
+  )
   expect_length(plugin_state(edit), 0L)
   expect_false(is_frontend_plugin(edit))
   expect_false(is_storage_plugin(edit))
@@ -177,7 +188,11 @@ test_that("available_plugins() gives core's plugin classes by package and id", {
   # A class's name stays with its package's listing, which the app's plugins
   # take it from
   expect_identical(
-    app_plugins(available_plugins())[["blockr.test-notes_plugin"]]$name,
+    app_plugin(
+      app_plugins(available_plugins()),
+      "blockr.test",
+      "notes_plugin"
+    )$name,
     "Notes"
   )
 })
@@ -239,12 +254,14 @@ test_that("a plugin class's method gives its version, or it is at version 1", {
   local_plugin_classes(Notes = notes)
 
   expect_identical(plugin_version(notes()), 1L)
-  expect_identical(plugin_class_version("blockr.test-notes_plugin"), 1L)
+  id <- pkg_id("blockr.test", "notes_plugin")
+
+  expect_identical(plugin_class_version(id), 1L)
 
   local_plugin_version("notes_plugin", 2L)
 
   expect_identical(plugin_version(notes()), 2L)
-  expect_identical(plugin_class_version("blockr.test-notes_plugin"), 2L)
+  expect_identical(plugin_class_version(id), 2L)
 
   # R calls the method on the plugin that the class's constructor makes, so
   # that the method of a class that it extends counts
@@ -253,20 +270,24 @@ test_that("a plugin class's method gives its version, or it is at version 1", {
   dock <- plugin_ctor(function() NULL, c("dock_plugin", "frontend_plugin"))
   local_plugin_classes(Dock = dock)
 
-  expect_identical(plugin_class_version("blockr.test-dock_plugin"), 5L)
+  expect_identical(
+    plugin_class_version(pkg_id("blockr.test", "dock_plugin")),
+    5L
+  )
 
   bad <- plugin_ctor(function() NULL, "bad_plugin")
   local_plugin_classes(Bad = bad)
   local_plugin_version("bad_plugin", "two")
 
   expect_error(
-    plugin_class_version("blockr.test-bad_plugin"),
+    plugin_class_version(pkg_id("blockr.test", "bad_plugin")),
     class = "plugin_version_invalid"
   )
 
   # A class that no available package lists has no version
   expect_error(
-    plugin_class_version("blockr.test-gone_plugin"),
+    plugin_class_version(pkg_id("blockr.test", "gone_plugin")),
+    "gone_plugin of blockr.test",
     class = "plugin_class_unknown"
   )
 })
@@ -274,7 +295,7 @@ test_that("a plugin class's method gives its version, or it is at version 1", {
 test_that("core's method of complete_plugin() returns the plugin as it is", {
 
   notes <- plugin_ctor(function(about = "") NULL, "notes_plugin")
-  aliases <- c(dag = "blockr.dag-dag_plugin")
+  aliases <- list(dag = list(package = "blockr.dag", id = "dag_plugin"))
 
   expect_identical(
     complete_plugin(notes("dag"), new_board(plugins = notes("dag")), aliases),
@@ -292,7 +313,7 @@ test_that("the app holds the requests of each plugin's class, or none", {
   rows <- subset(available_plugins(), id != "bad_plugin")
 
   expect_identical(
-    app_plugins(rows)[["blockr.test-notes_plugin"]]$requests,
+    app_plugin(app_plugins(rows), "blockr.test", "notes_plugin")$requests,
     list()
   )
 
@@ -302,7 +323,7 @@ test_that("the app holds the requests of each plugin's class, or none", {
     function(x, ...) list(save = function(text) toupper(text))
   )
 
-  reqs <- app_plugins(rows)[["blockr.test-notes_plugin"]]$requests
+  reqs <- app_plugin(app_plugins(rows), "blockr.test", "notes_plugin")$requests
 
   expect_named(reqs, "save")
   expect_identical(reqs$save("a"), "A")
@@ -318,7 +339,7 @@ test_that("the app holds the requests of each plugin's class, or none", {
 
     expect_error(
       app_plugins(available_plugins()),
-      "for plugin class blockr.test-bad_plugin returns",
+      "for plugin class bad_plugin of blockr.test returns",
       fixed = TRUE,
       class = "plugin_requests_invalid"
     )
@@ -338,10 +359,13 @@ test_that("the app holds the board options that each plugin's class reads", {
   # Core's basic frontend reads two, and a class without a method of its own
   # reads none
   expect_identical(
-    plugins[["blockr.core-basic_frontend_plugin"]]$options,
+    app_plugin(plugins, "blockr.core", "basic_frontend_plugin")$options,
     "dark_mode"
   )
-  expect_identical(plugins[["blockr.test-notes_plugin"]]$options, character())
+  expect_identical(
+    app_plugin(plugins, "blockr.test", "notes_plugin")$options,
+    character()
+  )
   expect_null(plugin_options(new_file_storage_plugin()))
 
   testthat::local_mocked_s3_method(
@@ -351,7 +375,7 @@ test_that("the app holds the board options that each plugin's class reads", {
   )
 
   expect_identical(
-    app_plugins(rows)[["blockr.test-notes_plugin"]]$options,
+    app_plugin(app_plugins(rows), "blockr.test", "notes_plugin")$options,
     "n_rows"
   )
 
@@ -366,14 +390,14 @@ test_that("the app holds the board options that each plugin's class reads", {
 
     expect_error(
       app_plugins(available_plugins()),
-      "for plugin class blockr.test-bad_plugin returns",
+      "for plugin class bad_plugin of blockr.test returns",
       fixed = TRUE,
       class = "plugin_options_invalid"
     )
   }
 })
 
-test_that("the app runs the plugins of its rows, by the ids of their classes", {
+test_that("the app runs the plugins of its rows, in their order", {
 
   local_plugin_classes(
     Notes = plugin_ctor(function(notes = list()) NULL, "notes_plugin")
@@ -384,31 +408,26 @@ test_that("the app runs the plugins of its rows, by the ids of their classes", {
   plugins <- app_plugins(available_plugins())
 
   expect_identical(
-    lst_xtr(plugins, "name"),
-    list(
-      `blockr.core-basic_frontend_plugin` = "Basic frontend",
-      `blockr.core-file_storage_plugin` = "File storage",
-      `blockr.core-edit_board_plugin` = "Edit board",
-      `blockr.test-notes_plugin` = "Notes"
+    plugin_class_rows(plugins),
+    data.frame(
+      package = c(rep("blockr.core", 3L), "blockr.test"),
+      id = c("basic_frontend_plugin", "file_storage_plugin",
+             "edit_board_plugin", "notes_plugin")
     )
   )
   expect_identical(
-    unlist(lst_xtr(plugins, "version")),
-    c(
-      `blockr.core-basic_frontend_plugin` = 1L,
-      `blockr.core-file_storage_plugin` = 1L,
-      `blockr.core-edit_board_plugin` = 1L,
-      `blockr.test-notes_plugin` = 2L
-    )
+    chr_xtr(plugins, "name"),
+    c("Basic frontend", "File storage", "Edit board", "Notes")
   )
+  expect_identical(int_xtr(plugins, "version"), c(1L, 1L, 1L, 2L))
 
   # Each with its class's module, as its package lists it
   expect_identical(
-    plugins[["blockr.core-basic_frontend_plugin"]]$module,
+    app_plugin(plugins, "blockr.core", "basic_frontend_plugin")$module,
     js_module("js/basic.js", package = "blockr.core")
   )
   expect_identical(
-    plugins[["blockr.test-notes_plugin"]]$module,
+    app_plugin(plugins, "blockr.test", "notes_plugin")$module,
     js_module("js/notes_plugin.js", package = "blockr.test")
   )
 
@@ -418,10 +437,7 @@ test_that("the app runs the plugins of its rows, by the ids of their classes", {
     id = c("notes_plugin", "basic_frontend_plugin")
   )
 
-  expect_named(
-    app_plugins(rows),
-    c("blockr.test-notes_plugin", "blockr.core-basic_frontend_plugin")
-  )
+  expect_identical(plugin_class_rows(app_plugins(rows)), rows)
 })
 
 test_that("core's basic frontend and storage plugin give way to others", {
@@ -436,60 +452,60 @@ test_that("core's basic frontend and storage plugin give way to others", {
     Drive = plugin_ctor(function() NULL, c("drive_plugin", "storage_plugin"))
   )
 
+  # The rows of the classes given, each of blockr.test unless it is one of
+  # core's two below
   rows <- function(...) {
     ids <- c(...)
-    data.frame(package = id_package(ids), id = id_class(ids))
+    data.frame(
+      package = ifelse(ids %in% core, "blockr.core", "blockr.test"),
+      id = ids
+    )
   }
 
-  core <- c(
-    "blockr.core-basic_frontend_plugin",
-    "blockr.core-file_storage_plugin"
+  core <- c("basic_frontend_plugin", "file_storage_plugin")
+
+  ran <- function(...) plugin_class_rows(app_plugins(rows(...)))
+
+  expect_identical(ran(core), rows(core))
+
+  expect_identical(
+    ran(core, "dock_plugin"),
+    rows("file_storage_plugin", "dock_plugin")
   )
 
-  expect_named(app_plugins(rows(core)), core)
-
-  expect_named(
-    app_plugins(rows(core, "blockr.test-dock_plugin")),
-    c("blockr.core-file_storage_plugin", "blockr.test-dock_plugin")
+  expect_identical(
+    ran("session_plugin", core),
+    rows("session_plugin", "basic_frontend_plugin")
   )
 
-  expect_named(
-    app_plugins(rows("blockr.test-session_plugin", core)),
-    c("blockr.test-session_plugin", "blockr.core-basic_frontend_plugin")
-  )
-
-  expect_named(
-    app_plugins(rows("blockr.test-dock_plugin")),
-    "blockr.test-dock_plugin"
-  )
+  expect_identical(ran("dock_plugin"), rows("dock_plugin"))
 
   # Rows that hold no frontend, two or two storage plugins stop the app
   expect_error(
-    app_plugins(rows("blockr.core-file_storage_plugin")),
+    app_plugins(rows("file_storage_plugin")),
     "no frontend",
     class = "app_plugins_invalid"
   )
 
   expect_error(
-    app_plugins(
-      rows(core, "blockr.test-dock_plugin", "blockr.test-grid_plugin")
-    ),
-    "blockr.test-dock_plugin and blockr.test-grid_plugin",
+    app_plugins(rows(core, "dock_plugin", "grid_plugin")),
+    "dock_plugin of blockr.test and grid_plugin of blockr.test",
     class = "app_plugins_invalid"
   )
 
   expect_error(
-    app_plugins(
-      rows(core, "blockr.test-session_plugin", "blockr.test-drive_plugin")
+    app_plugins(rows(core, "session_plugin", "drive_plugin")),
+    paste(
+      "storage plugins session_plugin of blockr.test and drive_plugin of",
+      "blockr.test"
     ),
-    "storage plugins blockr.test-session_plugin and blockr.test-drive_plugin",
     class = "app_plugins_invalid"
   )
 
   # So do rows that name one class twice
   expect_error(
-    app_plugins(rows(core, "blockr.core-basic_frontend_plugin")),
-    "blockr.core-basic_frontend_plugin more than once",
+    app_plugins(rows(core, "basic_frontend_plugin")),
+    "basic_frontend_plugin of blockr.core more than once",
     class = "app_plugins_invalid"
   )
 })
@@ -526,18 +542,18 @@ test_that("a plugin prints its class's id and its state", {
   expect_identical(
     format(plugin),
     c(
-      "<notes_plugin> blockr.test-notes_plugin",
+      "<notes_plugin> notes_plugin of blockr.test",
       " $ text: chr \"To do\"",
       " $ tags: chr [1:2] \"a\" \"b\""
     )
   )
 
-  expect_output(print(plugin), "<notes_plugin> blockr.test-notes_plugin")
+  expect_output(print(plugin), "<notes_plugin> notes_plugin of blockr.test")
   expect_identical(
     str_value(plugin),
-    "<notes_plugin> blockr.test-notes_plugin"
+    "<notes_plugin> notes_plugin of blockr.test"
   )
-  expect_output(str(plugin), "<notes_plugin> blockr.test-notes_plugin")
+  expect_output(str(plugin), "<notes_plugin> notes_plugin of blockr.test")
 })
 
 test_that("a plugin prints fields that are empty or nested", {
@@ -550,7 +566,7 @@ test_that("a plugin prints fields that are empty or nested", {
   expect_identical(
     format(views()),
     c(
-      "<views_plugin> blockr.test-views_plugin",
+      "<views_plugin> views_plugin of blockr.test",
       " $ views : list()",
       " $ active: NULL",
       " $ tags  : chr(0)"
@@ -572,7 +588,7 @@ test_that("a plugin prints fields that are empty or nested", {
   expect_identical(
     actual,
     c(
-      "<views_plugin> blockr.test-views_plugin",
+      "<views_plugin> views_plugin of blockr.test",
       " $ views :List of 2",
       "  ..$ main:List of 2",
       "  .. ..$ name  : chr \"Main\"",

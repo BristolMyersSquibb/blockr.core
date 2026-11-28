@@ -15,10 +15,15 @@ import type { StubCore, StubMenu } from "../stubs/index.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import { swatch } from "./icons.ts";
 import type { ShownLevel } from "./quick.ts";
+import { interned } from "../util/index.ts";
 
-const CREATE_STACK = "blockr.core-add_stack_action";
-const EDIT_STACK = "blockr.core-edit_stack_action";
-const ADD_TO_STACK = "blockr.core-add_to_stack_action";
+// Core's board actions of stacks, each by its package and its id, as a caller
+// names one.
+const CREATE_STACK = interned("blockr.core", "add_stack_action");
+const EDIT_STACK = { package: "blockr.core", id: "edit_stack_action" } as const;
+const ADD_TO_STACK = { package: "blockr.core", id: "add_to_stack_action" } as const;
+const ADD_STACK = interned("blockr.core", "add_stack");
+const REMOVE_STACK = interned("blockr.core", "remove_stack");
 
 const stops: (() => void)[] = [];
 
@@ -32,8 +37,9 @@ async function stubbed(): Promise<StubCore> {
   return s;
 }
 
-function ids(actions: readonly BoardAction[]): string[] {
-  return actions.map(({ id }) => id);
+// Each board action's package and id.
+function ids(actions: readonly BoardAction[]): { package: string; id: string }[] {
+  return actions.map((action) => ({ package: action.package, id: action.id }));
 }
 
 // The rows of a level by what each shows: its label and its detail, if any.
@@ -80,10 +86,10 @@ describe("Create stack", () => {
     const s = await stubbed();
     const on = (target: Target) => ids(s.core.boardActions.on(target));
 
-    expect(on({ block: "c" })).toContain(CREATE_STACK);
-    expect(on({ selection: [{ link: "ab" }, { block: "c" }] })).toContain(CREATE_STACK);
-    expect(on({ selection: [{ link: "ab" }, { stack: "s1" }] })).not.toContain(CREATE_STACK);
-    expect(on({ board: true })).toContain(CREATE_STACK);
+    expect(on({ block: "c" })).toContainEqual(CREATE_STACK);
+    expect(on({ selection: [{ link: "ab" }, { block: "c" }] })).toContainEqual(CREATE_STACK);
+    expect(on({ selection: [{ link: "ab" }, { stack: "s1" }] })).not.toContainEqual(CREATE_STACK);
+    expect(on({ board: true })).toContainEqual(CREATE_STACK);
   });
 
   test("on a block, asks for the name in a text row, which holds a name that no other stack has, and adds a stack of the block in a colour that no other stack has, in one step", async () => {
@@ -194,7 +200,7 @@ describe("Create stack", () => {
 describe("Edit stack", () => {
   test("gives the stack the colour picked, the stack's own first and then those of the palette that no other stack has", async () => {
     const s = await stubbed();
-    await act(() => s.core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"], color: "#66c2a5" }));
+    await act(() => s.core.commands.run(ADD_STACK, { id: "plots", name: "Plots", blocks: ["f"], color: "#66c2a5" }));
 
     const menu = s.menu({ stack: "s1" });
     await menu.pick("Edit stack");
@@ -230,7 +236,7 @@ describe("Edit stack", () => {
 
   test("gives the stack the blocks ticked, of its own and those in no stack, as the menu closes", async () => {
     const s = await stubbed();
-    await act(() => s.core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"] }));
+    await act(() => s.core.commands.run(ADD_STACK, { id: "plots", name: "Plots", blocks: ["f"] }));
 
     const menu = s.menu({ stack: "s1" });
     await menu.pick("Edit stack");
@@ -331,23 +337,23 @@ describe("Add to stack", () => {
     const s = await stubbed();
     const on = (target: Target) => ids(s.core.boardActions.on(target));
 
-    expect(on({ block: "c" })).toContain(ADD_TO_STACK);
-    expect(on({ selection: [{ link: "ab" }, { block: "a" }, { block: "c" }] })).toContain(ADD_TO_STACK);
+    expect(on({ block: "c" })).toContainEqual(ADD_TO_STACK);
+    expect(on({ selection: [{ link: "ab" }, { block: "a" }, { block: "c" }] })).toContainEqual(ADD_TO_STACK);
     // Input, the board's only stack, holds a and b already.
-    expect(on({ block: "a" })).not.toContain(ADD_TO_STACK);
-    expect(on({ selection: [{ block: "a" }, { block: "b" }] })).not.toContain(ADD_TO_STACK);
-    expect(on({ selection: [{ link: "ab" }, { stack: "s1" }] })).not.toContain(ADD_TO_STACK);
-    expect(on({ stack: "s1" })).not.toContain(ADD_TO_STACK);
-    expect(on({ board: true })).not.toContain(ADD_TO_STACK);
+    expect(on({ block: "a" })).not.toContainEqual(ADD_TO_STACK);
+    expect(on({ selection: [{ block: "a" }, { block: "b" }] })).not.toContainEqual(ADD_TO_STACK);
+    expect(on({ selection: [{ link: "ab" }, { stack: "s1" }] })).not.toContainEqual(ADD_TO_STACK);
+    expect(on({ stack: "s1" })).not.toContainEqual(ADD_TO_STACK);
+    expect(on({ board: true })).not.toContainEqual(ADD_TO_STACK);
 
     // A board without a stack offers it on no block.
-    await act(() => s.core.commands.run("blockr.core-remove_stack", { id: "s1" }));
-    expect(on({ block: "c" })).not.toContain(ADD_TO_STACK);
+    await act(() => s.core.commands.run(REMOVE_STACK, { id: "s1" }));
+    expect(on({ block: "c" })).not.toContainEqual(ADD_TO_STACK);
   });
 
   test("lists the board's stacks, each with its colour and how many blocks it holds, and puts the block at the end of the stack picked, in one step", async () => {
     const s = await stubbed();
-    await act(() => s.core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"], color: "#66c2a5" }));
+    await act(() => s.core.commands.run(ADD_STACK, { id: "plots", name: "Plots", blocks: ["f"], color: "#66c2a5" }));
 
     const menu = s.menu({ block: "c" });
     await menu.pick("Add to stack");
@@ -368,7 +374,7 @@ describe("Add to stack", () => {
 
   test("on a selection, leaves out a stack that holds every one of its blocks, and takes the blocks out of the stack that held them", async () => {
     const s = await stubbed();
-    await act(() => s.core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"], color: "#66c2a5" }));
+    await act(() => s.core.commands.run(ADD_STACK, { id: "plots", name: "Plots", blocks: ["f"], color: "#66c2a5" }));
 
     // Input holds a, but lacks c.
     const menu = s.menu({ selection: [{ block: "a" }, { link: "ab" }, { block: "c" }] });

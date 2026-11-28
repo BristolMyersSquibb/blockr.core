@@ -50,7 +50,7 @@ import type { Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
-import { jsonEqual } from "../util/index.ts";
+import { interned, jsonEqual } from "../util/index.ts";
 import { renderable } from "./mount.ts";
 import { acting } from "./util.ts";
 
@@ -393,12 +393,19 @@ function ranAs(opened: Opened, expected: Opened["ran"], what: string): void {
 // A board action of the test's own on a block, by its label, with what the test
 // gives it.
 function action(label: string, more: Partial<BoardAction>): BoardAction {
-  return { id: `blockr.test-${label.toLowerCase().replace(/[^a-z]+/g, "_")}_action`, label, on: ["block"], category: "edit", ...more };
+  return {
+    package: "blockr.test",
+    id: `${label.toLowerCase().replace(/[^a-z]+/g, "_")}_action`,
+    label,
+    on: ["block"],
+    category: "edit",
+    ...more,
+  };
 }
 
 // The batch of a command of the test's own, by its name, with the args given.
 function call(name: string, args?: Json): CommandCall[] {
-  return [{ id: `blockr.test-${name}`, ...(args === undefined ? {} : { args }) }];
+  return [{ id: interned("blockr.test", name), ...(args === undefined ? {} : { args }) }];
 }
 
 // An item that runs a batch that names its label as it is picked.

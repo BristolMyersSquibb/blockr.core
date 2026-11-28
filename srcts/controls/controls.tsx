@@ -1,6 +1,6 @@
 // Core's inputs for a package that writes its modules without React,
 // such as one that builds nothing,
-// through `@blockr/core/controls` or the module blockr.core-controls.
+// through `@blockr/core/controls` or the module controls of blockr.core.
 // They are blockr.ui's inputs, drawn with the one copy of React on the page,
 // so that each input is written once.
 // Each is bound to one value, as bind() binds it:

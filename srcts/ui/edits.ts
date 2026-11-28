@@ -26,6 +26,7 @@
 
 import { useMemo, useState } from "react";
 import type { CommandCall } from "../actions/index.ts";
+import type { CommandId } from "../types/board.ts";
 import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { errorMessage } from "../util/index.ts";
@@ -37,10 +38,10 @@ export type Done = (batch: readonly CommandCall[], opts: { notifier(): void }) =
 
 // Runs the command with the args, or the commands of the batch in order, as
 // an edit of the user, through CoreApi, and resolves whether it ran.
-export function runCommand(core: Pick<CoreApi, "commands">, id: string, args?: Json): Promise<boolean>;
+export function runCommand(core: Pick<CoreApi, "commands">, id: CommandId, args?: Json): Promise<boolean>;
 export function runCommand(core: Pick<CoreApi, "commands">, batch: readonly CommandCall[]): Promise<boolean>;
-export function runCommand(core: Pick<CoreApi, "commands">, target: string | readonly CommandCall[], args?: Json): Promise<boolean> {
-  const running = typeof target === "string" ? core.commands.run(target, args) : core.commands.run(target);
+export function runCommand(core: Pick<CoreApi, "commands">, target: CommandId | readonly CommandCall[], args?: Json): Promise<boolean> {
+  const running = isCommandName(target) ? core.commands.run(target, args) : core.commands.run(target);
   return running.then(
     () => true,
     () => false,
@@ -59,7 +60,7 @@ export interface Edits {
   // The title is the sentence that names the edit, such as `Could not add the
   // link.`, which heads the reasons where the edit is refused. The reasons
   // name the board's objects by their ids, which a form may not show.
-  run(title: string, id: string, args?: Json): Promise<boolean>;
+  run(title: string, id: CommandId, args?: Json): Promise<boolean>;
   run(title: string, batch: readonly CommandCall[], done?: Done): Promise<boolean>;
   // Takes the refusal down where the user's next edit there does not reach
   // run(), as where a form's own checks stop it.
@@ -80,10 +81,10 @@ export function useEdits(core: Pick<CoreApi, "commands">): Edits {
   const [refusal, setRefusal] = useState<Refused | null>(null);
   return useMemo(() => {
     const opts = { notifier: () => undefined };
-    function run(title: string, target: string | readonly CommandCall[], given?: Json | Done): Promise<boolean> {
+    function run(title: string, target: CommandId | readonly CommandCall[], given?: Json | Done): Promise<boolean> {
       setRefusal(null);
       const running =
-        typeof target === "string"
+        isCommandName(target)
           ? core.commands.run(target, given as Json | undefined, "user", opts)
           : typeof given === "function"
             ? given(target, opts)
@@ -137,4 +138,10 @@ export function notifiedReasons(notifications: readonly Pick<Notification, "mess
 
 function isSentences(x: unknown): x is readonly string[] {
   return Array.isArray(x) && x.length > 0 && x.every((item) => typeof item === "string");
+}
+
+// A command alone, by its id, as runCommand() and an edit's run() take it
+// beside a batch.
+function isCommandName(target: CommandId | readonly CommandCall[]): target is CommandId {
+  return !Array.isArray(target);
 }

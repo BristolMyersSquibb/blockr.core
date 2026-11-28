@@ -64,7 +64,7 @@ local_load_all_package <- function(frame = parent.frame(), registers = FALSE) {
       "}"
     )
     withr::defer(
-      unregister_blocks(intersect(list_blocks(), "regprobe-probe_block")),
+      unregister_blocks(pkg_id("regprobe", "probe_block")),
       envir = frame
     )
   }

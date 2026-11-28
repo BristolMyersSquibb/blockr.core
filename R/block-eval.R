@@ -45,8 +45,9 @@
 #' The block's status then stays `ok`, since the block ran, but its evaluation
 #' holds no summary.
 #'
-#' @param x For `evaluate_block()`, a registry id or a block class, and for
-#'   `block_eval()`, a block's state with its class's class vector
+#' @param x For `evaluate_block()`, a block class, or the registry id of one
+#'   that the block registry holds, as [registry_id_from_block()] gives it, and
+#'   for `block_eval()`, a block's state with its class's class vector
 #' @param state The block's state, a named list of its state args' values
 #' @param inputs Upstream block ids by data input, as [interpolate()] takes
 #'   them
@@ -221,9 +222,10 @@ as_block_class <- function(x, registry = block_registry) {
     return(x)
   }
 
-  if (!is_string(x)) {
+  if (!is_pkg_id(x)) {
     blockr_abort(
-      "Expecting a block class or a registry id.",
+      "Expecting a block class or a registry id, a list of a package and an ",
+      "id, as `registry_id_from_block()` gives it.",
       class = "block_class_invalid"
     )
   }

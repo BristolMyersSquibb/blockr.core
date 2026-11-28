@@ -5,6 +5,7 @@
 
 import { describe, expect, test } from "vitest";
 import { createGraph } from "../graph/index.ts";
+import { blockRegistry } from "../protocol/index.ts";
 import { sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
@@ -13,7 +14,7 @@ import { bump, counter, opening, revise } from "./revisions.ts";
 
 function read(board: Board) {
   const graph = createGraph(board);
-  return { board, graph, inputs: inputsByBlock(board, graph, hello.block_registry, new Set()) };
+  return { board, graph, inputs: inputsByBlock(board, graph, blockRegistry(hello), new Set()) };
 }
 
 // The revisions that opening the sample board gives, and what revise() makes

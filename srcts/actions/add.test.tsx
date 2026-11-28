@@ -27,12 +27,26 @@ import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
 import { held } from "../testing/notifications.ts";
 import type { Board, Link } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
+import type { RegistryEntry } from "../types/registry.ts";
+import { idText, interned } from "../util/index.ts";
 import type { Target } from "./actions.ts";
 
-const ADD = "blockr.core-add_block_action";
-const APPEND = "blockr.core-append_block_action";
-const PREPEND = "blockr.core-prepend_block_action";
-const INSERT = "blockr.core-insert_block_action";
+// Core's board actions that add a block, each by its package and its id, as a
+// caller names one.
+const ADD = interned("blockr.core", "add_block_action");
+const APPEND = interned("blockr.core", "append_block_action");
+const PREPEND = interned("blockr.core", "prepend_block_action");
+const INSERT = interned("blockr.core", "insert_block_action");
+
+// Core's commands that the tests run as edits of their own.
+const REMOVE_BLOCK = interned("blockr.core", "remove_block");
+const ADD_LINK = interned("blockr.core", "add_link");
+const REMOVE_LINK = interned("blockr.core", "remove_link");
+
+// What trigger() takes: a board action by its package and its id, or a role by
+// its id.
+type Triggered = Parameters<CoreApi["boardActions"]["trigger"]>[0];
 
 // The element that the user triggers from, which a trigger() needs.
 const el = document.body;
@@ -65,19 +79,34 @@ function linksOf(board: Board, block: string): [string, Link][] {
   return Object.entries(board.links).filter(([, link]) => link.from === block || link.to === block);
 }
 
+// Each board action that on() gives the target, by its package and its id.
+function ids(s: Awaited<ReturnType<typeof stubbed>>, target: Target): { package: string; id: string }[] {
+  return s.core.boardActions.on(target).map((action) => ({ package: action.package, id: action.id }));
+}
+
+// The entry of core's block class with the id given, in the block registry of
+// the fixture hello.
+function coreClass(id: string): RegistryEntry {
+  const entry = HELLO.block_registry.find((each) => each.package === "blockr.core" && each.id === id);
+  if (entry === undefined) throw new Error(`The fixture's registry holds no ${id} of blockr.core.`);
+  return entry;
+}
+
 // Opens the quick action of the board action on the target, as a button
-// does, and returns its menu, with the promise of trigger().
-function triggered(s: Awaited<ReturnType<typeof stubbed>>, id: string, target: Target) {
+// does, or of the one that plays the role given, and returns its menu, with
+// the promise of trigger().
+function triggered(s: Awaited<ReturnType<typeof stubbed>>, id: Triggered, target: Target) {
   const done = s.core.boardActions.trigger(id, target, { el });
   const menu = s.menu();
-  if (menu === undefined) throw new Error(`The board action "${id}" opened no menu.`);
+  const named = typeof id === "string" ? `the role "${id}"` : `the board action "${idText(id)}"`;
+  if (menu === undefined) throw new Error(`Triggering ${named} opened no menu.`);
   return { menu, done };
 }
 
 // Opens the advanced action of the board action on the target, the picker,
 // through the open icon of its quick action, after typing the filter's text
 // given, and returns the element in which core's dialog shows it.
-async function picker(s: Awaited<ReturnType<typeof stubbed>>, id: string, target: Target, filter = ""): Promise<HTMLElement> {
+async function picker(s: Awaited<ReturnType<typeof stubbed>>, id: Triggered, target: Target, filter = ""): Promise<HTMLElement> {
   const { menu } = triggered(s, id, target);
   menu.type(filter);
   await step(() => {
@@ -145,7 +174,7 @@ describe("the quick actions of the board actions that add a block", () => {
       kind: "item",
       label: "dataset block",
       heading: "input",
-      icon: HELLO.block_registry["blockr.core-dataset_block"]?.icon,
+      icon: coreClass("dataset_block").icon,
       detail: "blockr.core",
     });
 
@@ -159,7 +188,7 @@ describe("the quick actions of the board actions that add a block", () => {
 
   test("of Append block and Insert block list the classes that have an input, and that of Prepend block every class", async () => {
     const s = await stubbed();
-    const headings = (id: string, target: Target): string[][] => {
+    const headings = (id: Triggered, target: Target): string[][] => {
       const { menu } = triggered(s, id, target);
       const rows = menu.level()?.rows.map((row) => ("heading" in row ? [row.heading ?? "", row.label] : [])) ?? [];
       menu.escape();
@@ -183,7 +212,7 @@ describe("Add block", () => {
 
     const [first] = added(s.core.store.board());
     expect(first?.[0]).toMatch(/^[a-z]{8}$/);
-    expect(first?.[1]).toMatchObject({ registry_id: "blockr.core-dataset_block", name: "Dataset" });
+    expect(first?.[1]).toMatchObject({ registry_id: { package: "blockr.core", id: "dataset_block" }, name: "Dataset" });
     s.core.store.undo();
     expect(s.core.store.board()).toEqual(board);
   });
@@ -196,7 +225,7 @@ describe("Append block", () => {
 
     await triggered(s, APPEND, { block: "b" }).menu.pick("merge block");
     const [merge] = added(s.core.store.board());
-    expect(merge?.[1]).toMatchObject({ registry_id: "blockr.core-merge_block", name: "Merge" });
+    expect(merge?.[1]).toMatchObject({ registry_id: { package: "blockr.core", id: "merge_block" }, name: "Merge" });
     expect(linksOf(s.core.store.board(), merge?.[0] ?? "").map(([, link]) => link)).toEqual([{ from: "b", to: merge?.[0], input: "x" }]);
     s.core.store.undo();
     expect(s.core.store.board()).toEqual(board);
@@ -209,7 +238,7 @@ describe("Append block", () => {
   test("runs nothing for a row that the user picks once the board no longer holds the block", async () => {
     const s = await stubbed();
     const { menu, done } = triggered(s, APPEND, { block: "f" });
-    await s.core.commands.run("blockr.core-remove_block", { id: "f" });
+    await s.core.commands.run(REMOVE_BLOCK, { id: "f" });
     const board = s.core.store.board();
 
     await menu.pick("merge block");
@@ -222,30 +251,30 @@ describe("Append block", () => {
 describe("Prepend block", () => {
   test("applies to a block with an input that no link feeds, and adds a block that feeds its first free input, or a variadic block's without a name", async () => {
     const s = await stubbed();
-    expect(s.core.boardActions.on({ block: "c" }).map(({ id }) => id)).not.toContain(PREPEND);
+    expect(ids(s, { block: "c" })).not.toContainEqual(PREPEND);
 
     // With no link into y, the merge block takes one there.
-    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
-    expect(s.core.boardActions.on({ block: "c" }).map(({ id }) => id)).toContain(PREPEND);
+    await s.core.commands.run(REMOVE_LINK, { id: "bc" });
+    expect(ids(s, { block: "c" })).toContainEqual(PREPEND);
     await triggered(s, PREPEND, { block: "c" }).menu.pick("dataset block");
     const [first] = added(s.core.store.board());
     expect(linksOf(s.core.store.board(), first?.[0] ?? "").map(([, link]) => link)).toEqual([{ from: first?.[0], to: "c", input: "y" }]);
-    expect(s.core.boardActions.on({ block: "c" }).map(({ id }) => id)).not.toContain(PREPEND);
+    expect(ids(s, { block: "c" })).not.toContainEqual(PREPEND);
 
     await triggered(s, PREPEND, { block: "e" }).menu.pick("data upload block");
-    const upload = added(s.core.store.board()).find(([, block]) => block.registry_id === "blockr.core-upload_block");
+    const upload = added(s.core.store.board()).find(([, block]) => block.registry_id === interned("blockr.core", "upload_block"));
     expect(linksOf(s.core.store.board(), upload?.[0] ?? "").map(([, link]) => link)).toEqual([{ from: upload?.[0], to: "e", input: "" }]);
   });
 
   test("applies to an input that no link feeds, and adds a block that feeds that input, or the next place of a variadic block without a name, each in one step of the user", async () => {
     const s = await stubbed();
-    const on = (target: Target): boolean => s.core.boardActions.on(target).some(({ id }) => id === PREPEND);
+    const on = (target: Target): boolean => ids(s, target).some(({ package: pkg, id }) => pkg === PREPEND.package && id === PREPEND.id);
     expect(on({ block: "c", input: "y" })).toBe(false);
 
     // With no link into x or y, the merge block takes one into y, the input
     // that the target names, rather than x, its first free one.
-    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
-    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    await s.core.commands.run(REMOVE_LINK, { id: "ac" });
+    await s.core.commands.run(REMOVE_LINK, { id: "bc" });
     const board = s.core.store.board();
     expect(on({ block: "c", input: "y" })).toBe(true);
     await triggered(s, PREPEND, { block: "c", input: "y" }).menu.pick("dataset block");
@@ -267,10 +296,10 @@ describe("Prepend block", () => {
 
   test("on an input, has the command refuse a row that the user picks once a link has come to feed the input, rather than feed another input", async () => {
     const s = await stubbed();
-    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
-    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    await s.core.commands.run(REMOVE_LINK, { id: "ac" });
+    await s.core.commands.run(REMOVE_LINK, { id: "bc" });
     const { menu, done } = triggered(s, PREPEND, { block: "c", input: "y" });
-    await s.core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" });
+    await s.core.commands.run(ADD_LINK, { from: "b", to: "c", input: "y" });
     const board = s.core.store.board();
 
     await expect(menu.pick("dataset block")).rejects.toThrow("refused");
@@ -283,8 +312,8 @@ describe("Prepend block", () => {
 
   test("plays prepend_block_role on an input, so that a caller that triggers the role on an input feeds that input", async () => {
     const s = await stubbed();
-    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
-    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    await s.core.commands.run(REMOVE_LINK, { id: "ac" });
+    await s.core.commands.run(REMOVE_LINK, { id: "bc" });
 
     const { menu, done } = triggered(s, "prepend_block_role", { block: "c", input: "y" });
     expect(menu.level()).toMatchObject({ label: "Prepend block" });
@@ -306,7 +335,7 @@ describe("Insert block", () => {
     const now = s.core.store.board();
     const [subset] = added(now);
     const block = subset?.[0] ?? "";
-    expect(subset?.[1]).toMatchObject({ registry_id: "blockr.core-subset_block", name: "Subset" });
+    expect(subset?.[1]).toMatchObject({ registry_id: { package: "blockr.core", id: "subset_block" }, name: "Subset" });
     expect(Object.keys(now.links)[0]).toBe("ab");
     expect(now.links.ab).toEqual({ from: block, to: "b", input: "data" });
     expect(linksOf(now, block).map(([, link]) => link)).toEqual([
@@ -321,12 +350,10 @@ describe("Insert block", () => {
 describe("under the board lock", () => {
   test("none of them applies, so that trigger() runs none of them", async () => {
     const s = await stubbed({ hello: { ...HELLO, lock: { board: true, load: false } } });
-    const ids = (target: Target): string[] => s.core.boardActions.on(target).map(({ id }) => id);
-
-    expect(ids({ board: true })).toEqual([]);
-    expect(ids({ block: "e" })).toEqual(["blockr.core-copy_block_id_action"]);
-    expect(ids({ block: "e", input: "" })).toEqual([]);
-    expect(ids({ link: "ab" })).toEqual([]);
+    expect(ids(s, { board: true })).toEqual([]);
+    expect(ids(s, { block: "e" })).toEqual([{ package: "blockr.core", id: "copy_block_id_action" }]);
+    expect(ids(s, { block: "e", input: "" })).toEqual([]);
+    expect(ids(s, { link: "ab" })).toEqual([]);
     await s.core.boardActions.trigger(ADD, { board: true }, { el });
     expect(s.menu()).toBeUndefined();
   });
@@ -368,7 +395,7 @@ describe("the block picker, their advanced action,", () => {
       type(labelled(form, "ID"), "joined");
     });
     await click(form, "Add block");
-    expect(s.core.store.board().blocks.joined).toMatchObject({ registry_id: "blockr.core-merge_block", name: "Merge" });
+    expect(s.core.store.board().blocks.joined).toMatchObject({ registry_id: { package: "blockr.core", id: "merge_block" }, name: "Merge" });
     expect(linksOf(s.core.store.board(), "joined").map(([, link]) => link)).toEqual([{ from: "b", to: "joined", input: "y" }]);
     expect(s.advanced()).toBeUndefined();
     s.core.store.undo();
@@ -417,8 +444,8 @@ describe("the block picker, their advanced action,", () => {
 
   test("before a block, takes the link into the input that the user picks, where several of the block's inputs are free, and into the one free input without asking", async () => {
     const s = await stubbed();
-    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
-    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    await s.core.commands.run(REMOVE_LINK, { id: "ac" });
+    await s.core.commands.run(REMOVE_LINK, { id: "bc" });
 
     let form = await picker(s, PREPEND, { block: "c" });
     expect(form.querySelectorAll('[role="combobox"]')).toHaveLength(1);
@@ -444,8 +471,8 @@ describe("the block picker, their advanced action,", () => {
 
   test("before an input, takes the link into that input, which it names in a line in place of the field of the input, and before the next place of a variadic block, asks for the name of the input and its place", async () => {
     const s = await stubbed();
-    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
-    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    await s.core.commands.run(REMOVE_LINK, { id: "ac" });
+    await s.core.commands.run(REMOVE_LINK, { id: "bc" });
 
     let form = await picker(s, PREPEND, { block: "c", input: "y" });
     expect(s.advanced()).toMatchObject({ id: PREPEND, title: "Prepend block", target: { block: "c", input: "y" } });
@@ -482,13 +509,13 @@ describe("the block picker, their advanced action,", () => {
 
   test("before an input, says why it adds none where another edit feeds the input meanwhile", async () => {
     const s = await stubbed();
-    await s.core.commands.run("blockr.core-remove_link", { id: "ac" });
-    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    await s.core.commands.run(REMOVE_LINK, { id: "ac" });
+    await s.core.commands.run(REMOVE_LINK, { id: "bc" });
     const form = await picker(s, PREPEND, { block: "c", input: "y" });
     await chosen(form, "dataset", "dataset block");
 
     // A link into y, while x stays free.
-    await act(() => s.core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" }));
+    await act(() => s.core.commands.run(ADD_LINK, { from: "b", to: "c", input: "y" }));
 
     expect(form.textContent).toContain('A link feeds the input "y" of "Merge" already.');
     const submit = find(form, 'button[type="submit"]', HTMLButtonElement);
@@ -498,11 +525,11 @@ describe("the block picker, their advanced action,", () => {
 
   test("before a block, says why it adds none where another edit feeds the block's last free input meanwhile", async () => {
     const s = await stubbed();
-    await s.core.commands.run("blockr.core-remove_link", { id: "bc" });
+    await s.core.commands.run(REMOVE_LINK, { id: "bc" });
     const form = await picker(s, PREPEND, { block: "c" });
     await chosen(form, "dataset", "dataset block");
 
-    await act(() => s.core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" }));
+    await act(() => s.core.commands.run(ADD_LINK, { from: "b", to: "c", input: "y" }));
 
     expect(form.textContent).toContain('Every input of "Merge" takes a link already.');
     const submit = find(form, 'button[type="submit"]', HTMLButtonElement);
@@ -512,14 +539,13 @@ describe("the block picker, their advanced action,", () => {
 
   test("says below its button why the store refused the block, keeps what the user gave and stays open, and core raises no notification of it", async () => {
     // A class whose new block starts with a state that its schema refuses.
-    const head = HELLO.block_registry["blockr.core-head_block"];
-    if (head === undefined) throw new Error("The fixture's registry holds no head block.");
+    const head = coreClass("head_block");
     const hello: HelloReply = {
       ...HELLO,
-      block_registry: {
+      block_registry: [
         ...HELLO.block_registry,
-        "blockr.test-broken_block": { ...head, id: "blockr.test-broken_block", name: "broken block", state: { ...head.state, n: "ten" } },
-      },
+        { ...head, package: "blockr.test", id: "broken_block", name: "broken block", state: { ...head.state, n: "ten" } },
+      ],
     };
     const s = await stubbed({ hello });
     const board = s.core.store.board();

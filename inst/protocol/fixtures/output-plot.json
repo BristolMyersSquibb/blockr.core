@@ -26,7 +26,8 @@
         "status": "ok",
         "output": {
           "renderer": {
-            "id": "blockr.core-plot_output",
+            "package": "blockr.core",
+            "id": "plot_output",
             "module": "blockr.core/basic-plot.js?v=f19d4a73"
           },
           "width": 640,

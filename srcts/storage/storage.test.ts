@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { picking } from "@blockr/ui/stubs";
 import type { StorageControl } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
+import { interned } from "../util/index.ts";
 import { coreStorage, fileName } from "./index.ts";
 
 afterEach(() => {
@@ -14,7 +15,7 @@ afterEach(() => {
 
 // The class of core's own storage plugin, which the app of the fixture hello
 // runs.
-const FILE_STORAGE = "blockr.core-file_storage_plugin";
+const FILE_STORAGE = interned("blockr.core", "file_storage_plugin");
 
 // The downloads that the browser starts, by their name, with what each holds.
 function downloads() {

@@ -1,4 +1,4 @@
-// Core's plain renderer of text outputs, blockr.core-text_output, which draws
+// Core's plain renderer of text outputs, text_output of blockr.core, which draws
 // every text output unless an app names another renderer for the class in the
 // blockr option `renderers`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers).

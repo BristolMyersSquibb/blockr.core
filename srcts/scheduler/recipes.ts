@@ -27,12 +27,12 @@ export interface Inputs {
 export function inputsByBlock(
   board: Pick<Board, "blocks" | "links">,
   graph: Graph,
-  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  registry: ReadonlyMap<RegistryId, RegistryEntry>,
   bound: ReadonlySet<string>,
 ): Map<BlockId, Inputs> {
   const inputs = new Map<BlockId, Inputs>();
   for (const [id, block] of Object.entries(board.blocks)) {
-    const declared = own(registry, block.registry_id)?.inputs ?? [];
+    const declared = registry.get(block.registry_id)?.inputs ?? [];
     const links = graph.linksInto(id).flatMap((link) => own(board.links, link) ?? []);
     inputs.set(
       id,

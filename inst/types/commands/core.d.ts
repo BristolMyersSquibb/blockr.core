@@ -3,8 +3,9 @@ import type { BlockId, Board, LinkId, RegistryId, Stack } from "../types/board.t
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Command } from "./commands.ts";
+export declare const CORE = "blockr.core";
 export declare function coreCommands(store: Store): Command<Json, unknown>[];
-export declare function freeInputs(board: Pick<Board, "blocks" | "links">, registry: Readonly<Record<RegistryId, RegistryEntry>>, to: BlockId, except?: LinkId): readonly string[] | undefined;
-export declare function takesLink(board: Pick<Board, "blocks" | "links">, registry: Readonly<Record<RegistryId, RegistryEntry>>, to: BlockId): boolean;
-export declare function linkFeeding(board: Pick<Board, "blocks" | "links">, registry: Readonly<Record<RegistryId, RegistryEntry>>, to: BlockId, input: string, except?: LinkId): LinkId | undefined;
+export declare function freeInputs(board: Pick<Board, "blocks" | "links">, registry: ReadonlyMap<RegistryId, RegistryEntry>, to: BlockId, except?: LinkId): readonly string[] | undefined;
+export declare function takesLink(board: Pick<Board, "blocks" | "links">, registry: ReadonlyMap<RegistryId, RegistryEntry>, to: BlockId): boolean;
+export declare function linkFeeding(board: Pick<Board, "blocks" | "links">, registry: ReadonlyMap<RegistryId, RegistryEntry>, to: BlockId, input: string, except?: LinkId): LinkId | undefined;
 export declare function suggestedName(stacks: readonly Stack[]): string;

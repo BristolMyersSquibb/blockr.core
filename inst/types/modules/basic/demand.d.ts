@@ -1,6 +1,6 @@
 import type { BlockId, PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-export declare const OWNER = "blockr.core-basic";
+export declare const OWNER = "blockr.core";
 export declare const SHOWN = 1;
 export declare const IN_VIEW = 2;
 export type View = Pick<Window, "innerWidth" | "innerHeight"> & {

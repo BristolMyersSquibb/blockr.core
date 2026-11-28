@@ -17,8 +17,8 @@
 import type { BlockId, PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 
-// The owner of the demands, the frontend's id.
-export const OWNER = "blockr.core-basic";
+// The owner of the demands, the frontend's package.
+export const OWNER = "blockr.core";
 // The evaluation priority of every block, and of the blocks in view.
 export const SHOWN = 1;
 export const IN_VIEW = 2;

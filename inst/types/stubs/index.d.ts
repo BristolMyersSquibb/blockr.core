@@ -16,3 +16,4 @@ export type { StubMenu } from "./menu.ts";
 export { menuModuleTests } from "./menu-module.ts";
 export type { MenuModuleTest } from "./menu-module.ts";
 export type { StubAdvanced } from "./advanced.ts";
+export { interned as id } from "../util/index.ts";

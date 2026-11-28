@@ -7,6 +7,7 @@ import { expect, test } from "vitest";
 import type { Reply } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId } from "../types/board.ts";
+import { interned } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { ClassRequest } from "./answers.ts";
 
@@ -55,7 +56,7 @@ function ask(block: BlockId, args: Record<string, number> = {}, revision?: numbe
   return {
     kind: "request",
     type: "block_class",
-    registry_id: "blockr.core-head_block",
+    registry_id: interned("blockr.core", "head_block"),
     block,
     name: "n_max",
     args,

@@ -3,14 +3,16 @@
 #' A renderer is a module that draws the outputs of an output family (see
 #' [new_output_family()]).
 #' A renderer object, which `new_renderer()` makes, holds the renderer's
-#' module, made by [js_module()], its ID and the renderer's own requests.
-#' Its ID is `{pkg}-{name}`, as a registry ID is, where `pkg` is the package
-#' of its module, and its name alone for a module from no package, such as one
-#' beside an app script.
+#' module, made by [js_module()], its name and the renderer's own requests.
+#' It is identified by the package of its module and its name, each a part of
+#' its own, as a block class is by its registry id, with the package `NULL` for
+#' a module from no package, such as one beside an app script.
+#' R sends it to the client with its name as the id, as
+#' `{"package": "blockr.core", "id": "table_output"}`.
 #'
 #' The package that defines an output family gives the renderer that draws its
-#' outputs as the family's `renderer`, as core's `table_output` holds
-#' `blockr.core-table_output`.
+#' outputs as the family's `renderer`, as core's `table_output` holds the
+#' renderer `table_output` of blockr.core.
 #' R names it in the entry of each block class that names the family, in the
 #' block registry, so that the client loads it before it asks for a block's
 #' first output, and in each output that it sends.
@@ -52,7 +54,8 @@
 #' So a renderer's request and a request of the output class may share a name,
 #' and neither hides the other.
 #'
-#' @param name The name part of the renderer's ID
+#' @param name The renderer's name, which identifies it within the package of
+#'   its module
 #' @param module The renderer's module, made by [js_module()]
 #' @param requests A named list of the renderer's own requests, each a
 #'   function
@@ -98,22 +101,20 @@ new_renderer <- function(name, module, requests = list()) {
   }
 
   package <- module[["package"]]
-  id <- if (is.null(package)) name else paste0(package, "-", name)
 
   requests <- coal(requests, list(), fail_all = FALSE)
 
   if (!is.list(requests) || !all(lgl_ply(requests, is.function)) ||
         !has_unique_names(requests)) {
     blockr_abort(
-      "The requests of renderer {id} are expected to be a list of functions ",
-      "with unique names.",
+      "The requests of renderer {pkg_id_label(pkg_id(package, name))} are ",
+      "expected to be a list of functions with unique names.",
       class = "renderer_requests_invalid"
     )
   }
 
   structure(
     list(
-      id = id,
       name = name,
       package = package,
       module = module,
@@ -123,6 +124,12 @@ new_renderer <- function(name, module, requests = list()) {
   )
 }
 
+# The id that names the renderer `x`: the package of its module and its
+# name, as R sends it to the client.
+renderer_id <- function(x) {
+  pkg_id(x[["package"]], x[["name"]])
+}
+
 is_renderer <- function(x) {
   inherits(x, "renderer")
 }
@@ -130,7 +137,7 @@ is_renderer <- function(x) {
 #' @export
 format.renderer <- function(x, ...) {
   c(
-    paste0("<renderer> ", x[["id"]]),
+    paste0("<renderer> ", pkg_id_label(renderer_id(x))),
     if (length(x[["requests"]])) {
       paste0("Requests: ", paste_enum(names(x[["requests"]]), quotes = "\""))
     }
@@ -223,7 +230,8 @@ renderer_request <- function(renderer, name) {
 
   if (!is.function(fun)) {
     blockr_abort(
-      "Renderer {renderer$id} has no request {name}.",
+      "Renderer {pkg_id_label(renderer_id(renderer))} has no request ",
+      "{name}.",
       class = "renderer_request_unknown"
     )
   }

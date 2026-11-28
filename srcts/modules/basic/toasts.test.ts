@@ -6,8 +6,13 @@ import { afterEach, describe, expect, test } from "vitest";
 import type { Board, PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
 import { holding } from "../../testing/notifications.ts";
+import { interned } from "../../util/index.ts";
 import { concerned, createToasts, isReload, SHOWN_FOR, sourcePackage } from "./toasts.ts";
 import type { Toasts } from "./toasts.ts";
+
+// The classes of core's storage plugin and of its Edit board plugin.
+const STORAGE = interned("blockr.core", "file_storage_plugin");
+const EDIT = interned("blockr.core", "edit_board_plugin");
 
 // A notification that a plugin of core's raised, of the severity given.
 function raised(id: string, severity: Notification["severity"], about?: Notification["about"]): Notification {
@@ -15,7 +20,7 @@ function raised(id: string, severity: Notification["severity"], about?: Notifica
     id,
     severity,
     message: `${severity} ${id}`,
-    source: { kind: "module", module: { object: { plugin: "blockr.core-file_storage_plugin" }, package: "blockr.core" }, code: "saved" },
+    source: { kind: "module", module: { object: { plugin: STORAGE }, package: "blockr.core" }, code: "saved" },
     ...(about === undefined ? {} : { about }),
   };
 }
@@ -50,14 +55,14 @@ afterEach(() => {
 describe("the toasts", () => {
   test("show each notification that concerns neither a block nor a plugin with a section, whatever its severity, in the order they came, and leave those to the block's card and the plugin's section", () => {
     const given = holding([raised("a", "error"), raised("b", "message", { block: "b" }), raised("c", "warning", { stack: "s" })]);
-    const toasts = toastsFromNotifications(given.notifications, (plugin) => plugin === "blockr.core-edit_board_plugin");
+    const toasts = toastsFromNotifications(given.notifications, (plugin) => plugin === EDIT);
 
     expect(ids(toasts)).toEqual(["a", "c"]);
     const [shown] = toasts.queue.visibleToasts;
     given.set([
       ...given.notifications.get(),
-      raised("d", "message", { plugin: "blockr.core-file_storage_plugin" }),
-      raised("e", "error", { plugin: "blockr.core-edit_board_plugin" }),
+      raised("d", "message", { plugin: STORAGE }),
+      raised("e", "error", { plugin: EDIT }),
     ]);
     expect(ids(toasts)).toEqual(["a", "c", "d"]);
     expect(toasts.queue.visibleToasts[1]).toBe(shown);
@@ -108,8 +113,8 @@ describe("what a toast names", () => {
     id: "board",
     name: "Iris review",
     blocks: {
-      a: { registry_id: "blockr.core-dataset_block", state: {}, name: "Iris", locked: null },
-      b: { registry_id: "blockr.core-head_block", state: {}, name: "Head", locked: null },
+      a: { registry_id: interned("blockr.core", "dataset_block"), state: {}, name: "Iris", locked: null },
+      b: { registry_id: interned("blockr.core", "head_block"), state: {}, name: "Head", locked: null },
     },
     links: { ab: { from: "a", to: "b", input: "data" } },
     stacks: { s: { name: "Inputs", blocks: ["a"], color: null } },
@@ -121,7 +126,7 @@ describe("what a toast names", () => {
       registered: () =>
         ({ n_rows: { label: "Rows shown" } }) as unknown as ReturnType<CoreApi["options"]["registered"]>,
     },
-    plugins: { appPlugins: () => ({ "blockr.core-edit_board_plugin": { name: "Edit board" } }) },
+    plugins: { appPlugins: () => new Map([[EDIT, { name: "Edit board" }]]) },
   };
 
   test("is the board object that the notification concerns, by the name the page shows for it, by its id where core no longer knows it, or the board", () => {
@@ -130,8 +135,8 @@ describe("what a toast names", () => {
         undefined,
         { option: "n_rows" },
         { option: "zoom" },
-        { plugin: "blockr.core-edit_board_plugin" },
-        { plugin: "blockr.gone-gone_plugin" },
+        { plugin: EDIT },
+        { plugin: interned("blockr.gone", "gone_plugin") },
         { stack: "s" },
         { stack: "gone" },
         { link: "ab" },
@@ -143,7 +148,7 @@ describe("what a toast names", () => {
       'Board option "Rows shown"',
       'Board option "zoom"',
       'Plugin "Edit board"',
-      'Plugin "blockr.gone-gone_plugin"',
+      'Plugin "gone_plugin of blockr.gone"',
       'Stack "Inputs"',
       'Stack "gone"',
       'Link from "Iris" to "Head"',
@@ -155,15 +160,16 @@ describe("what a toast names", () => {
   test("beside it, is the package that the notification's source names: the package of the module that made the request, failed or raised it", () => {
     // The plugin raised one about itself, one about the board, and one about
     // another plugin.
-    const own = raised("own", "error", { plugin: "blockr.core-file_storage_plugin" });
+    const own = raised("own", "error", { plugin: STORAGE });
     const theBoard = raised("board", "error");
-    const other = raised("other", "error", { plugin: "blockr.test-session_plugin" });
+    const other = raised("other", "error", { plugin: interned("blockr.test", "session_plugin") });
+    const dag = interned("blockr.dag", "dag_plugin");
     const failed: Notification = {
       id: "failed",
       severity: "error",
       message: "No module.",
-      source: { kind: "core", code: "module_failed", module: { object: { plugin: "blockr.dag-dag_plugin" }, package: "blockr.dag" } },
-      about: { plugin: "blockr.dag-dag_plugin" },
+      source: { kind: "core", code: "module_failed", module: { object: { plugin: dag }, package: "blockr.dag" } },
+      about: { plugin: dag },
     };
     const fromR: Notification = {
       id: "r",
@@ -173,9 +179,9 @@ describe("what a toast names", () => {
         kind: "r",
         class: ["simpleError", "error", "condition"],
         request: { type: "plugin", name: "list" },
-        module: { object: { plugin: "blockr.dag-dag_plugin" }, package: "blockr.dag" },
+        module: { object: { plugin: dag }, package: "blockr.dag" },
       },
-      about: { plugin: "blockr.dag-dag_plugin" },
+      about: { plugin: dag },
     };
     // R's notification of an evaluation, which no module asked for.
     const evaluated: Notification = {
@@ -200,7 +206,7 @@ describe("what a toast names", () => {
     const posing: Notification = {
       ...reload,
       id: "p",
-      source: { kind: "module", module: { object: { plugin: "blockr.core-file_storage_plugin" }, package: "blockr.core" }, code: "page_reload_needed" },
+      source: { kind: "module", module: { object: { plugin: STORAGE }, package: "blockr.core" }, code: "page_reload_needed" },
     };
     expect([reload, posing].map(isReload)).toEqual([true, false]);
   });

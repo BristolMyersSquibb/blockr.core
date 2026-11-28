@@ -46,14 +46,17 @@ the human-readable form of its id, and the class's \code{module} (see
 \item Its board options, in \code{options}: each board option by its ID, with its
 \code{module} (see \code{\link[=new_board_option]{new_board_option()}}).
 \item The modules that it offers other packages' UIs, in \code{modules}: each by a
-name that gives it the ID \code{{pkg}-{name}}, as a registry id is, by which
-\code{host.module()} and \code{CoreApi.module()} reach it in the client.
+name, which identifies it within the package, as a block class's id does.
+The client reaches it by the package and that name, through
+\code{host.module()} and \code{CoreApi.module()}.
 Such a module may draw the menus of board actions, as core's own menu,
-\code{blockr.core-board_action_menu}, does.
+\code{board_action_menu} of blockr.core, does.
 The client draws them with the module that the blockr option
-\code{board_action_menu} names by its ID, which is core's menu unless an app
-names another, as in
-\code{options(blockr.board_action_menu = "mykit-board_action_menu")}.
+\code{board_action_menu} names by its package and its name, which is core's
+menu unless an app names another, as in
+\code{options(blockr.board_action_menu = list(package = "mykit", id = "menu"))}.
+An environment variable gives the option as JSON, as
+\code{BLOCKR_BOARD_ACTION_MENU='{"package": "mykit", "id": "menu"}'}.
 Its default export has the type \code{MenuModule} of \verb{@blockr/core}, and
 \code{menuModuleTests()} of \verb{@blockr/core/stubs} tests it.
 \item Its output families, in \code{families}: the name of each output family that
@@ -70,7 +73,8 @@ A plugin class's module has the class's \code{PluginClass} without its id as its
 default export, and a board option's module the board option's \code{Option}
 without its ID, each beside the major of core's JS API that it was built
 against.
-The client registers each under its ID, a plugin class's as \code{{pkg}-{id}}.
+The client registers a plugin class's module under the package and the id
+of the class, and a board option's under the board option's ID.
 The JSON Schema of the state of the plugins of a plugin class, or of the
 value of a board option, sits beside its module, as \code{dag.schema.json} beside
 \code{dag.js}, as a block class's UI module ships the schema of the block's state

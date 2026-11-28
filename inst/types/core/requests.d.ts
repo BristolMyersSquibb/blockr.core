@@ -9,4 +9,4 @@ export interface PluginRequestDeps {
     readonly scheduler: Pick<Scheduler, "evaluate" | "request" | "status">;
     readonly replied: Replied;
 }
-export declare function pluginRequest(deps: PluginRequestDeps, plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>>, opts: RequestOpts): Promise<Json | Blob>;
+export declare function pluginRequest(deps: PluginRequestDeps, named: PluginClassId, name: string, args: Readonly<Record<string, Json>>, opts: RequestOpts): Promise<Json | Blob>;

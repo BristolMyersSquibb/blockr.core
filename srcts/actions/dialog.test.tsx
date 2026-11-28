@@ -5,6 +5,7 @@
 // telling core through close() and giving the keyboard's focus back to the
 // element that the user triggered from.
 
+import { interned } from "../util/index.ts";
 import { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -30,7 +31,7 @@ async function drawn(signal?: AbortSignal, react = false) {
   let unmounted = 0;
   let closed = 0;
   const args: PlaceArgs = {
-    id: "blockr.test-edit_form_action",
+    id: interned("blockr.test", "edit_form_action"),
     title: "Edit form",
     target: { block: "b" },
     mount(el) {

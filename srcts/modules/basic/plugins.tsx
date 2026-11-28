@@ -38,22 +38,23 @@ import { useNotified } from "../../react/index.ts";
 import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Plugin } from "../../types/core-api.ts";
 import { classes } from "../../ui/index.ts";
+import { idNumber } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
 
 // Which plugins' sections the user collapsed, or which stacks' groups, for
-// the opening, by the id of the plugin's class or of the stack, which
-// components follow as React's useSyncExternalStore follows a store, and
-// through which show() opens a section or a group.
-export interface Sections {
+// the opening, by the id of the plugin's class, as core's table holds it, or
+// of the stack, which components follow as React's useSyncExternalStore
+// follows a store, and through which show() opens a section or a group.
+export interface Sections<K = string> {
   // Whether the user collapsed the section or the group.
-  readonly collapsed: (id: string) => boolean;
+  readonly collapsed: (id: K) => boolean;
   // Collapses the section or the group, or expands it given false.
-  readonly collapse: (id: string, collapsed: boolean) => void;
+  readonly collapse: (id: K, collapsed: boolean) => void;
   readonly subscribe: (fn: () => void) => () => void;
 }
 
-export function createSections(): Sections {
-  const collapsed = new Set<string>();
+export function createSections<K = string>(): Sections<K> {
+  const collapsed = new Set<K>();
   const listeners = new Set<() => void>();
   return {
     collapsed: (id) => collapsed.has(id),
@@ -78,13 +79,13 @@ export function createSections(): Sections {
 // Whether the frontend shows the plugin in a section of its own, which shows
 // the notifications about it: the app runs it, and its class has a `ui`.
 export function hasSection(core: Pick<CoreApi, "plugins">, plugin: PluginClassId): boolean {
-  return Object.hasOwn(core.plugins.appPlugins(), plugin) && core.plugins.pluginClass(plugin).ui !== undefined;
+  return core.plugins.appPlugins().has(plugin) && core.plugins.pluginClass(plugin).ui !== undefined;
 }
 
 // The plugins that the frontend shows, in the order of the app's plugins: those
 // that run whose class has a `ui`, each by the id of its class.
 export function placed(core: Pick<CoreApi, "plugins">): readonly (readonly [PluginClassId, Plugin])[] {
-  return Object.entries(core.plugins.appPlugins()).filter(([id]) => hasSection(core, id));
+  return [...core.plugins.appPlugins()].filter(([id]) => hasSection(core, id));
 }
 
 // The section of each plugin that the frontend shows, beside the board where
@@ -101,7 +102,7 @@ export function Plugins(): ReactElement | null {
       className="bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto"
     >
       {shown.map(([id, plugin]) => (
-        <PluginSection key={id} id={id} plugin={plugin} />
+        <PluginSection key={idNumber(id)} id={id} plugin={plugin} />
       ))}
     </aside>
   );

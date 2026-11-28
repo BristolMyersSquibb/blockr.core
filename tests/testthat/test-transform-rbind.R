@@ -6,7 +6,10 @@ test_that("rbind block constructor", {
   expect_identical(block_state(blk), set_names(list(), character()))
   expect_true(is.na(block_arity(blk)))
 
-  expect_identical(registry_id_from_block(blk), "blockr.core-rbind_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "rbind_block")
+  )
 })
 
 test_that("an rbind block binds its inputs in link order", {

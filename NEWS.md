@@ -1026,6 +1026,23 @@
   The app offers these classes like those of its `blocks`, so that a user can add a block of any class that the board shows.
   A board with a block of a class that nothing registers stops the app, naming the block and the class, so a script registers a class that it defines itself before it serves a board with a block of the class.
   Core lists its static and fixed blocks with their metadata, so that an app offers them unless its `blocks` leaves them out (#666).
+* The IDs of block classes, plugin classes, renderers, the modules that packages offer each other, commands and board actions hold their package and their ID within the package apart, as `{ package, id }`, where they joined the two as `{pkg}-{id}`.
+  So nothing takes an ID apart, two packages may give classes, commands or board actions of one ID, and a block class's ID may hold a `-`.
+  A board option's ID and a role's ID name no package, as before.
+  A JSON board names a block's class as `{ "package": "blockr.core", "id": "head_block" }`, with a package of `null` for a class that an app script defines, and holds the state of its plugins by package and then by the ID of each one's class.
+  R's reply to `hello` lists the block registry and the app's plugins as arrays of entries, each with its `package` and its `id`, the plugins in the order of the rows that `serve()` takes, and the modules that packages offer each other by package and then by ID.
+  A renderer, an evaluation's recipe, and the requests of block classes, plugins and renderers name their IDs the same way.
+  In R, `list_blocks()` gives rows of `package` and `id`, as `available_blocks()` does, `registry_id_from_block()` and `plugin_class_id()` give `list(package = , id = )`, `unregister_blocks()` takes such rows or one registry ID, `create_block()` takes the class's package in `package`, and `board_plugins()` gives a board's plugins by package and then by the ID of each one's class.
+  A renderer holds its `package` and its `name`, without an ID of its own.
+  In the client, core makes one object for each pair of a package and an ID, so that `===`, a `Set` and a `Map` compare IDs as they compare strings, and `core.blockRegistry()` and `core.plugins.appPlugins()` are maps by ID.
+  Every function of core's takes an ID as such an object, and a package gets the object for a pair from `core.id()`, as `core.id("blockr.dock", "dock_plugin")`, or a block's UI from its host's `id()`.
+  Only JSON holds an ID as a plain record, as a JSON board does, and so does a plugin's state, which a package turns into objects with `core.id()` as it reads it.
+  A plugin names its own steps by the ID of its class, which an origin may be beside a string, so that `store.undo()` and a reader of the store's changes find the plugin by `===`.
+  For a package's tests, `@blockr/core/stubs` exports `id()`, which gives the objects that its stubs give.
+  A plugin class's module defines its commands and its board actions by their IDs alone, and core registers them under the package of the class.
+  A batch names each command by its ID, as `{ id: core.id("blockr.core", "add_block"), args }`, `core.boardActions.trigger()` takes a board action's ID or a role's ID, a string, and a role's `default` names a board action of its own class by its ID alone.
+  The blockr options `board_actions` and `board_action_menu` name a board action and a module as `list(package = , id = )`.
+  A patch names a plugin by two segments of its path, as `/plugins/blockr.dag/dag_plugin/positions/a` (#883).
 * Core draws its UIs with the components of blockr.ui, which it imports, pinned at `BristolMyersSquibb/blockr.ui@js-state`, and drops its own copy of the kit.
   Core's React SDK, `@blockr/core/react`, holds the hooks and the helpers alone, and `useValue()` returns blockr.ui's `Bound`.
   A module imports the inputs, the overlays and the other components from `@blockr/ui`, where `Stack` is `FormLayout`.

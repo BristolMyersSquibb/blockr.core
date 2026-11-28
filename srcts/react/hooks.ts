@@ -328,13 +328,17 @@ export function useNotified(
   );
   const all = useSyncExternalStore(subscribe, () => core.notifications.get());
   // The kind and the id of the board object, as "plugin" and the id of its
-  // class, or neither given null.
+  // class, or neither given null. A plugin's is core's object for the id, as
+  // every id that core gives is, so === finds it among the notifications'.
   const [kind, id] = about === null ? [] : (Object.entries(about)[0] ?? []);
   return useMemo(
     () =>
       kind === undefined
         ? all
-        : all.filter((notification) => notification.about !== undefined && own(notification.about, kind) === id),
+        : all.filter(
+            (notification) =>
+              notification.about !== undefined && (notification.about as Readonly<Record<string, unknown>>)[kind] === id,
+          ),
     [all, kind, id],
   );
 }

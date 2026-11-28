@@ -1,5 +1,5 @@
 // The module of core's storage plugin, of the plugin class
-// blockr.core-file_storage_plugin, whose default export is the class without
+// file_storage_plugin of blockr.core, whose default export is the class without
 // its id: its buttons save a board as a download and open an upload, as
 // Storage has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#storage).

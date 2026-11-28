@@ -122,16 +122,6 @@ export function pathText(path: readonly string[]): string {
   return path.join("/");
 }
 
-// The package that an id names, "blockr.dag" for "blockr.dag-dag" or
-// "blockr.core-head_block", or null where it names none, as a block class
-// defined outside a package does.
-export function packageFromId(id: string): string | null {
-  const at = id.indexOf("-");
-  if (at < 0) return null;
-  const pkg = id.slice(0, at);
-  return isPackageName(pkg) ? pkg : null;
-}
-
 // Whether a name is one an R package can have: letters, digits and dots,
 // starting with a letter and ending with no dot.
 export function isPackageName(name: unknown): name is string {

@@ -7,18 +7,21 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { describe, expect, test, vi } from "vitest";
 import { find } from "@blockr/ui/stubs";
+import { blockRegistry } from "../protocol/index.ts";
 import type { Condition } from "../protocol/index.ts";
 import { outputRenderer } from "../react/index.ts";
 import type { Option } from "../store/index.ts";
 import { logged } from "../testing/logged.ts";
 import { concerning, held } from "../testing/notifications.ts";
 import { classModule, optionModule } from "../testing/plugins.ts";
-import { withOptions, withPlugins } from "../testing/store.ts";
+import { withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 // React's act() environment, for the UIs of core's board options.
 import "../testing/react.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { OutputHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
+import { idText, interned } from "../util/index.ts";
 import { HELLO, INFO, stubCore } from "./index.ts";
 
 const TABLE = "blockr.core/basic-table.js?v=b7e2a915";
@@ -69,9 +72,9 @@ describe("the CoreApi for tests", () => {
     const { core, sent, stop } = await stubCore();
 
     expect(core.store.board().name).toBe("Iris review");
-    expect(Object.keys(core.commands.registered())).toContain("blockr.core-add_block");
+    expect([...core.commands.registered().keys()]).toContain(interned("blockr.core", "add_block"));
     expect(Object.keys(core.scheduler).sort()).toEqual(["demand", "evaluate", "invalidate", "status", "subscribe"]);
-    expect(core.blockRegistry()).toBe(HELLO.block_registry);
+    expect(core.blockRegistry()).toBe(blockRegistry(HELLO));
     expect(Object.keys(core.options.registered())).toEqual(["n_rows", "dark_mode"]);
     expect(core.lock).toEqual({ board: false, load: false });
     // The second asks for the blockr option behind the default of dark_mode,
@@ -138,34 +141,37 @@ describe("the CoreApi for tests", () => {
     await settled();
 
     expect(sent.find((request) => request.kind === "output")).toMatchObject({ block: "b", options: { n_rows: 50 }, info: INFO });
-    expect(table.hosts[0]?.output()).toMatchObject({ renderer: { id: "blockr.core-table_output" }, total: 7 });
+    expect(table.hosts[0]?.output()).toMatchObject({ renderer: { package: "blockr.core", id: "table_output" }, total: 7 });
   });
 
   test("answers a plugin's requests with what the test gives, and reads the blockr options that R holds", async () => {
     // The app runs the plugin of blockr.code, whose class's module the test
-    // gives by the class's id.
+    // gives by the class's package and id.
+    const code = interned("blockr.code", "code_plugin");
     const { core } = await stubCore({
-      hello: withPlugins({ "blockr.code-code_plugin": { name: "Code" } }),
-      modules: { "blockr.code-code_plugin": classModule() },
+      hello: withPlugins({ "blockr.code": { code_plugin: { name: "Code" } } }),
+      offered: { "blockr.code": { code_plugin: classModule() } },
       blockrOptions: { n_rows: 25 },
       answer: (request) =>
         request.kind === "request" && request.type === "plugin" && request.name === "script" ? ["a <- 1"] : undefined,
     });
 
-    await expect(core.request("blockr.code-code_plugin", "script", {}, { reads: ["a"] })).resolves.toEqual(["a <- 1"]);
-    await expect(core.request("blockr.code-code_plugin", "other")).rejects.toThrow("R replied error");
-    await expect(core.request("blockr.dag-dag_plugin", "script")).rejects.toThrow('The app runs no plugin "blockr.dag-dag_plugin"');
+    await expect(core.request(code, "script", {}, { reads: ["a"] })).resolves.toEqual(["a <- 1"]);
+    await expect(core.request(code, "other")).rejects.toThrow("R replied error");
+    await expect(core.request(interned("blockr.dag", "dag_plugin"), "script")).rejects.toThrow(
+      'The app runs no plugin "dag_plugin of blockr.dag"',
+    );
     await expect(core.blockrOption("n_rows")).resolves.toBe(25);
     await expect(core.blockrOption("gate_visibility")).resolves.toBeUndefined();
   });
 
   test("replies to a request with the messages and warnings that the test gives, ok or error, before the error that its answer throws", async () => {
-    const code = "blockr.code-code_plugin";
+    const code = interned("blockr.code", "code_plugin");
     const read: Condition = { severity: "message", class: ["simpleMessage", "message", "condition"], phase: "request", message: "Read 150 rows." };
     const few: Condition = { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "request", message: "Few rows." };
     const { core, stop } = await stubCore({
-      hello: withPlugins({ [code]: { name: "Code" } }),
-      modules: { [code]: classModule() },
+      hello: withPlugins({ "blockr.code": { code_plugin: { name: "Code" } } }),
+      offered: { "blockr.code": { code_plugin: classModule() } },
       conditions: () => [read, few],
       answer: (request) => {
         if (request.kind !== "request" || request.name === "other") return undefined;
@@ -195,7 +201,7 @@ describe("the CoreApi for tests", () => {
   test("replies to an output with the messages and warnings that the test gives with it", async () => {
     const table = renderer();
     const few: Condition = { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "output", message: "Few rows." };
-    const output = { renderer: { id: "blockr.core-table_output", module: TABLE }, columns: [], rows: [], total: 150 };
+    const output = { renderer: { package: "blockr.core", id: "table_output", module: TABLE }, columns: [], rows: [], total: 150 };
     const { core, settled, stop } = await stubCore({
       modules: { [TABLE]: table.exports },
       output: () => ({ output, conditions: [few] }),
@@ -243,7 +249,7 @@ describe("the CoreApi for tests", () => {
     core.mountOutput(el, "b");
 
     expect(await actWarnings(settled)).toEqual([]);
-    expect(el.textContent).toContain("blockr.core-table_output");
+    expect(el.textContent).toContain("table_output");
   });
 
   test("starts and stops core inside React's act(), so that a frontend drawn with React draws the board and unmounts without a warning", async () => {
@@ -261,7 +267,7 @@ describe("the CoreApi for tests", () => {
     };
     let stop = (): void => undefined;
     const warnings = await actWarnings(async () => {
-      ({ stop } = await stubCore({ el, modules: { "blockr.core-basic_frontend_plugin": classModule({ frontend }) } }));
+      ({ stop } = await stubCore({ el, offered: { "blockr.core": { basic_frontend_plugin: classModule({ frontend }) } } }));
     });
 
     expect(warnings).toEqual([]);
@@ -299,50 +305,54 @@ describe("the CoreApi for tests", () => {
   test("runs the app's plugins, of the classes whose modules the test gives, and draws the board with the app's frontend", async () => {
     const el = document.createElement("div");
     const events: string[] = [];
-    const started = ({ plugin }: { plugin: string }): undefined => {
-      events.push(`${plugin} starts`);
+    const started = ({ plugin }: { plugin: PluginClassId }): undefined => {
+      events.push(`${idText(plugin)} starts`);
     };
     // An app whose frontend takes the place of core's basic frontend.
-    const rest = Object.fromEntries(Object.entries(HELLO.plugins).filter(([id]) => id !== "blockr.core-basic_frontend_plugin"));
+    const rest = withoutPlugins(HELLO, { package: "blockr.core", id: "basic_frontend_plugin" });
     const s = await stubCore({
       el,
       hello: withPlugins(
         {
-          "blockr.test-grid_plugin": { name: "Grid" },
-          "blockr.test-notes_plugin": { name: "Notes" },
+          "blockr.test": {
+            grid_plugin: { name: "Grid" },
+            notes_plugin: { name: "Notes" },
+          },
         },
-        { ...HELLO, plugins: rest },
+        rest,
       ),
-      modules: {
-        "blockr.test-grid_plugin": classModule({
-          frontend: {
-            render({ el: at, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: string }) {
-              events.push(`${plugin} draws`);
-              core.mountPlugin(at.appendChild(document.createElement("section")), "blockr.test-notes_plugin");
-              return undefined;
+      offered: {
+        "blockr.test": {
+          grid_plugin: classModule({
+            frontend: {
+              render({ el: at, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: PluginClassId }) {
+                events.push(`${idText(plugin)} draws`);
+                core.mountPlugin(at.appendChild(document.createElement("section")), interned("blockr.test", "notes_plugin"));
+                return undefined;
+              },
             },
-          },
-          start: started,
-        }),
-        "blockr.test-notes_plugin": classModule({
-          ui: {
-            render({ el: at, plugin }: { el: HTMLElement; plugin: string }) {
-              at.textContent = `The panel of ${plugin}`;
-              return undefined;
+            start: started,
+          }),
+          notes_plugin: classModule({
+            ui: {
+              render({ el: at, plugin }: { el: HTMLElement; plugin: PluginClassId }) {
+                at.textContent = `The panel of ${idText(plugin)}`;
+                return undefined;
+              },
             },
-          },
-          start: started,
-        }),
+            start: started,
+          }),
+        },
       },
     });
     await s.settled();
 
     expect(events).toEqual([
-      "blockr.test-grid_plugin draws",
-      "blockr.test-grid_plugin starts",
-      "blockr.test-notes_plugin starts",
+      "grid_plugin of blockr.test draws",
+      "grid_plugin of blockr.test starts",
+      "notes_plugin of blockr.test starts",
     ]);
-    expect(el.textContent).toBe("The panel of blockr.test-notes_plugin");
+    expect(el.textContent).toBe("The panel of notes_plugin of blockr.test");
     s.stop();
   });
 
@@ -351,21 +361,24 @@ describe("the CoreApi for tests", () => {
     const table = renderer();
     const events: unknown[] = [];
     // The test gives a frontend of its own in place of core's basic frontend,
-    // by the id of the class of the app's plugin that it replaces.
+    // by the package and the id of the class of the app's plugin that it
+    // replaces.
     const { core, settled } = await stubCore({
       el,
-      modules: {
-        [TABLE]: table.exports,
-        "blockr.core-basic_frontend_plugin": classModule({
-          frontend: {
-            render({ el: at, core: given }: { el: HTMLElement; core: CoreApi }) {
-              at.textContent = given.store.board().name;
-              given.scheduler.demand("frontend", ["b"]);
-              given.mountOutput(document.createElement("div"), "b");
-              return undefined;
+      modules: { [TABLE]: table.exports },
+      offered: {
+        "blockr.core": {
+          basic_frontend_plugin: classModule({
+            frontend: {
+              render({ el: at, core: given }: { el: HTMLElement; core: CoreApi }) {
+                at.textContent = given.store.board().name;
+                given.scheduler.demand("frontend", ["b"]);
+                given.mountOutput(document.createElement("div"), "b");
+                return undefined;
+              },
             },
-          },
-        }),
+          }),
+        },
       },
     });
     core.outputEvents.subscribe((event) => events.push(event));

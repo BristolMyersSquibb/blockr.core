@@ -30,3 +30,8 @@ export type { StubMenu } from "./menu.ts";
 export { menuModuleTests } from "./menu-module.ts";
 export type { MenuModuleTest } from "./menu-module.ts";
 export type { StubAdvanced } from "./advanced.ts";
+// The id of what a package defines, as CoreApi's id() gives it, for a test
+// that builds the data that a module reads, such as a board, without a stub of
+// core. It is the function behind the id() of every stub here, so that the
+// ids that a test makes are those that the stubs give, which === compares.
+export { interned as id } from "../util/index.ts";

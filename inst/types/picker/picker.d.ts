@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { BlockId, Board, LinkId } from "../types/board.ts";
+import type { BlockId, Board, LinkId, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Done } from "../ui/index.ts";
@@ -28,7 +28,8 @@ export declare function namesInto(board: Pick<Board, "links">, to: BlockId, exce
 export declare function inputNameError(value: string, taken: readonly string[]): string | undefined;
 export declare function isVariadic(free: readonly string[]): boolean;
 export interface ClassItem {
-    readonly id: string;
+    readonly registryId: RegistryId;
+    readonly key: number;
     readonly name: string;
     readonly description: string;
     readonly icon: string;

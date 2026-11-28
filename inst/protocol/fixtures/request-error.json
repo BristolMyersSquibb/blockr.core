@@ -5,7 +5,7 @@
       "id": "24",
       "kind": "request",
       "type": "block_class",
-      "registry_id": "blockr.core-dataset_block",
+      "registry_id": { "package": "blockr.core", "id": "dataset_block" },
       "block": "a",
       "name": "datasets",
       "args": { "package": "nopkg" },

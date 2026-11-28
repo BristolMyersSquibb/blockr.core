@@ -63,15 +63,16 @@ import { useMemo, useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { Button, ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField } from "@blockr/ui";
-import { freeInputs } from "../commands/index.ts";
+import { CORE, freeInputs } from "../commands/index.ts";
+import type { CommandCall } from "../commands/index.ts";
 import { useBoard } from "../react/index.ts";
-import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
+import type { BlockId, Board, Link, LinkId, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { classes, identifier, Refusal, useEdits, useSearch } from "../ui/index.ts";
 import type { Done } from "../ui/index.ts";
-import { own, packageFromId } from "../util/index.ts";
+import { idNumber, interned, own } from "../util/index.ts";
 
 // Where the new block goes: on its own, after a block, before a block, or on
 // a link. Before a block, it may feed the input given, or "" for the next
@@ -104,7 +105,7 @@ type Errors = Partial<Record<"registry" | "id" | "input", string>>;
 export function BlockPicker({ core, mode, done, filter = "", autofocus = false }: PickerProps): ReactElement | null {
   const registry = core.blockRegistry();
   const edits = useEdits(core);
-  const [picked, setPicked] = useState<string | undefined>(undefined);
+  const [picked, setPicked] = useState<number | undefined>(undefined);
   const [input, setInput] = useState<string | undefined>(undefined);
   const [inputName, setInputName] = useState("");
   // The place among the links into a variadic block that the user picks.
@@ -117,14 +118,15 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
   // A block added after another or on a link takes a block's result, so its
   // class has an input.
   const takes = mode.kind === "after" || mode.kind === "on";
-  const options = useMemo(() => blockClasses(Object.values(registry).filter((entry) => !takes || entry.inputs.length > 0)), [registry, takes]);
+  const options = useMemo(() => blockClasses([...registry.values()].filter((entry) => !takes || entry.inputs.length > 0)), [registry, takes]);
   const search = useSearch(
     options,
-    (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
+    (item) => [item.name, item.description, item.registryId.id, item.category, item.pkg ?? "", ...item.keywords],
     "No block class to pick.",
     filter,
   );
-  const entry = picked === undefined ? undefined : own(registry, picked);
+  const pickedItem = picked === undefined ? undefined : options.find((item) => item.key === picked);
+  const entry = pickedItem === undefined ? undefined : registry.get(pickedItem.registryId);
   const link = useBoard(core, (board) => linkChoice(mode, board, core.blockRegistry(), entry));
   const chosen = link.kind === "pick" ? (input !== undefined && link.inputs.includes(input) ? input : link.inputs[0]) : undefined;
   // Before a variadic block, the links into it, before which the new link may
@@ -158,7 +160,7 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
       return;
     }
     const args: Record<string, Json> = {
-      registry_id: entry.id,
+      registry_id: { package: entry.package, id: entry.id },
       ...filled("id", id),
       ...filled("name", name),
     };
@@ -196,7 +198,7 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
         errorMessage={errors.registry}
         description={entry?.description === "" ? undefined : entry?.description}
         onChange={(key) => {
-          setPicked(key === null ? undefined : String(key));
+          setPicked(key === null ? undefined : Number(key));
           // After a block or on a link, the inputs to pick among are those of
           // the class picked, while before a block they are that block's,
           // whatever the class.
@@ -207,7 +209,7 @@ export function BlockPicker({ core, mode, done, filter = "", autofocus = false }
         {(category) => (
           <ComboBoxSection id={category.id} title={category.name} items={category.items}>
             {(item) => (
-              <ComboBoxItem id={item.id} textValue={item.name}>
+              <ComboBoxItem id={item.key} textValue={item.name}>
                 <Text slot="label" className="bc:shrink-0 bc:truncate">
                   {item.name}
                 </Text>
@@ -329,7 +331,7 @@ type LinkChoice =
 function linkChoice(
   mode: AddMode,
   board: Pick<Board, "blocks" | "links">,
-  registry: Readonly<Record<string, RegistryEntry>>,
+  registry: ReadonlyMap<RegistryId, RegistryEntry>,
   entry: RegistryEntry | undefined,
 ): LinkChoice {
   if (mode.kind === "before") {
@@ -376,11 +378,11 @@ function pickedBatch(
   args: Readonly<Record<string, Json>>,
   into: Readonly<Record<string, Json>>,
   before?: LinkId,
-): { readonly id: string; readonly args: Json }[] {
+): CommandCall[] {
   const block = typeof args.id === "string" ? args.id : core.mintId((id) => Object.hasOwn(core.store.board().blocks, id));
-  const add = { id: "blockr.core-add_block", args: { ...args, id: block } };
-  const linked = (from: BlockId, to: BlockId, id?: LinkId) => ({
-    id: "blockr.core-add_link",
+  const add = { id: interned(CORE, "add_block"), args: { ...args, id: block } };
+  const linked = (from: BlockId, to: BlockId, id?: LinkId): CommandCall => ({
+    id: interned(CORE, "add_link"),
     args: { ...(id === undefined ? {} : { id }), from, to, ...into },
   });
   switch (mode.kind) {
@@ -391,12 +393,12 @@ function pickedBatch(
     case "before": {
       if (before === undefined) return [add, linked(block, mode.to)];
       const link = core.mintId((id) => Object.hasOwn(core.store.board().links, id));
-      return [add, linked(block, mode.to, link), { id: "blockr.core-change_link", args: { id: link, before } }];
+      return [add, linked(block, mode.to, link), { id: interned(CORE, "change_link"), args: { id: link, before } }];
     }
     case "on":
       return on === undefined
         ? []
-        : [add, linked(on.from, block), { id: "blockr.core-change_link", args: { id: mode.link, from: block } }];
+        : [add, linked(on.from, block), { id: interned(CORE, "change_link"), args: { id: mode.link, from: block } }];
   }
 }
 
@@ -433,7 +435,11 @@ export function isVariadic(free: readonly string[]): boolean {
 // it: by its name, with its description, its icon and its package, under its
 // category, and found by those, by its keywords and by its registry id too.
 export interface ClassItem {
-  readonly id: string;
+  // The class's registry id, as core's table holds it.
+  readonly registryId: RegistryId;
+  // The number of the registry id, the same for the same class, by which the
+  // picker's list keys the class's item, since a key is a string or a number.
+  readonly key: number;
   readonly name: string;
   readonly description: string;
   readonly icon: string;
@@ -449,12 +455,14 @@ export function blockClasses(entries: readonly RegistryEntry[]): ClassItem[] {
 }
 
 function classItem(entry: RegistryEntry): ClassItem {
+  const registryId = interned(entry.package, entry.id);
   return {
-    id: entry.id,
+    registryId,
+    key: idNumber(registryId),
     name: entry.name,
     description: entry.description,
     icon: entry.icon,
-    pkg: packageFromId(entry.id),
+    pkg: entry.package,
     category: entry.category === "" ? UNCATEGORIZED : entry.category,
     keywords: entry.keywords,
   };

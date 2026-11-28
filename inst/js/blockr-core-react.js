@@ -182,7 +182,9 @@ function useNotified(core, about) {
   const all = useSyncExternalStore(subscribe, () => core.notifications.get());
   const [kind, id] = about === null ? [] : Object.entries(about)[0] ?? [];
   return useMemo(
-    () => kind === void 0 ? all : all.filter((notification) => notification.about !== void 0 && own(notification.about, kind) === id),
+    () => kind === void 0 ? all : all.filter(
+      (notification) => notification.about !== void 0 && notification.about[kind] === id
+    ),
     [all, kind, id]
   );
 }

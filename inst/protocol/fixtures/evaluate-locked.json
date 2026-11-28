@@ -8,7 +8,7 @@
       "revision": 3,
       "locked": null,
       "recipe": {
-        "registry_id": "blockr.core-dataset_block",
+        "registry_id": { "package": "blockr.core", "id": "dataset_block" },
         "state": { "dataset": "mtcars", "package": "datasets" },
         "inputs": []
       }

@@ -6,7 +6,7 @@
 import type { Option, PluginClass } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import { packageFromId } from "../util/index.ts";
+import { nestedRecord } from "../util/index.ts";
 import { pluginUrl } from "./store.ts";
 
 // The module of a plugin class, whose default export is the class given
@@ -21,12 +21,13 @@ export function optionModule(def: Omit<Option, "id">) {
   return { api: 1, default: def };
 }
 
-// The module of each plugin class and board option given, by the id of each,
-// as the CoreApi for tests takes them in `modules`.
+// The module of each plugin class and board option given, as the CoreApi for
+// tests takes them: each class's by its package and its id in `offered`, and
+// each board option's by its id in `modules`.
 export function listedModules(classes: readonly PluginClass[] = [], options: readonly Option[] = []) {
   return {
-    ...Object.fromEntries(classes.map(({ id, ...def }) => [id, classModule(def)])),
-    ...Object.fromEntries(options.map(({ id, ...def }) => [id, optionModule(def)])),
+    offered: nestedRecord(classes.map(({ id, ...def }) => [id, classModule(def)] as const)),
+    modules: Object.fromEntries(options.map(({ id, ...def }) => [id, optionModule(def)])),
   };
 }
 
@@ -41,7 +42,7 @@ export function pluginUi() {
     ui: {
       render(args: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }) {
         renders.push(args);
-        args.el.textContent = args.core.plugins.appPlugins()[args.plugin]?.name ?? "";
+        args.el.textContent = args.core.plugins.appPlugins().get(args.plugin)?.name ?? "";
         return () => {
           cleanups++;
         };
@@ -53,8 +54,8 @@ export function pluginUi() {
 // Why core refuses the plugin class of the id given, for the reason given,
 // naming the module that the CoreApi for tests serves for the class, with the
 // class's package.
-export function refusedClass(id: PluginClassId, why: string): string {
-  return `The module ${pluginUrl(id)} of ${packageFromId(id) ?? "app"} defines a plugin class that core refuses: ${why}`;
+export function refusedClass(id: { readonly package: string; readonly id: string }, why: string): string {
+  return `The module ${pluginUrl(id)} of ${id.package} defines a plugin class that core refuses: ${why}`;
 }
 
 // Why core opens no board where the modules of plugin classes or board options

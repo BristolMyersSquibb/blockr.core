@@ -59,7 +59,7 @@ import { useNotified, useStatus } from "../../react/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack, StackId } from "../../types/board.ts";
 import { ActionsButton, classes } from "../../ui/index.ts";
-import { own } from "../../util/index.ts";
+import { idText } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
 
 export interface CardProps {
@@ -89,7 +89,7 @@ export const BlockCard = memo(function BlockCard({ id, block }: CardProps): Reac
   }, [core, id]);
 
   const inputs = !core.store.locked(id);
-  const entry = own(core.blockRegistry(), block.registry_id);
+  const entry = core.blockRegistry().get(block.registry_id);
   const ready = status?.status === "ready";
   const offered = core.boardActions.on({ block: id }).length > 0;
 
@@ -103,7 +103,7 @@ export const BlockCard = memo(function BlockCard({ id, block }: CardProps): Reac
     >
       <header className="bc:flex bc:flex-wrap bc:items-center bc:gap-2">
         <h3 className={classes.heading}>{block.name}</h3>
-        <span className="bc:text-xs bc:text-muted-foreground">{entry?.name ?? block.registry_id}</span>
+        <span className="bc:text-xs bc:text-muted-foreground">{entry?.name ?? idText(block.registry_id)}</span>
         <StatusBadge status={status} />
         {offered ? (
           <div className="bc:ml-auto bc:flex bc:items-center bc:gap-1">

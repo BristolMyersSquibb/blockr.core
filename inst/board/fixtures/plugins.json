@@ -1,5 +1,5 @@
 {
-  "description": "A board that holds the state of two plugins of the package blockr.test, which defines their classes in JavaScript, each under the id of its class, with the version of its class's state. The plugin of the class blockr.test-grid_plugin is a frontend, and the plugin of the class blockr.test-notes_plugin holds two notes. The package ships the schema of the state of its notes class beside the module that it lists for the class, here blockr.test/js/notes.schema.json beside blockr.test/js/notes.js. By that schema, R writes the notes as an array, and the blocks of each note as an array, the empty one included. It writes the state of the grid plugin, whose class the package gives no schema, bare. The list of the board's plugins holds a third, of the class blockr.test-tools_plugin, whose constructor gives it no state, so R writes nothing for it and records no version of its class. The package gives the notes class version 2 through its method of plugin_version(), and the grid class has no such method, so the board records it at version 1. R records blockr.test among the board's packages, as the ids of the plugins' classes name it. A client keeps the state of a plugin only where the app runs the plugin and blockr.test registers its class, and drops it otherwise.",
+  "description": "A board that holds the state of two plugins of the package blockr.test, which defines their classes in JavaScript, under the package and then under the id of each one's class, each with the version of its class's state. The plugin of the class grid_plugin is a frontend, and the plugin of the class notes_plugin holds two notes. The package ships the schema of the state of its notes class beside the module that it lists for the class, here blockr.test/js/notes.schema.json beside blockr.test/js/notes.js. By that schema, R writes the notes as an array, and the blocks of each note as an array, the empty one included. It writes the state of the grid plugin, whose class the package gives no schema, bare. The list of the board's plugins holds a third, of the class tools_plugin, whose constructor gives it no state, so R writes nothing for it and records no version of its class. The package gives the notes class version 2 through its method of plugin_version(), and the grid class has no such method, so the board records it at version 1. R records blockr.test among the board's packages, as the package of the plugins' classes. A client keeps the state of a plugin only where the app runs the plugin and blockr.test registers its class, and drops it otherwise.",
   "format": 1,
   "packages": {
     "blockr.test": "0.1.0"
@@ -9,7 +9,10 @@
     "name": "Grid",
     "blocks": {
       "a": {
-        "registry_id": "letters_block",
+        "registry_id": {
+          "package": null,
+          "id": "letters_block"
+        },
         "version": 1,
         "state": {
           "n": 3
@@ -22,28 +25,30 @@
     "stacks": {},
     "options": {},
     "plugins": {
-      "blockr.test-grid_plugin": {
-        "state": {
-          "columns": 2
+      "blockr.test": {
+        "grid_plugin": {
+          "state": {
+            "columns": 2
+          },
+          "version": 1
         },
-        "version": 1
-      },
-      "blockr.test-notes_plugin": {
-        "state": {
-          "notes": [
-            {
-              "text": "To check",
-              "blocks": [
-                "a"
-              ]
-            },
-            {
-              "text": "Later",
-              "blocks": []
-            }
-          ]
-        },
-        "version": 2
+        "notes_plugin": {
+          "state": {
+            "notes": [
+              {
+                "text": "To check",
+                "blocks": [
+                  "a"
+                ]
+              },
+              {
+                "text": "Later",
+                "blocks": []
+              }
+            ]
+          },
+          "version": 2
+        }
       }
     }
   }

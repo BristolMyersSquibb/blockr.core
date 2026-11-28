@@ -11,7 +11,8 @@
 #'
 #' * The type `block_class`, a request of a block class,
 #'   which the block's UI sends (see [new_block_request()]).
-#'   R finds it among the requests of the class that `registry_id` names.
+#'   R finds it among the requests of the class that `registry_id` names, by
+#'   the class's package and its id.
 #' * The type `output_class`, a request of an output class,
 #'   which a renderer sends (see [output_requests()]).
 #'   R finds it among the requests that the classes' methods of
@@ -19,7 +20,8 @@
 #'   result that `output` names.
 #' * The type `renderer`, a renderer's own request (see [new_renderer()]).
 #'   R finds it among the requests of the renderer that draws that output,
-#'   which has to be the one that `renderer` names.
+#'   which has to be the one that `renderer` names, by the package of its
+#'   module and its name.
 #' * The type `option`, a board option's request,
 #'   which the board option's UI sends.
 #'   R finds it among the requests of the board option that `option` names,
@@ -27,9 +29,10 @@
 #'   board option's class, `{id}_option`, as it builds the app.
 #' * The type `plugin`, a plugin's request,
 #'   which a plugin sends through `CoreApi.request()` in the client.
-#'   R finds it among the requests of the app's plugin whose class's ID
-#'   `plugin` names, as `blockr.md-md_plugin`, which [serve()] gets from the
-#'   method of `plugin_requests()` for the class as it builds the app.
+#'   R finds it among the requests of the app's plugin whose class `plugin`
+#'   names by its package and its id, as the package `blockr.md` and the id
+#'   `md_plugin`, which [serve()] gets from the method of `plugin_requests()`
+#'   for the class as it builds the app.
 #'   R calls the method on the plugin that the class's constructor makes,
 #'   called without args, and refuses a request of a plugin class that the app
 #'   does not run.
@@ -74,8 +77,8 @@
 #'
 #' names(board_option_requests(new_board_option("data_dir")))
 #'
-#' # blockr.code, whose plugin class is blockr.code-code_plugin, gives the
-#' # request script, for the code of the blocks that the request reads.
+#' # blockr.code, whose plugin class is code_plugin, gives the request
+#' # script, for the code of the blocks that the request reads.
 #' plugin_requests.code_plugin <- function(x, ...) {
 #'   list(
 #'     script = function(reads) {
@@ -173,9 +176,9 @@ request_call.option_request <- function(x, reads, options = list(), ...) {
   )
 }
 
-# A plugin's request, which R finds by the ID of the plugin's class among the
-# requests of the app's plugins, `plugins`, which `serve()` got from the
-# class's method of `plugin_requests()` as it built the app.
+# A plugin's request, which R finds by the package and the id of the plugin's
+# class among the requests of the app's plugins, `plugins`, which `serve()`
+# got from the class's method of `plugin_requests()` as it built the app.
 # So R reads no package's listing to answer it, and refuses a request of a
 # plugin class that the app does not run.
 # Its function gets the blocks that the request reads in `reads`, each with its
@@ -183,22 +186,22 @@ request_call.option_request <- function(x, reads, options = list(), ...) {
 #' @export
 request_call.plugin_request <- function(x, reads, plugins = list(), ...) {
 
-  plugin <- x[["plugin"]]
+  plugin <- find_pkg_id(plugins, x[["plugin"]])
   name <- x[["name"]]
 
-  if (!plugin %in% names(plugins)) {
+  if (is.null(plugin)) {
     blockr_abort(
-      "The app runs no plugin of class {plugin}, so R has no request {name} ",
-      "of it.",
+      "The app runs no plugin of class {pkg_id_label(x[['plugin']])}, so R ",
+      "has no request {name} of it.",
       class = "plugin_request_unknown"
     )
   }
 
-  fun <- plugins[[plugin]][["requests"]][[name]]
+  fun <- plugin[["requests"]][[name]]
 
   if (!is.function(fun)) {
     blockr_abort(
-      "Plugin class {plugin} has no request {name}.",
+      "Plugin class {pkg_id_label(x[['plugin']])} has no request {name}.",
       class = "plugin_request_unknown"
     )
   }
@@ -266,10 +269,11 @@ output_read_call <- function(x, reads, renderer) {
 
     drawn <- held[["renderer"]]
 
-    if (!identical(drawn[["id"]], renderer)) {
+    if (!same_pkg_id(renderer_id(drawn), renderer)) {
       blockr_abort(
-        "Renderer {renderer} drew no output of block {out$block}, which ",
-        "renderer {drawn$id} drew.",
+        "Renderer {pkg_id_label(renderer)} drew no output of block ",
+        "{out$block}, which renderer {pkg_id_label(renderer_id(drawn))} ",
+        "drew.",
         class = "renderer_class_mismatch"
       )
     }

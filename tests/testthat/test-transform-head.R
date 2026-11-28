@@ -14,7 +14,10 @@ test_that("head block constructor", {
   expect_error(new_head_block(direction = "middle"), "should be one of")
   expect_error(new_head_block(m = 10L), "unused argument")
 
-  expect_identical(registry_id_from_block(blk), "blockr.core-head_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "head_block")
+  )
 })
 
 test_that("head block expression and request", {

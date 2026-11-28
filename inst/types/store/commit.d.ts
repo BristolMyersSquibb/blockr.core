@@ -11,7 +11,7 @@ export interface Changed {
     readonly stacks: ReadonlySet<StackId>;
     readonly options: ReadonlySet<OptionId>;
     readonly plugins: ReadonlySet<PluginClassId>;
-    readonly targets: ReadonlySet<string>;
+    readonly targets: ReadonlySet<TargetKey>;
 }
 export interface Committed {
     readonly board: Board;
@@ -23,7 +23,8 @@ export type Target = {
 } | {
     readonly plugin: PluginClassId;
 };
-export declare function target(of: Target): string;
+export type TargetKey = BlockId | PluginClassId;
+export declare function target(of: Target): TargetKey;
 export declare function commit(board: Board, delta: Delta, places?: Places): Committed | {
     readonly failures: readonly string[];
 };

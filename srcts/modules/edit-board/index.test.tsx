@@ -39,6 +39,7 @@ import { withPlugins } from "../../testing/store.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
+import { interned } from "../../util/index.ts";
 import { editTitle } from "./menus.tsx";
 import * as editBoard from "./index.tsx";
 
@@ -61,7 +62,7 @@ const commits = vi.hoisted(() => {
 });
 
 // The class of the plugin, which the app of the fixture hello runs.
-const EDIT = "blockr.core-edit_board_plugin";
+const EDIT = interned("blockr.core", "edit_board_plugin");
 
 interface Mounted {
   readonly el: HTMLElement;
@@ -86,7 +87,7 @@ afterEach(() => {
 async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
   const el = document.createElement("div");
   document.body.append(el);
-  const stubbed = await act(() => stubCore({ ...options, modules: { "blockr.core-edit_board": editBoard, ...options.modules } }));
+  const stubbed = await act(() => stubCore({ ...options, offered: { "blockr.core": { edit_board_plugin: editBoard }, ...options.offered } }));
   stops.push(stubbed.stop);
   const notes: Notification[] = [];
   stubbed.core.notifications.subscribe((all) => {
@@ -109,15 +110,16 @@ async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
   return { el, core: stubbed.core, board: () => stubbed.core.store.board(), notes, menu, end };
 }
 
-// The id of a board action of blockr.test, from its name, as
-// "blockr.test-count_rows_action" for Count rows.
+// The id of a board action of blockr.test within its package, from its name,
+// as "count_rows_action" for Count rows.
 function actionId(name: string): string {
-  return `blockr.test-${name.toLowerCase().replaceAll(" ", "_")}_action`;
+  return `${name.toLowerCase().replaceAll(" ", "_")}_action`;
 }
 
 // A board action of blockr.test on the kinds of target given, labelled by its
 // name, which runs the batch that `run` returns.
-function action(name: string, on: BoardAction["on"], run: NonNullable<BoardAction["run"]>): BoardAction {
+// It leaves out its package, which core sets as it registers the board action.
+function action(name: string, on: BoardAction["on"], run: NonNullable<BoardAction["run"]>): Omit<BoardAction, "package"> {
   return { id: actionId(name), label: name, on, category: "test", run };
 }
 
@@ -125,11 +127,13 @@ function action(name: string, on: BoardAction["on"], run: NonNullable<BoardActio
 // app runs a plugin of blockr.test too, whose class lists the board actions
 // given. Where `picks` is given, the blockr option board_actions holds it, so
 // that the app picks those board actions for the roles that it names.
-async function withActions(actions: readonly BoardAction[], hello: HelloReply = HELLO, picks?: Json): Promise<Mounted> {
-  const cls: PluginClass = { id: "blockr.test-doc_plugin", boardActions: actions };
+async function withActions(actions: readonly Omit<BoardAction, "package">[], hello: HelloReply = HELLO, picks?: Json): Promise<Mounted> {
+  // The class leaves out the package of each board action, which core sets,
+  // though the type of a class's board actions asks for it.
+  const cls: PluginClass = { id: interned("blockr.test", "doc_plugin"), boardActions: actions };
   return mounted({
-    hello: withPlugins({ [cls.id]: { name: "Document" } }, hello),
-    modules: listedModules([cls]),
+    hello: withPlugins({ "blockr.test": { doc_plugin: { name: "Document" } } }, hello),
+    ...listedModules([cls]),
     ...(picks === undefined ? {} : { blockrOptions: { board_actions: picks } }),
   });
 }
@@ -144,7 +148,7 @@ function player(
   on: BoardAction["on"],
   batch: readonly CommandCall[] = [],
   more: Partial<BoardAction> = {},
-): { readonly action: BoardAction; readonly renders: readonly Target[] } {
+): { readonly action: Omit<BoardAction, "package">; readonly renders: readonly Target[] } {
   const renders: Target[] = [];
   const advanced: AdvancedModule = {
     render({ el, target, done }) {
@@ -172,7 +176,7 @@ async function refusing(): Promise<Omit<Mounted, "notes" | "menu">> {
   const el = document.createElement("div");
   document.body.append(el);
   const hello: HelloReply = { ...HELLO, lock: { board: true, load: false } };
-  const stubbed = await act(() => stubCore({ hello, modules: { "blockr.core-edit_board": editBoard } }));
+  const stubbed = await act(() => stubCore({ hello, offered: { "blockr.core": { edit_board_plugin: editBoard } } }));
   const core: CoreApi = { ...stubbed.core, lock: { ...stubbed.core.lock, board: false } };
   let end = (): void => undefined;
   await act(async () => {
@@ -192,8 +196,8 @@ async function refusing(): Promise<Omit<Mounted, "notes" | "menu">> {
 // block. Each draw takes about 300 ms on happy-dom.
 async function addHeadBlocks(core: CoreApi): Promise<void> {
   const heads = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({
-    id: "blockr.core-add_block",
-    args: { registry_id: "blockr.core-head_block", id: `h${String(i)}`, name: `Rows ${String(i)}` },
+    id: interned("blockr.core", "add_block"),
+    args: { registry_id: { package: "blockr.core", id: "head_block" }, id: `h${String(i)}`, name: `Rows ${String(i)}` },
   }));
   await act(() => core.commands.run(heads));
 }
@@ -404,7 +408,7 @@ describe("the blocks", () => {
     });
     await click(button(add(), "Add block"));
 
-    expect(board().blocks.petals).toMatchObject({ registry_id: "blockr.core-scatter_block", name: "Petal plot" });
+    expect(board().blocks.petals).toMatchObject({ registry_id: { package: "blockr.core", id: "scatter_block" }, name: "Petal plot" });
     expect(Object.values(board().links).filter((l) => l.to === "petals")).toEqual([]);
     expect(notes).toEqual([]);
     // The form, the advanced action of core's Add block, which core renders
@@ -422,7 +426,7 @@ describe("the blocks", () => {
 
     const [first] = added(board());
     expect(first?.[0]).toMatch(/^[a-z]+_[a-z]+$/);
-    expect(first?.[1]).toMatchObject({ registry_id: "blockr.core-dataset_block", name: "Dataset" });
+    expect(first?.[1]).toMatchObject({ registry_id: { package: "blockr.core", id: "dataset_block" }, name: "Dataset" });
   });
 
   test("are not added where the form says, next to the field, what to change: a class that is missing, or an ID of digits alone or that the board holds", async () => {
@@ -502,7 +506,7 @@ describe("the blocks", () => {
 
   test("open the menu of their block from the … button at the end of each row, which offers what every menu of the block offers, another package's board actions among them", async () => {
     const documented = action("Add to document", ["block"], (_board, target) => [
-      { id: "blockr.core-change_block", args: { id: "block" in target ? target.block : "", name: "In the document" } },
+      { id: interned("blockr.core", "change_block"), args: { id: "block" in target ? target.block : "", name: "In the document" } },
     ]);
     const m = await withActions([documented]);
     const blocks = section(m.el, "Blocks");
@@ -574,7 +578,7 @@ describe("the blocks", () => {
       type(labelled(picker, "ID"), "rows");
     });
     await click(button(picker, "Add block"));
-    expect(board().blocks.rows).toMatchObject({ registry_id: "blockr.core-head_block" });
+    expect(board().blocks.rows).toMatchObject({ registry_id: { package: "blockr.core", id: "head_block" } });
     expect(Object.values(board().links)).toContainEqual({ from: "f", to: "rows", input: "data" });
     // The picker's done() ended the advanced action, so the row shows its
     // block again, with the focus on its "…".
@@ -607,7 +611,7 @@ describe("the links", () => {
 
     // With Head's input free, Bind still may not feed it, since Head feeds
     // Bind, which would close a cycle.
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }));
     await chosen(add(), "From", "Bind");
     expect(await targets()).toEqual([]);
     expect(note(labelled(add(), "To"))).toBe("No block takes a link from this block.");
@@ -623,7 +627,7 @@ describe("the links", () => {
 
     // Picking the target first narrows the blocks that may feed it to those
     // not downstream of it.
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "bc" }));
     await chosen(add(), "To", "Merge");
     await step(() => {
       labelled(add(), "From").click();
@@ -762,7 +766,7 @@ describe("the links", () => {
 
     // Into another block, the form offers the free inputs alone, since the
     // link's old input means nothing there.
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "bc" }));
     await editing("Actions of the link from Iris to Head");
     await chosen(edit(), "To", "Merge");
     expect([selectShows(selectButton(edit(), "Input")), selectButton(edit(), "Input").disabled]).toEqual(["y", true]);
@@ -832,11 +836,11 @@ describe("the links", () => {
     const links = section(el, "Links");
 
     // Bind alone takes a new link.
-    await act(() => core.commands.run("blockr.core-remove_block", { id: "e" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_block"), { id: "e" }));
     expect(links.querySelector('form[aria-label="Add link"]')).toBeNull();
     expect(links.textContent).toContain("No new link can join two blocks of the board.");
 
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }));
     expect(form(links, "Add link")).toBeDefined();
     expect(links.textContent).not.toContain("No new link can join two blocks of the board.");
   });
@@ -981,7 +985,7 @@ describe("the stacks", () => {
   test("are changed in their row, which turns into the form of Edit stack that the row's menu opens, once the user applies it: renamed, coloured and given other blocks, one of which leaves its stack, in one step", async () => {
     const m = await mounted();
     const { el, core, board } = m;
-    await act(() => core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"] }));
+    await act(() => core.commands.run(interned("blockr.core", "add_stack"), { id: "plots", name: "Plots", blocks: ["f"] }));
     const stacks = section(el, "Stacks");
 
     const menu = await openMenu(m, "Actions of the stack Input");
@@ -1034,14 +1038,14 @@ describe("the forms that add a block, a link and a stack", () => {
 
   test("are the advanced actions of the board actions that the app picks for add_block_role, add_link_role and add_stack_role, in place of core's, each rendered again once its done() has run a batch", async () => {
     const block = player("Kit block", "add_block_role", ["board"], [
-      { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "n" } },
+      { id: interned("blockr.core", "add_block"), args: { registry_id: { package: "blockr.core", id: "head_block" }, id: "n" } },
     ]);
     const link = player("Kit link", "add_link_role", ["block", "input", "board"]);
     const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"]);
     const { el, board } = await withActions([block.action, link.action, stack.action], HELLO, {
-      add_block_role: block.action.id,
-      add_link_role: link.action.id,
-      add_stack_role: stack.action.id,
+      add_block_role: { package: "blockr.test", id: block.action.id },
+      add_link_role: { package: "blockr.test", id: link.action.id },
+      add_stack_role: { package: "blockr.test", id: stack.action.id },
     });
 
     for (const [title, name] of [
@@ -1055,7 +1059,7 @@ describe("the forms that add a block, a link and a stack", () => {
     expect([block.renders, link.renders, stack.renders]).toEqual([[BOARD], [BOARD], [BOARD]]);
 
     await click(button(section(el, "Blocks"), "Kit block"));
-    expect(board().blocks.n?.registry_id).toBe("blockr.core-head_block");
+    expect(board().blocks.n?.registry_id).toBe(interned("blockr.core", "head_block"));
     expect(block.renders).toEqual([BOARD, BOARD]);
     expect(button(section(el, "Blocks"), "Kit block")).toBeDefined();
   });
@@ -1066,9 +1070,9 @@ describe("the forms that add a block, a link and a stack", () => {
     const link = player("Kit link", "add_link_role", ["block", "input", "board"], [], refuse);
     const stack = player("Kit stack", "add_stack_role", ["block", "selection", "board"], [], refuse);
     const { el } = await withActions([block.action, link.action, stack.action], HELLO, {
-      add_block_role: block.action.id,
-      add_link_role: link.action.id,
-      add_stack_role: stack.action.id,
+      add_block_role: { package: "blockr.test", id: block.action.id },
+      add_link_role: { package: "blockr.test", id: link.action.id },
+      add_stack_role: { package: "blockr.test", id: stack.action.id },
     });
 
     // Core's board actions, which name the roles, no longer play them, so
@@ -1260,12 +1264,12 @@ describe("each edit", () => {
   test("that the command registry or the store refuses, the plugin says why below the form that made it, in a banner in the colour of an error under a sentence that names the edit, until the user submits the form again, and core raises no notification of it", async () => {
     const { el, core, board, notes } = await mounted();
     const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }));
 
     // Another edit feeds Head's one input while the form is filled in.
     await chosen(add(), "From", "Scatter");
     await chosen(add(), "To", "Head");
-    await act(() => core.commands.run("blockr.core-add_link", { from: "a", to: "b", input: "data" }));
+    await act(() => core.commands.run(interned("blockr.core", "add_link"), { from: "a", to: "b", input: "data" }));
     await click(button(add(), "Add link"));
 
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
@@ -1297,7 +1301,7 @@ describe("each edit", () => {
     const menu = await openMenu(m, "Actions of the link from Iris to Merge");
     await pick(menu, "Edit link");
     await pick(menu, "Change source…");
-    await act(() => core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
+    await act(() => core.commands.run(interned("blockr.core", "add_link"), { id: "ce", from: "c", to: "e" }));
     await expect(act(() => menu.pick("Bind"))).rejects.toThrow();
     await acting(() => undefined);
 
@@ -1320,7 +1324,7 @@ describe("each edit", () => {
   });
 
   test("of another package that the store refuses from the menu of a row, the table names by the board action's label", async () => {
-    const breaks = action("Add to document", ["block"], () => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }]);
+    const breaks = action("Add to document", ["block"], () => [{ id: interned("blockr.core", "remove_link"), args: { id: "nowhere" } }]);
     const m = await withActions([breaks]);
     const { el, core, notes } = m;
     const blocks = section(el, "Blocks");
@@ -1334,7 +1338,7 @@ describe("each edit", () => {
   });
 
   test("that the store refuses from the menu of the selection, the bar says why below itself, naming the selection", async () => {
-    const breaks = action("Archive", ["selection"], () => [{ id: "blockr.core-remove_stack", args: { id: "nowhere" } }]);
+    const breaks = action("Archive", ["selection"], () => [{ id: interned("blockr.core", "remove_stack"), args: { id: "nowhere" } }]);
     const m = await withActions([breaks]);
     const { el, core } = m;
     await step(() => {
@@ -1365,14 +1369,14 @@ describe("each edit", () => {
 
   test("that the command registry refuses from the block picker, the picker says why below its button, as it stays as the user filled it in", async () => {
     // A class whose new block starts with a state that its schema refuses.
-    const head = HELLO.block_registry["blockr.core-head_block"];
+    const head = HELLO.block_registry.find((entry) => entry.package === "blockr.core" && entry.id === "head_block");
     if (head === undefined) throw new Error("The fixture's registry holds no head block.");
     const hello: HelloReply = {
       ...HELLO,
-      block_registry: {
+      block_registry: [
         ...HELLO.block_registry,
-        "blockr.test-broken_block": { ...head, id: "blockr.test-broken_block", name: "broken block", state: { ...head.state, n: "ten" } },
-      },
+        { ...head, package: "blockr.test", id: "broken_block", name: "broken block", state: { ...head.state, n: "ten" } },
+      ],
     };
     const { el, core, board, notes } = await mounted({ hello });
     const before = board();
@@ -1401,7 +1405,7 @@ describe("each edit", () => {
     await chosen(edit(), "From", "Bind");
     // Another edit links Merge to Bind before the user applies the form, so
     // that the link from Bind would close a cycle.
-    await act(() => core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
+    await act(() => core.commands.run(interned("blockr.core", "add_link"), { id: "ce", from: "c", to: "e" }));
     await click(button(edit(), "Apply"));
 
     expect(refusals(edit())).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
@@ -1418,7 +1422,7 @@ describe("each edit", () => {
 describe("the sentence that names a refused edit", () => {
   test("names the edit in the plugin's words for core's board actions, and by its label for another package's, with the object as the tables show it", async () => {
     const board = (await mounted()).board();
-    const core = (id: string, label = ""): Pick<BoardAction, "id" | "label"> => ({ id: `blockr.core-${id}_action`, label });
+    const core = (id: string, label = ""): Pick<BoardAction, "package" | "id" | "label"> => ({ package: "blockr.core", id: `${id}_action`, label });
     expect(editTitle(board, core("remove_block"), { block: "b" })).toBe('Could not remove the block "Head".');
     expect(editTitle(board, core("edit_link"), { link: "ac" })).toBe('Could not change the link from "Iris" to "Merge".');
     expect(editTitle(board, core("rename"), { stack: "s1" })).toBe('Could not rename the stack "Input".');
@@ -1432,19 +1436,25 @@ describe("the sentence that names a refused edit", () => {
     expect(editTitle(board, core("remove_selected"), { selection: [{ block: "c" }, { link: "ab" }] })).toBe("Could not remove the selection.");
     // Another package's, and one of core's that the plugin has no words for,
     // by their labels.
-    expect(editTitle(board, { id: "blockr.md-add_to_document_action", label: "Add to document" }, { block: "d" })).toBe(
+    expect(editTitle(board, { package: "blockr.md", id: "add_to_document_action", label: "Add to document" }, { block: "d" })).toBe(
       'Add to document failed for the block "Wide sepals".',
+    );
+    // Another package's board action is named by its label,
+    // even where its id within its package is that of one of core's.
+    expect(editTitle(board, { package: "blockr.md", id: "remove_block_action", label: "Discard" }, { block: "d" })).toBe(
+      'Discard failed for the block "Wide sepals".',
     );
     expect(editTitle(board, core("copy_block_id", "Copy block ID"), { block: "a" })).toBe('Copy block ID failed for the block "Iris".');
     // An object that the board no longer holds, by its id.
     expect(editTitle(board, core("remove_link"), { link: "gone" })).toBe('Could not remove the link "gone".');
     expect(editTitle(board, core("remove_stack"), { stack: "gone" })).toBe('Could not remove the stack "gone".');
     // The targets of the menus that the plugin does not open, by their ids.
-    const other = { id: "blockr.test-check_action", label: "Check" };
-    expect([{ board: true } as const, { option: "n_rows" }, { plugin: "blockr.test-doc_plugin" }].map((target) => editTitle(board, other, target))).toEqual([
+    const other = { package: "blockr.test", id: "check_action", label: "Check" };
+    const targets: Target[] = [{ board: true }, { option: "n_rows" }, { plugin: interned("blockr.test", "doc_plugin") }];
+    expect(targets.map((target) => editTitle(board, other, target))).toEqual([
       "Check failed for the board.",
       'Check failed for the board option "n_rows".',
-      'Check failed for the plugin "blockr.test-doc_plugin".',
+      'Check failed for the plugin "doc_plugin of blockr.test".',
     ]);
   });
 });
@@ -1607,7 +1617,7 @@ describe("the cleanup that render() returns", () => {
     });
     expect(el.childNodes).toHaveLength(0);
 
-    await act(() => core.commands.run("blockr.core-change_block", { id: "b", name: "First rows" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_block"), { id: "b", name: "First rows" }));
     expect(el.childNodes).toHaveLength(0);
   });
 
@@ -1661,10 +1671,10 @@ describe("on a board that holds no blocks", () => {
 
 describe("each part of the plugin", () => {
   test("draws nothing again for a change that it shows nothing of, its forms included: a block's state, a board option, a plugin's state, or undoing such a change", async () => {
-    const notes: PluginClass = { id: "blockr.test-notes_plugin", state: { schema: { type: "object" }, default: { text: "" } } };
+    const notes: PluginClass = { id: interned("blockr.test", "notes_plugin"), state: { schema: { type: "object" }, default: { text: "" } } };
     const { el, core } = await mounted({
-      hello: withPlugins({ [notes.id]: { name: "Notes", state: { text: "To do" } } }, HELLO),
-      modules: listedModules([notes]),
+      hello: withPlugins({ "blockr.test": { notes_plugin: { name: "Notes", state: { text: "To do" } } } }, HELLO),
+      ...listedModules([notes]),
     });
     const before = commits.count;
 
@@ -1675,12 +1685,12 @@ describe("each part of the plugin", () => {
       core.store.apply({ options: { set: { n_rows: 25 } } });
     });
     await step(() => {
-      core.store.apply({ patches: [{ op: "replace", path: `/plugins/${notes.id}/text`, value: "Done" }] });
+      core.store.apply({ patches: [{ op: "replace", path: "/plugins/blockr.test/notes_plugin/text", value: "Done" }] });
     });
     await step(() => {
       core.store.undo();
     });
-    expect(core.store.board().plugins[notes.id]).toEqual({ text: "To do" });
+    expect(core.store.board().plugins["blockr.test"]?.notes_plugin).toEqual({ text: "To do" });
     expect(commits.count).toBe(before);
 
     // A change that the plugin shows draws again the parts that show it.
@@ -1694,7 +1704,7 @@ describe("each part of the plugin", () => {
   test("follows what the board actions offer on its rows, which may read any part of the board, such as a board option", async () => {
     // Under the board lock, none of core's board actions applies to a link, so
     // a row of the links shows a "…" only where this one applies.
-    const counted: BoardAction = { ...action("Count rows", ["link"], () => undefined), offers: (board) => board.options.n_rows === 25 };
+    const counted: Omit<BoardAction, "package"> = { ...action("Count rows", ["link"], () => undefined), offers: (board) => board.options.n_rows === 25 };
     const { el, core } = await withActions([counted], { ...HELLO, lock: { board: true, load: false } });
     const offered = (): string[] => rows(el, "Links").filter((id) => row(section(el, "Links"), id).querySelector("button") !== null);
     expect(offered()).toEqual([]);

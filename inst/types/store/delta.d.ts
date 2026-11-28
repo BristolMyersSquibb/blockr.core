@@ -1,6 +1,8 @@
-import type { Block, BlockId, Link, LinkId, OptionId, Stack, StackId } from "../types/board.ts";
+import type { Block, BlockId, Link, LinkId, OptionId, PluginClassId, Stack, StackId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-export type Origin = string;
+export type Origin = string | PluginClassId;
+export declare function isOrigin(x: unknown): x is Origin;
+export declare function originOf<T extends Origin | undefined>(given: T): T;
 export interface Delta {
     readonly blocks?: {
         readonly add?: Readonly<Record<BlockId, Block>>;

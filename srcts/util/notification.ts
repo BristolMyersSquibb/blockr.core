@@ -6,8 +6,9 @@
 // what the modules of packages raise.
 
 import type { Condition } from "../protocol/index.ts";
-import type { Board, PluginClassId } from "../types/board.ts";
+import type { Board, PluginClassId, RendererId } from "../types/board.ts";
 import type { BoardObject, CoreCode, Notification, Notifier, Raised, RRequest, SourceModule } from "../types/core-api.ts";
+import { internedRecord, isIdRecord } from "./ids.ts";
 import { isObject } from "./util.ts";
 
 // Raises a notification of the open board, and returns what withdraws it.
@@ -47,7 +48,7 @@ export const refusedNothing: Refused = () => undefined;
 // The notifier in a call's options, bound to them, or undefined where they
 // give none. It throws a TypeError for a notifier that is no function, as a
 // caller in plain JS may give, naming the call, as "the request "save" of the
-// plugin "blockr.core-file_storage_plugin"".
+// plugin "file_storage_plugin of blockr.core"".
 export function givenNotifier(
   opts: { notifier?(notifications: readonly Notification[]): void } | null | undefined,
   call: string,
@@ -64,7 +65,7 @@ export function givenNotifier(
 export function sourceModule(
   object: SourceModule["object"],
   pkg: string | null | undefined,
-  renderer?: string,
+  renderer?: RendererId,
 ): SourceModule {
   return {
     object,
@@ -103,25 +104,40 @@ const SEVERITIES: readonly unknown[] = ["message", "warning", "error"];
 // What a board object can be.
 const KINDS = ["block", "link", "stack", "option", "plugin"] as const;
 
-// Whether the value names one board object, by its id.
+// Whether the value names one board object, by its id: a non-empty string, or
+// for a plugin, the package and the id of its class, as
+// { plugin: { package: "blockr.dag", id: "dag_plugin" } }.
+// One that names a plugin may hold a record of the package and the id that
+// core's table does not, so a caller interns it before it keeps it
+// (internedObject(), below).
 export function isBoardObject(value: unknown): value is BoardObject {
   if (!isObject(value)) return false;
   const keys = Object.keys(value);
   const [kind] = keys;
   if (keys.length !== 1 || kind === undefined || !(KINDS as readonly string[]).includes(kind)) return false;
   const id = value[kind];
+  if (kind === "plugin") return isIdRecord(id);
   return typeof id === "string" && id !== "";
+}
+
+// The board object with the id of a plugin's class as core's table holds it,
+// so that === compares it with the ids that core holds, or the board object
+// itself where it names no plugin or names one by such an id already.
+export function internedObject<T extends BoardObject>(object: T): T {
+  if (!("plugin" in object)) return object;
+  const id = internedRecord(object.plugin);
+  return id === object.plugin ? object : { ...object, plugin: id };
 }
 
 // Whether the board holds the board object: a block, a link or a stack that
 // it holds, a board option whose value it holds, and a plugin that the app
 // runs, as the plugins given name each by the id of its class.
-export function holdsObject(board: Board, object: BoardObject, plugins: Readonly<Record<PluginClassId, unknown>>): boolean {
+export function holdsObject(board: Board, object: BoardObject, plugins: ReadonlyMap<PluginClassId, unknown>): boolean {
   if ("block" in object) return Object.hasOwn(board.blocks, object.block);
   if ("link" in object) return Object.hasOwn(board.links, object.link);
   if ("stack" in object) return Object.hasOwn(board.stacks, object.stack);
   if ("option" in object) return Object.hasOwn(board.options, object.option);
-  return Object.hasOwn(plugins, object.plugin);
+  return plugins.has(internedRecord(object.plugin));
 }
 
 // A notification that a package's module gives, checked, since a module in

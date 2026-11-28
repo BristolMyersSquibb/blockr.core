@@ -2,6 +2,13 @@
 # ends, so that a test can declare for packages of its own
 local_declared <- function(env, frame = parent.frame()) {
 
+  # The block registry holds its classes in environments of its own.
+  # Linting skips the call of local_block_registry(), a helper of another
+  # file, which lintr does not see.
+  if (identical(env, block_registry)) {
+    return(local_block_registry(frame)) # nolint: object_usage_linter.
+  }
+
   old <- as.list(env, all.names = TRUE)
 
   withr::defer(

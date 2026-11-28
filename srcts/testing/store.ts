@@ -5,14 +5,13 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Fixture, HelloReply } from "../protocol/index.ts";
+import type { Fixture, HelloReply, PluginEntry } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
-import type { OptionId, PluginClassId } from "../types/board.ts";
+import type { JsonPlugin, OptionId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { packageFromId } from "../util/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -69,11 +68,17 @@ export async function openedStore(setup?: (store: Store) => void, replied: Hello
 
 // R's reply to `hello` without the app's plugins of the classes given, as for
 // an app whose rows leave them out, or where another plugin takes their place.
-export function withoutPlugins(replied: HelloReply, ...classes: readonly PluginClassId[]): HelloReply {
+export function withoutPlugins(replied: HelloReply, ...classes: readonly ClassName[]): HelloReply {
   return {
     ...replied,
-    plugins: Object.fromEntries(Object.entries(replied.plugins).filter(([id]) => !classes.includes(id))),
+    plugins: replied.plugins.filter((entry) => !classes.some((cls) => cls.package === entry.package && cls.id === entry.id)),
   };
+}
+
+// A plugin class by its package and its id, as a test names one.
+interface ClassName {
+  readonly package: string;
+  readonly id: string;
 }
 
 // A plugin that withPlugins() has the app run: its class's name, the state
@@ -87,9 +92,9 @@ export interface GivenPlugin {
 }
 
 // Where R serves the module of the plugin class with the id given, as the
-// reply of withPlugins() names it, as "blockr.dag/blockr.dag-dag_plugin.js".
-export function pluginUrl(cls: PluginClassId): string {
-  return `${packageFromId(cls) ?? "app"}/${cls}.js`;
+// reply of withPlugins() names it, as "blockr.dag/dag_plugin.js".
+export function pluginUrl(cls: ClassName): string {
+  return `${cls.package}/${cls.id}.js`;
 }
 
 // Where R serves the module of the board option with the id given, which the
@@ -120,42 +125,49 @@ export function withOptions(
 }
 
 // R's reply to `hello`, that of the fixture hello unless given, whose app runs
-// the plugins given too, after its own, each under the id of its class, with
-// an opening board that holds the state given of each, as an app script's
-// board would, and with the versions given of their classes, which the
-// reply's plugins carry and the board records beside each state, 1 for a
-// class that they leave out. R serves the module of each class at pluginUrl().
+// the plugins given too, by the package and then by the id of each one's
+// class, after its own, where the reply names no plugin of the class, and in
+// that plugin's place otherwise, with an opening board that holds the state
+// given of each, as an app script's board would, and with the versions given
+// of their classes, by package and id as well, which the reply's plugins carry
+// and the board records beside each state, 1 for a class that they leave out.
+// R serves the module of each class at pluginUrl().
 export function withPlugins(
-  plugins: Readonly<Record<PluginClassId, GivenPlugin>>,
+  plugins: Readonly<Record<string, Readonly<Record<string, GivenPlugin>>>>,
   replied: HelloReply = hello,
-  versions: Readonly<Record<PluginClassId, number>> = {},
+  versions: Readonly<Record<string, Readonly<Record<string, number>>>> = {},
 ): HelloReply {
-  const version = (cls: PluginClassId): number => versions[cls] ?? 1;
-  const held = Object.entries(plugins).flatMap(([cls, given]) =>
-    given.state === undefined ? [] : [[cls, { state: given.state, version: version(cls) }] as const],
+  const given = Object.entries(plugins).flatMap(([pkg, byId]) =>
+    Object.entries(byId).map(([id, plugin]) => ({ cls: { package: pkg, id }, plugin })),
   );
+  const version = (cls: ClassName): number => versions[cls.package]?.[cls.id] ?? 1;
+  const entry = ({ cls, plugin }: (typeof given)[number]): PluginEntry => ({
+    package: cls.package,
+    id: cls.id,
+    name: plugin.name,
+    version: version(cls),
+    ...(plugin.options === undefined ? {} : { options: [...plugin.options] }),
+    module: pluginUrl(cls),
+  });
+  const same = (a: ClassName, b: ClassName): boolean => a.package === b.package && a.id === b.id;
+  const states: Record<string, Record<string, JsonPlugin>> = Object.fromEntries(
+    Object.entries(replied.board.board.plugins).map(([pkg, byId]) => [pkg, { ...byId }]),
+  );
+  for (const { cls, plugin } of given) {
+    if (plugin.state !== undefined) (states[cls.package] ??= {})[cls.id] = { state: plugin.state, version: version(cls) };
+  }
   return {
     ...replied,
-    plugins: {
-      ...replied.plugins,
-      ...Object.fromEntries(
-        Object.entries(plugins).map(([cls, given]) => [
-          cls,
-          {
-            name: given.name,
-            version: version(cls),
-            ...(given.options === undefined ? {} : { options: [...given.options] }),
-            module: pluginUrl(cls),
-          },
-        ]),
-      ),
-    },
+    plugins: [
+      ...replied.plugins.map((held) => {
+        const found = given.find(({ cls }) => same(cls, held));
+        return found === undefined ? held : entry(found);
+      }),
+      ...given.filter(({ cls }) => !replied.plugins.some((held) => same(cls, held))).map(entry),
+    ],
     board: {
       ...replied.board,
-      board: {
-        ...replied.board.board,
-        plugins: { ...replied.board.board.plugins, ...Object.fromEntries(held) },
-      },
+      board: { ...replied.board.board, plugins: states },
     },
   };
 }

@@ -1,4 +1,4 @@
-// Core's menu, the module blockr.core-board_action_menu, as React draws it on
+// Core's menu, the module board_action_menu of blockr.core, as React draws it on
 // the page, where core draws each menu with it: the menu of a target with the
 // icons, the details and the categories of its rows, the levels that it
 // shows in place of each other, a text row, the filter, a multi, the tick of
@@ -18,14 +18,23 @@ import { logged } from "../../testing/logged.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
+import { idText, interned } from "../../util/index.ts";
 import coreMenu from "./index.tsx";
 
-// A board action of blockr.test on blocks, labelled by its name.
+// A board action of blockr.test on blocks, labelled by its name,
+// with the package that core sets as it registers one.
 function action(name: string, more: Partial<BoardAction> = {}): BoardAction {
-  return { id: `blockr.test-${name.toLowerCase().replaceAll(" ", "_")}_action`, label: name, on: ["block"], category: "test", ...more };
+  return {
+    package: "blockr.test",
+    id: `${name.toLowerCase().replaceAll(" ", "_")}_action`,
+    label: name,
+    on: ["block"],
+    category: "test",
+    ...more,
+  };
 }
 
-const rename = (name: string): CommandCall[] => [{ id: "blockr.core-change_block", args: { id: "a", name } }];
+const rename = (name: string): CommandCall[] => [{ id: interned("blockr.core", "change_block"), args: { id: "a", name } }];
 
 const item = (label: string, more: Partial<Extract<QuickRow, { kind: "item" }>> = {}): QuickRow => ({
   kind: "item",
@@ -73,7 +82,7 @@ async function drawn(start: MenuStart) {
         hide();
       },
     });
-    hide = drawWith(coreMenu, CORE_MENU)(menu, { el: trigger, anchor: new DOMRect(10, 20, 0, 0) });
+    hide = drawWith(coreMenu, idText(CORE_MENU))(menu, { el: trigger, anchor: new DOMRect(10, 20, 0, 0) });
   });
   await settle();
   if (menu === undefined) throw new Error("The menu did not open.");

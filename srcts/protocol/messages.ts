@@ -2,7 +2,7 @@
 // inst/protocol/README.md gives them, which the fixtures in
 // inst/protocol/fixtures are checked against.
 
-import type { BlockId, JsonBoard, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
+import type { BlockId, JsonBoard, OptionId, PluginClassId, RegistryId, RendererId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -86,15 +86,20 @@ export interface HelloReply {
   // The version of each package that R has loaded and the client needs to know
   // of.
   packages: Record<string, string>;
-  block_registry: Record<RegistryId, RegistryEntry>;
+  // The block registry's entries, each with the package and the id of its
+  // class, in R's order.
+  block_registry: RegistryEntry[];
   // Where each module that the loaded packages offer each other's UIs is
-  // served, by the module's id, as "blockr.core-controls", which
-  // `host.module()` and `CoreApi.module()` load.
-  modules: Record<string, { module: string; css?: string }>;
+  // served, by the module's package and then by its id within the package, as
+  // { "blockr.core": { controls: { module: "…" } } }, which `host.module()`
+  // and `CoreApi.module()` load.
+  modules: Record<string, Record<string, { module: string; css?: string }>>;
   // The app's plugins, which run on every board that the app opens, each
-  // under the id of its class, in the order of the rows that `serve()` takes,
-  // and none for a block that `serve()` serves alone.
-  plugins: Record<PluginClassId, PluginEntry>;
+  // with the package and the id of its class, in the order of the rows that
+  // `serve()` takes, and none for a block that `serve()` serves alone.
+  // A list rather than a map by package keeps that order, by which core
+  // orders the board actions of the packages in menus.
+  plugins: PluginEntry[];
   // What the app's frontend reads of the arguments that `serve()` hands it,
   // by name, as the method of R's `frontend_args()` for the frontend's class
   // returns them, which core passes to the frontend's render() in `args`. It
@@ -115,14 +120,17 @@ export interface HelloReply {
   bound?: string[];
 }
 
-// One of the app's plugins, under the id of its class in the reply to `hello`:
-// the name of its class, which titles its panel, as "Document", the version
+// One of the app's plugins in the reply to `hello`: the package and the id of
+// its class, the name of its class, which titles its panel, as "Document", the
+// version
 // of its class's state, which the class's method of R's `plugin_version()`
 // gives, 1 for a class without one, the ids of the board options that its
 // plugin reads, which the class's method of R's `plugin_options()` names, and
 // where R serves the module of its class, whose default export is the class's
 // PluginClass without its id.
 export interface PluginEntry {
+  package: string;
+  id: string;
   name: string;
   version: number;
   options?: OptionId[];
@@ -283,8 +291,9 @@ export interface BoardOptionRequest extends Traced {
 
 // A plugin's request, which R finds among the requests that
 // plugin_requests() returns for the plugin's class. It names the class by the
-// class's id, as "blockr.md-md_plugin", since R holds no board. R calls the
-// request's function with its args by name, and with the results it reads.
+// class's package and id, as { package: "blockr.md", id: "md_plugin" }, since R
+// holds no board. R calls the request's function with its args by name, and
+// with the results it reads.
 export interface PluginRequest extends Traced {
   id: string;
   kind: "request";
@@ -327,8 +336,8 @@ export interface RendererRequest extends Traced {
   id: string;
   kind: "request";
   type: "renderer";
-  // The renderer's id.
-  renderer: string;
+  // The renderer's package and id.
+  renderer: RendererId;
   output: BlockRevision;
   name: string;
   args: Record<string, Json>;

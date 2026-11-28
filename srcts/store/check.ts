@@ -13,7 +13,7 @@
 import { createGraph } from "../graph/index.ts";
 import type { Board, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { compile, isObject, own, quoted } from "../util/index.ts";
+import { compile, idText, interned, internedRecord, isIdRecord, isObject, isPackageName, own, quoted } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Changed } from "./commit.ts";
 import { isId } from "./ids.ts";
@@ -38,7 +38,7 @@ const validators = new WeakMap<RegistryEntry, Validate>();
 export function stateFailures(entry: RegistryEntry, state: unknown): readonly string[] {
   let validate = validators.get(entry);
   if (validate === undefined) {
-    validate = compile(`the state of the block class "${entry.id}"`, entry.schema);
+    validate = compile(`the state of the block class "${idText(entry)}"`, entry.schema);
     validators.set(entry, validate);
   }
   return validate(state);
@@ -46,7 +46,7 @@ export function stateFailures(entry: RegistryEntry, state: unknown): readonly st
 
 export function check(
   board: Board,
-  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  registry: ReadonlyMap<RegistryId, RegistryEntry>,
   registrations: Registrations,
   changed?: Changed,
 ): string[] {
@@ -80,7 +80,7 @@ function ids(
 
 function checkBlocks(
   board: Board,
-  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  registry: ReadonlyMap<RegistryId, RegistryEntry>,
   registrations: Registrations,
   changed: Changed | undefined,
   failures: string[],
@@ -90,7 +90,7 @@ function checkBlocks(
   for (const [id, block] of Object.entries(board.blocks)) {
     if (changed !== undefined && !changed.blocks.has(id)) continue;
     const fields = shape(block, {
-      registry_id: "string",
+      registry_id: "registry id",
       state: "object",
       name: "string",
       locked: "boolean or null",
@@ -99,10 +99,10 @@ function checkBlocks(
       failures.push(`The block "${id}" ${fields.join(", ")}.`);
       continue;
     }
-    const entry = own(registry, block.registry_id);
+    const entry = registry.get(internedRecord(block.registry_id));
     if (entry === undefined) {
       failures.push(
-        `The block "${id}" is of the class "${block.registry_id}", which the block registry lacks.`,
+        `The block "${id}" is of the class "${idText(block.registry_id)}", which the block registry lacks.`,
       );
       continue;
     }
@@ -114,7 +114,7 @@ function checkBlocks(
 
 function checkLinks(
   board: Board,
-  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  registry: ReadonlyMap<RegistryId, RegistryEntry>,
   changed: Changed | undefined,
   failures: string[],
 ): void {
@@ -141,7 +141,7 @@ function checkLinks(
       continue;
     }
 
-    const inputs = own(registry, to.registry_id)?.inputs;
+    const inputs = isIdRecord(to.registry_id, true) ? registry.get(internedRecord(to.registry_id))?.inputs : undefined;
     if (inputs === undefined || inputs.includes("...")) continue;
     if (!inputs.includes(link.input)) {
       failures.push(
@@ -224,34 +224,45 @@ function checkValues(
 }
 
 // The state of each plugin that a patch changed, or of every one as the board
-// opens, under the id of the plugin's class: the class, which a package has to
-// register and which has to keep state, so that registration holds a validator
-// of its state, and the state against the schema of the class's state, as a
-// whole.
+// opens, under the package and the id of the plugin's class: the class, which
+// a package has to register and which has to keep state, so that registration
+// holds a validator of its state, and the state against the schema of the
+// class's state, as a whole.
 function checkPlugins(
   board: Board,
   registrations: Registrations,
   changed: Changed | undefined,
   failures: string[],
 ): void {
-  for (const [id, state] of Object.entries(board.plugins)) {
-    if (changed !== undefined && !changed.plugins.has(id)) continue;
-    const cls = registrations.plugin(id);
-    if (cls === undefined) {
-      failures.push(`The board holds the state of a plugin of the class "${id}", which no package registered.`);
+  for (const [pkg, byId] of Object.entries(board.plugins)) {
+    if (!isPackageName(pkg) || !isObject(byId)) {
+      failures.push(`The board holds the state of plugins under "${pkg}", where it holds an object by the ids of the classes of a package.`);
       continue;
     }
-    if (cls.validate === undefined) {
-      failures.push(`The board holds the state of a plugin of the class "${id}", which keeps none.`);
-      continue;
-    }
-    for (const failure of cls.validate(state)) {
-      failures.push(`The state of the plugin "${id}" ${failure}`);
+    for (const [cls, state] of Object.entries(byId)) {
+      if (cls === "") {
+        failures.push(`The board holds the state of a plugin of ${pkg} under an empty id.`);
+        continue;
+      }
+      const id = interned(pkg, cls);
+      if (changed !== undefined && !changed.plugins.has(id)) continue;
+      const registered = registrations.plugin(id);
+      if (registered === undefined) {
+        failures.push(`The board holds the state of a plugin of the class "${idText(id)}", which no package registered.`);
+        continue;
+      }
+      if (registered.validate === undefined) {
+        failures.push(`The board holds the state of a plugin of the class "${idText(id)}", which keeps none.`);
+        continue;
+      }
+      for (const failure of registered.validate(state)) {
+        failures.push(`The state of the plugin "${idText(id)}" ${failure}`);
+      }
     }
   }
 }
 
-type Kind = "string" | "string or null" | "boolean or null" | "object" | "array";
+type Kind = "string" | "string or null" | "boolean or null" | "object" | "array" | "registry id";
 
 // What an object of core's lacks or holds beyond its properties, which a
 // delta built in plain JS or by a model may get wrong.
@@ -279,5 +290,7 @@ function fits(x: unknown, kind: Kind): boolean {
       return x === null || typeof x === "boolean";
     case "string":
       return typeof x === "string";
+    case "registry id":
+      return isIdRecord(x, true);
   }
 }

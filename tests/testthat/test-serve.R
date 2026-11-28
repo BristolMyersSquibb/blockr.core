@@ -41,7 +41,7 @@ test_that("serve() registers the board's classes from their registrations", {
   local_declared(block_registry)
 
   # So that core's listing gives the static block's class
-  unregister_blocks("blockr.core-static_block")
+  unregister_blocks(pkg_id("blockr.core", "static_block"))
 
   cls <- test_block_class(
     "note_block",
@@ -68,36 +68,45 @@ test_that("serve() registers the board's classes from their registrations", {
 
   register_block(block_constructor(cls), "Note", "A note")
 
-  ids <- c("note_block", "blockr.core-static_block")
-  head <- get_registry_entry("blockr.core-head_block")
+  labels <- c("note_block", "static_block of blockr.core")
+  head <- get_registry_entry(core_head_id())
   rows <- core_block_rows()
 
   app <- serve(board, blocks = rows[rows[["id"]] == "head_block", ])
   registry <- served_registry(app)
 
-  # Each under the id that its class gives, so that a class from a package
-  # keeps its package's id, with the metadata that its registration gives,
+  # Each under the registry id that its class gives, so that a class from a
+  # package keeps its package, with the metadata that its registration gives,
   # in the app's block registry alone
-  expect_setequal(ls(registry), c(ids, "blockr.core-head_block"))
-  expect_false("blockr.core-static_block" %in% list_blocks())
-  expect_identical(get_registry_entry("note_block", registry)$name, "Note")
+  expect_setequal(
+    ref_labels(registry_entries(registry)),
+    c(labels, "head_block of blockr.core")
+  )
+  expect_false(lists_block("static_block", "blockr.core"))
+  expect_identical(
+    get_registry_entry(pkg_id(NULL, "note_block"), registry)$name,
+    "Note"
+  )
 
-  static <- get_registry_entry("blockr.core-static_block", registry)
+  static <- get_registry_entry(pkg_id("blockr.core", "static_block"), registry)
 
   expect_identical(static$block_class$package, "blockr.core")
   expect_identical(static$name, "static block")
   expect_identical(static$description, "Evaluate an R expression")
 
   # A class that the block registry holds keeps its entry
-  expect_identical(get_registry_entry("blockr.core-head_block", registry), head)
+  expect_identical(get_registry_entry(core_head_id(), registry), head)
 
   # The reply to `hello` sends each of them, so that the client offers the
   # static block too, by the name that its registration gives
   reply <- served_replies(app, hello_message())[[1L]]
 
-  expect_setequal(names(reply$block_registry), ls(registry))
   expect_identical(
-    reply$block_registry[["blockr.core-static_block"]]$name,
+    ref_labels(reply$block_registry),
+    ref_labels(registry_entries(registry))
+  )
+  expect_identical(
+    reply_entry(reply$block_registry, "static_block", "blockr.core")$name,
     "static block"
   )
 })
@@ -109,8 +118,8 @@ test_that("serve() builds the app's block registry of the classes it offers", {
 
   # Every available class by default, beside the classes of the board
   expect_contains(
-    ls(served_registry(serve(served_board()))),
-    c("blockr.core-merge_block", "blockr.core-csv_block")
+    ref_labels(registry_entries(served_registry(serve(served_board())))),
+    c("merge_block of blockr.core", "csv_block of blockr.core")
   )
 
   # The methods for a board and for a path take the classes that the app
@@ -127,8 +136,10 @@ test_that("serve() builds the app's block registry of the classes it offers", {
       serve(x, blocks = rows[rows[["id"]] == "csv_block", ])
     )
 
-    expect_contains(ls(registry), "blockr.core-csv_block")
-    expect_false("blockr.core-merge_block" %in% ls(registry))
+    held <- ref_labels(registry_entries(registry))
+
+    expect_contains(held, "csv_block of blockr.core")
+    expect_false("merge_block of blockr.core" %in% held)
 
     expect_error(
       serve(x, blocks = absent),
@@ -138,7 +149,7 @@ test_that("serve() builds the app's block registry of the classes it offers", {
   }
 
   # The block registry of the process holds none of the apps' classes
-  expect_length(list_blocks(), 0L)
+  expect_identical(nrow(list_blocks()), 0L)
 })
 
 test_that("an app's sessions read the block registry that serve() built", {
@@ -164,12 +175,12 @@ test_that("an app's sessions read the block registry that serve() built", {
   )
 
   expect_setequal(
-    names(served_replies(app, hello_message())[[1L]]$block_registry),
-    paste0("blockr.core-", rows[["id"]])
+    ref_labels(served_replies(app, hello_message())[[1L]]$block_registry),
+    paste(rows[["id"]], "of blockr.core")
   )
-  expect_setequal(
-    names(served_replies(later, hello_message())[[1L]]$block_registry),
-    c("blockr.core-dataset_block", "blockr.core-head_block", "note_block")
+  expect_identical(
+    ref_labels(served_replies(later, hello_message())[[1L]]$block_registry),
+    c("dataset_block of blockr.core", "head_block of blockr.core", "note_block")
   )
 
   # The app evaluates its blocks, answers their requests and makes their
@@ -182,7 +193,7 @@ test_that("an app's sessions read the block registry that serve() built", {
       evaluate_request("2", "a", 1L, sample_recipe("a")),
       list(
         id = "3", kind = "request", type = "block_class",
-        registry_id = "blockr.core-head_block", block = "b", name = "n_max",
+        registry_id = core_head_id(), block = "b", name = "n_max",
         args = obj(), reads = list(recipe_input("a", 1L, "data"))
       ),
       output_request("4", "a", 1L, params = list(page_size = 5L))
@@ -269,7 +280,7 @@ test_that("blocks and plugins read their rows alike, and plugins no file", {
 test_that("serve() registers the class of a block that it serves alone", {
 
   local_declared(block_registry)
-  unregister_blocks("blockr.core-static_block")
+  unregister_blocks(pkg_id("blockr.core", "static_block"))
   register_block(new_class_head_block, "Head", "First rows")
 
   app <- serve(new_static_block("datasets::BOD"))
@@ -277,10 +288,13 @@ test_that("serve() registers the class of a block that it serves alone", {
 
   # The block's class alone, whatever the script registered, from the listing
   # of its package, and in the block registry of the process none
-  expect_identical(ls(registry), "blockr.core-static_block")
-  expect_false("blockr.core-static_block" %in% list_blocks())
   expect_identical(
-    get_registry_entry("blockr.core-static_block", registry)$name,
+    registry_rows(registry),
+    data.frame(package = "blockr.core", id = "static_block")
+  )
+  expect_false(lists_block("static_block", "blockr.core"))
+  expect_identical(
+    get_registry_entry(pkg_id("blockr.core", "static_block"), registry)$name,
     "static block"
   )
 
@@ -319,9 +333,11 @@ test_that("serve() replaces a class from outside a package that differs", {
 
   registry <- served_registry(serve(new_board(c(a = block_constructor(new)()))))
 
-  expect_identical(get_registry_entry("note_block", registry)$block_class, new)
-  expect_identical(get_registry_entry("note_block", registry)$name, "Note")
-  expect_identical(get_registry_entry("note_block")$block_class, old)
+  note <- pkg_id(NULL, "note_block")
+
+  expect_identical(get_registry_entry(note, registry)$block_class, new)
+  expect_identical(get_registry_entry(note, registry)$name, "Note")
+  expect_identical(get_registry_entry(note)$block_class, old)
 
   # A class from a package keeps the entry under its id, which the script
   # registered
@@ -331,10 +347,9 @@ test_that("serve() replaces a class from outside a package that differs", {
   other <- block_constructor(note_class(TRUE, "blockr.core"))
   registry <- served_registry(serve(new_board(c(a = other()))))
 
-  expect_identical(
-    get_registry_entry("blockr.core-note_block", registry)$block_class,
-    held
-  )
+  note <- pkg_id("blockr.core", "note_block")
+
+  expect_identical(get_registry_entry(note, registry)$block_class, held)
 
   # And one that its package lists among the classes that the app offers
   local_load_all_package()
@@ -354,8 +369,10 @@ test_that("serve() replaces a class from outside a package that differs", {
     )
   )
 
+  probe <- pkg_id("regprobe", "probe_block")
+
   expect_identical(
-    get_registry_entry("regprobe-probe_block", registry)$block_class,
+    get_registry_entry(probe, registry)$block_class,
     get("probe_block", envir = asNamespace("regprobe"))
   )
 })
@@ -424,7 +441,7 @@ test_that("core's basic frontend takes no argument, and reads nothing", {
   expect_error(
     serve(board, navbar = default_navbar()),
     paste0(
-      "The app's frontend, blockr.core-basic_frontend_plugin, takes no ",
+      "The app's frontend, basic_frontend_plugin of blockr.core, takes no ",
       "argument of `serve()`, and was given `navbar`."
     ),
     fixed = TRUE,
@@ -437,7 +454,7 @@ test_that("core's basic frontend takes no argument, and reads nothing", {
   expect_error(
     serve(board, "my_board"),
     paste0(
-      "The app's frontend, blockr.core-basic_frontend_plugin, takes no ",
+      "The app's frontend, basic_frontend_plugin of blockr.core, takes no ",
       "argument of `serve()`, and was given an unnamed argument."
     ),
     fixed = TRUE,
@@ -500,8 +517,8 @@ test_that("serve() refuses what a frontend's method returns but a list", {
       serve(board),
       paste0(
         "The method of `frontend_args()` for the frontend ",
-        "blockr.test-sheet_plugin returns no list by name, which R writes as ",
-        "a JSON object."
+        "sheet_plugin of blockr.test returns no list by name, which R writes ",
+        "as a JSON object."
       ),
       fixed = TRUE,
       class = "frontend_args_invalid"
@@ -520,7 +537,7 @@ test_that("serve() refuses what a frontend's method returns but a list", {
     serve(board),
     paste0(
       "The method of `frontend_args()` for the frontend ",
-      "blockr.test-sheet_plugin returns a list that R cannot write as JSON"
+      "sheet_plugin of blockr.test returns a list that R cannot write as JSON"
     ),
     fixed = TRUE,
     class = "frontend_args_invalid"
@@ -530,24 +547,30 @@ test_that("serve() refuses what a frontend's method returns but a list", {
 test_that("serve() sends the app's plugins in its reply to hello", {
 
   core <- list(
-    `blockr.core-basic_frontend_plugin` = list(
+    list(
+      package = "blockr.core",
+      id = "basic_frontend_plugin",
       name = "Basic frontend",
       version = 1L
     ),
-    `blockr.core-file_storage_plugin` = list(
+    list(
+      package = "blockr.core",
+      id = "file_storage_plugin",
       name = "File storage",
       version = 1L
     ),
-    `blockr.core-edit_board_plugin` = list(
+    list(
+      package = "blockr.core",
+      id = "edit_board_plugin",
       name = "Edit board",
       version = 1L
     )
   )
 
-  # The name and version of each plugin's class, beside where R serves the
-  # class's module
+  # The package, the id, the name and the version of each plugin's class, in
+  # the order of the rows, beside where R serves the class's module
   named <- function(plugins) {
-    lapply(plugins, function(x) x[c("name", "version")])
+    lapply(plugins, function(x) x[c("package", "id", "name", "version")])
   }
 
   # By default, the app runs every plugin class that an available package
@@ -555,7 +578,7 @@ test_that("serve() sends the app's plugins in its reply to hello", {
   reply <- served_replies(serve(served_board()), hello_message())[[1L]]
 
   expect_match(
-    reply$plugins[["blockr.core-basic_frontend_plugin"]]$module,
+    app_plugin(reply$plugins, "blockr.core", "basic_frontend_plugin")$module,
     "^blockr.core/js/basic.js\\?v=[0-9a-f]{8}$"
   )
 
@@ -586,7 +609,7 @@ test_that("serve() sends the app's plugins in its reply to hello", {
     hello_message()
   )[[1L]]
 
-  expect_identical(reply$plugins, set_names(list(), character()))
+  expect_identical(reply$plugins, list())
 
   # Rows that R refuses stop the app as serve() is called
   expect_error(
@@ -610,21 +633,20 @@ test_that("serve() refuses a board with a plugin that the app does not run", {
   # The app runs the plugin by default, as the available packages list it
   reply <- served_replies(serve(board), hello_message())[[1L]]
 
-  expect_named(
-    reply$plugins,
+  expect_identical(
+    ref_labels(reply$plugins),
     c(
-      "blockr.core-basic_frontend_plugin",
-      "blockr.core-file_storage_plugin",
-      "blockr.core-edit_board_plugin",
-      "blockr.test-notes_plugin"
+      "basic_frontend_plugin of blockr.core",
+      "file_storage_plugin of blockr.core",
+      "edit_board_plugin of blockr.core",
+      "notes_plugin of blockr.test"
     )
   )
   expect_identical(
     reply$board$board$plugins,
     list(
-      `blockr.test-notes_plugin` = list(
-        state = list(text = "To do"),
-        version = 1L
+      blockr.test = list(
+        notes_plugin = list(state = list(text = "To do"), version = 1L)
       )
     )
   )
@@ -634,7 +656,7 @@ test_that("serve() refuses a board with a plugin that the app does not run", {
       board,
       plugins = subset(available_plugins(), package != "blockr.test")
     ),
-    "blockr.test-notes_plugin, which the app does not run",
+    "notes_plugin of blockr.test, which the app does not run",
     class = "board_plugins_invalid"
   )
 })
@@ -662,7 +684,9 @@ test_that("serve() reads the opening board for the locks as it is called", {
     obj(
       id = "older",
       name = "Older",
-      blocks = obj(a = proto_block("blockr.foo-bar_block", obj(), "Bar")),
+      blocks = obj(
+        a = proto_block(pkg_id("blockr.foo", "bar_block"), obj(), "Bar")
+      ),
       links = obj(),
       stacks = obj(),
       options = obj(),
@@ -696,7 +720,7 @@ test_that("serve() reads the opening board for the locks as it is called", {
           "a",
           1L,
           list(
-            registry_id = "blockr.core-dataset_block",
+            registry_id = pkg_id("blockr.core", "dataset_block"),
             state = list(dataset = "iris", package = "datasets"),
             inputs = list()
           )
@@ -742,7 +766,7 @@ test_that("serve() serves a block alone, binding its data by input", {
   blocks <- reply$board$board$blocks
 
   expect_length(blocks, 1L)
-  expect_identical(blocks[[1L]]$registry_id, "blockr.core-head_block")
+  expect_identical(blocks[[1L]]$registry_id, core_head_id())
   expect_identical(blocks[[1L]]$name, "Head")
   expect_identical(reply$bound, "data")
 
@@ -757,7 +781,7 @@ test_that("serve() serves a block alone, binding its data by input", {
         names(blocks),
         1L,
         list(
-          registry_id = "blockr.core-head_block",
+          registry_id = core_head_id(),
           state = list(n = 3L, direction = "head"),
           inputs = list(list(input = "data"))
         )
@@ -1083,7 +1107,7 @@ test_that("serve() refuses what a frontend's theme method returns but one", {
       serve(x),
       paste0(
         "The method of `frontend_theme()` for the frontend ",
-        "blockr.test-sheet_plugin returns an object of class list, where a ",
+        "sheet_plugin of blockr.test returns an object of class list, where a ",
         "theme is expected, as `blockr.ui::new_blockr_theme()` makes it."
       ),
       fixed = TRUE,
@@ -1250,7 +1274,7 @@ test_that("serve() refuses a font of a theme that it cannot serve", {
   expect_error(
     serve(local_board_path()),
     paste0(
-      "The theme of the frontend blockr.test-sheet_plugin gives the font ",
+      "The theme of the frontend sheet_plugin of blockr.test gives the font ",
       "Ui Sans the file \"", missing, "\", which does not exist."
     ),
     fixed = TRUE,
@@ -1290,24 +1314,43 @@ test_that("the page imports the module that board_action_menu names", {
   # Core's own menu, unless the app names another module
   expect_true("js/board-action-menu.js" %in% paths())
 
-  withr::local_options(blockr.board_action_menu = "blockr.core-controls")
+  controls <- list(package = "blockr.core", id = "controls")
+
+  withr::local_options(blockr.board_action_menu = controls)
   expect_true("js/blockr-core-controls.js" %in% paths())
   expect_false("js/board-action-menu.js" %in% paths())
 
+  # An environment variable names the module by the JSON of its package and
+  # its id
+  json <- '{"package": "blockr.core", "id": "controls"}'
+
+  withr::with_options(
+    list(blockr.board_action_menu = NULL),
+    withr::with_envvar(
+      c(BLOCKR_BOARD_ACTION_MENU = json),
+      expect_true("js/blockr-core-controls.js" %in% paths())
+    )
+  )
+
   # The client says why it opens no board where no package offers the module,
-  # or where the option holds no ID
-  withr::local_options(blockr.board_action_menu = "mykit-menu")
+  # or where the option names no package and id, as one id alone does
+  withr::local_options(
+    blockr.board_action_menu = list(package = "mykit", id = "menu")
+  )
   expect_false("js/board-action-menu.js" %in% paths())
 
-  withr::local_options(blockr.board_action_menu = 3)
-  expect_false("js/board-action-menu.js" %in% paths())
+  for (bad in list(3, "controls", list(id = "controls"))) {
+    withr::local_options(blockr.board_action_menu = bad)
+    expect_false("js/board-action-menu.js" %in% paths())
+    expect_false("js/blockr-core-controls.js" %in% paths())
+  }
 
   # Set twice, as an R option and as an environment variable
-  withr::local_options(
-    blockr.board_action_menu = "blockr.core-board_action_menu"
+  withr::local_options(blockr.board_action_menu = controls)
+  withr::local_envvar(
+    BLOCKR_BOARD_ACTION_MENU = '{"package": "mykit", "id": "menu"}'
   )
-  withr::local_envvar(BLOCKR_BOARD_ACTION_MENU = "mykit-menu")
-  expect_false("js/board-action-menu.js" %in% paths())
+  expect_false("js/blockr-core-controls.js" %in% paths())
 })
 
 test_that("an app holds the output families that serve() read", {
@@ -1341,9 +1384,9 @@ test_that("an app holds the output families that serve() read", {
   reply <- served_replies(app, hello_message())[[1L]]
 
   expect_identical(
-    chr_xtr(reply$block_registry[["any_block"]]$renderers, "id"),
-    c("blockr.core-table_output", "blockr.core-text_output",
-      "blockr.core-plot_output", "famprobe-probe_output")
+    ref_labels(reply_entry(reply$block_registry, "any_block")$renderers),
+    c("table_output of blockr.core", "text_output of blockr.core",
+      "plot_output of blockr.core", "probe_output of famprobe")
   )
 
   # The page imports the renderers of the families that it is given
@@ -1511,7 +1554,7 @@ test_that("a plugin's board option that no package lists stops the app", {
   expect_error(
     serve(served_board()),
     paste(
-      "The plugin of class blockr.test-needy_plugin reads the board option",
+      "The plugin of class needy_plugin of blockr.test reads the board option",
       "nowhere, which no available package lists."
     ),
     fixed = TRUE,
@@ -1555,8 +1598,8 @@ test_that("serve() warns of a key of `renderers` that names no family", {
   # anyway
   expect_s3_class(app, "shiny.appobj")
   expect_identical(
-    family_renderers(table_output)[["table_output"]]$id,
-    "blockr.core-table_output"
+    renderer_id(family_renderers(table_output)[["table_output"]]),
+    list(package = "blockr.core", id = "table_output")
   )
 
   # A family that a block class of the app reaches counts, though no package

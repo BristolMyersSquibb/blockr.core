@@ -29,7 +29,7 @@ import { useBoard } from "../../react/index.ts";
 import type { BlockId, Board } from "../../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../../types/core-api.ts";
 import { classes, Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
-import { own } from "../../util/index.ts";
+import { idText } from "../../util/index.ts";
 import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
 import { useMenus } from "./menus.tsx";
 
@@ -102,6 +102,6 @@ function blockRows(board: Board, registry: BlockRegistry): { readonly id: BlockI
   return Object.entries(board.blocks).map(([id, block]) => ({
     id,
     name: block.name,
-    cls: own(registry, block.registry_id)?.name ?? block.registry_id,
+    cls: registry.get(block.registry_id)?.name ?? idText(block.registry_id),
   }));
 }

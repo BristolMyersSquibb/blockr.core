@@ -59,3 +59,102 @@ pkg_avail <- function(...) {
   log_trace("checking availability of package{?s} {pkgs}")
   all(lgl_ply(pkgs, requireNamespace, quietly = TRUE))
 }
+
+# The id of what a package defines, such as a block class, a plugin class, a
+# renderer or a module that a package offers others.
+# It holds the package, or `NULL` for what an app script defines, and the id
+# within that package.
+# R writes it to the client as `{ "package": ..., "id": ... }`, with `null`
+# for no package, and reads it back as the same list.
+# A package of `NA` counts as none, as a row of `available_blocks()` gives it.
+pkg_id <- function(package, id) {
+
+  if (length(package) == 1L && is.na(package)) {
+    package <- NULL
+  }
+
+  list(package = package, id = id)
+}
+
+# Whether `x` is an id, a list of exactly a package and an id, in either
+# order, as R decodes one that the client sends.
+# The package is a non-empty string or `NULL`, and the id a non-empty string.
+is_pkg_id <- function(x) {
+  is.list(x) && !is.object(x) && length(x) == 2L &&
+    setequal(names(x), c("package", "id")) &&
+    (is.null(x[["package"]]) || is_nonempty_string(x[["package"]])) &&
+    is_nonempty_string(x[["id"]])
+}
+
+# Whether `x` and `y` name one thing: whether they hold the same package and
+# the same id, as an id does, and as an entry that holds `package` and `id`
+# does too.
+same_pkg_id <- function(x, y) {
+  identical(x[["package"]], y[["package"]]) && identical(x[["id"]], y[["id"]])
+}
+
+# How a message names what the id `x` names, as `head_block of blockr.core`,
+# or by its id alone for what an app script defines.
+# Anything else, such as a string where an id belongs, it names as it prints.
+pkg_id_label <- function(x) {
+
+  if (!is.list(x) || !is_string(x[["id"]])) {
+    return(paste(format(x), collapse = ", "))
+  }
+
+  if (is.null(x[["package"]])) {
+    return(x[["id"]])
+  }
+
+  paste(x[["id"]], "of", x[["package"]])
+}
+
+# How a message names what each row of the data frame `x` names, with its
+# package in `package` and its id in `id`, as `pkg_id_label()` names one.
+pkg_row_labels <- function(x) {
+
+  ids <- as.character(x[["id"]])
+  packages <- as.character(x[["package"]])
+
+  ifelse(is.na(packages), ids, paste(ids, "of", packages))
+}
+
+# The entry of the list `x` that the id `id` names, where each entry
+# holds a `package` and an `id`, or `NULL` where none does.
+find_pkg_id <- function(x, id) {
+
+  for (entry in x) {
+    if (same_pkg_id(entry, id)) {
+      return(entry)
+    }
+  }
+
+  NULL
+}
+
+# For each row of the data frame `x`, with a `package` and an `id`, the index
+# of the first entry of the list `table` that names the same, where each entry
+# holds a `package` and an `id`, or `NA` where none does.
+match_rows <- function(x, table) {
+  int_ply(
+    seq_len(nrow(x)),
+    function(i) {
+      id <- pkg_id(x[["package"]][i], x[["id"]][i])
+      hit <- which(lgl_ply(table, same_pkg_id, id))
+      if (length(hit)) hit[1L] else NA_integer_
+    }
+  )
+}
+
+# The entries of `x`, a list by package of lists by id, as one list, in the
+# order of their packages and, within each package, in their order there.
+flat_by_package <- function(x) {
+  unlst(lapply(unname(x), unname))
+}
+
+# Whether `x` is named as an R package is: letters, digits and dots, starting
+# with a letter and ending with no dot, at least two characters long.
+is_package_name <- function(x) {
+  is_string(x) && !is.na(x) &&
+    grepl("^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$", x)
+}

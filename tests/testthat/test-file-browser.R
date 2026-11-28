@@ -10,7 +10,7 @@ test_that("filebrowser block constructor", {
   expect_identical(block_state(blk), list(volumes = c(tmp = dirname(file))))
   expect_identical(
     registry_id_from_block(blk),
-    "blockr.core-filebrowser_block"
+    list(package = "blockr.core", id = "filebrowser_block")
   )
 
   vols <- filebrowser_volumes()

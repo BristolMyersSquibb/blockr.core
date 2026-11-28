@@ -19,7 +19,10 @@ test_that("fixed block constructor", {
   # Core lists the class, with the metadata that an app's block registry
   # gives it, and the class gives its registry id
   expect_true("fixed_block" %in% core_block_rows()[["id"]])
-  expect_identical(registry_id_from_block(blk), "blockr.core-fixed_block")
+  expect_identical(
+    registry_id_from_block(blk),
+    list(package = "blockr.core", id = "fixed_block")
+  )
 })
 
 test_that("a fixed block calls a function of its input", {

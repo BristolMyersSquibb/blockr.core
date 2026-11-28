@@ -55,7 +55,7 @@ import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { Button, ComboBox, Form, Select, SelectItem, TextField } from "@blockr/ui";
-import { freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
+import { CORE, freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../picker/index.ts";
 import { useBoard } from "../react/index.ts";
@@ -77,12 +77,12 @@ import {
   useSearch,
 } from "../ui/index.ts";
 import type { BlockItem, Done } from "../ui/index.ts";
-import { isObject, own } from "../util/index.ts";
+import { interned, isObject, own } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
 
-const ADD_LINK = "blockr.core-add_link";
-const CHANGE_LINK = "blockr.core-change_link";
+const ADD_LINK = interned(CORE, "add_link");
+const CHANGE_LINK = interned(CORE, "change_link");
 
 // What the form that adds a link starts from: its source, its target and the
 // input, each where given.

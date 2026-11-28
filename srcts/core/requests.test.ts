@@ -9,6 +9,7 @@ import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import { READY } from "../stubs/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { Plugin } from "../types/core-api.ts";
+import { interned } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
 import { handedOn } from "../testing/notifications.ts";
@@ -18,15 +19,15 @@ import { pluginRequest } from "./index.ts";
 type Sent = Parameters<Scheduler["request"]>[0];
 type Options = Parameters<Scheduler["request"]>[1];
 
-const CODE = "blockr.code-code_plugin";
-const DOCUMENT = "blockr.md-md_plugin";
+const CODE = interned("blockr.code", "code_plugin");
+const DOCUMENT = interned("blockr.md", "md_plugin");
 
 // The app's plugins that run: blockr.code's, and blockr.md's document, by the
 // ids of their classes.
-const APP_PLUGINS: Readonly<Record<PluginClassId, Plugin>> = {
-  [CODE]: { name: "Code" },
-  [DOCUMENT]: { name: "Document" },
-};
+const APP_PLUGINS: ReadonlyMap<PluginClassId, Plugin> = new Map<PluginClassId, Plugin>([
+  [CODE, { name: "Code" }],
+  [DOCUMENT, { name: "Document" }],
+]);
 
 // The plugins above, which run, and a scheduler that holds the blocks a and b
 // at the statuses given, has them evaluated as the test says, and replies to
@@ -74,7 +75,7 @@ describe("a plugin's request", () => {
       {
         kind: "request",
         type: "plugin",
-        plugin: "blockr.code-code_plugin",
+        plugin: { package: "blockr.code", id: "code_plugin" },
         name: "script",
         args: {},
         reads: [{ block: "a", revision: 1 }, { block: "b", revision: 3 }],
@@ -90,7 +91,7 @@ describe("a plugin's request", () => {
 
     expect(s.evaluated).toEqual([]);
     expect(s.sent).toEqual([
-      { kind: "request", type: "plugin", plugin: "blockr.md-md_plugin", name: "html", args: { content: "# Report" }, reads: [] },
+      { kind: "request", type: "plugin", plugin: { package: "blockr.md", id: "md_plugin" }, name: "html", args: { content: "# Report" }, reads: [] },
     ]);
     expect(s.options[0]?.body).toBe(file);
     expect(s.options[0]?.progress).toBeTypeOf("function");
@@ -121,7 +122,7 @@ describe("a plugin's request", () => {
     const s = setup([{ id: "1", status: "error", conditions: [condition] }, ok("done", [warning])]);
     const sent = pluginRequest(s.deps, CODE, "script", {}, {});
     await expect(sent).rejects.toMatchObject({ status: "error", conditions: [condition] });
-    await expect(sent).rejects.toThrow('R replied error to the request "script" of the plugin "blockr.code-code_plugin".');
+    await expect(sent).rejects.toThrow('R replied error to the request "script" of the plugin "code_plugin of blockr.code".');
     await pluginRequest(s.deps, CODE, "script", {}, {});
 
     expect(s.handed).toEqual([
@@ -168,23 +169,30 @@ describe("a plugin's request", () => {
   });
 
   test.each([
-    ["no plugin", "", "script", {}, {}, "names the plugin by the id of its class"],
+    ["no plugin", "", "script", {}, {}, 'names a plugin by the id of its class, as core.id("blockr.dag", "dag_plugin") gives it'],
     [
       "a plugin that the app does not run",
-      "blockr.dag-dag_plugin",
+      interned("blockr.dag", "dag_plugin"),
       "script",
       {},
       {},
-      'The app runs no plugin "blockr.dag-dag_plugin" on the open board, so its request did not go to R.',
+      'The app runs no plugin "dag_plugin of blockr.dag" on the open board, so its request did not go to R.',
     ],
-    ["a name in place of the id of the plugin's class", "code", "script", {}, {}, 'The app runs no plugin "code"'],
-    ["no name", CODE, "", {}, {}, 'A request of the plugin "blockr.code-code_plugin" is named by a non-empty string'],
+    [
+      "a name in place of the id of the plugin's class",
+      "code",
+      "script",
+      {},
+      {},
+      `A plugin's request names a plugin by the id of its class, as core.id("blockr.dag", "dag_plugin") gives it, not by "code".`,
+    ],
+    ["no name", CODE, "", {}, {}, 'A request of the plugin "code_plugin of blockr.code" is named by a non-empty string'],
     ["args that are no object", CODE, "script", [], {}, "are an object"],
     ["a block that the board lacks", CODE, "script", {}, { reads: ["z"] }, 'reads the block "z", which the board lacks'],
-    ["a notifier that is no function", CODE, "script", {}, { notifier: [] as never }, 'The `notifier` of the request "script" of the plugin "blockr.code-code_plugin" is a function.'],
+    ["a notifier that is no function", CODE, "script", {}, { notifier: [] as never }, 'The `notifier` of the request "script" of the plugin "code_plugin of blockr.code" is a function.'],
   ])("refuses %s", async (_, plugin, name, args, opts, message) => {
     const s = setup([]);
-    await expect(pluginRequest(s.deps, plugin, name, args as never, opts)).rejects.toThrow(message);
+    await expect(pluginRequest(s.deps, plugin as PluginClassId, name, args as never, opts)).rejects.toThrow(message);
     expect(s.sent).toEqual([]);
   });
 });

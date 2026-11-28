@@ -142,13 +142,16 @@ test_that("a package offers modules to other packages' UIs by name", {
 
   mods <- listed_modules("blockr.test")
 
-  expect_named(mods, c("blockr.test-filter", "blockr.test-picker"))
-  expect_identical(mods[["blockr.test-filter"]], test_module("js/filter.js"))
+  expect_named(mods, c("filter", "picker"))
+  expect_identical(mods[["filter"]], test_module("js/filter.js"))
 
+  # By package and then by name
   offered <- offered_modules()
 
   # Core offers its inputs to other packages' modules, beside blockr.test's
-  expect_true(all(c("blockr.core-controls", names(mods)) %in% names(offered)))
+  expect_true(all(c("blockr.core", "blockr.test") %in% names(offered)))
+  expect_true("controls" %in% names(offered[["blockr.core"]]))
+  expect_identical(offered[["blockr.test"]], mods)
 
   local_listing("blockr.none")
   expect_identical(listed_modules("blockr.none"), list())
@@ -156,7 +159,7 @@ test_that("a package offers modules to other packages' UIs by name", {
 
 test_that("core offers its inputs to other packages' modules without React", {
 
-  module <- offered_modules("blockr.core")[["blockr.core-controls"]]
+  module <- offered_modules("blockr.core")[["blockr.core"]][["controls"]]
 
   expect_identical(
     module,
@@ -422,6 +425,8 @@ test_that("R reads the schema that a module ships beside it", {
   expect_null(board_option_schema("no_such_option"))
 
   # Core's plugin classes keep no state, so they ship no schema
-  expect_null(plugin_class_schema("blockr.core-basic_frontend_plugin"))
-  expect_null(plugin_class_schema("blockr.none-none_plugin"))
+  expect_null(
+    plugin_class_schema(pkg_id("blockr.core", "basic_frontend_plugin"))
+  )
+  expect_null(plugin_class_schema(pkg_id("blockr.none", "none_plugin")))
 })

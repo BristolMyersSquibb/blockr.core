@@ -9,7 +9,7 @@
       "revision": 9,
       "locked": null,
       "recipe": {
-        "registry_id": "blockr.core-merge_block",
+        "registry_id": { "package": "blockr.core", "id": "merge_block" },
         "state": { "all_x": false, "all_y": false },
         "inputs": [
           { "input": "x", "block": "a", "revision": 2 },

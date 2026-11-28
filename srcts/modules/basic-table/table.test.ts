@@ -9,7 +9,7 @@ import { cellText, nextSort, pageText, paramsFor, retry, rowsText, sortedColumn,
 // holds `size` rows, by default one page of every row.
 function table(rows: number, total: number | null, page = 1, size = Math.max(rows, 1)): TableOutput {
   return {
-    renderer: { id: "blockr.core-table_output", module: "blockr.core/js/basic-table.js" },
+    renderer: { package: "blockr.core", id: "table_output", module: "blockr.core/js/basic-table.js" },
     columns: [{ name: "x", class: "integer" }],
     rows: Array.from({ length: rows }, (_, i) => [i]),
     total,

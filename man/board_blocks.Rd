@@ -52,7 +52,8 @@ board_name(x)
 Functions for retrieving components (\code{board_blocks()},
 \code{board_links()}, \code{board_stacks()} and \code{board_options()}) return objects of
 the corresponding classes \code{blocks}, \code{links}, \code{stacks} and \code{board_options},
-and \code{board_plugins()} a list of plugins by the IDs of their classes,
+and \code{board_plugins()} a list by package of lists of plugins by the ids of
+their classes,
 while ID getters (\code{board_block_ids()}, \code{board_link_ids()},
 \code{board_stack_ids()} and \code{board_option_ids()}) return character vectors, as
 does \code{available_stack_blocks()}, and \code{board_id()} and \code{board_name()} return
@@ -95,9 +96,10 @@ IDs are of interest, this is available as \code{board_option_ids()}, which calls
 
 \section{Plugins}{
 
-A board's plugins can be retrieved using \code{board_plugins()}, a list of
-plugins by the IDs of their classes, each of which holds the state that the
-board gives the plugin (see \code{\link[=new_plugin]{new_plugin()}}).
+A board's plugins can be retrieved using \code{board_plugins()}, a list by the
+package of each plugin's class, and each package's a list of plugins by the
+id of the plugin's class, each of which holds the state that the board gives
+the plugin (see \code{\link[=new_plugin]{new_plugin()}}).
 }
 
 \section{ID and name}{

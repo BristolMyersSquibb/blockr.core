@@ -34,7 +34,7 @@ import type { Attributes, Context, Link, Span } from "@opentelemetry/api";
 import type { BlockId } from "../types/board.ts";
 import { log } from "../log/index.ts";
 import { failSpan, traceparent, tracer } from "../trace/index.ts";
-import { asError } from "../util/index.ts";
+import { asError, idAttributes } from "../util/index.ts";
 import type {
   Capability,
   CancelRequest,
@@ -506,13 +506,15 @@ function spanName(request: Pick<Asked, "kind"> & { readonly name?: string }): st
 // The attributes of a request's span that the request gives: the block's id,
 // its revision and its class's registry id where the request names them, and
 // a request's type, its name and what it belongs to.
+// An id of a package's class gives two attributes, the id within the package
+// and the package, as R names them (idAttributes(), ../util/ids.ts).
 function requestAttributes(request: Asked): Attributes {
   switch (request.kind) {
     case "evaluate":
       return {
         "blockr.block.id": request.block,
         "blockr.block.revision": request.revision,
-        "blockr.block.registry_id": request.recipe.registry_id,
+        ...idAttributes("blockr.block.registry_id", request.recipe.registry_id),
       };
     case "output":
       return { "blockr.block.id": request.block, "blockr.block.revision": request.revision };
@@ -520,11 +522,11 @@ function requestAttributes(request: Asked): Attributes {
       const named = { "blockr.request.type": request.type, "blockr.request.name": request.name };
       switch (request.type) {
         case "block_class":
-          return { ...named, "blockr.block.id": request.block, "blockr.block.registry_id": request.registry_id };
+          return { ...named, "blockr.block.id": request.block, ...idAttributes("blockr.block.registry_id", request.registry_id) };
         case "option":
           return { ...named, "blockr.option.id": request.option };
         case "plugin":
-          return { ...named, "blockr.plugin.class_id": request.plugin };
+          return { ...named, ...idAttributes("blockr.plugin.class_id", request.plugin) };
         case "output_class":
           return { ...named, "blockr.block.id": request.output.block, "blockr.block.revision": request.output.revision };
         case "renderer":
@@ -532,7 +534,7 @@ function requestAttributes(request: Asked): Attributes {
             ...named,
             "blockr.block.id": request.output.block,
             "blockr.block.revision": request.output.revision,
-            "blockr.renderer.id": request.renderer,
+            ...idAttributes("blockr.renderer.id", request.renderer),
           };
       }
       break;

@@ -21,10 +21,10 @@
 //   blockr.dock#549 had them. Move to input… shows where that block takes
 //   each input by its name, and Rename input… where it is variadic. An input
 //   that another link feeds says so at its end, since moving the link there
-//   swaps the inputs of the two links, as blockr.core-change_link does. Its
+//   swaps the inputs of the two links, as change_link of blockr.core does. Its
 //   advanced action is the form of a link, editing it.
 // Each quick action lists only the links for which the preflight of
-// blockr.core-add_link or blockr.core-change_link passes, so that a menu offers
+// add_link of blockr.core or change_link of blockr.core passes, so that a menu offers
 // no link that would close a cycle, join a block to itself or feed an input
 // that a link feeds already. Create link fails its offers() where no row would
 // be left, as on an input that a link feeds or that the block's class lacks,
@@ -35,14 +35,14 @@
 // what they run.
 // Create link plays add_link_role, and Edit link edit_link_role (./roles.ts).
 
-import { freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
+import { CORE, freeInputs, linkFeeding, takesLink } from "../commands/index.ts";
 import { createGraph } from "../graph/index.ts";
 import type { Graph } from "../graph/index.ts";
 import { inputNameError, namesInto } from "../picker/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../types/board.ts";
 import type { BlockRegistry, CoreApi } from "../types/core-api.ts";
 import { blockName, classInputs, isVariadicBlock } from "../ui/index.ts";
-import { own } from "../util/index.ts";
+import { interned, own } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { CoreParts } from "./core.ts";
 import { LINK } from "./icons.ts";
@@ -51,14 +51,14 @@ import { levelItem } from "./quick.ts";
 import type { QuickLevel, QuickRow } from "./quick.ts";
 import { heldBlock, inputOf } from "./targets.ts";
 
-const CREATE_LINK = "blockr.core-add_link_action";
-const EDIT_LINK = "blockr.core-edit_link_action";
-const ADD_LINK = "blockr.core-add_link";
-const CHANGE_LINK = "blockr.core-change_link";
+const CREATE_LINK = "add_link_action";
+const EDIT_LINK = "edit_link_action";
+const ADD_LINK = interned(CORE, "add_link");
+const CHANGE_LINK = interned(CORE, "change_link");
 
 // Create link, whose rows ask the command registry's preflights through
 // `parts`, since offers() gets no CoreApi.
-export function createLinkAction(parts: CoreParts): BoardAction {
+export function createLinkAction(parts: CoreParts): Omit<BoardAction, "package"> {
   return {
     id: CREATE_LINK,
     label: "Create link",
@@ -103,7 +103,7 @@ export function createLinkAction(parts: CoreParts): BoardAction {
 
 // Edit link, whose rows ask the command registry's preflights through
 // `parts`.
-export function editLinkAction(parts: CoreParts): BoardAction {
+export function editLinkAction(parts: CoreParts): Omit<BoardAction, "package"> {
   return {
     id: EDIT_LINK,
     label: "Edit link",
@@ -270,7 +270,8 @@ function renameRow(board: Board, id: LinkId, link: Link): QuickRow {
 // A block as a row of a quick action shows it: by its name, with its class's
 // icon, and with its ID at its end, by which the filter finds it too.
 function quickBlock(board: Board, registry: BlockRegistry, block: BlockId): { kind: "item"; label: string; detail: string; icon?: string } {
-  const icon = own(registry, own(board.blocks, block)?.registry_id ?? "")?.icon;
+  const registryId = own(board.blocks, block)?.registry_id;
+  const icon = registryId === undefined ? undefined : registry.get(registryId)?.icon;
   return { kind: "item", label: blockName(board, block), detail: block, ...(icon === undefined || icon === "" ? {} : { icon }) };
 }
 

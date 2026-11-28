@@ -12,12 +12,13 @@
 // the store keeps for undo, and the patch that takes the removal back adds the
 // member before that one.
 
-import { isObject, jsonEqual, own, without } from "../util/index.ts";
+import type { PluginClassId } from "../types/board.ts";
+import { interned, isObject, isPackageName, jsonEqual, own, without } from "../util/index.ts";
 import type { Patch } from "./delta.ts";
 
 // The segments of a JSON Pointer, its reference tokens in RFC 6901, reading
-// "~1" as "/" and "~0" as "~", as "/plugins/blockr.dock-dock_plugin" gives
-// ["plugins", "blockr.dock-dock_plugin"].
+// "~1" as "/" and "~0" as "~", as "/plugins/blockr.dock/dock_plugin" gives
+// ["plugins", "blockr.dock", "dock_plugin"].
 // They are undefined where the text is no pointer below the board's root: where
 // it is empty, does not start with "/", or holds a "~" that escapes nothing.
 export function segmentsFromPath(path: string): string[] | undefined {
@@ -27,13 +28,17 @@ export function segmentsFromPath(path: string): string[] | undefined {
   return segments.map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
 }
 
-// The id of the class of the plugin whose state a path leads into,
-// "blockr.dag-dag_plugin" for "/plugins/blockr.dag-dag_plugin/positions/a" and
-// for "/plugins/blockr.dag-dag_plugin", or undefined where it leads into no
-// plugin's state.
-export function pluginClassFromPath(path: string): string | undefined {
-  const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
-  return boardProperty === "plugins" ? plugin : undefined;
+// The id of the class of the plugin whose state a path leads into, as core's
+// table holds it, { package: "blockr.dag", id: "dag_plugin" } for
+// "/plugins/blockr.dag/dag_plugin/positions/a" and for
+// "/plugins/blockr.dag/dag_plugin", or undefined where it leads into no
+// plugin's state, as a path that names no package by its name does.
+export function pluginClassFromPath(path: string): PluginClassId | undefined {
+  const [boardProperty, pkg, cls] = segmentsFromPath(path) ?? [];
+  if (boardProperty !== "plugins" || pkg === undefined || !isPackageName(pkg) || cls === undefined || cls === "") {
+    return undefined;
+  }
+  return interned(pkg, cls);
 }
 
 // The JSON Pointer to the segments.

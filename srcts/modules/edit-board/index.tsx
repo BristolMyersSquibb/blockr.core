@@ -1,5 +1,5 @@
 // Core's Edit board plugin, the module of the plugin class
-// blockr.core-edit_board_plugin, whose default export is the class without its
+// edit_board_plugin of blockr.core, whose default export is the class without its
 // id, with the plugin's `ui`, as The Edit board plugin has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15).
 // An app runs it unless its rows leave it out, and every frontend places it as

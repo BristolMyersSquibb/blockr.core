@@ -1,6 +1,7 @@
+import type { BoardActionId } from "../types/board.ts";
 import type { ShowDialog, Target } from "../actions/index.ts";
 export interface StubAdvanced {
-    readonly id: string;
+    readonly id: BoardActionId;
     readonly title: string;
     readonly target: Target;
     readonly el: HTMLElement;

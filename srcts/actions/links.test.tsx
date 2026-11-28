@@ -15,9 +15,12 @@ import { stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import type { ShownLevel } from "./quick.ts";
+import { interned } from "../util/index.ts";
 
-const CREATE_LINK = "blockr.core-add_link_action";
-const EDIT_LINK = "blockr.core-edit_link_action";
+// Core's board actions of links, each by its package and its id, as a caller
+// names one.
+const CREATE_LINK = { package: "blockr.core", id: "add_link_action" } as const;
+const EDIT_LINK = { package: "blockr.core", id: "edit_link_action" } as const;
 
 const stops: (() => void)[] = [];
 
@@ -33,8 +36,9 @@ async function stubbed(): Promise<StubCore> {
   return s;
 }
 
-function ids(actions: readonly BoardAction[]): string[] {
-  return actions.map(({ id }) => id);
+// Each board action's package and id.
+function ids(actions: readonly BoardAction[]): { package: string; id: string }[] {
+  return actions.map((action) => ({ package: action.package, id: action.id }));
 }
 
 // The rows of a level by what each shows: its heading, if any, its label and
@@ -47,9 +51,10 @@ function shown(level: Omit<ShownLevel, "id"> | undefined): string[][] {
   ]);
 }
 
-// Runs the commands given as the user's edits, each a step of its own.
+// Runs core's commands given, each by its id within blockr.core, as the user's
+// edits, each a step of its own.
 async function edited(s: StubCore, ...edits: [string, Record<string, string>][]): Promise<void> {
-  for (const [id, args] of edits) await act(() => s.core.commands.run(id, args));
+  for (const [id, args] of edits) await act(() => s.core.commands.run(interned("blockr.core", id), args));
 }
 
 // The form that core's dialog shows, by its name.
@@ -111,29 +116,29 @@ describe("Create link", () => {
     const on = (target: Target) => ids(s.core.boardActions.on(target));
 
     // Each block may feed Bind, which takes any number of links.
-    for (const block of ["a", "b", "c", "d", "e", "f"]) expect(on({ block })).toContain(CREATE_LINK);
-    expect(on({ board: true })).toContain(CREATE_LINK);
+    for (const block of ["a", "b", "c", "d", "e", "f"]) expect(on({ block })).toContainEqual(CREATE_LINK);
+    expect(on({ board: true })).toContainEqual(CREATE_LINK);
 
     // Without Bind, every input of the board takes a link already.
-    await edited(s, ["blockr.core-remove_block", { id: "e" }]);
-    for (const block of ["a", "b", "c", "d", "f"]) expect(on({ block })).not.toContain(CREATE_LINK);
-    expect(on({ board: true })).not.toContain(CREATE_LINK);
+    await edited(s, ["remove_block", { id: "e" }]);
+    for (const block of ["a", "b", "c", "d", "f"]) expect(on({ block })).not.toContainEqual(CREATE_LINK);
+    expect(on({ board: true })).not.toContainEqual(CREATE_LINK);
 
     // With Head's input free, any block but those downstream of Head may feed
     // it.
-    await edited(s, ["blockr.core-remove_link", { id: "ab" }]);
-    expect(on({ block: "b" })).toContain(CREATE_LINK);
-    expect(on({ block: "a" })).toContain(CREATE_LINK);
-    expect(on({ board: true })).toContain(CREATE_LINK);
+    await edited(s, ["remove_link", { id: "ab" }]);
+    expect(on({ block: "b" })).toContainEqual(CREATE_LINK);
+    expect(on({ block: "a" })).toContainEqual(CREATE_LINK);
+    expect(on({ board: true })).toContainEqual(CREATE_LINK);
     // Merge is downstream of Head, so that a link from Merge into Head would
     // close a cycle, while one from Scatter would not.
-    expect(on({ block: "c" })).not.toContain(CREATE_LINK);
-    expect(on({ block: "f" })).toContain(CREATE_LINK);
+    expect(on({ block: "c" })).not.toContainEqual(CREATE_LINK);
+    expect(on({ block: "f" })).toContainEqual(CREATE_LINK);
   });
 
   test("on a block, lists the blocks that it can send to and those that it can take from, without closing a cycle, and adds the link picked in one step, under an ID that core mints", async () => {
     const s = await stubbed();
-    await edited(s, ["blockr.core-remove_link", { id: "ab" }]);
+    await edited(s, ["remove_link", { id: "ab" }]);
     const links = Object.keys(s.core.store.board().links);
 
     const menu = s.menu({ block: "b" });
@@ -161,7 +166,7 @@ describe("Create link", () => {
 
   test("asks for the input where the block that the link goes into has several free ones, and whose open icon hands the form both blocks", async () => {
     const s = await stubbed();
-    await edited(s, ["blockr.core-remove_link", { id: "ac" }], ["blockr.core-remove_link", { id: "bc" }]);
+    await edited(s, ["remove_link", { id: "ac" }], ["remove_link", { id: "bc" }]);
 
     const menu = s.menu({ block: "b" });
     await menu.pick("Create link");
@@ -259,10 +264,10 @@ describe("Create link", () => {
   test("applies to an input that no link feeds, lists the blocks that can feed it, without closing a cycle, and adds the link picked into that input in one step", async () => {
     const s = await stubbed();
     const on = (target: Target) => ids(s.core.boardActions.on(target));
-    expect(on({ block: "b", input: "data" })).not.toContain(CREATE_LINK);
-    expect(on({ block: "c", input: "" })).not.toContain(CREATE_LINK);
+    expect(on({ block: "b", input: "data" })).not.toContainEqual(CREATE_LINK);
+    expect(on({ block: "c", input: "" })).not.toContainEqual(CREATE_LINK);
 
-    await edited(s, ["blockr.core-remove_link", { id: "ab" }]);
+    await edited(s, ["remove_link", { id: "ab" }]);
     const links = Object.keys(s.core.store.board().links);
     const menu = s.menu({ block: "b", input: "data" });
     await menu.pick("Create link");
@@ -293,7 +298,7 @@ describe("Create link", () => {
 
   test("on an input, opens the form into that input, which it names in place of the selects of the link's target and its input, and on the next place of a variadic block, asks for the name of the input and its place", async () => {
     const s = await stubbed();
-    await edited(s, ["blockr.core-remove_link", { id: "ac" }], ["blockr.core-remove_link", { id: "bc" }]);
+    await edited(s, ["remove_link", { id: "ac" }], ["remove_link", { id: "bc" }]);
     const links = Object.keys(s.core.store.board().links);
 
     const menu = s.menu({ block: "c", input: "y" });
@@ -354,7 +359,7 @@ describe("Create link", () => {
 
   test("on a block, from the open icon of a row that takes from another block, names the block as the link's target in place of the select of that end", async () => {
     const s = await stubbed();
-    await edited(s, ["blockr.core-remove_link", { id: "ac" }], ["blockr.core-remove_link", { id: "bc" }]);
+    await edited(s, ["remove_link", { id: "ac" }], ["remove_link", { id: "bc" }]);
     const menu = s.menu({ block: "c" });
     await menu.pick("Create link");
     await menu.pick("Head");
@@ -395,7 +400,7 @@ describe("Edit link", () => {
     expect(s.core.store.canUndo()).toBe(false);
 
     // A block downstream of the link's target would close a cycle.
-    await edited(s, ["blockr.core-add_link", { from: "c", to: "e" }]);
+    await edited(s, ["add_link", { from: "c", to: "e" }]);
     const again = s.menu({ link: "ac" });
     await again.pick("Edit link");
     await again.pick("Change source…");
@@ -549,7 +554,7 @@ describe("Edit link", () => {
 
     // Another edit links Merge to Bind before the user applies the form, so
     // that the link from Bind would close a cycle.
-    await act(() => s.core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
+    await act(() => s.core.commands.run(interned("blockr.core", "add_link"), { id: "ce", from: "c", to: "e" }));
     await acting(() => {
       button(form(), "Apply").click();
     });

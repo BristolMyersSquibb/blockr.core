@@ -15,7 +15,7 @@
 // or a redo, or a plugin itself (thrown(), ./error.ts).
 
 import type { Board, PluginClassId, Stack, StackId } from "../types/board.ts";
-import { jsonEqual, own, quoted } from "../util/index.ts";
+import { idAttributes, idText, jsonEqual, nestedEntries, own, quoted } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 import { thrown } from "./error.ts";
 import { malformed, overlap, segmentsFromPath } from "./patch.ts";
@@ -40,7 +40,7 @@ export function expand(
     const grew = core !== expanded;
     expanded = core;
 
-    for (const id of Object.keys(board.plugins)) {
+    for (const [id] of nestedEntries(board.plugins)) {
       const def = registrations.plugin(id)?.def;
       if (def?.state?.update === undefined) continue;
       let patches: unknown;
@@ -48,11 +48,15 @@ export function expand(
         patches = def.state.update(expanded, board, id);
       } catch (error) {
         failures.push(
-          thrown(`The plugin class "${id}" failed to update the delta for its plugin`, error, { "blockr.plugin.class_id": id }),
+          thrown(
+            `The plugin class "${idText(id)}" failed to update the delta for its plugin`,
+            error,
+            idAttributes("blockr.plugin.class_id", id),
+          ),
         );
         continue;
       }
-      const wrong = misplaced(id, patches, `The plugin class "${id}" updated the delta for its plugin with`);
+      const wrong = misplaced(id, patches, `The plugin class "${idText(id)}" updated the delta for its plugin with`);
       if (wrong.length > 0) {
         failures.push(...wrong);
         continue;
@@ -67,7 +71,7 @@ export function expand(
     if (round === ROUNDS - 1) {
       return {
         failures: [
-          `The delta kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin${adding.length > 1 ? "s" : ""} ${quoted(adding)}.`,
+          `The delta kept expanding after ${String(ROUNDS)} rounds, through the update of the plugin${adding.length > 1 ? "s" : ""} ${quoted(adding.map(idText))}.`,
         ],
       };
     }
@@ -96,17 +100,19 @@ export function afterStep(
   const patches: Patch[] = [];
   const failures: string[] = [];
 
-  for (const id of Object.keys(board.plugins)) {
+  for (const [id] of nestedEntries(board.plugins)) {
     const def = registrations.plugin(id)?.def;
     if (def?.state?.afterStep === undefined) continue;
     let returned: unknown;
     try {
       returned = def.state.afterStep(board, before, id);
     } catch (error) {
-      failures.push(thrown(`The afterStep of the plugin class "${id}" failed`, error, { "blockr.plugin.class_id": id }));
+      failures.push(
+        thrown(`The afterStep of the plugin class "${idText(id)}" failed`, error, idAttributes("blockr.plugin.class_id", id)),
+      );
       continue;
     }
-    const wrong = misplaced(id, returned, `The afterStep of the plugin class "${id}" returned`);
+    const wrong = misplaced(id, returned, `The afterStep of the plugin class "${idText(id)}" returned`);
     if (wrong.length > 0) {
       failures.push(...wrong);
       continue;
@@ -168,8 +174,8 @@ function misplaced(id: PluginClassId, patches: unknown, of: string): string[] {
       continue;
     }
     const { path } = patch as Patch;
-    const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
-    if (boardProperty !== "plugins" || plugin !== id) {
+    const [boardProperty, pkg, cls] = segmentsFromPath(path) ?? [];
+    if (boardProperty !== "plugins" || pkg !== id.package || cls !== id.id) {
       failures.push(`${of} a patch at "${path}", outside that plugin's state.`);
     }
   }

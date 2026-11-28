@@ -4,10 +4,12 @@
 
 import { describe, expect, test } from "vitest";
 import { createGraph } from "../graph/index.ts";
+import { blockRegistry } from "../protocol/index.ts";
 import type { CancelledReply, EvaluateReply, MissingReply, Recipe } from "../protocol/index.ts";
 import { createBoard, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
+import { interned } from "../util/index.ts";
 import { answered, createOneTime, left, neededBy, pendingEvaluations, sent, settle } from "./evaluations.ts";
 import type { OneTime, Plain, WithParams } from "./evaluations.ts";
 import { inputsByBlock } from "./recipes.ts";
@@ -16,7 +18,7 @@ import { blockStatuses, replyOutcome } from "./status.ts";
 import type { Outcome } from "./status.ts";
 
 const graph = createGraph(sample);
-const inputs = inputsByBlock(sample, graph, hello.block_registry, new Set());
+const inputs = inputsByBlock(sample, graph, blockRegistry(hello), new Set());
 // The revisions of the sample board as it opens: a 1, b 2, d 3, f 4, c 5, e 6.
 const revisions = opening(graph, counter());
 
@@ -70,7 +72,7 @@ function errorMessage(oneTime: OneTime | Error): string {
 }
 
 const recipe: Recipe = {
-  registry_id: "blockr.core-head_block",
+  registry_id: interned("blockr.core", "head_block"),
   state: { n: 6 },
   inputs: [{ input: "data", block: "a", revision: 1 }],
 };
@@ -119,7 +121,7 @@ describe("a new one-time evaluation", () => {
     );
     const loose = createBoard({ c: "merge_block" });
     const looseGraph = createGraph(loose);
-    const looseInputs = inputsByBlock(loose, looseGraph, hello.block_registry, new Set());
+    const looseInputs = inputsByBlock(loose, looseGraph, blockRegistry(hello), new Set());
     const waiting = blockStatuses({
       graph: looseGraph,
       revisions: opening(looseGraph, counter()),

@@ -37,7 +37,8 @@ that takes a file that the client sends, or \code{NULL} for a request that
 takes none, and for \code{run_block_request()}, that file, as a list of its
 \code{datapath}, \code{name}, \code{type} and \code{size}, or \code{NULL}}
 
-\item{x}{A registry id or a block class}
+\item{x}{A block class, or the registry id of one that the block registry
+holds, as \code{\link[=registry_id_from_block]{registry_id_from_block()}} gives it}
 
 \item{name}{The name of the request}
 

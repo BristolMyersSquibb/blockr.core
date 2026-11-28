@@ -196,6 +196,49 @@ test("fails where one of core's files would bundle a package from node_modules t
   );
 });
 
+// A table of ids as core's, srcts/util/interned.ts, with a helper beside it
+// that holds none, both under the barrel that core's sources import.
+const TABLE = {
+  "srcts/util/interned.ts": [
+    "const made = /* @__PURE__ */ new Map();",
+    "export function interned(pkg, id) {",
+    "  const key = `${pkg}/${id}`;",
+    "  if (!made.has(key)) made.set(key, Object.freeze({ package: pkg, id }));",
+    "  return made.get(key);",
+    "}",
+    "",
+  ].join("\n"),
+  "srcts/util/index.ts": [
+    'export { interned } from "./interned.ts";',
+    "export const idText = (x) => `${x.id} of ${x.package}`;",
+    "",
+  ].join("\n"),
+  "srcts/runtime/index.ts": 'import { interned } from "../util/index.ts";\nexport const head = interned("blockr.core", "head_block");\n',
+};
+
+test("fails where a file other than core's runtime would bundle core's table of ids, which would make ids of its own", async () => {
+  await write({
+    ...TABLE,
+    "srcts/modules/copy/index.ts": 'import { interned } from "../../util/index.ts";\nexport const head = interned("blockr.core", "head_block");\n',
+  });
+
+  await expect(build(root)).rejects.toThrow(
+    "The build put core's table of ids, srcts/util/interned.ts, into inst/js/copy.js. A copy of the table makes ids of its own, which are never === to core's, so take the ids there from CoreApi's id() or from a host's id().",
+  );
+});
+
+test("bundles a module that takes from core's helpers of ids only what holds no table", async () => {
+  await write({
+    ...TABLE,
+    "srcts/modules/text/index.ts": 'import { idText } from "../../util/index.ts";\nexport const text = idText({ package: "blockr.core", id: "head_block" });\n',
+  });
+
+  await build(root);
+
+  expect(await readFile(join(root, "inst/js/text.js"), "utf8")).not.toContain("made");
+  expect(await readFile(join(root, "inst/js/blockr-core.js"), "utf8")).toContain("made");
+});
+
 test("builds the SDK, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
   const imports = (up: string) =>
     [
@@ -576,6 +619,32 @@ test("writes the schema of a block's state beside its module, allowing no other 
     additionalProperties: false,
   });
   expect(await read("none-block.schema.json")).toMatchObject({ type: "object", properties: {} });
+}, 60_000);
+
+test("writes an id in a state as JSON holds it, without the brand that only the type checker sees", async () => {
+  const board = join(repo, "srcts", "types", "board.ts");
+  await write({
+    "srcts/modules/notes-plugin/state.ts": [
+      `import type { PluginClassId } from ${JSON.stringify(board)};`,
+      "export type State = Readonly<{",
+      "  about: PluginClassId;",
+      "}>;",
+      "",
+    ].join("\n"),
+  });
+
+  expect(await schemas(root)).toEqual(["inst/js/notes-plugin.schema.json"]);
+
+  const schema = JSON.parse(await readFile(join(root, "inst", "js", "notes-plugin.schema.json"), "utf8")) as {
+    definitions: Record<string, unknown>;
+  };
+  expect(schema).toMatchObject({ properties: { about: { $ref: "#/definitions/PluginClassId" } } });
+  expect(schema.definitions.Id).toEqual({
+    type: "object",
+    properties: { package: { type: "string" }, id: { type: "string" } },
+    required: ["package", "id"],
+    additionalProperties: false,
+  });
 }, 60_000);
 
 test("writes no schemas without the types and modules they come from", async () => {

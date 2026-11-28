@@ -19,7 +19,7 @@ test_that("core's families are drawn by its plain renderers", {
     )
 
     expect_s3_class(drawn, "renderer")
-    expect_identical(drawn$id, paste0("blockr.core-", what, "_output"))
+    expect_identical(drawn$name, cls)
     expect_identical(drawn$package, "blockr.core")
     expect_identical(
       drawn$module,
@@ -29,7 +29,7 @@ test_that("core's families are drawn by its plain renderers", {
   }
 })
 
-test_that("a renderer holds its ID, its module and its own requests", {
+test_that("a renderer holds its name, its module and its own requests", {
 
   drawn <- new_renderer(
     "preview",
@@ -37,14 +37,17 @@ test_that("a renderer holds its ID, its module and its own requests", {
     requests = list(labels = function(result) names(result))
   )
 
-  expect_identical(drawn$id, "blockr.ui-preview")
   expect_identical(drawn$name, "preview")
   expect_identical(drawn$package, "blockr.ui")
+  expect_identical(
+    renderer_id(drawn),
+    list(package = "blockr.ui", id = "preview")
+  )
   expect_named(drawn$requests, "labels")
 
   # What it draws is where the app or a family names it, not a member of its
-  # own
-  expect_named(drawn, c("id", "name", "package", "module", "requests"))
+  # own, and it holds no id that joins its package and its name
+  expect_named(drawn, c("name", "package", "module", "requests"))
 
   expect_snapshot(drawn)
 })
@@ -55,8 +58,8 @@ test_that("another package's renderer draws where the deployment names it", {
   preview <- new_renderer("preview", test_module("preview.js", "blockr.ui"))
 
   expect_identical(
-    drawing_renderer(table_output, table)$id,
-    "blockr.core-table_output"
+    renderer_labels(list(drawing_renderer(table_output, table))),
+    "table_output of blockr.core"
   )
 
   withr::local_options(blockr.renderers = list(table_output = preview))
@@ -67,8 +70,8 @@ test_that("another package's renderer draws where the deployment names it", {
     list(table_output = preview)
   )
   expect_identical(
-    family_renderers(text_output)$text_output$id,
-    "blockr.core-text_output"
+    renderer_labels(family_renderers(text_output)),
+    "text_output of blockr.core"
   )
 })
 
@@ -98,8 +101,8 @@ test_that("an output is drawn by the renderer of its class's family", {
   tbl <- words_output(datasets::BOD, options = list(n_rows = 2L))
 
   expect_identical(
-    drawing_renderer(words_output, tbl)$id,
-    "blockr.core-table_output"
+    renderer_labels(list(drawing_renderer(words_output, tbl))),
+    "table_output of blockr.core"
   )
   expect_identical(drawing_renderer(words_output, words_output("hi")), words)
 
@@ -157,8 +160,8 @@ test_that("an open family's outputs are drawn by the listed families", {
   expect_identical(drawing_renderer(any_output, any_output("hi"), listed),
                    words)
   expect_identical(
-    drawing_renderer(any_output, tbl, listed)$id,
-    "blockr.core-table_output"
+    renderer_labels(list(drawing_renderer(any_output, tbl, listed))),
+    "table_output of blockr.core"
   )
 
   # The deployment's choice for a listed family comes before its own
@@ -183,9 +186,9 @@ test_that("the blockr option names renderers for what they draw", {
 
   rows <- new_renderer("rows", test_module("rows.js"))
 
-  check("blockr.core-table_output")
-  check(c(table_output = "blockr.core-table_output"))
-  check(list(table_output = "blockr.core-table_output"))
+  check("table_output")
+  check(c(table_output = "table_output"))
+  check(list(table_output = list(package = "blockr.core", id = "table_output")))
   check(list(rows))
 })
 
@@ -226,16 +229,16 @@ test_that("a request is the drawing renderer's own or else its class's", {
   expect_error(
     run("size"),
     class = "renderer_request_unknown",
-    regexp = "Renderer blockr.test-labels has no request size"
+    regexp = "Renderer labels of blockr.test has no request size"
   )
   expect_error(
     run_output_class_request(out, "first", letters,
-                             renderer = "blockr.test-labels"),
+                             renderer = renderer_id(labels)),
     class = "output_class_request_unknown"
   )
 })
 
-test_that("a renderer's ID is its name in the package of its module", {
+test_that("a renderer is its name in the package of its module", {
 
   make <- function() new_renderer("pkg", js_module("pkg.js"))
 
@@ -243,14 +246,15 @@ test_that("a renderer's ID is its name in the package of its module", {
 
   drawn <- make()
 
-  expect_identical(drawn$id, "blockr.core-pkg")
-  expect_identical(drawn$package, "blockr.core")
+  expect_identical(
+    renderer_id(drawn),
+    list(package = "blockr.core", id = "pkg")
+  )
 
   # A renderer beside an app script comes from no package
   script <- new_renderer("chart", js_module("chart.js", package = NULL))
 
-  expect_identical(script$id, "chart")
-  expect_null(script$package)
+  expect_identical(renderer_id(script), list(package = NULL, id = "chart"))
 })
 
 test_that("a renderer's construction is checked", {

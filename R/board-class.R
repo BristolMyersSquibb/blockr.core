@@ -16,8 +16,11 @@
 #' board option only once something sets it (see [new_board_options()]).
 #'
 #' A board gives only the state of its plugins, which `new_board()` takes in
-#' `plugins` as a list of plugins, and holds each under the ID of its class, as
-#' `blockr.dag-dag_plugin`.
+#' `plugins` as a list of plugins.
+#' It holds them by the package of each plugin's class, and each package's by
+#' the id of the plugin's class, as a JSON board does, so that
+#' `board_plugins(board)[["blockr.dag"]][["dag_plugin"]]` is the plugin of the
+#' class `dag_plugin` of blockr.dag.
 #' It holds one plugin of each class, so the constructor refuses two of one
 #' class.
 #' A script may give a plugin a name in that list, as `dag` in
@@ -30,7 +33,8 @@
 #' its plugins, with the board and the names, and the board holds what each call
 #' returns.
 #' So the method of a plugin's class can turn each name in the plugin's state
-#' into the ID of a class, as `plg("dag")` into `plg("blockr.dag-dag_plugin")`.
+#' into the package and the id of a class, as `plg("dag")` into the class
+#' `dag_plugin` of blockr.dag.
 #' Which plugins run is the app's choice, never the board's: [serve()] takes
 #' the app's plugins in `plugins`, and refuses a board that holds a plugin of a
 #' class that the app does not run.
@@ -53,7 +57,8 @@
 #' @param stacks Set of stacks
 #' @param options Board options, with the values the script gives
 #' @param plugins The state of the board's plugins, a list of plugins made by
-#'   their packages' constructors, in which a script may name a plugin
+#'   their packages' constructors, in which a script may name a plugin, or the
+#'   plugins of another board, as [board_plugins()] gives them
 #' @param id Board ID, which [rand_names()] draws where it is `NULL`
 #' @param name Board name, which is made from the ID where it is `NULL`
 #'
@@ -87,7 +92,7 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
   plugins <- as_plugin_list(plugins)
 
   aliases <- plugin_aliases(plugins)
-  plugins <- set_names(plugins, chr_ply(plugins, plugin_class_id))
+  plugins <- plugins_by_class(plugins)
 
   links <- complete_unary_inputs(links, blocks)
 
@@ -116,11 +121,25 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
 }
 
 # A list of plugins, from a list of plugins or a plugin alone, with the names
-# that the script gives them.
+# that the script gives them, or from the plugins of a board, by package and
+# then by the id of each one's class, as `board_plugins()` gives them, which
+# hold no such names.
 as_plugin_list <- function(x) {
 
   if (is_plugin(x)) {
     x <- list(x)
+  }
+
+  by_package <- is.list(x) && !is.object(x) && length(x) &&
+    all(
+      lgl_ply(
+        x,
+        function(p) is.list(p) && !is.object(p) && all(lgl_ply(p, is_plugin))
+      )
+    )
+
+  if (by_package) {
+    x <- flat_by_package(x)
   }
 
   if (!is.list(x) || is.object(x) || !all(lgl_ply(x, is_plugin))) {
@@ -133,8 +152,9 @@ as_plugin_list <- function(x) {
   x
 }
 
-# The names that a script gives the plugins of a board, each mapped to the ID
-# of its plugin's class, as `c(dag = "blockr.dag-dag_plugin")` for
+# The names that a script gives the plugins of a board, each mapped to the
+# package and the id of its plugin's class, as
+# `list(dag = list(package = "blockr.dag", id = "dag_plugin"))` for
 # `list(new_dock_plugin(), dag = new_dag_plugin())`.
 # A name names one plugin, so a name given to two is refused.
 plugin_aliases <- function(x) {
@@ -152,7 +172,39 @@ plugin_aliases <- function(x) {
     )
   }
 
-  set_names(chr_ply(x[named], plugin_class_id), nms[named])
+  set_names(lapply(unname(x[named]), plugin_class_id), nms[named])
+}
+
+# The plugins of the list `x` by the package of each one's class, and each
+# package's by the id of its class, as a board holds them.
+# A board holds one plugin of each class, so two of one class are refused.
+plugins_by_class <- function(x) {
+
+  ids <- lapply(unname(x), plugin_class_id)
+  twice <- unique(chr_ply(ids[duplicated(ids)], pkg_id_label))
+
+  if (length(twice)) {
+    blockr_abort(
+      "A board holds one plugin of each class, while it is given ",
+      "{qty(twice)}two plugins of the class{?es} {twice}.",
+      class = "board_plugins_invalid"
+    )
+  }
+
+  res <- set_names(list(), character())
+
+  for (i in seq_along(ids)) {
+
+    pkg <- ids[[i]][["package"]]
+
+    if (is.null(res[[pkg]])) {
+      res[[pkg]] <- set_names(list(), character())
+    }
+
+    res[[pkg]][[ids[[i]][["id"]]]] <- x[[i]]
+  }
+
+  res
 }
 
 # The board, with each of its plugins replaced by what the method of
@@ -163,19 +215,22 @@ complete_board_plugins <- function(board, aliases) {
 
   plugins <- board_plugins(board)
 
-  for (id in names(plugins)) {
+  for (pkg in names(plugins)) {
+    for (id in names(plugins[[pkg]])) {
 
-    res <- complete_plugin(plugins[[id]], board, aliases)
+      res <- complete_plugin(plugins[[pkg]][[id]], board, aliases)
+      class_id <- pkg_id(pkg, id)
 
-    if (!is_plugin(res) || !identical(plugin_class_id(res), id)) {
-      blockr_abort(
-        "The method of `complete_plugin()` for plugin class {id} returns no ",
-        "plugin of that class.",
-        class = "plugin_complete_invalid"
-      )
+      if (!is_plugin(res) || !same_pkg_id(plugin_class_id(res), class_id)) {
+        blockr_abort(
+          "The method of `complete_plugin()` for plugin class ",
+          "{pkg_id_label(class_id)} returns no plugin of that class.",
+          class = "plugin_complete_invalid"
+        )
+      }
+
+      plugins[[pkg]][[id]] <- res
     }
-
-    plugins[[id]] <- res
   }
 
   board[["plugins"]] <- plugins
@@ -183,32 +238,41 @@ complete_board_plugins <- function(board, aliases) {
   board
 }
 
+# A board holds its plugins in a list by package, each package's in a list by
+# the id of each plugin's class, as `plugins_by_class()` makes it.
 validate_board_plugins <- function(plugins) {
 
-  if (!is.list(plugins) || !all(lgl_ply(plugins, is_plugin))) {
+  by_package <- function(x) {
+    is.list(x) && !is.object(x) && has_unique_names(x)
+  }
+
+  valid <- by_package(plugins) &&
+    all(
+      lgl_ply(
+        plugins,
+        function(x) by_package(x) && all(lgl_ply(x, is_plugin))
+      )
+    )
+
+  if (!valid) {
     blockr_abort(
-      "Expecting the plugins of a board to be a list of plugins.",
+      "Expecting the plugins of a board to be a list by package of lists of ",
+      "plugins by the id of each plugin's class.",
       class = "board_plugins_invalid"
     )
   }
 
-  ids <- chr_ply(plugins, plugin_class_id)
-
-  if (!identical(coal(names(plugins), character(), fail_all = FALSE), ids)) {
-    blockr_abort(
-      "A board holds each plugin under the ID of its class.",
-      class = "board_plugins_invalid"
-    )
-  }
-
-  twice <- unique(ids[duplicated(ids)])
-
-  if (length(twice)) {
-    blockr_abort(
-      "A board holds one plugin of each class, while it is given ",
-      "{qty(twice)}two plugins of the class{?es} {twice}.",
-      class = "board_plugins_invalid"
-    )
+  for (pkg in names(plugins)) {
+    for (id in names(plugins[[pkg]])) {
+      held <- plugin_class_id(plugins[[pkg]][[id]])
+      if (!same_pkg_id(held, pkg_id(pkg, id))) {
+        blockr_abort(
+          "A board holds each plugin under the package and the id of its ",
+          "class.",
+          class = "board_plugins_invalid"
+        )
+      }
+    }
   }
 
   invisible(plugins)
@@ -429,7 +493,8 @@ is_acyclic.board <- function(x) {
 #' @return Functions for retrieving components (`board_blocks()`,
 #' `board_links()`, `board_stacks()` and `board_options()`) return objects of
 #' the corresponding classes `blocks`, `links`, `stacks` and `board_options`,
-#' and `board_plugins()` a list of plugins by the IDs of their classes,
+#' and `board_plugins()` a list by package of lists of plugins by the ids of
+#' their classes,
 #' while ID getters (`board_block_ids()`, `board_link_ids()`,
 #' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
 #' does `available_stack_blocks()`, and `board_id()` and `board_name()` return
@@ -511,9 +576,10 @@ board_option_ids <- function(x) {
 }
 
 #' @section Plugins:
-#' A board's plugins can be retrieved using `board_plugins()`, a list of
-#' plugins by the IDs of their classes, each of which holds the state that the
-#' board gives the plugin (see [new_plugin()]).
+#' A board's plugins can be retrieved using `board_plugins()`, a list by the
+#' package of each plugin's class, and each package's a list of plugins by the
+#' id of the plugin's class, each of which holds the state that the board gives
+#' the plugin (see [new_plugin()]).
 #'
 #' @rdname board_blocks
 #' @export
@@ -617,7 +683,7 @@ format.board <- function(x, ...) {
     format(as_board_options(x))
   )
 
-  plg <- board_plugins(x)
+  plg <- flat_by_package(board_plugins(x))
 
   if (length(plg)) {
 
@@ -655,7 +721,10 @@ str_value.board <- function(x, ...) {
       if (length(board_plugins(x))) {
         paste0(
           "plugins: ",
-          paste(chr_ply(board_plugins(x), str_value), collapse = ", ")
+          paste(
+            chr_ply(flat_by_package(board_plugins(x)), str_value),
+            collapse = ", "
+          )
         )
       }
     ),

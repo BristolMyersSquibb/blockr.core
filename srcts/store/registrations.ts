@@ -2,8 +2,8 @@
 // classes of the app's plugins and the board options of the packages that the
 // app uses, each from the module that its package lists in R, whose default
 // export core registers under the id that R names.
-// A plugin class is registered under its id, `{pkg}-{id}`, as R names the
-// class.
+// A plugin class is registered under its id, its package and its id within
+// the package, as R names the class.
 // A plugin class or a board option id registered twice fails.
 // The migrations of block classes' states come from the classes' UI modules,
 // which core imports as a board that needs them opens (../core/migrations.ts).
@@ -21,7 +21,7 @@ import type {
 import type { CoreApi, FrontendModule, PluginModule, Raised } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, isObject, packageFromId } from "../util/index.ts";
+import { compile, idText, interned, isIdRecord, isObject } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 
@@ -42,7 +42,7 @@ import type { Delta, Patch } from "./delta.ts";
 // `plugin_options()` names those that its plugin reads, which R's reply to
 // `hello` carries in the plugin's entry (../protocol/messages.ts).
 export interface PluginClass {
-  // As "blockr.dag-dag_plugin".
+  // As { package: "blockr.dag", id: "dag_plugin" }.
   readonly id: PluginClassId;
   // What its plugin keeps in the board: the schema and the default of the
   // state, and the functions that the store calls to keep the state current,
@@ -108,7 +108,7 @@ export interface PluginClass {
   // as it registers the class, and which menus offer after core's own, in the
   // order given (../actions/actions.ts). Core refuses the whole class where
   // one of them breaks a rule of board actions, and then opens no board.
-  readonly boardActions?: readonly BoardAction[];
+  readonly boardActions?: readonly Omit<BoardAction, "package">[];
   // The edits that callers rely on, each of which one board action plays in
   // each app, which core registers as it registers the class
   // (../actions/roles.ts). Core refuses the whole class where one of them
@@ -186,10 +186,10 @@ export type StorageControl =
       readonly tooltip?: string;
     };
 
-// The plugin classes that packages define, by id.
+// The plugin classes that packages define, by id, in the order registered.
 export interface Plugins {
   register(def: PluginClass): () => void;
-  registered(): Readonly<Record<PluginClassId, PluginClass>>;
+  registered(): ReadonlyMap<PluginClassId, PluginClass>;
 }
 
 // A board option, whose value the board holds under its id, while the package
@@ -276,8 +276,8 @@ export function createRegistrations(
   const optionIndex = computed(
     () => new Map(options.value.map((option) => [option.def.id, option])),
   );
-  const classDefs = computed(() =>
-    Object.fromEntries([...classes.value].map(([id, cls]) => [id, cls.def])),
+  const classDefs = computed(
+    (): ReadonlyMap<PluginClassId, PluginClass> => new Map([...classes.value].map(([id, cls]) => [id, cls.def])),
   );
   const optionDefs = computed(() =>
     Object.fromEntries(options.value.map((option) => [option.def.id, option.def])),
@@ -297,69 +297,72 @@ export function createRegistrations(
   }
 
   function registerPlugin(def: PluginClass): () => void {
-    const { id } = def;
-    if (typeof id !== "string" || !isPluginClassId(id)) {
+    const given = def as unknown as Readonly<Record<string, unknown>>;
+    if (!isPluginClassId(given.id)) {
       throw new Error(
-        `The plugin class id ${JSON.stringify(id)} is not named as R names a plugin class, "{pkg}-{name}_plugin".`,
+        `The plugin class id ${JSON.stringify(given.id)} is not named as R names a plugin class, as { package: "blockr.dag", id: "dag_plugin" }.`,
       );
     }
+    // The id as core's table holds it, which a record of the same package and
+    // id written by hand is not, so that the class is found under it.
+    const id = interned(given.id.package, given.id.id);
+    const named = `The plugin class "${idText(id)}"`;
     if (classes.value.has(id)) {
-      throw new Error(`The plugin class "${id}" is registered already.`);
+      throw new Error(`${named} is registered already.`);
     }
     // A package that writes its JS without types may give members of the
     // wrong kind, or give outside the state what the store calls only inside
     // it.
-    const given = def as unknown as Readonly<Record<string, unknown>>;
     for (const [member, article] of STATE_FUNCTIONS) {
       if (given[member] !== undefined) {
-        throw new Error(`The plugin class "${id}" gives ${article} ${member} outside its state.`);
+        throw new Error(`${named} gives ${article} ${member} outside its state.`);
       }
     }
     if (given.start !== undefined && typeof given.start !== "function") {
-      throw new Error(`The plugin class "${id}" has a start that is no function.`);
+      throw new Error(`${named} has a start that is no function.`);
     }
     for (const member of ["ui", "frontend"]) {
       const drawn = given[member];
       if (drawn !== undefined && (!isObject(drawn) || typeof drawn.render !== "function")) {
-        throw new Error(`The plugin class "${id}" has a ${member} without a render() function.`);
+        throw new Error(`${named} has a ${member} without a render() function.`);
       }
     }
     const frontend = given.frontend;
     if (isObject(frontend) && frontend.advanced !== undefined && typeof frontend.advanced !== "function") {
-      throw new Error(`The plugin class "${id}" has a frontend whose advanced is no function.`);
+      throw new Error(`${named} has a frontend whose advanced is no function.`);
     }
     const storage = given.storage;
     if (storage !== undefined) {
       if (!isObject(storage) || typeof storage.controls !== "function") {
-        throw new Error(`The plugin class "${id}" has a storage without a controls() function.`);
+        throw new Error(`${named} has a storage without a controls() function.`);
       }
       if (storage.subscribe !== undefined && typeof storage.subscribe !== "function") {
-        throw new Error(`The plugin class "${id}" has a storage whose subscribe is no function.`);
+        throw new Error(`${named} has a storage whose subscribe is no function.`);
       }
       if (storage.load !== undefined && typeof storage.load !== "function") {
-        throw new Error(`The plugin class "${id}" has a storage whose load is no function.`);
+        throw new Error(`${named} has a storage whose load is no function.`);
       }
     }
     if (given.commands !== undefined && !Array.isArray(given.commands)) {
-      throw new Error(`The plugin class "${id}" gives commands that are no array.`);
+      throw new Error(`${named} gives commands that are no array.`);
     }
-    const what = `the state of the plugin class "${id}"`;
+    const what = `the state of the plugin class "${idText(id)}"`;
     let validate: Validate | undefined;
     const state = given.state;
     if (state !== undefined) {
       if (!isObject(state) || !isObject(state.schema) || !Object.hasOwn(state, "default")) {
-        throw new Error(`The plugin class "${id}" gives a state without a schema and a default.`);
+        throw new Error(`${named} gives a state without a schema and a default.`);
       }
       for (const [member] of STATE_FUNCTIONS) {
         if (state[member] !== undefined && typeof state[member] !== "function") {
-          throw new Error(`The plugin class "${id}" has a state whose ${member} is no function.`);
+          throw new Error(`${named} has a state whose ${member} is no function.`);
         }
       }
       validate = compile(what, state.schema as JsonSchema);
       checkInitial(what, validate, state.default as Json, "default");
     }
 
-    const item: Checked<PluginClass, Validate | undefined> = { def, validate };
+    const item: Checked<PluginClass, Validate | undefined> = { def: def.id === id ? def : { ...def, id }, validate };
     classes.value = new Map([...classes.value, [id, item]]);
     return () => {
       if (classes.value.get(id) !== item) return;
@@ -411,9 +414,8 @@ export function createRegistrations(
   };
 }
 
-// Whether an id is named as R names a plugin class, `{pkg}-{name}_plugin`:
-// a package name, a dash, and a name that ends in `_plugin`.
-export function isPluginClassId(id: string): boolean {
-  const pkg = packageFromId(id);
-  return pkg !== null && /^.+_plugin$/.test(id.slice(pkg.length + 1));
+// Whether `id` holds a package and an id as R names a plugin class: a
+// package's name and an id that ends in `_plugin`.
+export function isPluginClassId(id: unknown): id is { readonly package: string; readonly id: string } {
+  return isIdRecord(id) && /^.+_plugin$/.test(id.id);
 }

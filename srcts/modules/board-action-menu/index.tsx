@@ -1,4 +1,4 @@
-// Core's menu, the module blockr.core-board_action_menu, which draws every
+// Core's menu, the module board_action_menu of blockr.core, which draws every
 // menu of board actions that menu() and trigger() open, whichever package
 // opens it, and whichever frontend draws the page, as Board actions has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#what-a-frontend-gives).

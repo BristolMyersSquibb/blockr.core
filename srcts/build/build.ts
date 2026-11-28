@@ -378,6 +378,25 @@ async function otelApi(out: string): Promise<{ file: string; sources: string[] }
   );
 }
 
+// Fails where a file other than core's runtime holds core's table of ids,
+// srcts/util/interned.ts, as a module or a library of core's would where it
+// made an id itself. A copy of the table makes ids of its own, which are never
+// === to core's, so each file but the runtime takes its ids from CoreApi's id()
+// or from a host's id().
+function tableCheck(root: string, src: string, out: string, runtime: Entry, results: readonly esbuild.BuildResult<{ metafile: true }>[]): void {
+  const table = relative(root, join(src, "util", "interned.ts"));
+  const own = relative(root, join(out, `${runtime.name}.js`));
+  for (const result of results) {
+    for (const [file, output] of Object.entries(result.metafile.outputs)) {
+      if (file !== own && (output.inputs[table]?.bytesInOutput ?? 0) > 0) {
+        throw new Error(
+          `The build put core's table of ids, ${table}, into ${file}. A copy of the table makes ids of its own, which are never === to core's, so take the ids there from CoreApi's id() or from a host's id().`,
+        );
+      }
+    }
+  }
+}
+
 // Leaves the OpenTelemetry module's import of srcts/otel/sdk.ts an import of
 // the file that otelSdk() wrote, by its name beside the module.
 function vendoredSdk(src: string, file: string): esbuild.Plugin {
@@ -442,6 +461,7 @@ export async function build(root: string): Promise<string[]> {
   if (results.some((result) => result.warnings.length > 0)) {
     throw new Error("esbuild warned, as printed above");
   }
+  tableCheck(root, src, out, runtime, results);
 
   const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
   // What each file holds from other projects, by the file's path.

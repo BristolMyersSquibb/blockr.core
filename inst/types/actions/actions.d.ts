@@ -1,3 +1,4 @@
+import type { CommandCall } from "../commands/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, Board, PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core-api.ts";
@@ -16,12 +17,10 @@ export type Target = {
 } | {
     readonly selection: readonly BoardObject[];
 };
-export interface CommandCall {
-    readonly id: string;
-    readonly args?: Json;
-}
+export type { CommandCall };
 export interface BoardAction {
     readonly id: string;
+    readonly package: string;
     readonly label: string;
     readonly icon?: string;
     detail?(board: Board, target: Target): string | undefined;
@@ -34,9 +33,9 @@ export interface BoardAction {
     readonly role?: string;
 }
 export interface BoardActions {
-    register(plugin: PluginClassId, actions: readonly BoardAction[] | undefined, roles?: readonly Role[]): () => void;
+    register(plugin: PluginClassId, actions: readonly Omit<BoardAction, "package">[] | undefined, roles?: readonly Role[]): () => void;
     registered(): readonly BoardAction[];
-    classOf(id: string): PluginClassId | undefined;
+    classOf(action: BoardAction): PluginClassId | undefined;
     role(id: string): Role | undefined;
     choosePlayers(picks: Json | undefined): void;
     player(role: string): BoardAction | undefined;

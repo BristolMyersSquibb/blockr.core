@@ -14,17 +14,30 @@ export {
   listing,
   own,
   isPackageName,
-  packageFromId,
   pathText,
   quoted,
   setAt,
   without,
 } from "./util.ts";
 export {
+  givenModuleId,
+  givenPluginClassId,
+  idAttributes,
+  idNumber,
+  idText,
+  internedRecord,
+  isIdRecord,
+  nestedEntries,
+  nestedRecord,
+  nestedValue,
+} from "./ids.ts";
+export { interned } from "./interned.ts";
+export {
   checkRaised,
   coreNotification,
   givenNotifier,
   holdsObject,
+  internedObject,
   isBoardObject,
   notifyNothing,
   raiseNothing,

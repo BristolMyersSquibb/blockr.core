@@ -1,12 +1,12 @@
 import type { ReactElement } from "react";
 import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Plugin } from "../../types/core-api.ts";
-export interface Sections {
-    readonly collapsed: (id: string) => boolean;
-    readonly collapse: (id: string, collapsed: boolean) => void;
+export interface Sections<K = string> {
+    readonly collapsed: (id: K) => boolean;
+    readonly collapse: (id: K, collapsed: boolean) => void;
     readonly subscribe: (fn: () => void) => () => void;
 }
-export declare function createSections(): Sections;
+export declare function createSections<K = string>(): Sections<K>;
 export declare function hasSection(core: Pick<CoreApi, "plugins">, plugin: PluginClassId): boolean;
 export declare function placed(core: Pick<CoreApi, "plugins">): readonly (readonly [PluginClassId, Plugin])[];
 export declare function Plugins(): ReactElement | null;

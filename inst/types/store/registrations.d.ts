@@ -19,7 +19,7 @@ export interface PluginClass {
     readonly frontend?: FrontendModule;
     readonly storage?: Storage;
     readonly commands?: readonly Command<Json, unknown>[];
-    readonly boardActions?: readonly BoardAction[];
+    readonly boardActions?: readonly Omit<BoardAction, "package">[];
     readonly roles?: readonly Role[];
     start?(args: {
         readonly core: CoreApi;
@@ -60,7 +60,7 @@ export type StorageControl = {
 };
 export interface Plugins {
     register(def: PluginClass): () => void;
-    registered(): Readonly<Record<PluginClassId, PluginClass>>;
+    registered(): ReadonlyMap<PluginClassId, PluginClass>;
 }
 export interface Option {
     readonly id: OptionId;
@@ -89,4 +89,7 @@ export interface Registrations {
     migration(registryId: RegistryId): Migration | undefined;
 }
 export declare function createRegistrations(migration?: (registryId: RegistryId) => Migration | undefined): Registrations;
-export declare function isPluginClassId(id: string): boolean;
+export declare function isPluginClassId(id: unknown): id is {
+    readonly package: string;
+    readonly id: string;
+};

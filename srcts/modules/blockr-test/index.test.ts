@@ -10,11 +10,12 @@ import { startPage } from "../../page/index.ts";
 import type { Transport } from "../../protocol/index.ts";
 import { HELLO, READY, stubCore } from "../../stubs/index.ts";
 import type { Notification } from "../../types/core-api.ts";
+import { interned } from "../../util/index.ts";
 import { blockrTest } from "./index.ts";
 
 // A plugin that the app of the fixture hello runs, which raises the
 // notifications of the tests.
-const EDIT = "blockr.core-edit_board_plugin";
+const EDIT = interned("blockr.core", "edit_board_plugin");
 
 describe("blockrTest", () => {
   test("gives copies of the open board and of the status of each of its blocks", async () => {

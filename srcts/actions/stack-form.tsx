@@ -50,20 +50,20 @@ import {
   TextField,
 } from "@blockr/ui";
 import type { Color } from "@blockr/ui";
-import { suggestedName } from "../commands/index.ts";
+import { CORE, suggestedName } from "../commands/index.ts";
 import { useBoard } from "../react/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { blockItem, blockName, blockRow, blockTexts, classes, drawForm, Refusal, useEdits, useSearch } from "../ui/index.ts";
 import type { BlockItem, Done } from "../ui/index.ts";
-import { own, quoted } from "../util/index.ts";
+import { interned, own, quoted } from "../util/index.ts";
 import type { AdvancedModule } from "./advanced.ts";
 import type { CommandCall } from "./actions.ts";
 import { heldBlocks } from "./targets.ts";
 
-const ADD_STACK = "blockr.core-add_stack";
-const CHANGE_STACK = "blockr.core-change_stack";
+const ADD_STACK = interned(CORE, "add_stack");
+const CHANGE_STACK = interned(CORE, "change_stack");
 
 // The colours that a new stack starts from, ColorBrewer's Set2, of which a new
 // stack takes the first that no stack has.

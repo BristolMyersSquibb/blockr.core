@@ -143,7 +143,7 @@ import { createCommands } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { createLoader, ModuleError, moduleExports } from "../mount/index.ts";
 import type { LoaderOptions, Measure, Source } from "../mount/index.ts";
-import { createClient, PROTOCOL_VERSION, sameMajor } from "../protocol/index.ts";
+import { appPlugins, blockRegistry, createClient, PROTOCOL_VERSION, sameMajor } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
@@ -156,7 +156,7 @@ import { fallBack, log, logSettings, serviceName, setUpLogging } from "../log/in
 import type { OtelModule } from "../log/index.ts";
 import { setUpTracing, steps, tracesUrl } from "../trace/index.ts";
 import type { Steps } from "../trace/index.ts";
-import { asError, coreNotification, errorMessage, givenNotifier, isObject, listing, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, givenNotifier, idText, isObject, listing, quoted, sourceModule } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
@@ -292,7 +292,7 @@ interface Later {
 // The module that R serves for a plugin class or a board option, by the id of
 // the class or the board option, with where R serves it and its package, and
 // with its default export, or why it fails to load or exports none.
-type Listed = { readonly id: string; readonly source: Source; readonly pkg: string | null } & (
+type Listed<I = string> = { readonly id: I; readonly source: Source; readonly pkg: string | null } & (
   | { readonly def: Readonly<Record<string, unknown>> }
   | { readonly failure: Error }
 );
@@ -563,7 +563,7 @@ export function start(options: StartOptions): Started {
 
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
     // The notifications of the board.
-    const notifications = createNotifications(store, { signal, plugins: reply.plugins });
+    const notifications = createNotifications(store, { signal, plugins: appPlugins(reply) });
     const { raise } = notifications;
     askReload(raise);
     const commands = createCommands(store, {
@@ -614,7 +614,7 @@ export function start(options: StartOptions): Started {
       blockrOptions,
       randId,
       lock: (first ?? reply).lock,
-      plugins: reply.plugins,
+      plugins: appPlugins(reply),
       options: reply.options,
       notifications,
       signal,
@@ -628,7 +628,7 @@ export function start(options: StartOptions): Started {
     let failure: Error | undefined;
     if (later === undefined) {
       const instead = alone ? undefined : await named(reply, store, core, signal, raise, opening);
-      await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
+      await migrations.prepare(instead?.text ?? reply.board, blockRegistry(reply));
       if (instead === undefined) {
         dropped = await opening.step("store.open", () => store.open(reply));
       } else {
@@ -640,17 +640,17 @@ export function start(options: StartOptions): Started {
             coreNotification(
               "board_open_failed",
               "error",
-              `The board that the storage plugin "${instead.plugin}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
-              { module: sourceModule({ plugin: instead.plugin }, packageFromId(instead.plugin)) },
+              `The board that the storage plugin "${idText(instead.plugin)}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
+              { module: sourceModule({ plugin: instead.plugin }, instead.plugin.package) },
             ),
           );
-          await migrations.prepare(reply.board, reply.block_registry);
+          await migrations.prepare(reply.board, blockRegistry(reply));
           dropped = await opening.step("store.open", () => store.open(reply));
         }
       }
     } else {
       try {
-        await migrations.prepare(later.text, reply.block_registry);
+        await migrations.prepare(later.text, blockRegistry(reply));
         dropped = await opening.step("store.open", () => store.open(later.text));
       } catch (error) {
         failure = asError(error);
@@ -714,7 +714,7 @@ export function start(options: StartOptions): Started {
     signal: AbortSignal,
   ): Promise<void> {
     const [classes, options] = await Promise.all([
-      Promise.all(Object.entries(reply.plugins).map(([id, entry]) => listed(id, entry, packageFromId(id)))),
+      Promise.all([...appPlugins(reply)].map(([id, entry]) => listed(id, entry, id.package))),
       Promise.all(Object.entries(reply.options).map(([id, entry]) => listed(id, entry, entry.package))),
     ]);
     if (signal.aborted) return;
@@ -722,7 +722,7 @@ export function start(options: StartOptions): Started {
     const failures: Error[] = [];
     // Why core refuses what the module defines, naming the module and its
     // package.
-    const refuse = ({ source, pkg }: Listed, what: string, why: string): void => {
+    const refuse = ({ source, pkg }: Listed<unknown>, what: string, why: string): void => {
       failures.push(new ModuleError(source.module, pkg, `defines ${what} that core refuses: ${why}`));
     };
     for (const module of options) {
@@ -755,7 +755,7 @@ export function start(options: StartOptions): Started {
       // it checks one by one.
       const refused = (cls.commands ?? []).flatMap((command) => {
         try {
-          commands.register(command);
+          commands.register(id.package, command);
           return [];
         } catch (error) {
           return [errorMessage(error)];
@@ -769,7 +769,7 @@ export function start(options: StartOptions): Started {
   // The module that R serves for the plugin class or the board option of the
   // id given, with its default export, or why it fails to load or exports
   // none, which names the module and its package.
-  async function listed(id: string, source: Source, pkg: string | null): Promise<Listed> {
+  async function listed<I>(id: I, source: Source, pkg: string | null): Promise<Listed<I>> {
     try {
       const at = source.css === undefined ? { module: source.module } : { module: source.module, css: source.css };
       return { id, source, pkg, def: listedDefault(await loader.load(at, pkg), source.module, pkg) };
@@ -794,19 +794,19 @@ export function start(options: StartOptions): Started {
   ): Promise<{ readonly text: string; readonly plugin: PluginClassId } | undefined> {
     if (reply.lock.load) return undefined;
     const classes = store.plugins.registered();
-    const plugin = Object.keys(reply.plugins).find((id) => own(classes, id)?.storage !== undefined);
-    const storage = plugin === undefined ? undefined : own(classes, plugin)?.storage;
+    const plugin = [...appPlugins(reply).keys()].find((id) => classes.get(id)?.storage !== undefined);
+    const storage = plugin === undefined ? undefined : classes.get(plugin)?.storage;
     if (plugin === undefined || storage?.load === undefined) return undefined;
     const refuse = (error: Error): void => {
       log.error(error);
-      raise(coreNotification("board_open_failed", "error", error.message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
+      raise(coreNotification("board_open_failed", "error", error.message, { module: sourceModule({ plugin }, plugin.package) }));
     };
     let text: unknown;
     try {
       text = await opening.step("storage.load", async () => storage.load?.({ core, plugin, signal }));
     } catch (error) {
       refuse(
-        new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
+        new Error(`The load() of the storage plugin "${idText(plugin)}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
           cause: error,
         }),
       );
@@ -816,7 +816,7 @@ export function start(options: StartOptions): Started {
     if (typeof text !== "string") {
       refuse(
         new Error(
-          `The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`,
+          `The load() of the storage plugin "${idText(plugin)}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`,
         ),
       );
       return undefined;
@@ -825,7 +825,7 @@ export function start(options: StartOptions): Started {
       JSON.parse(text);
     } catch (error) {
       refuse(
-        new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`),
+        new Error(`The storage plugin "${idText(plugin)}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`),
       );
       return undefined;
     }
@@ -1006,13 +1006,13 @@ function reloadNotification(changed: readonly Changed[]): Omit<Notification, "id
 function droppedNotification(dropped: readonly Dropped[], how: "opened" | "read"): Omit<Notification, "id"> {
   const packages = dropped.flatMap(({ about }) => ("package" in about ? [about] : []));
   const blocks = dropped.flatMap(({ about, package: pkg }) => ("block" in about ? [{ ...about, package: pkg }] : []));
-  const plugins = dropped.flatMap(({ about }) => ("plugin" in about ? [about.plugin] : []));
+  const plugins = dropped.flatMap(({ about }) => ("plugin" in about ? [idText(about.plugin)] : []));
   const options = dropped.flatMap(({ about, package: pkg }) => ("option" in about ? [{ ...about, package: pkg }] : []));
   const versions = (items: typeof packages): string[] => items.map((item) => `${item.package} ${item.version}`);
   const forBlocks = packages.filter((item) => blocks.some((block) => block.package === item.package));
   const forOptions = packages.filter((item) => options.some((option) => option.package === item.package));
   const others = packages.filter((item) => !forBlocks.includes(item) && !forOptions.includes(item));
-  const classes = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => block.registry_id);
+  const classes = blocks.filter((block) => !forBlocks.some((item) => item.package === block.package)).map((block) => idText(block.registry_id));
   const lacked = listing([...withNoun(versions(forBlocks), "package", "packages"), ...withNoun([...new Set(classes)], "class", "classes")]);
   // The board options whose package the app lacks, and the rest.
   const lackedOptions = options.filter((option) => forOptions.some((item) => item.package === option.package));

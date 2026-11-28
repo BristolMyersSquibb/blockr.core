@@ -38,6 +38,7 @@ import type { GivenPlugin } from "../../testing/store.ts";
 import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
 import type { LogLine } from "../../types/log.ts";
+import { interned, nestedRecord } from "../../util/index.ts";
 import * as basic from "./index.tsx";
 
 // A module that writes what it draws and for which block, as a block's UI or
@@ -56,14 +57,25 @@ function stub(what: string) {
   };
 }
 
-const entries = Object.values(HELLO.block_registry);
-// The basic frontend is core's own, which the CoreApi for tests serves, while
-// core's Edit board plugin draws with a stub of its ui.
+const entries = HELLO.block_registry;
+// Each block's UI and each renderer is a stub, by the URL that R serves it at.
 const MODULES: Readonly<Record<string, unknown>> = {
-  "blockr.core-edit_board_plugin": classModule({ ui: pluginUi().ui }),
   ...Object.fromEntries(entries.map((entry) => [entry.module, stub("UI")])),
   ...Object.fromEntries(entries.flatMap((entry) => (entry.renderers ?? []).map((renderer) => [renderer.module, stub("Output")]))),
 };
+// The basic frontend is core's own, which the CoreApi for tests serves, while
+// core's Edit board plugin draws with a stub of its ui, by the package and the
+// id of its class.
+const OFFERED: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  "blockr.core": { edit_board_plugin: classModule({ ui: pluginUi().ui }) },
+};
+
+// The modules that a test offers by package and then by id, beside the stub of
+// the Edit board plugin's ui.
+function offering(given: StubCoreOptions["offered"] = {}): Readonly<Record<string, Readonly<Record<string, unknown>>>> {
+  const packages = new Set([...Object.keys(OFFERED), ...Object.keys(given)]);
+  return Object.fromEntries([...packages].map((pkg) => [pkg, { ...OFFERED[pkg], ...given[pkg] }]));
+}
 
 interface Drawn {
   el: HTMLElement;
@@ -91,7 +103,9 @@ const stops: (() => void)[] = [];
 async function drawn(options: StubCoreOptions = {}): Promise<Drawn> {
   const el = document.createElement("div");
   document.body.append(el);
-  const stubbed = await act(() => stubCore({ el, ...options, modules: { ...MODULES, ...options.modules } }));
+  const stubbed = await act(() =>
+    stubCore({ el, ...options, modules: { ...MODULES, ...options.modules }, offered: offering(options.offered) }),
+  );
   stops.push(stubbed.stop);
   const settled = () => act(() => stubbed.settled());
   await settled();
@@ -304,27 +318,28 @@ function groupOpen(group: HTMLElement): boolean {
 }
 
 // The class of core's basic frontend, which raises its own notifications.
-const BASIC = "blockr.core-basic_frontend_plugin";
+const BASIC = interned("blockr.core", "basic_frontend_plugin");
 
 // The class of core's Edit board plugin, which the page shows in a section.
-const EDIT_BOARD = "blockr.core-edit_board_plugin";
+const EDIT_BOARD = interned("blockr.core", "edit_board_plugin");
 
 // The class of core's own storage plugin, which the app of the fixture hello
 // runs.
-const FILE_STORAGE = "blockr.core-file_storage_plugin";
+const FILE_STORAGE = interned("blockr.core", "file_storage_plugin");
 
-// The app's plugin of the class given, with the name given, as the reply names
-// it.
-const plugin = (cls: PluginClass, name: string): Readonly<Record<PluginClassId, GivenPlugin>> => ({ [cls.id]: { name } });
+// The app's plugins of the classes given, each with the name given, as the
+// reply names them, by the package and then by the id of each one's class.
+const plugins = (...given: readonly (readonly [PluginClass, string])[]): Readonly<Record<string, Readonly<Record<string, GivenPlugin>>>> =>
+  nestedRecord(given.map(([cls, name]) => [cls.id, { name }] as const));
 
 // What the test gives core for an app that runs the plugins given, of the
 // classes given, each the default export of its class's module.
 function withClasses(
   classes: readonly PluginClass[],
-  plugins: Readonly<Record<PluginClassId, GivenPlugin>>,
+  running: Readonly<Record<string, Readonly<Record<string, GivenPlugin>>>>,
   hello = HELLO,
 ): StubCoreOptions {
-  return { hello: withPlugins(plugins, hello), modules: listedModules(classes) };
+  return { hello: withPlugins(running, hello), ...listedModules(classes) };
 }
 
 // The text of the board that the page saves, as `edit` changes it.
@@ -359,7 +374,7 @@ describe("the page", () => {
     expect(groupOpen(stack)).toBe(true);
 
     await click(titled(stack));
-    await act(() => core.commands.run("blockr.core-change_board", { name: "Sepals" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     await settled();
     expect(core.store.board().name).toBe("Sepals");
     // It stays collapsed as the board changes, and its blocks' UIs stay.
@@ -603,7 +618,7 @@ describe("a card", () => {
     await inMenu(() => appending.pick("subset block"));
     await settled();
     const [subset] = added(board());
-    expect(subset?.[1].registry_id).toBe("blockr.core-subset_block");
+    expect(subset?.[1].registry_id).toBe(interned("blockr.core", "subset_block"));
     expect(Object.values(board().links)).toContainEqual({ from: "b", to: subset?.[0], input: "data" });
     expect(card(el, "Subset").textContent).toContain(`UI of ${subset?.[0] ?? ""}`);
     await step(() => {
@@ -754,7 +769,7 @@ function storagePlugin(controls: (args: { core: CoreApi; plugin: PluginClassId }
   let current = controls;
   const listeners = new Set<() => void>();
   const cls: PluginClass = {
-    id: "blockr.test-session_plugin",
+    id: interned("blockr.test", "session_plugin"),
     storage: {
       controls: (args) => current(args),
       subscribe(listener) {
@@ -766,7 +781,7 @@ function storagePlugin(controls: (args: { core: CoreApi; plugin: PluginClassId }
     },
   };
   return {
-    options: withClasses([cls], plugin(cls, "Session"), withoutPlugins(HELLO, FILE_STORAGE)),
+    options: withClasses([cls], plugins([cls, "Session"]), withoutPlugins(HELLO, FILE_STORAGE)),
     set(next: (args: { core: CoreApi; plugin: PluginClassId }) => readonly StorageControl[]): void {
       current = next;
       for (const listener of [...listeners]) listener();
@@ -924,7 +939,7 @@ describe("the storage controls", () => {
     await step(() => {
       storage.set(() => [{ kind: "status", id: "saved", text: `Unsaved ${page.board().name}` }]);
     });
-    await act(() => page.core.commands.run("blockr.core-change_board", { name: "Sepals" }));
+    await act(() => page.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     expect(parts(page.el).at(-1)).toBe("Unsaved Sepals");
 
     page.stop();
@@ -946,7 +961,7 @@ describe("the storage controls", () => {
       { kind: "button", id: "odd", label: "Odd", shortcut: "Hyper+O", run: ran("odd") },
     ]);
     const { el, core, board } = await drawn(storage.options);
-    await act(() => core.commands.run("blockr.core-change_board", { name: "Sepals" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
 
     const save = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true, cancelable: true });
     await step(() => {
@@ -1050,7 +1065,7 @@ describe("the storage controls", () => {
       expect(await tipOnFocus(find(warning, '[role="button"]'))).toBe("The storage controls failed: No session.");
       expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Storage failed"]);
       // It draws again with the same failure, which the page has heard of.
-      await act(() => page.core.commands.run("blockr.core-change_board", { name: "Sepals" }));
+      await act(() => page.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
       await step(() => {
         press(document.body, "s", { ctrlKey: true });
       });
@@ -1069,20 +1084,14 @@ describe("the storage controls", () => {
 describe("a plugin", () => {
   // A class whose plugin runs from its start alone, with no place on the
   // screen.
-  const bridge: PluginClass = { id: "blockr.test-bridge_plugin", start: () => undefined };
+  const bridge: PluginClass = { id: interned("blockr.test", "bridge_plugin"), start: () => undefined };
 
   test("whose class has a ui shows beside the board in a section of its own, which the user collapses without core unmounting its UI", async () => {
     const ui = pluginUi();
-    const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: ui.ui };
+    const notes: PluginClass = { id: interned("blockr.test", "notes_plugin"), ui: ui.ui };
     // A class whose plugin draws with the ui of the notes' class.
-    const later: PluginClass = { id: "blockr.test-later_plugin", ui: ui.ui };
-    const page = await drawn(
-      withClasses([notes, bridge, later], {
-        ...plugin(notes, "To do"),
-        ...plugin(bridge, "Bridge"),
-        ...plugin(later, "Later"),
-      }),
-    );
+    const later: PluginClass = { id: interned("blockr.test", "later_plugin"), ui: ui.ui };
+    const page = await drawn(withClasses([notes, bridge, later], plugins([notes, "To do"], [bridge, "Bridge"], [later, "Later"])));
     const shown = () => sections(page.el).map((drawn) => [titled(drawn).textContent, isOpen(drawn)]);
 
     // Each section starts open, in the order of the app's plugins, titled by
@@ -1105,7 +1114,7 @@ describe("a plugin", () => {
     // A collapsed section stays collapsed as the board changes, and its
     // plugin's UI stays mounted.
     await click(titled(section(page.el, "To do")));
-    await act(() => page.core.commands.run("blockr.core-change_board", { name: "Sepals" }));
+    await act(() => page.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     await page.settled();
     expect(page.board().name).toBe("Sepals");
     expect(shown()).toEqual([
@@ -1180,7 +1189,7 @@ describe("a plugin", () => {
 
   test("whose ui cannot draw shows why on its section, from its pill, and in no toast, while the section leaves the element of its ui empty", async () => {
     const broken: PluginClass = {
-      id: "blockr.test-broken_plugin",
+      id: interned("blockr.test", "broken_plugin"),
       ui: {
         render() {
           throw new Error("No canvas.");
@@ -1191,13 +1200,13 @@ describe("a plugin", () => {
     let page: Drawn;
     let errors: readonly LogLine[];
     try {
-      page = await drawn(withClasses([broken], plugin(broken, "Broken")));
+      page = await drawn(withClasses([broken], plugins([broken, "Broken"])));
     } finally {
       reported.restore();
       errors = reported.errors();
     }
     expect(errors.map((line) => line.error?.message)).toEqual([
-      'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): No canvas.',
+      'The ui of the plugin class "broken_plugin of blockr.test" failed in render(): No canvas.',
     ]);
 
     const shown = section(page.el, "Broken");
@@ -1205,7 +1214,7 @@ describe("a plugin", () => {
     expect(banners(shown)).toEqual([]);
     expect(toasts(page.el)).toEqual([]);
     await click(button(shown, "error"));
-    expect(banners(shown)).toEqual([["error", 'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): No canvas.']]);
+    expect(banners(shown)).toEqual([["error", 'The ui of the plugin class "broken_plugin of blockr.test" failed in render(): No canvas.']]);
     expect(bodyOf(shown).textContent).toBe("");
   });
 });
@@ -1247,7 +1256,7 @@ describe("what is on screen", () => {
       return { top: 0, bottom: height, left: 0, right: width, width, height, x: 0, y: 0, toJSON: () => ({}) };
     });
     const { core } = await drawn();
-    expect(core.onScreen.get()).toEqual({ blocks: ["b"], plugins: ["blockr.core-edit_board_plugin"] });
+    expect(core.onScreen.get()).toEqual({ blocks: ["b"], plugins: [EDIT_BOARD] });
   });
 
   test("has core ask R for a card's output once the card is in view, while the card keeps the room of its output, and keep drawing the output as the card leaves", async () => {
@@ -1329,7 +1338,7 @@ describe("showing a block or a plugin", () => {
 // either.
 function droppingHello(): HelloReply {
   const json = HELLO.board;
-  const filter = { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter", locked: null };
+  const filter = { registry_id: { package: "blockr.dplyr", id: "filter_block" }, version: 1, state: {}, name: "Filter", locked: null };
   return {
     ...HELLO,
     board: {
@@ -1338,7 +1347,7 @@ function droppingHello(): HelloReply {
       board: {
         ...json.board,
         blocks: { ...json.board.blocks, x: filter },
-        plugins: { ...json.board.plugins, "blockr.gone-gone_plugin": { state: {}, version: 1 } },
+        plugins: { ...json.board.plugins, "blockr.gone": { gone_plugin: { state: {}, version: 1 } } },
         options: { ...json.board.options, zoom: { value: 2, version: 1, package: "blockr.zoom" } },
       },
     },
@@ -1355,7 +1364,7 @@ describe("what the user learns", () => {
         "Board",
         [
           'The board opened without the block "Filter", since this app lacks the package blockr.dplyr 0.3.0.',
-          'The board opened without the state of the plugin "blockr.gone-gone_plugin", since this app does not run it.',
+          'The board opened without the state of the plugin "gone_plugin of blockr.gone", since this app does not run it.',
           'The board opened without the value of the board option "zoom", since this app lacks the package blockr.zoom 0.1.0.',
         ].join("\n"),
       ],
@@ -1364,7 +1373,7 @@ describe("what the user learns", () => {
 
     // A board that opens later starts core and the frontend again, which shows
     // only the toast of what that board dropped.
-    const read = { registry_id: "blockr.io-read_block", version: 1, state: {}, name: "Read", locked: null };
+    const read = { registry_id: { package: "blockr.io", id: "read_block" }, version: 1, state: {}, name: "Read", locked: null };
     const later = (json: JsonBoard): JsonBoard => ({
       ...json,
       packages: { ...json.packages, "blockr.io": "0.1.0" },
@@ -1467,7 +1476,7 @@ describe("what the user learns", () => {
     // feeds Head's one input from Wide sepals, in a step that is no undo step.
     // So the store refuses to undo the user's step, the history's last, which
     // would give that input a second link.
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
+    await act(() => core.commands.run(interned("blockr.core", "remove_link"), { id: "ab" }));
     act(() => {
       core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "data" } } } }, "assistant", { undo: false });
     });
@@ -1487,10 +1496,10 @@ describe("what the user learns", () => {
     expect(toasts(el)).toEqual([["error", "Board", refusal]]);
 
     // A command that the command registry refuses shows alike.
-    await act(() => expect(core.commands.run("blockr.core-remove_block", { id: "nowhere" })).rejects.toThrow());
+    await act(() => expect(core.commands.run(interned("blockr.core", "remove_block"), { id: "nowhere" })).rejects.toThrow());
     expect(toasts(el)).toEqual([
       ["error", "Board", refusal],
-      ["error", "Board", expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/)],
+      ["error", "Board", expect.stringMatching(/^The command "remove_block of blockr\.core" refused to run/)],
     ]);
     // The frontend raises none of its own.
     expect(core.notifications.get().map(({ source, about }) => [source, about])).toEqual([
@@ -1599,7 +1608,7 @@ describe("what the user learns", () => {
 describe("undo and redo", () => {
   test("are bound to their shortcuts, which a text field keeps for its own typing", async () => {
     const { el, core, board } = await drawn();
-    await act(() => core.commands.run("blockr.core-change_board", { name: "Sepals" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
 
     await step(() => {
       press(document.body, "z", { ctrlKey: true });
@@ -1627,7 +1636,7 @@ describe("undo and redo", () => {
     const { el, core, board } = await drawn();
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([true, true]);
 
-    await act(() => core.commands.run("blockr.core-change_board", { name: "Sepals" }));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([false, true]);
 
     await click(button(el, "Undo"));
@@ -1637,7 +1646,7 @@ describe("undo and redo", () => {
 
   test("take back and apply again the steps of every origin, the assistant's among them", async () => {
     const { el, core, board } = await drawn();
-    await act(() => core.commands.run("blockr.core-change_board", { name: "Sepals" }, "assistant"));
+    await act(() => core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }, "assistant"));
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([false, true]);
 
     await click(button(el, "Undo"));
@@ -1665,8 +1674,8 @@ function lockedHello(lock: HelloReply["lock"]): HelloReply {
 
 describe("a locked board", () => {
   test("draws no control for what the board lock fixes, and the UI only of the blocks it leaves open", async () => {
-    const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: pluginUi().ui };
-    const page = await drawn(withClasses([notes], plugin(notes, "To do"), lockedHello({ board: true, load: true })));
+    const notes: PluginClass = { id: interned("blockr.test", "notes_plugin"), ui: pluginUi().ui };
+    const page = await drawn(withClasses([notes], plugins([notes, "To do"]), lockedHello({ board: true, load: true })));
     const { el } = page;
 
     // The board options, the history, saving and the plugins stay, since no
@@ -1706,7 +1715,7 @@ describe("a locked board", () => {
 
 describe("the cleanup that render() returns", () => {
   test("ends what the frontend drew, demanded and bound", async () => {
-    const stubbed = await stubCore({ modules: MODULES });
+    const stubbed = await stubCore({ modules: MODULES, offered: OFFERED });
     const el = document.createElement("div");
     document.body.append(el);
     let cleanup = (): void => undefined;
@@ -1715,7 +1724,7 @@ describe("the cleanup that render() returns", () => {
     });
     await act(() => stubbed.settled());
     expect(el.querySelectorAll("article")).toHaveLength(6);
-    await act(() => stubbed.core.commands.run("blockr.core-change_board", { name: "Sepals" }));
+    await act(() => stubbed.core.commands.run(interned("blockr.core", "change_board"), { name: "Sepals" }));
 
     act(() => {
       cleanup();

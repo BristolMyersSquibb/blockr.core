@@ -5,6 +5,7 @@
 
 import { describe, expect, test } from "vitest";
 import { createGraph } from "../graph/index.ts";
+import { blockRegistry } from "../protocol/index.ts";
 import type { Condition } from "../protocol/index.ts";
 import { createBoard, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
@@ -59,7 +60,7 @@ function statuses(
     revisions,
     outcomes: new Map(outcomes(revisions)),
     unsent: new Map(failures(revisions)),
-    inputs: inputsByBlock(board, graph, hello.block_registry, new Set()),
+    inputs: inputsByBlock(board, graph, blockRegistry(hello), new Set()),
     running: new Set(running),
     before,
   });
