@@ -353,14 +353,14 @@ shape_json_board <- function(x, classes, options = available_options()) {
 
   if (length(plugins)) {
 
-    classes <- available_plugin_classes()
+    plugin_classes <- available_plugin_classes()
 
     plugins <- Map(
       function(states, pkg) {
         as_json_object(
           Map(
             function(state, id) {
-              shape_plugin_state(state, pkg_id(pkg, id), classes)
+              shape_plugin_state(state, pkg_id(pkg, id), plugin_classes)
             },
             states,
             names(states)

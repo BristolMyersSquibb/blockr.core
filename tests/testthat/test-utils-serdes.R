@@ -190,6 +190,46 @@ test_that("a block's state is written by the schema its class's UI ships", {
   )
 })
 
+test_that("a block's state keeps the shape of its schema beside plugins", {
+
+  local_declared(block_registry)
+
+  merge <- outside_class(
+    "join_block",
+    function(by = character()) bbquote(merge(.(x), .(y), by = .(by))),
+    withr::local_tempdir(),
+    schema = '{
+      "type": "object",
+      "properties": {
+        "by": { "type": "array", "items": { "type": "string" } }
+      }
+    }',
+    inputs = c("x", "y")
+  )
+
+  local_versions(blockr.test = "0.1.0")
+  grid <- plugin_ctor(function(cols = "a") NULL, "grid_plugin")
+  local_plugin_classes(Grid = grid, modules = list(Grid = "js/grid.js"))
+
+  board <- new_board(
+    blocks = c(a = block_constructor(merge)(by = "Time")),
+    plugins = list(grid())
+  )
+
+  res <- read_json_strictly(encode_message(blockr_ser(board)))$board
+
+  # The classes of the plugins that hold state leave the classes of the
+  # blocks, by whose schemas R writes each block's state, as they are
+  expect_identical(
+    res$blocks$a$state,
+    read_json_strictly('{ "by": ["Time"] }')
+  )
+  expect_identical(
+    res$plugins[["blockr.test"]][["grid_plugin"]]$state,
+    read_json_strictly('{ "cols": "a" }')
+  )
+})
+
 test_that("writing a board reads each block's class and registers none", {
 
   local_declared(block_registry)
